@@ -4,15 +4,15 @@ This document tracks recommended updates to modernize the Algol-to-JVM compiler 
 
 ## TODOs
 
-- [ ] Migrate to Gradle or Maven for build and dependency management
-- [ ] Integrate JUnit tests with build tool
-- [ ] Set up GitHub Actions for CI (build & test)
-- [ ] Update documentation (README, CONTRIBUTING, Architecture)
-- [ ] Add code formatting and linting (Checkstyle, Spotless)
+- [x] Migrate to Gradle or Maven for build and dependency management
+- [x] Integrate JUnit tests with build tool
 - [ ] Update dependencies to latest stable versions (ANTLR, Jasmin, Soot, JUnit)
+- [ ] Add code formatting and linting (Checkstyle, Spotless)
+- [ ] Refactor code into logical packages/modules
 - [ ] Add IDE support files (VS Code, IntelliJ)
 - [ ] Ensure all third-party licenses are included
-- [ ] Refactor code into logical packages/modules
+- [ ] Update documentation (README, CONTRIBUTING, Architecture)
+- [ ] Set up GitHub Actions for CI (build & test)
 - [ ] Improve GitHub repo metadata (topics, description, license)
 
 ---

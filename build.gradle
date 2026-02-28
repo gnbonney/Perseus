@@ -1,0 +1,27 @@
+plugins {
+    id 'java'
+}
+
+group = 'org.jalgol'
+version = '0.1.0'
+
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // ANTLR
+    implementation 'org.antlr:antlr4:4.13.1'
+    // JUnit for testing
+    testImplementation 'junit:junit:4.13.2'
+    // Jasmin (no official Maven artifact, keep using local jar)
+    // Soot
+    implementation 'org.soot-oss:soot:4.4.1'
+}
+
+test {
+    useJUnit()
+}
