@@ -13,7 +13,7 @@ This document tracks recommended updates to modernize the Algol-to-JVM compiler 
 
 - [x] Update documentation (README, CONTRIBUTING, Architecture)
 - [x] Ensure all third-party licenses are included
-- [ ] Improve GitHub repo metadata (topics, description, license)
+- [x] Improve GitHub repo metadata (topics, description, license)
 
 ## Future Consideration
 
