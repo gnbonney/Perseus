@@ -43,11 +43,12 @@ sequenceDiagram
 
 ## Directory Structure
 
-- `src/` - Java source code
-- `bin/algol/` - Sample Algol programs
-- `lib/` - Third-party libraries (ANTLR, Jasmin, Soot, CUP)
+- `src/main/java/` - Java source code
+- `src/main/antlr/` - ANTLR grammar files
+- `src/test/java/` - Unit tests
+- `test/algol/` - Sample Algol programs used for testing
+- `lib/` - Third-party libraries (Jasmin; ANTLR and Soot managed via Gradle)
 - `docs/` - Documentation
-- `test/` - Unit tests and test programs
 
 ## Future Extensions
 
