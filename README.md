@@ -23,13 +23,26 @@ Why create a new Algol compiler?
 * Algol and Simula are still discussed in many computer science classes, because they were so influential and because they have features that aren't commonly found in other languages.
 * Currently, there are many JVM compilers for different languages, but not one for Algol or Simula.
 
+## Building the Project
+
+This project uses Gradle for build and dependency management.
+
+```
+gradle build
+gradle test
+gradle clean
+```
+
+See [docs/Gradle-Build.md](docs/Gradle-Build.md) for more details.
+
 ## Folder Structure of this Project
 
-* src - contains source code for the compiler and supporting tools
-* test - test code, including Algol code xamples in the algol sup-folder
-* docs - further documentation related to the compiler and to Algol in general
-
-Other folders follow Eclipse project conventions and need no explanation.
+* `src/main/java/` - Java source code for the compiler
+* `src/main/antlr/` - ANTLR grammar files
+* `src/test/java/` - Unit tests
+* `test/algol/` - Sample Algol programs used for testing
+* `lib/` - Third-party libraries not available via Gradle (Jasmin)
+* `docs/` - Documentation
 
 ## Other Algol 60 Compilers
 
