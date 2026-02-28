@@ -79,7 +79,7 @@ There is a web site (https://rosettacode.org/wiki/Man_or_boy_test) with code pos
 
 ### Heinz Rutishauser, Handbook for Automatic Computation - Description of Algol
 
-This book has lots of code samples, especially in Chapter V Miscellaneous Applications, which includes many mathematical examples and some discussion of how to implement "pseudostrings" as an array of integers (similar to how C implements strings).  Chapter VIII has a good discussion of Algol standard i/o including i/o for "pseudostrings".  The book also contains a lengthy explanation of the Jensen's Device with examples.
+This book (available at https://algol60.org/docs/Rutishauser_Description_of_ALGOL_60_1967.pdf) has lots of code samples, especially in Chapter V Miscellaneous Applications, which includes many mathematical examples and some discussion of how to implement "pseudostrings" as an array of integers (similar to how C implements strings).  Chapter VIII has a good discussion of Algol standard i/o including i/o for "pseudostrings".  The book also contains a lengthy explanation of the Jensen's Device with examples.
 
 The following files in test/algol are from Rutishauser:
 * TBD

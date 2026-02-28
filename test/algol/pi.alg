@@ -1,4 +1,6 @@
 begin 
+	comment Source: Juliet Kemp, "ALGOL: The Language of Academia",
+	        Linux Voice, https://www.linuxvoice.com/algol-the-language-of-academia/.;
 	comment This program uses the method Archimedes developed of finding pi, 
 	by drawing a polygon just around a circle, a polygon just inside the unit circle, 
 	and using these as an upper and lower bound on the circumference of the circle.;

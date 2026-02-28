@@ -44,6 +44,10 @@ See [docs/Gradle-Build.md](docs/Gradle-Build.md) for more details.
 * `lib/` - Third-party libraries not available via Gradle (Jasmin)
 * `docs/` - Documentation
 
+## Sample Programs
+
+The `test/algol/` directory contains sample Algol 60 programs used for testing the compiler. These programs were sourced from books and the internet to ensure they represent valid Algol 60. See [docs/Samples.md](docs/Samples.md) for sources and details.
+
 ## Other Algol 60 Compilers
 
 MARST AND CIM

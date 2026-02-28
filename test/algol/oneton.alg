@@ -1,4 +1,6 @@
 begin
+	comment Source: Juliet Kemp, "ALGOL: The Language of Academia",
+	        Linux Voice, https://www.linuxvoice.com/algol-the-language-of-academia/.;
 	integer N, M; 
 	N := 12; 
 	begin 

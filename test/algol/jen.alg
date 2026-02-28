@@ -1,4 +1,7 @@
 begin
+    comment Source: Dr. Bennet, Programming Language Structures,
+            Mississippi College, http://sandbox.mc.edu/~bennet/cs404/doc/index.html
+            See also http://wiki.c2.com/?JensensDevice (answer: 5.187378).;
     comment This is a simple example of Jensen's device;
 
     comment This takes the sum of expr from start to stop, inclusive.

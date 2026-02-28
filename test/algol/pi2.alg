@@ -1,4 +1,6 @@
 begin
+	comment Source: Juliet Kemp, "ALGOL: The Language of Academia",
+	        Linux Voice, https://www.linuxvoice.com/algol-the-language-of-academia/.;
 	comment Call-by-name version instead of call-by-value;
 	real a, b; 
 	a := 4 * sqrt(3); 

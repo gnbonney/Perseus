@@ -1,4 +1,6 @@
 begin
+    comment Source: Dr. Bennet, Programming Language Structures,
+            Mississippi College, http://sandbox.mc.edu/~bennet/cs404/doc/index.html.;
     comment Algol program print the primes less than 1000 using the 
             sieve method.;
     Boolean array sieve[2:1000];
