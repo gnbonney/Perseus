@@ -1,0 +1,52 @@
+# Java build output
+*.class
+*.jar
+*.war
+*.ear
+
+# Eclipse project files
+.classpath
+.project
+.settings/
+
+# IntelliJ project files
+*.iml
+.idea/
+out/
+
+# VS Code settings
+.vscode/
+
+# Build directories
+bin/
+target/
+
+# Backup and temporary files
+*.bak
+*.tmp
+*.swp
+*~
+
+# Soot output
+sootOutput/
+
+# Jasmin build artifacts
+jasmin-2.4/build/
+jasmin-2.4/*.class
+jasmin-2.4/*.jar
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# macOS resource fork files
+._*
+
+# Logs
+*.log
+
+# Ignore generated parser files
+java_cup/runtime/
+
+# Ignore compiled Algol programs
+bin/algol/*.class
