@@ -36,3 +36,10 @@ Other folders follow Eclipse project conventions and need no explanation.
 MARST AND CIM
 
 I found an article (https://www.linuxvoice.com/algol-the-language-of-academia/) that mentions a GNU compiler for Algol called MARST (https://www.gnu.org/software/marst/).  In addition, there's a GNU project for a Simula compiler called Cim.  Both translate code to C instead of compiling directly to assembler or machine code.  As GNU projects they have a restrictive open source license whereas I prefer more permissive licensing such as Eclipse, BSD, or MIT.  However, they may be useful for functional comparison.
+
+## Dependencies
+
+- **Jasmin 2.4**: Used for JVM bytecode generation. Jasmin is not available on Maven Central; the jasmin-2.4 jar is included in the `lib/` directory. For more information, see [Jasmin on SourceForge](https://jasmin.sourceforge.net/).
+- **ANTLR**: Managed via Gradle.
+- **Soot**: Managed via Gradle.
+- **JUnit**: Managed via Gradle for unit testing.

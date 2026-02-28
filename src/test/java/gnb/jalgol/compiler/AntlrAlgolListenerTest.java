@@ -2,12 +2,7 @@
 
 package gnb.jalgol.compiler;
 
-import static org.junit.Assert.*;
-
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import gnb.jalgol.compiler.AntlrAlgolListener;
 

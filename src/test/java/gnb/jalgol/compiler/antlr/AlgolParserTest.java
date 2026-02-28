@@ -2,7 +2,7 @@
 
 package gnb.jalgol.compiler.antlr;
 
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 import java.io.FileReader;
 
@@ -14,7 +14,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeListener;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import gnb.jalgol.compiler.antlr.AlgolLexer;
 import gnb.jalgol.compiler.antlr.AlgolParser;

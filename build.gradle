@@ -1,27 +1,34 @@
 plugins {
     id 'java'
+    id 'antlr'
 }
 
 group = 'org.jalgol'
 version = '0.1.0'
 
-sourceCompatibility = '1.8'
-targetCompatibility = '1.8'
+sourceCompatibility = '21'
+targetCompatibility = '21'
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    // ANTLR
-    implementation 'org.antlr:antlr4:4.13.1'
-    // JUnit for testing
-    testImplementation 'junit:junit:4.13.2'
+    // ANTLR tool for grammar generation
+    antlr 'org.antlr:antlr4:4.13.1'
+    // ANTLR runtime
+    implementation 'org.antlr:antlr4-runtime:4.13.1'
+    // JUnit 5 for testing
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     // Jasmin (no official Maven artifact, keep using local jar)
     // Soot
     implementation 'org.soot-oss:soot:4.4.1'
 }
 
+generateGrammarSource {
+    arguments += ['-package', 'gnb.jalgol.compiler.antlr', '-visitor', '-listener']
+}
+
 test {
-    useJUnit()
+    useJUnitPlatform()
 }
