@@ -1,14 +1,6 @@
 grammar Algol;
-/*******************************************************************************
- * Copyright (c) 2017 Greg Bonney and others.
- * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
- * which accompanies this distribution, and is available at
- * http://www.eclipse.org/legal/epl-v10.html
- *
- * Contributors:
- *     Greg Bonney - initial design and implementation
- *******************************************************************************/
+// Copyright (c) 2017-2026 Greg Bonney
+
 /* This is an Algol 60 grammar, not Algol 68.
  * 
  * Initially I tried to convert the entire Algol 60 BNF to Antlr format, but I ran into numerous 
