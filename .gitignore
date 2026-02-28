@@ -33,6 +33,8 @@ build/
 
 # Soot output
 sootOutput/
+*.doc
+*.docx
 
 # Jasmin build artifacts
 jasmin-2.4/build/
