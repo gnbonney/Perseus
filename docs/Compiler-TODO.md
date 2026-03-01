@@ -6,6 +6,31 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 
 ---
 
+## Architecture: Two-Pass Compilation
+
+The compiler will use (at minimum) two passes over the parse tree:
+
+**Pass 1 — Symbol table construction:** Walk the parse tree and collect all
+variable declarations, their types, and their scope (block nesting level).
+This is required before code generation because:
+- Jasmin requires `.limit locals N` *before* the method body — you must know
+  the total number of locals before emitting any instructions.
+- Forward `goto` references require knowing all labels in scope before emitting jumps.
+- Nested procedure declarations need to be lifted to static methods, which
+  requires knowing procedure signatures before their call sites are emitted.
+
+**Pass 2 — Code generation:** Walk the parse tree again using the symbol table
+built in Pass 1 to emit correct Jasmin instructions.
+
+The symbol table pass is not needed for Milestone 1 (no variables, no labels)
+but is required from **Milestone 2** onward. It should be designed and
+implemented as part of Milestone 2 before any variable codegen is attempted.
+
+See also: [Development.md](Development.md) (Symbol Tables section) and the
+ANTLR discussion linked there.
+
+---
+
 ## Milestone 1 — Hello World (`hello.alg`)
 
 **Goal:** `hello.alg` compiles to a `.class` file that runs and prints `Hello World`.
@@ -25,8 +50,12 @@ integer and string arguments.
 
 **Goal:** `primer1.alg` compiles and runs, producing correct real-valued results.
 
+**⚠ Requires symbol table pass (see Architecture section above)**
+
 **New features needed:**
 - [ ] Grammar: `real` variable declarations (`real x, y, u;`)
+- [ ] **Design and implement symbol table** — first-pass visitor that collects variable names, types, and block scope
+- [ ] **Implement two-pass compile in `AntlrAlgolListener`** or split into separate `SymbolTableBuilder` and `CodeGenerator` listener classes
 - [ ] Grammar: assignment statement (`:=`)
 - [ ] Grammar: arithmetic expressions (`*`, `-`, `+`, `/`)
 - [ ] Grammar: real number literals
