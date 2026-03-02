@@ -49,6 +49,9 @@ digraphs or reserved words where a single ASCII character is unavailable.
 | **string** | `string` | lowercase reserved word |
 | **label** | `label` | lowercase reserved word |
 | **comment** | `comment` | lowercase reserved word |
+| **comment** | `!` | Simula-style comment (synonym; ends at `;`) |
+| **begin** | `{` | BCPL/C-style block open (synonym for `begin`) |
+| **end** | `}` | BCPL/C-style block close (synonym for `end`) |
 | `:=` | `:=` | assignment (unchanged) |
 | `=` | `=` | equality test (unchanged) |
 | `<` | `<` | less than (unchanged) |
@@ -73,6 +76,9 @@ digraphs or reserved words where a single ASCII character is unavailable.
 - `**` for exponentiation follows Fortran, Python, and many other languages.
 - `boolean` is lowercased for consistency with all other keywords; the report's capitalisation
   reflects the name Boole, not any syntactic distinction.
+- `{`/`}` as synonyms for `begin`/`end` follow BCPL and C notation; they are accepted by the
+  grammar as a readability convenience for developers familiar with those languages.
+- `!` as a comment introducer follows Simula 67. Like `comment`, it ends at the next `;`.
 
 ## Relationship to the Modified Report
 
