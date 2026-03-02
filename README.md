@@ -60,3 +60,14 @@ I found an article (https://www.linuxvoice.com/algol-the-language-of-academia/) 
 - **Jasmin 2.4**: Used for JVM bytecode generation. The self-contained jar is bundled at `jasmin-2.4/jasmin.jar`. For more information, see [Jasmin on SourceForge](https://jasmin.sourceforge.net/).
 - **ANTLR 4**: Managed via Gradle.
 - **JUnit 5**: Managed via Gradle for unit testing.
+
+## AI-Friendly Compiler Design
+
+JAlgol is designed from the ground up to be AI-friendly—possibly the first compiler intentionally architected for seamless AI and advanced tooling integration. This means:
+- Structured, machine-readable diagnostics with stable error codes and source mapping
+- Deterministic, reproducible output for identical inputs
+- Explicit, inspectable intermediate representations (AST, IR, JVM IR)
+- Fast feedback loops and modern CLI commands for rapid iteration
+- Architecture that enables future integration with AI assistants, IDEs, and language servers
+
+Our goal is to make JAlgol not only a robust Algol-to-JVM compiler, but also a model for next-generation, tool-friendly compiler engineering.

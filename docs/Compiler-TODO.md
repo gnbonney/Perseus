@@ -195,3 +195,26 @@ integer and string arguments.
 - [ ] Write `.j` Jasmin files to a configurable output directory (not hardcoded)
 - [x] Add integration test helper to invoke Jasmin and run the resulting `.class`
 - [ ] Decide on output directory structure for compiled classes
+
+---
+
+# AI-Friendly Compiler Design: Implementation Priorities
+
+To ensure long-term maintainability and enable advanced tooling/AI workflows, the following improvements are prioritized for implementation. **High-priority items should be addressed before or alongside Milestone 2. Lower-priority items can be added incrementally with minimal rework.**
+
+## High Priority (Before/With Milestone 2)
+- Deterministic Jasmin output: canonical label naming, stable ordering of methods/fields, reproducible output for identical input.
+- Modular two-pass architecture: clear separation of symbol table and codegen, enabling future IR/diagnostic hooks.
+- Minimal structured diagnostics: error reporting with file, line, column, and stable error codes (as Java objects, even if not yet JSON). Allow multiple errors per run.
+- Snapshot/golden tests: verify Jasmin output and diagnostics are stable and deterministic.
+
+## Lower Priority (Can Be Added Any Time)
+- Full structured JSON diagnostics: machine-readable output, fix-it suggestions, deterministic ordering.
+- CLI options to emit AST, IR, or JVM IR for inspection/tooling.
+- Compile-time stack analysis and mapping of JVM verifier errors to Algol source.
+- Consistent debug metadata: line number tables, local variable tables, source-to-bytecode mapping.
+- Modern CLI commands: `check`, `emit-jasmin`, `emit-ast`, `emit-jvmir`, etc.
+- Versioned diagnostic schemas, stable IR formats, and LSP (Language Server Protocol) integration.
+
+**Recommendation:**
+Focus on the high-priority items as you implement Milestone 2. The rest can be layered on with minimal disruption once the core architecture is in place.
