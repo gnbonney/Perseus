@@ -34,7 +34,7 @@ procedureCall: identifier '(' argList ')';
 
 identifier: IDENT;
 
-argList : arg | argList ',' arg;
+argList : arg (',' arg)*;
 
 arg : unsignedInt | string;
 

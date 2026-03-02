@@ -18,9 +18,9 @@ This project now uses Gradle for build and dependency management.
   ```
 
 ## Notes
-- Jasmin is not available on Maven Central; keep using your local jar in `lib/` for now.
-- Soot and ANTLR dependencies are managed via Gradle.
-- Source code should be moved to `src/main/java` and tests to `src/test/java` for best practices.
+- Jasmin 2.4 is bundled as `jasmin-2.4/jasmin.jar` and referenced as a local file dependency in `build.gradle`. It is self-contained and does not require separate `java_cup` jars.
+- Soot is **not** a build dependency. It was removed because it pulls in Jasmin 3.x as a transitive dependency. See [Development.md](Development.md) if you need Soot for bytecode analysis.
+- ANTLR is managed via Gradle (`org.antlr:antlr4:4.13.1`).
 
 ---
-_Last updated: February 28, 2026_
+_Last updated: March 1, 2026_

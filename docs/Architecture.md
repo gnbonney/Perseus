@@ -10,7 +10,7 @@ The project consists of several main components:
 - **Pass 2 — Code Generation:** Walks the parse tree a second time, using the symbol table from Pass 1, to emit Jasmin assembly instructions.
 - **Assembly:** Jasmin assembles the `.j` output into JVM `.class` files.
 - **Testing & Samples:** Includes sample Algol programs and JUnit tests for validation.
-- **Supporting Tools:** Uses Soot for bytecode analysis/disassembly.
+- **Supporting Tools:** Soot can be used standalone for bytecode analysis/disassembly but is not a build dependency (see [Development.md](Development.md)).
 
 ## Component Diagram
 
@@ -26,7 +26,6 @@ flowchart TD
     G --> H[Jasmin Assembler]
     H --> I[JVM Bytecode]
     I --> J[Run on JVM]
-    H --> K[Soot Disassembly/Analysis]
 ```
 
 ## Data Flow
@@ -54,7 +53,8 @@ sequenceDiagram
 - `src/main/antlr/` - ANTLR grammar files
 - `src/test/java/` - Unit tests
 - `test/algol/` - Sample Algol programs used for testing
-- `lib/` - Third-party libraries (Jasmin; ANTLR and Soot managed via Gradle)
+- `jasmin-2.4/` - Jasmin 2.4 assembler (jar bundled with project; ANTLR managed via Gradle)
+- `lib/` - Reserved for additional third-party libraries
 - `docs/` - Documentation
 
 ## Future Extensions
@@ -66,4 +66,4 @@ sequenceDiagram
 
 ---
 
-_Last updated: February 28, 2026_
+_Last updated: March 1, 2026_

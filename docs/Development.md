@@ -1,6 +1,8 @@
-## Eclipse development environment
+## Development Environment
 
-This project was developed under Eclipse using various useful plugins including those that automatically generate code whenever the Antlr grammar file is updated.
+This project is developed using VS Code with Gradle. The ANTLR grammar is auto-compiled by the Gradle ANTLR plugin whenever the grammar file changes (`gradle build` or `gradle generateGrammarSource`).
+
+The project was originally developed under Eclipse, and some legacy Eclipse-related files may still be present in the repository.
 
 ## Methodology
 
@@ -20,9 +22,11 @@ With LR parsers "...you have to deal with somewhat cryptic errors like shift-red
 
 ## Bytecode Assembler
 
-Jasmin is the defacto standard bytecode assembler.  There are others out there, but I believe jasmin will work for my purposes.
+Jasmin is the defacto standard bytecode assembler.  There are others out there, but jasmin works well for this project.
 
-There may be some advantage to using a tool like Soot instead of hard-coding Jasmin assembler.
+This project uses **Jasmin 2.4**, included as `jasmin-2.4/jasmin.jar`. It is self-contained (bundles `jas/` and `java_cup/runtime/`) and is referenced directly as a local file dependency in `build.gradle`. Jasmin 3.x exists as a Maven artifact (`ca.mcgill.sable:jasmin:3.0.3`) maintained by the Soot project, but it is based on an older version (Jasmin 1.06) and is not used here.
+
+There may be some advantage to using a tool like Soot for bytecode analysis or disassembly (see below), but it is not needed for compilation.
 
 According to Rutishauser (p. 205), "The ALGOL report allows the body of a procedure to be written in a
 language different from ALGOL, e.g. in internal machine code or in an
@@ -44,10 +48,12 @@ Anyway, I think this code procedure concept would be handy for inserting bits of
 
 In order to learn how to write the jasmin code it will be helpful to be able to disassemble compiled class files and study them.
 
-Soot can disassemble bytecode for Java 7 and other JVM languages (https://github.com/Sable/soot/wiki/Disassembling-classfiles) to various intermediate formats, including jasmin (and is actually built on top of jasmin).  
+Soot can disassemble bytecode for Java 7 and other JVM languages (https://github.com/Sable/soot/wiki/Disassembling-classfiles) to various intermediate formats, including jasmin (and is actually built on top of jasmin). Soot is **not currently a build dependency** of this project — it was removed because the Soot artifact pulls in Jasmin 3.x as a transitive dependency, which conflicted with our use of Jasmin 2.4. Soot can still be used as a standalone tool for analysis if needed, or added back as a `testImplementation`-only dependency in the future.
 
-I added soot-2.5.0.jar to my lib directory and ran it inside eclipse with the following arguments:
-gnb.algol.programs.ManOrBoy -soot-class-path bin:/Library/Java/JavaVirtualMachines/jdk1.7.0_80.jdk/Contents/Home/jre/lib/rt.jar -f jasmin
+Example Soot invocation (standalone, not wired into the build):
+```
+java -cp soot.jar gnb.algol.programs.ManOrBoy -soot-class-path bin:rt.jar -f jasmin
+```
 
 ## Symbol Tables
 

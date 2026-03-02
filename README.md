@@ -41,7 +41,8 @@ See [docs/Gradle-Build.md](docs/Gradle-Build.md) for more details.
 * `src/main/antlr/` - ANTLR grammar files
 * `src/test/java/` - Unit tests
 * `test/algol/` - Sample Algol programs used for testing
-* `lib/` - Third-party libraries not available via Gradle (Jasmin)
+* `jasmin-2.4/` - Jasmin 2.4 assembler, bundled with the project
+* `lib/` - Reserved for additional third-party libraries
 * `docs/` - Documentation
 
 ## Sample Programs
@@ -56,7 +57,6 @@ I found an article (https://www.linuxvoice.com/algol-the-language-of-academia/) 
 
 ## Dependencies
 
-- **Jasmin 2.4**: Used for JVM bytecode generation. Jasmin is not available on Maven Central; the jasmin-2.4 jar is included in the `lib/` directory. For more information, see [Jasmin on SourceForge](https://jasmin.sourceforge.net/).
-- **ANTLR**: Managed via Gradle.
-- **Soot**: Managed via Gradle.
-- **JUnit**: Managed via Gradle for unit testing.
+- **Jasmin 2.4**: Used for JVM bytecode generation. The self-contained jar is bundled at `jasmin-2.4/jasmin.jar`. For more information, see [Jasmin on SourceForge](https://jasmin.sourceforge.net/).
+- **ANTLR 4**: Managed via Gradle.
+- **JUnit 5**: Managed via Gradle for unit testing.

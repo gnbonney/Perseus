@@ -20,9 +20,8 @@ dependencies {
     implementation 'org.antlr:antlr4-runtime:4.13.1'
     // JUnit 5 for testing
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
-    // Jasmin (no official Maven artifact, keep using local jar)
-    // Soot
-    implementation 'org.soot-oss:soot:4.4.1'
+    // Jasmin 2.4 (local jar bundled with project)
+    implementation files('jasmin-2.4/jasmin.jar')
 }
 
 generateGrammarSource {

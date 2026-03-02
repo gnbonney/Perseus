@@ -38,11 +38,11 @@ ANTLR discussion linked there.
 **Grammar already handles:** `begin`/`end`, `comment`, a single procedure call with
 integer and string arguments.
 
-- [ ] Emit Jasmin for `outstring(channel, str)` — maps to `java/io/PrintStream.print(Ljava/lang/String;)V` via `System.out`
-- [ ] Wire Jasmin output to a file (currently returns a String; write `<ClassName>.j` to disk)
-- [ ] Invoke Jasmin assembler on the output file to produce a `.class` file
-- [ ] Run the `.class` file and capture stdout in the test
-- [ ] Update `AntlrAlgolListenerTest.hello()` to assert the output is `"Hello World"`
+- [x] Emit Jasmin for `outstring(channel, str)` — maps to `java/io/PrintStream.print(Ljava/lang/String;)V` via `System.out`
+- [x] Wire Jasmin output to a file (currently returns a String; write `<ClassName>.j` to disk)
+- [x] Invoke Jasmin assembler on the output file to produce a `.class` file
+- [x] Run the `.class` file and capture stdout in the test
+- [x] Update `AntlrAlgolListenerTest.hello()` to assert the output is `"Hello World"`
 
 ---
 
@@ -193,5 +193,5 @@ integer and string arguments.
 
 - [ ] Replace deprecated `ANTLRInputStream` with `CharStreams.fromReader()`
 - [ ] Write `.j` Jasmin files to a configurable output directory (not hardcoded)
-- [ ] Add integration test helper to invoke Jasmin and run the resulting `.class`
+- [x] Add integration test helper to invoke Jasmin and run the resulting `.class`
 - [ ] Decide on output directory structure for compiled classes
