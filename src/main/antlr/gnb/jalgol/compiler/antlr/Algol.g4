@@ -31,11 +31,34 @@ program: BEGIN compoundStatement END | '{' compoundStatement '}';
 compoundStatement: statement (';' statement)* ';'?;
 
 statement
-  : label? (procedureCall | varDecl | arrayDecl | assignment | gotoStatement | ifStatement | forStatement | block)
+  : label? (procedureCall | varDecl | arrayDecl | procedureDecl | assignment | gotoStatement | ifStatement | forStatement | block)
   ;
 
 block
-  : BEGIN compoundStatement END
+  : BEGIN compoundStatement END endComment?
+  ;
+
+endComment
+  : IDENT
+  ;
+
+procedureDecl
+  : (INTEGER | REAL) PROCEDURE identifier '(' paramList ')' ';'
+    valueSpec?
+    paramSpec*
+    statement
+  ;
+
+valueSpec
+  : VALUE paramList ';'
+  ;
+
+paramSpec
+  : (INTEGER | REAL) paramList ';'
+  ;
+
+paramList
+  : identifier (',' identifier)*
   ;
 
 varDecl
@@ -79,6 +102,7 @@ expr
   | expr op=('*'|'/') expr   # MulDivExpr
   | expr op=('+'|'-') expr   # AddSubExpr
   | identifier '[' expr ']'  # ArrayAccessExpr
+  | identifier '(' argList ')' # ProcCallExpr
   | realLiteral              # RealLiteralExpr
   | unsignedInt              # IntLiteralExpr
   | identifier               # VarExpr
@@ -110,6 +134,8 @@ REAL : 'real';
 INTEGER : 'integer';
 BOOLEAN : 'boolean';
 ARRAY : 'array';
+PROCEDURE : 'procedure';
+VALUE : 'value';
 IF : 'if';
 THEN : 'then';
 ELSE : 'else';

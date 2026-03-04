@@ -95,4 +95,13 @@ public class TypeInferencer extends AlgolBaseListener {
         String innerType = exprTypes.get(ctx.expr());
         exprTypes.put(ctx, innerType);
     }
+
+    @Override
+    public void exitProcCallExpr(AlgolParser.ProcCallExprContext ctx) {
+        String procName = ctx.identifier().getText();
+        String procType = symbolTable.get(procName);
+        if (procType != null && procType.startsWith("procedure:")) {
+            exprTypes.put(ctx, procType.substring("procedure:".length()));
+        }
+    }
 }

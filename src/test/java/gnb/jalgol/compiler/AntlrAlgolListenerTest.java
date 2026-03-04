@@ -226,6 +226,31 @@ public class AntlrAlgolListenerTest {
 		// TODO: assert correct values, approximately 0.1545 and -0.988
 	}
 
+	@Test
+	public void oneton_test() throws Exception {
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				"test/algol/oneton.alg", "gnb/jalgol/programs", "OnetonTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== ONETON JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END ONETON ===");
+
+		assertNotEquals("NO OUTPUT", jasminSource, "Compilation should succeed");
+		assertFalse(jasminSource.startsWith("ERROR"),
+				"Compilation should not produce an error: " + jasminSource);
+		assertTrue(jasminSource.contains(".method public static oneton(I)I"),
+				"Should declare integer procedure oneton");
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run — loop prints 1..12 each followed by newline, then M=oneton(12)=24
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.OnetonTest");
+		System.out.println("oneton output: [" + output + "]");
+		String expected = "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n24";
+		assertEquals(expected, output.trim());
+	}
+
 	private static String runClass(Path classDir, String className) throws Exception {
 		List<String> cmd = java.util.Arrays.asList("java", "-cp", classDir.toString(), className);
 		System.out.println("runClass: " + cmd);
