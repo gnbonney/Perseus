@@ -26,6 +26,10 @@ public class CodeGenerator extends AlgolBaseListener {
     private final Map<AlgolParser.ExprContext, String> exprTypes;
     private final StringBuilder output = new StringBuilder();
 
+    // For for loops
+    private String currentForLoopLabel;
+    private String currentForEndLabel;
+
     public CodeGenerator(String source, String packageName, String className,
                          Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
                          Map<AlgolParser.ExprContext, String> exprTypes) {
@@ -155,6 +159,62 @@ public class CodeGenerator extends AlgolBaseListener {
     public void exitIfStatement(AlgolParser.IfStatementContext ctx) {
         // Emit the end label (generated in enter)
         output.append("endif_" + (labelCounter - 1) + ":\n");
+    }
+
+    @Override
+    public void enterForStatement(AlgolParser.ForStatementContext ctx) {
+        String varName = ctx.identifier().getText();
+        int varIndex = localIndex.get(varName);
+        String varType = symbolTable.get(varName);
+
+        // Generate start expression and store to var
+        output.append(generateExpr(ctx.expr(0))); // start
+        if ("real".equals(varType)) {
+            output.append("dstore ").append(varIndex).append("\n");
+        } else {
+            output.append("istore ").append(varIndex).append("\n");
+        }
+
+        currentForLoopLabel = generateUniqueLabel("loop");
+        currentForEndLabel = generateUniqueLabel("endfor");
+
+        output.append(currentForLoopLabel).append(":\n");
+
+        // Compare var against until: exit loop if var > until
+        if ("real".equals(varType)) {
+            output.append("dload ").append(varIndex).append("\n"); // push var
+            output.append(generateExpr(ctx.expr(2))); // push until
+            output.append("dcmpg\n"); // 1 if var > until (val1=var, val2=until)
+            output.append("ifgt ").append(currentForEndLabel).append("\n"); // exit if var > until
+        } else {
+            output.append("iload ").append(varIndex).append("\n"); // push var
+            output.append(generateExpr(ctx.expr(2))); // push until
+            output.append("if_icmpgt ").append(currentForEndLabel).append("\n"); // exit if var > until
+        }
+
+        // Statement will be emitted here
+    }
+
+    @Override
+    public void exitForStatement(AlgolParser.ForStatementContext ctx) {
+        String varName = ctx.identifier().getText();
+        int varIndex = localIndex.get(varName);
+        String varType = symbolTable.get(varName);
+
+        // After statement, compute step and add to var
+        output.append(generateExpr(ctx.expr(1))); // step
+        if ("real".equals(varType)) {
+            output.append("dload ").append(varIndex).append("\n");
+            output.append("dadd\n");
+            output.append("dstore ").append(varIndex).append("\n");
+        } else {
+            output.append("iload ").append(varIndex).append("\n");
+            output.append("iadd\n");
+            output.append("istore ").append(varIndex).append("\n");
+        }
+
+        output.append("goto ").append(currentForLoopLabel).append("\n");
+        output.append(currentForEndLabel).append(":\n");
     }
 
     private String generateUniqueLabel(String prefix) {

@@ -131,6 +131,34 @@ public class AntlrAlgolListenerTest {
 		assertEquals("", output.trim(), "primer3 should produce no output");
 	}
 
+	@Test
+	public void primer4() throws Exception {
+		// Compile Algol source to Jasmin (for loop with 1000 iterations)
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				"test/algol/primer4.alg", "gnb/jalgol/programs", "Primer4", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== PRIMER4 JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END PRIMER4 ===");
+
+		assertNotEquals("NO OUTPUT", jasminSource, "Compilation should succeed");
+		assertTrue(jasminSource.contains(".class public gnb/jalgol/programs/Primer4"),
+				"Output should declare the correct class");
+		assertTrue(jasminSource.contains(".method public static main([Ljava/lang/String;)V"),
+				"Output should declare a main method");
+		assertTrue(jasminSource.contains("loop_"),
+				"Output should contain loop labels");
+		assertTrue(jasminSource.contains("endfor_"),
+				"Output should contain endfor labels");
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run — should terminate after 1000 iterations, no output
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.Primer4");
+		assertEquals("", output.trim(), "primer4 should produce no output");
+	}
+
 	private static String runClass(Path classDir, String className) throws Exception {
 		List<String> cmd = java.util.Arrays.asList("java", "-cp", classDir.toString(), className);
 		System.out.println("runClass: " + cmd);
@@ -151,14 +179,17 @@ public class AntlrAlgolListenerTest {
 		pb.redirectErrorStream(true);
 		Process p = pb.start();
 		p.getOutputStream().close(); // close subprocess stdin
-		String output = new String(p.getInputStream().readAllBytes());
+		// Wait with timeout BEFORE reading output — readAllBytes() blocks until the process exits,
+		// so it must not be called before we've killed the process if it runs forever.
 		boolean finished = p.waitFor(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
 		if (!finished) {
 			p.destroyForcibly();
+			p.waitFor(); // ensure the process is fully dead before we read its output stream
 			System.out.println("runClassWithTimeout: process killed after timeout");
 		} else {
 			System.out.println("runClassWithTimeout: process finished early, exit=" + p.exitValue());
 		}
+		String output = new String(p.getInputStream().readAllBytes());
 		return output;
 	}
 

@@ -58,4 +58,28 @@ public class AlgolParserTest {
 		}
 	}
 
+	@Test
+	public void parsePrimer4Test() {
+		try {
+			System.out.println("Starting parsePrimer4");
+			ANTLRInputStream is = new ANTLRInputStream(new FileReader("test/algol/primer4.alg"));
+			AlgolLexer lexer = new AlgolLexer(is);
+			CommonTokenStream tokens = new CommonTokenStream(lexer);
+			AlgolParser parser = new AlgolParser(tokens);
+			System.out.println("Parser created");
+			ParseTree tree = parser.program();
+			System.out.println("Parse tree obtained");
+			String treeStr = tree.toStringTree(parser);
+			System.out.println("Parse tree for primer4:");
+			System.out.println(treeStr);
+			java.nio.file.Files.writeString(java.nio.file.Paths.get("parse_tree.txt"), treeStr);
+			if (tree == null) {
+				fail("Parse tree is null");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail("Parsing failed: " + e.getMessage());
+		}
+	}
+
 }

@@ -24,17 +24,22 @@ UNTERMINATED_STRING_LITERAL
   
 
 // extension: optional BCPL style curly brackets
-program: 'begin' compoundStatement 'end' | '{' compoundStatement '}';
+program: BEGIN compoundStatement END | '{' compoundStatement '}';
 
-// In Algol, semicolon is a statement separator, not a statement terminator, so no semicolon is required before the end.
-compoundStatement: statement  | statement ';' compoundStatement;
+// In Algol, semicolon is a statement separator, not a statement terminator.
+// The optional trailing ';' before 'end' is allowed (common in Algol style).
+compoundStatement: statement (';' statement)* ';'?;
 
 statement
-  : label? (procedureCall | varDecl | assignment | gotoStatement | ifStatement)
+  : label? (procedureCall | varDecl | assignment | gotoStatement | ifStatement | forStatement | block)
+  ;
+
+block
+  : BEGIN compoundStatement END
   ;
 
 varDecl
-  : ('real' | 'integer') varList
+  : (REAL | INTEGER) varList
   ;
 
 varList
@@ -46,11 +51,15 @@ assignment
   ;
 
 gotoStatement
-  : 'goto' identifier
+  : GOTO identifier
   ;
 
 ifStatement
-  : 'if' expr 'then' statement
+  : IF expr THEN statement
+  ;
+
+forStatement
+  : FOR identifier '=' expr STEP expr UNTIL expr DO statement
   ;
 
 label
@@ -82,6 +91,19 @@ realLiteral : INT_NUM '.' INT_NUM;
 string
   : STRING_LITERAL
   ;
+
+/* Keywords */
+BEGIN : 'begin';
+END : 'end';
+REAL : 'real';
+INTEGER : 'integer';
+IF : 'if';
+THEN : 'then';
+FOR : 'for';
+STEP : 'step';
+UNTIL : 'until';
+DO : 'do';
+GOTO : 'goto';
 
 /* IDENT should be defined after your other keywords */
 IDENT : ('a'..'z' | 'A'..'Z')  ('a'..'z'|'A'..'Z' | '0'..'9'| '_')*;
