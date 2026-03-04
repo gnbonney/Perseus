@@ -83,6 +83,18 @@ public class CodeGenerator extends AlgolBaseListener {
         }
     }
 
+    @Override
+    public void enterLabel(AlgolParser.LabelContext ctx) {
+        String labelName = ctx.identifier().getText();
+        output.append(labelName).append(":\n");
+    }
+
+    @Override
+    public void exitGotoStatement(AlgolParser.GotoStatementContext ctx) {
+        String labelName = ctx.identifier().getText();
+        output.append("goto ").append(labelName).append("\n");
+    }
+
     /**
      * Recursively generates Jasmin instructions for an expression.
      * All arithmetic is performed in double precision (JVM type D).

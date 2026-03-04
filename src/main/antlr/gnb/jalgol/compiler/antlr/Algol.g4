@@ -30,9 +30,7 @@ program: 'begin' compoundStatement 'end' | '{' compoundStatement '}';
 compoundStatement: statement  | statement ';' compoundStatement;
 
 statement
-  : procedureCall
-  | varDecl
-  | assignment
+  : label? (procedureCall | varDecl | assignment | gotoStatement)
   ;
 
 varDecl
@@ -45,6 +43,14 @@ varList
 
 assignment
   : identifier ':=' expr
+  ;
+
+gotoStatement
+  : 'goto' identifier
+  ;
+
+label
+  : identifier ':'
   ;
 
 expr

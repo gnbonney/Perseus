@@ -117,10 +117,10 @@ integer and string arguments.
 **Goal:** `primer2.alg` parses and compiles (infinite loop — run to confirm no crash on structure).
 
 **New features needed:**
-- [ ] Grammar: label declarations (`AA:`)
-- [ ] Grammar: `goto` statement
-- [ ] Codegen: emit Jasmin labels and `goto` instructions
-- [ ] Test: assert successful compilation (execution not checked — infinite loop)
+- [x] Grammar: label declarations (`AA:`)
+- [x] Grammar: `goto` statement
+- [x] Codegen: emit Jasmin labels and `goto` instructions
+- [x] Test: assert successful compilation (execution not checked — infinite loop)
 
 ---
 
