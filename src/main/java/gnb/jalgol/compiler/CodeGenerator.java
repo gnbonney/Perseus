@@ -5,6 +5,8 @@ package gnb.jalgol.compiler;
 import gnb.jalgol.compiler.antlr.AlgolBaseListener;
 import gnb.jalgol.compiler.antlr.AlgolParser;
 import gnb.jalgol.compiler.antlr.AlgolParser.ExprContext;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +31,10 @@ public class CodeGenerator extends AlgolBaseListener {
     // For for loops
     private String currentForLoopLabel;
     private String currentForEndLabel;
+
+    // Stacks for if/then/else label management (supports nesting)
+    private final Deque<String> ifEndLabelStack = new ArrayDeque<>();
+    private final Deque<String> ifElseLabelStack = new ArrayDeque<>();
 
     public CodeGenerator(String source, String packageName, String className,
                          Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
@@ -66,7 +72,7 @@ public class CodeGenerator extends AlgolBaseListener {
             String varName = entry.getKey();
             int index = entry.getValue();
             String type = symbolTable.get(varName);
-            if ("integer".equals(type)) {
+            if ("integer".equals(type) || "boolean".equals(type)) {
                 output.append("iconst_0\n");
                 output.append("istore ").append(index).append("\n");
             } else { // real
@@ -87,10 +93,10 @@ public class CodeGenerator extends AlgolBaseListener {
         String exprType = exprTypes.getOrDefault(ctx.expr(), "real");
         java.util.List<AlgolParser.IdentifierContext> dests = ctx.identifier();
 
-        // Determine common storage type: real if any dest is real
+        // Determine common storage type: real if any dest is real (boolean treated as integer)
         boolean anyReal = dests.stream()
             .map(d -> symbolTable.getOrDefault(d.getText(), "real"))
-            .anyMatch("real"::equals);
+            .anyMatch(t -> "real".equals(t));
         String storeType = anyReal ? "real" : "integer";
 
         // Generate expression, widen to real if needed
@@ -115,7 +121,7 @@ public class CodeGenerator extends AlgolBaseListener {
             if ("integer".equals(varType) && "real".equals(storeType)) {
                 output.append("d2i\n");
             }
-            output.append("integer".equals(varType) ? "istore " : "dstore ").append(idx).append("\n");
+            output.append(("integer".equals(varType) || "boolean".equals(varType)) ? "istore " : "dstore ").append(idx).append("\n");
         }
     }
 
@@ -151,40 +157,64 @@ public class CodeGenerator extends AlgolBaseListener {
     }
 
     @Override
-    public void enterIfStatement(AlgolParser.IfStatementContext ctx) {
-        AlgolParser.ExprContext cond = ctx.expr();
-        if (cond instanceof AlgolParser.RelExprContext rel) {
-            // Generate left and right operands
-            output.append(generateExpr(rel.expr(0)));
-            output.append(generateExpr(rel.expr(1)));
-            String op = rel.op.getText();
-            String cmpInstr = switch (op) {
-                case "<" -> "if_icmplt";
-                case "<=" -> "if_icmple";
-                case ">" -> "if_icmpgt";
-                case ">=" -> "if_icmpge";
-                case "=" -> "if_icmpeq";
-                case "<>" -> "if_icmpne";
-                default -> "if_icmpne";
-            };
-            String thenLabel = generateUniqueLabel("then");
-            output.append(cmpInstr).append(" ").append(thenLabel).append("\n");
-            // Skip then statement
-            String endLabel = generateUniqueLabel("endif");
+    public void enterStatement(AlgolParser.StatementContext ctx) {
+        // When entering the else-branch of an if/then/else, inject goto-end + else-label
+        if (ctx.getParent() instanceof AlgolParser.IfStatementContext ifCtx
+                && ifCtx.statement().size() > 1
+                && ctx == ifCtx.statement(1)) {
+            String endLabel = ifEndLabelStack.peek();
+            String elseLabel = ifElseLabelStack.peek();
             output.append("goto ").append(endLabel).append("\n");
-            output.append(thenLabel).append(":\n");
-            // Then statement will be emitted here
-            // After then, jump to end
-            // But since then may be goto, we add goto end after the statement in exit
-        } else {
-            output.append("; non-rel if condition TODO\n");
+            output.append(elseLabel).append(":\n");
         }
     }
 
     @Override
+    public void enterIfStatement(AlgolParser.IfStatementContext ctx) {
+        AlgolParser.ExprContext cond = ctx.expr();
+        boolean hasElse = ctx.statement().size() > 1;
+        String endLabel = generateUniqueLabel("endif");
+        ifEndLabelStack.push(endLabel);
+
+        String thenLabel = generateUniqueLabel("then");
+        String falseTarget; // where to go when condition is false
+        if (hasElse) {
+            String elseLabel = generateUniqueLabel("else");
+            ifElseLabelStack.push(elseLabel);
+            falseTarget = elseLabel;
+        } else {
+            ifElseLabelStack.push(""); // no else; sentinel so stack stays balanced
+            falseTarget = endLabel;
+        }
+
+        if (cond instanceof AlgolParser.RelExprContext rel) {
+            output.append(generateExpr(rel.expr(0)));
+            output.append(generateExpr(rel.expr(1)));
+            String op = rel.op.getText();
+            String cmpInstr = switch (op) {
+                case "<"  -> "if_icmplt";
+                case "<=" -> "if_icmple";
+                case ">"  -> "if_icmpgt";
+                case ">=" -> "if_icmpge";
+                case "="  -> "if_icmpeq";
+                case "<>" -> "if_icmpne";
+                default   -> "if_icmpne";
+            };
+            output.append(cmpInstr).append(" ").append(thenLabel).append("\n");
+        } else {
+            // Boolean condition (variable or literal)
+            output.append(generateExpr(cond));
+            output.append("ifne ").append(thenLabel).append("\n");
+        }
+        output.append("goto ").append(falseTarget).append("\n");
+        output.append(thenLabel).append(":\n");
+    }
+
+    @Override
     public void exitIfStatement(AlgolParser.IfStatementContext ctx) {
-        // Emit the end label (generated in enter)
-        output.append("endif_" + (labelCounter - 1) + ":\n");
+        String endLabel = ifEndLabelStack.pop();
+        ifElseLabelStack.pop();
+        output.append(endLabel).append(":\n");
     }
 
     @Override
@@ -290,7 +320,7 @@ public class CodeGenerator extends AlgolBaseListener {
             Integer idx = localIndex.get(name);
             if (idx == null) return "; ERROR: undeclared variable " + name + "\n";
             String type = symbolTable.get(name);
-            return "integer".equals(type) ? "iload " + idx + "\n" : "dload " + idx + "\n";
+            return ("integer".equals(type) || "boolean".equals(type)) ? "iload " + idx + "\n" : "dload " + idx + "\n";
         } else if (ctx instanceof AlgolParser.RealLiteralExprContext e) {
             // e.g. 0.6 → ldc2_w 0.6
             String val = e.realLiteral().getText();
@@ -299,6 +329,10 @@ public class CodeGenerator extends AlgolBaseListener {
             // Integer literal
             String val = e.unsignedInt().getText();
             return "ldc " + val + "\n";
+        } else if (ctx instanceof AlgolParser.TrueLiteralExprContext) {
+            return "iconst_1\n";
+        } else if (ctx instanceof AlgolParser.FalseLiteralExprContext) {
+            return "iconst_0\n";
         } else if (ctx instanceof AlgolParser.ParenExprContext e) {
             return generateExpr(e.expr());
         }

@@ -39,7 +39,7 @@ block
   ;
 
 varDecl
-  : (REAL | INTEGER) varList
+  : (REAL | INTEGER | BOOLEAN) varList
   ;
 
 varList
@@ -55,7 +55,7 @@ gotoStatement
   ;
 
 ifStatement
-  : IF expr THEN statement
+  : IF expr THEN statement (ELSE statement)?
   ;
 
 forStatement
@@ -74,6 +74,8 @@ expr
   | unsignedInt              # IntLiteralExpr
   | identifier               # VarExpr
   | '(' expr ')'             # ParenExpr
+  | TRUE                     # TrueLiteralExpr
+  | FALSE                    # FalseLiteralExpr
   ;
 
 procedureCall: identifier '(' argList ')';
@@ -97,13 +99,17 @@ BEGIN : 'begin';
 END : 'end';
 REAL : 'real';
 INTEGER : 'integer';
+BOOLEAN : 'boolean';
 IF : 'if';
 THEN : 'then';
+ELSE : 'else';
 FOR : 'for';
 STEP : 'step';
 UNTIL : 'until';
 DO : 'do';
 GOTO : 'goto';
+TRUE : 'true';
+FALSE : 'false';
 
 /* IDENT should be defined after your other keywords */
 IDENT : ('a'..'z' | 'A'..'Z')  ('a'..'z'|'A'..'Z' | '0'..'9'| '_')*;

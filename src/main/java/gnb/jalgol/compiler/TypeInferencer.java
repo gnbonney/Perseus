@@ -71,6 +71,16 @@ public class TypeInferencer extends AlgolBaseListener {
     }
 
     @Override
+    public void exitTrueLiteralExpr(AlgolParser.TrueLiteralExprContext ctx) {
+        exprTypes.put(ctx, "boolean");
+    }
+
+    @Override
+    public void exitFalseLiteralExpr(AlgolParser.FalseLiteralExprContext ctx) {
+        exprTypes.put(ctx, "boolean");
+    }
+
+    @Override
     public void exitParenExpr(AlgolParser.ParenExprContext ctx) {
         String innerType = exprTypes.get(ctx.expr());
         exprTypes.put(ctx, innerType);

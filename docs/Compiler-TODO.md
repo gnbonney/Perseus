@@ -174,12 +174,12 @@ integer and string arguments.
 **Goal:** `boolean.alg` compiles and prints `true`.
 
 **New features needed:**
-- [ ] Grammar: `boolean` variable declarations
-- [ ] Grammar: `if <expr> then <statement> else <statement>`
-- [ ] Grammar: boolean literals (`true`, `false`)
-- [ ] Codegen: boolean variables (JVM `int`, 0/1)
-- [ ] Codegen: if/then/else branch instructions
-- [ ] Test: assert output is `"true"`
+- [x] Grammar: `boolean` variable declarations
+- [x] Grammar: `if <expr> then <statement> else <statement>`
+- [x] Grammar: boolean literals (`true`, `false`)
+- [x] Codegen: boolean variables (JVM `int`, 0/1)
+- [x] Codegen: if/then/else branch instructions
+- [x] Test: assert output is `"true"`
 
 ---
 

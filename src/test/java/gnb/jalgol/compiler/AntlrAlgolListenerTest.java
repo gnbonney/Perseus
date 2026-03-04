@@ -156,6 +156,27 @@ public class AntlrAlgolListenerTest {
 	}
 
 	@Test
+	public void boolean_test() throws Exception {
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				"test/algol/boolean.alg", "gnb/jalgol/programs", "Boolean", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== BOOLEAN JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END BOOLEAN ===");
+
+		assertNotEquals("NO OUTPUT", jasminSource, "Compilation should succeed");
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run — should print "true"
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.Boolean");
+		System.out.println("boolean output: [" + output + "]");
+		assertEquals("true", output.trim());
+	}
+
+	@Test
 	public void primer4() throws Exception {
 		// Compile Algol source to Jasmin (for loop with 1000 iterations)
 		Path jasminFile = AntlrAlgolListener.compileToFile(

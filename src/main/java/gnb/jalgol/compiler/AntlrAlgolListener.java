@@ -86,7 +86,7 @@ public class AntlrAlgolListener {
 					String name = entry.getKey();
 					String type = entry.getValue();
 					localIndex.put(name, nextLocal);
-					nextLocal += "integer".equals(type) ? 1 : 2;
+					nextLocal += ("integer".equals(type) || "boolean".equals(type)) ? 1 : 2;
 				}
 				int numLocals = Math.max(nextLocal, 1); // always at least 1 for args
 
