@@ -31,6 +31,23 @@ ANTLR discussion linked there.
 
 ---
 
+### Design Decision: Separate Listener Classes for Two-Pass Compilation
+
+For Milestone 2 and beyond, we will use **separate listener classes**:
+- `SymbolTableBuilder`: First pass, walks the parse tree to build the symbol table (variables, types, scopes).
+- `CodeGenerator`: Second pass, walks the parse tree again to emit Jasmin code using the symbol table.
+
+**Rationale:**
+- Clear separation of concerns (symbol analysis vs. code generation)
+- Easier to test, debug, and extend each pass independently
+- Facilitates future expansion (adding IR, diagnostics, or more passes)
+- Symbol table logic can be reused for analysis, linting, or tooling
+- Aligns with best practices for modular, AI-friendly compiler design
+
+This approach may require more initial setup, but it will pay off as the compiler grows in complexity.
+
+---
+
 ## Milestone 1 — Hello World (`hello.alg`)
 
 **Goal:** `hello.alg` compiles to a `.class` file that runs and prints `Hello World`.

@@ -46,6 +46,32 @@ public class AntlrAlgolListenerTest {
 		assertEquals("Hello World", output.trim());
 	}
 
+	@Test
+	public void primer1() throws Exception {
+		// Compile Algol source to Jasmin
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				"test/algol/primer1.alg", "gnb/jalgol/programs", "Primer1", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println(jasminSource);
+
+		assertNotEquals("NO OUTPUT", jasminSource, "Compilation should succeed");
+		assertTrue(jasminSource.contains(".class public gnb/jalgol/programs/Primer1"),
+				"Output should declare the correct class");
+		assertTrue(jasminSource.contains(".method public static main([Ljava/lang/String;)V"),
+				"Output should declare a main method");
+		assertTrue(jasminSource.contains("dstore"),
+				"Output should contain dstore instructions for real variable assignment");
+		assertTrue(jasminSource.contains("ddiv"),
+				"Output should contain ddiv for real division");
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run — primer1 has no output, just verify it executes without error
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.Primer1");
+		assertEquals("", output.trim(), "primer1 should produce no output");
+	}
+
 	private static String runClass(Path classDir, String className) throws Exception {
 		List<String> cmd = java.util.Arrays.asList("java", "-cp", classDir.toString(), className);
 		System.out.println("runClass: " + cmd);

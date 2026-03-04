@@ -8,75 +8,24 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
-import org.antlr.v4.runtime.tree.TerminalNode;
 
-import gnb.jalgol.compiler.antlr.AlgolBaseListener;
 import gnb.jalgol.compiler.antlr.AlgolLexer;
 import gnb.jalgol.compiler.antlr.AlgolParser;
-import gnb.jalgol.compiler.antlr.AlgolParser.ArgContext;
-import gnb.jalgol.compiler.antlr.AlgolParser.ProcedureCallContext;
 import gnb.jalgol.compiler.antlr.AlgolParser.ProgramContext;
 
 /**
- * @author Greg Bonney
- *
+ * Façade for the Algol-to-Jasmin compiler.
+ * Orchestrates the two-pass compilation pipeline:
+ *   Pass 1 — SymbolTableBuilder: collect variable declarations
+ *   Pass 2 — CodeGenerator: emit Jasmin assembly
  */
-public class AntlrAlgolListener extends AlgolBaseListener {
-	private String source;
-	private String output;
-	private String packageName;
-	private String className;
-	
-	public static String getCurrentClassAndMethodNames() {
-	    final StackTraceElement e = Thread.currentThread().getStackTrace()[2];
-	    final String s = e.getClassName();
-	    return s.substring(s.lastIndexOf('.') + 1, s.length()) + "." + e.getMethodName();
-	}
-
-	public String getOutput() {
-		return output;
-	}
-
-	public void setOutput(String output) {
-		this.output = output;
-	}
-
-	@Override
-	public void enterProgram(ProgramContext ctx) {
-		System.out.println("\n*** "+getCurrentClassAndMethodNames());
-		super.enterProgram(ctx);
-		output = ".source " + source + "\n" + ".class public " + packageName + "/" + className + "\n"
-				+ ".super java/lang/Object\n\n" + ".method public <init>()V\n" + ".limit stack 1\n"
-				+ ".limit locals 1\n" + "aload_0\n" + "invokespecial java/lang/Object/<init>()V\n" + "return\n"
-				+ ".end method\n\n" + ".method public static main([Ljava/lang/String;)V\n" + ".limit stack 2\n"
-				+ ".limit locals 1\n";
-	}
-
-	@Override
-	public void exitProgram(ProgramContext ctx) {
-		System.out.println("\n*** "+getCurrentClassAndMethodNames());
-		super.exitProgram(ctx);
-		output += "return\n" + ".end method";
-	}
-
-	@Override
-	public void exitProcedureCall(ProcedureCallContext ctx) {
-		String name = ctx.identifier().getText();
-		List<ArgContext> args = ctx.argList().arg();
-		if ("outstring".equals(name)) {
-			// outstring(channel, string) — channel ignored, always write to System.out
-			String str = args.get(1).getText(); // STRING_LITERAL includes surrounding quotes
-			output += "getstatic java/lang/System/out Ljava/io/PrintStream;\n"
-					+ "ldc " + str + "\n"
-					+ "invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n";
-		}
-		// other procedure names handled in future milestones
-	}
+public class AntlrAlgolListener {
 
 	public static Path compileToFile(String algolFile, String packageName, String className, Path outputDir)
 			throws IOException {
@@ -107,6 +56,7 @@ public class AntlrAlgolListener extends AlgolBaseListener {
 		}
 	}
 
+	@SuppressWarnings("deprecation")
 	public static String compile(String fileName, String packageName, String className) {
 		String output = "NO OUTPUT";
 		try {
@@ -121,47 +71,30 @@ public class AntlrAlgolListener extends AlgolBaseListener {
 			ProgramContext programContext = parser.program();
 			if (programContext != null) {
 				ParseTreeWalker walker = new ParseTreeWalker();
-				AntlrAlgolListener listener = new AntlrAlgolListener();
-				Path p = Paths.get(fileName);
-				listener.setSource(p.getFileName().toString());
-				listener.setPackageName(packageName);
-				listener.setClassName(className);
-				walker.walk(listener, programContext);
-				output = listener.getOutput();
+
+				// Pass 1: build symbol table (variable names and types, in declaration order)
+				SymbolTableBuilder symBuilder = new SymbolTableBuilder();
+				walker.walk(symBuilder, programContext);
+				Map<String, String> symbolTable = symBuilder.getSymbolTable();
+
+				// Assign JVM local variable slots: slot 0 = args, doubles take 2 slots each
+				Map<String, Integer> localIndex = new LinkedHashMap<>();
+				int nextLocal = 1;
+				for (String name : symbolTable.keySet()) {
+					localIndex.put(name, nextLocal);
+					nextLocal += 2; // all 'real' variables are JVM double (2 slots)
+				}
+				int numLocals = Math.max(nextLocal, 1); // always at least 1 for args
+
+				// Pass 2: generate Jasmin code
+				String source = Paths.get(fileName).getFileName().toString();
+				CodeGenerator codegen = new CodeGenerator(source, packageName, className, localIndex, numLocals);
+				walker.walk(codegen, programContext);
+				output = codegen.getOutput();
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 		return output;
 	}
-
-	public String getPackageName() {
-		return packageName;
-	}
-
-	public void setPackageName(String packageName) {
-		this.packageName = packageName;
-	}
-
-	public String getClassName() {
-		return className;
-	}
-
-	public void setClassName(String className) {
-		this.className = className;
-	}
-
-	public String getSource() {
-		return source;
-	}
-
-	public void setSource(String source) {
-		this.source = source;
-	}
-
-	@Override
-	public void visitTerminal(TerminalNode node) {
-		System.out.print("\n" + node.getText() + " " + node.getSymbol());
-	}
-
 }

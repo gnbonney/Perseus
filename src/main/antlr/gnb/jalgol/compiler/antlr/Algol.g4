@@ -22,13 +22,39 @@ UNTERMINATED_STRING_LITERAL
   : '"' (~["\\\r\n] | '\\' (. | EOF))*
   ;
   
+
 // extension: optional BCPL style curly brackets
 program: 'begin' compoundStatement 'end' | '{' compoundStatement '}';
 
 // In Algol, semicolon is a statement separator, not a statement terminator, so no semicolon is required before the end.
 compoundStatement: statement  | statement ';' compoundStatement;
 
-statement: procedureCall;
+statement
+  : procedureCall
+  | varDecl
+  | assignment
+  ;
+
+varDecl
+  : 'real' varList
+  ;
+
+varList
+  : identifier (',' identifier)*
+  ;
+
+assignment
+  : identifier ':=' expr
+  ;
+
+expr
+  : expr op=('*'|'/') expr   # MulDivExpr
+  | expr op=('+'|'-') expr   # AddSubExpr
+  | realLiteral              # RealLiteralExpr
+  | unsignedInt              # IntLiteralExpr
+  | identifier               # VarExpr
+  | '(' expr ')'             # ParenExpr
+  ;
 
 procedureCall: identifier '(' argList ')';
 
@@ -40,9 +66,11 @@ arg : unsignedInt | string;
 
 unsignedInt : INT_NUM;
 
+realLiteral : INT_NUM '.' INT_NUM;
+
 string
-    : STRING_LITERAL
-    ;
+  : STRING_LITERAL
+  ;
 
 /* IDENT should be defined after your other keywords */
 IDENT : ('a'..'z' | 'A'..'Z')  ('a'..'z'|'A'..'Z' | '0'..'9'| '_')*;
