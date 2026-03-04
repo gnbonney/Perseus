@@ -162,9 +162,10 @@ integer and string arguments.
 **Goal:** `primer5.alg` compiles and prints the correct approximation of *e*.
 
 **New features needed:**
-- [ ] Grammar: multiple statements separated by `;` (already partially handled — verify)
-- [ ] Codegen: `outreal(channel, expr)` — maps to `System.out.print(double)`
-- [ ] Test: assert output matches expected value of *e* (≈ 2.7182818...)
+- [x] Grammar: multiple statements separated by `;` (already partially handled — verify)
+- [x] Codegen: `outreal(channel, expr)` — maps to `System.out.print(double)`
+- [x] Grammar: chained assignment (`a := b := expr`)
+- [x] Test: assert output matches expected value of *e* (≈ 2.7182818...)
 
 ---
 

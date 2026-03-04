@@ -7,5 +7,7 @@ begin
       for n:=1 step 1 until 20 do
       begin term:=term/n;
             eprox:=eprox+term;
-      end
+      end;
+      comment Output added for testing purposes to verify the approximation of e;
+      outreal(1, eprox)
 end

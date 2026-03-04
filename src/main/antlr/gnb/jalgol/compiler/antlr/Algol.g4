@@ -47,7 +47,7 @@ varList
   ;
 
 assignment
-  : identifier ':=' expr
+  : (identifier ':=')+ expr
   ;
 
 gotoStatement
@@ -59,7 +59,7 @@ ifStatement
   ;
 
 forStatement
-  : FOR identifier '=' expr STEP expr UNTIL expr DO statement
+  : FOR identifier ':=' expr STEP expr UNTIL expr DO statement
   ;
 
 label

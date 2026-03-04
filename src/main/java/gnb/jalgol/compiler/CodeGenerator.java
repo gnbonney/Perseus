@@ -84,18 +84,38 @@ public class CodeGenerator extends AlgolBaseListener {
 
     @Override
     public void exitAssignment(AlgolParser.AssignmentContext ctx) {
-        String name = ctx.identifier().getText();
-        Integer idx = localIndex.get(name);
-        if (idx == null) {
-            output.append("; ERROR: undeclared variable ").append(name).append("\n");
-            return;
-        }
+        String exprType = exprTypes.getOrDefault(ctx.expr(), "real");
+        java.util.List<AlgolParser.IdentifierContext> dests = ctx.identifier();
+
+        // Determine common storage type: real if any dest is real
+        boolean anyReal = dests.stream()
+            .map(d -> symbolTable.getOrDefault(d.getText(), "real"))
+            .anyMatch("real"::equals);
+        String storeType = anyReal ? "real" : "integer";
+
+        // Generate expression, widen to real if needed
         output.append(generateExpr(ctx.expr()));
-        String varType = symbolTable.get(name); // need to add symbolTable to CodeGenerator
-        if ("integer".equals(varType)) {
-            output.append("istore ").append(idx).append("\n");
-        } else {
-            output.append("dstore ").append(idx).append("\n");
+        if ("real".equals(storeType) && "integer".equals(exprType)) {
+            output.append("i2d\n");
+        }
+
+        // Store to each destination; dup before all but the last
+        for (int i = 0; i < dests.size(); i++) {
+            String name = dests.get(i).getText();
+            Integer idx = localIndex.get(name);
+            if (idx == null) {
+                output.append("; ERROR: undeclared variable ").append(name).append("\n");
+                continue;
+            }
+            String varType = symbolTable.get(name);
+            if (i < dests.size() - 1) {
+                output.append("real".equals(storeType) ? "dup2\n" : "dup\n");
+            }
+            // Coerce real → integer if this destination is integer but others forced real
+            if ("integer".equals(varType) && "real".equals(storeType)) {
+                output.append("d2i\n");
+            }
+            output.append("integer".equals(varType) ? "istore " : "dstore ").append(idx).append("\n");
         }
     }
 

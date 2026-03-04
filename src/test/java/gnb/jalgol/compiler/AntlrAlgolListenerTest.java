@@ -133,6 +133,29 @@ public class AntlrAlgolListenerTest {
 	}
 
 	@Test
+	public void primer5() throws Exception {
+		// Compile Algol source to Jasmin (approximation of e via Taylor series)
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				"test/algol/primer5.alg", "gnb/jalgol/programs", "Primer5", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== PRIMER5 JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END PRIMER5 ===");
+
+		assertNotEquals("NO OUTPUT", jasminSource, "Compilation should succeed");
+		assertTrue(jasminSource.contains(".class public gnb/jalgol/programs/Primer5"),
+				"Output should declare the correct class");
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run — should print an approximation of e
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.Primer5");
+		System.out.println("primer5 output: [" + output + "]");
+		assertTrue(output.trim().startsWith("2.718"), "primer5 should output an approximation of e (≈ 2.718...)");
+	}
+
+	@Test
 	public void primer4() throws Exception {
 		// Compile Algol source to Jasmin (for loop with 1000 iterations)
 		Path jasminFile = AntlrAlgolListener.compileToFile(
