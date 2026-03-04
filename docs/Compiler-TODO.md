@@ -203,14 +203,14 @@ integer and string arguments.
 **Goal:** `oneton.alg` compiles, calls the `oneton` procedure, and prints 1 through 12.
 
 **New features needed:**
-- [ ] Grammar: nested `begin`/`end` blocks with their own declarations
-- [ ] Grammar: `integer procedure` declarations with `value` parameters
-- [ ] Grammar: procedure call as a statement (already partially handled) and as an expression (assignment from call)
-- [ ] Grammar: `outinteger(channel, expr)`
-- [ ] Codegen: procedure declarations as static methods
-- [ ] Codegen: `outinteger` → `System.out.print(int)`
-- [ ] Codegen: return value from integer procedure
-- [ ] Test: assert output is `1\n2\n...\n12\n` and `M` equals 24
+- [x] Grammar: nested `begin`/`end` blocks with their own declarations
+- [x] Grammar: `integer procedure` declarations with `value` parameters
+- [x] Grammar: procedure call as a statement (already partially handled) and as an expression (assignment from call)
+- [x] Grammar: `outinteger(channel, expr)`
+- [x] Codegen: procedure declarations as static methods
+- [x] Codegen: `outinteger` → `System.out.print(int)`
+- [x] Codegen: return value from integer procedure
+- [x] Test: assert output is `1\n2\n...\n12\n` and `M` equals 24
 
 ---
 
