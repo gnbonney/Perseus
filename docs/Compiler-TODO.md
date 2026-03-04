@@ -131,17 +131,17 @@ integer and string arguments.
 **⚠ Introduces mixed `integer`/`real` types — requires TypeInferencer pass (see Architecture section above)**
 
 **New features needed:**
-- [ ] Grammar: `integer` variable declarations
-- [ ] Grammar: `if <expr> then <statement>` (no `else`)
-- [ ] Grammar: comparison operators (`<`, `>`, `<=`, `>=`, `=`, `<>`)
-- [ ] **Implement `TypeInferencer` pass** — annotates every `expr` node with its resolved type before codegen
-- [ ] TypeInferencer: enforce `+`/`-`/`×` → `integer` iff both operands `integer`, else `real`
-- [ ] TypeInferencer: enforce `/` → always `real`; `÷` → `integer` only if both operands `integer`
-- [ ] TypeInferencer: enforce assignment coercion (`real` → `integer` = ⌊E+0.5⌋, not truncation)
-- [ ] Codegen: select `iadd`/`dadd` etc. based on inferred type
-- [ ] Codegen: integer variables (`iload`, `istore`)
-- [ ] Codegen: conditional jump instructions (`if_icmplt` etc.)
-- [ ] Test: assert program terminates and produces correct output
+- [x] Grammar: `integer` variable declarations
+- [x] Grammar: `if <expr> then <statement>` (no `else`)
+- [x] Grammar: comparison operators (`<`, `>`, `<=`, `>=`, `=`, `<>`)
+- [x] **Implement `TypeInferencer` pass** — annotates every `expr` node with its resolved type before codegen
+- [x] TypeInferencer: enforce `+`/`-`/`×` → `integer` iff both operands `integer`, else `real`
+- [x] TypeInferencer: enforce `/` → always `real`; `÷` → `integer` only if both operands `integer`
+- [x] TypeInferencer: enforce assignment coercion (`real` → `integer` = ⌊E+0.5⌋, not truncation)
+- [x] Codegen: select `iadd`/`dadd` etc. based on inferred type
+- [x] Codegen: integer variables (`iload`, `istore`)
+- [x] Codegen: conditional jump instructions (`if_icmplt` etc.)
+- [x] Test: assert program terminates and produces correct output
 
 ---
 
