@@ -27,7 +27,7 @@ public class SymbolTableBuilder extends AlgolBaseListener {
 
     @Override
     public void enterVarDecl(AlgolParser.VarDeclContext ctx) {
-        String type = ctx.getStart().getText(); // 'real' (only type for milestone 2)
+        String type = ctx.getStart().getText(); // 'real' or 'integer'
         for (AlgolParser.IdentifierContext idCtx : ctx.varList().identifier()) {
             symbolTable.put(idCtx.getText(), type);
         }

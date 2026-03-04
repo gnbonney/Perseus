@@ -101,6 +101,36 @@ public class AntlrAlgolListenerTest {
 		assertEquals("", output.trim(), "Infinite loop should produce no output before timeout");
 	}
 
+	@Test
+	public void primer3() throws Exception {
+		// Compile Algol source to Jasmin (loops 1000 times then stops)
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				"test/algol/primer3.alg", "gnb/jalgol/programs", "Primer3", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== PRIMER3 JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END PRIMER3 ===");
+
+		assertNotEquals("NO OUTPUT", jasminSource, "Compilation should succeed");
+		assertTrue(jasminSource.contains(".class public gnb/jalgol/programs/Primer3"),
+				"Output should declare the correct class");
+		assertTrue(jasminSource.contains(".method public static main([Ljava/lang/String;)V"),
+				"Output should declare a main method");
+		assertTrue(jasminSource.contains("AA:"),
+				"Output should contain the label AA");
+		assertTrue(jasminSource.contains("if_icmplt"),
+				"Output should contain integer comparison");
+		assertTrue(jasminSource.contains("istore"),
+				"Output should contain istore for integer variable");
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run — should terminate after 1000 iterations
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.Primer3");
+		assertEquals("", output.trim(), "primer3 should produce no output");
+	}
+
 	private static String runClass(Path classDir, String className) throws Exception {
 		List<String> cmd = java.util.Arrays.asList("java", "-cp", classDir.toString(), className);
 		System.out.println("runClass: " + cmd);

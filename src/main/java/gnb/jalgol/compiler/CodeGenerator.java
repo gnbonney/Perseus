@@ -9,26 +9,33 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Second-pass listener: emits Jasmin code using the pre-computed symbol table and local variable map.
- * All numeric variables are treated as JVM double (type D) for Milestone 2.
+ * Second-pass listener: emits Jasmin code using the pre-computed symbol table, local variable map, and expression types.
+ * Handles both integer and real arithmetic.
  */
 public class CodeGenerator extends AlgolBaseListener {
     private final String source;
     private final String packageName;
     private final String className;
-    // Maps variable name → JVM local variable slot index (doubles occupy 2 slots each)
+    // Maps variable name → type ("integer" or "real")
+    private final Map<String, String> symbolTable;
+    // Maps variable name → JVM local variable slot index (doubles take 2 slots, ints take 1)
     private final Map<String, Integer> localIndex;
     // Total number of local variable slots needed (.limit locals)
     private final int numLocals;
+    // Maps expression contexts to their inferred types ("integer" or "real")
+    private final Map<AlgolParser.ExprContext, String> exprTypes;
     private final StringBuilder output = new StringBuilder();
 
     public CodeGenerator(String source, String packageName, String className,
-                         Map<String, Integer> localIndex, int numLocals) {
+                         Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
+                         Map<AlgolParser.ExprContext, String> exprTypes) {
         this.source = source;
         this.packageName = packageName;
         this.className = className;
+        this.symbolTable = symbolTable;
         this.localIndex = localIndex;
         this.numLocals = numLocals;
+        this.exprTypes = exprTypes;
     }
 
     public String getOutput() {
@@ -50,6 +57,19 @@ public class CodeGenerator extends AlgolBaseListener {
               .append(".method public static main([Ljava/lang/String;)V\n")
               .append(".limit stack 16\n") // TODO: compute via static stack analysis
               .append(".limit locals ").append(numLocals).append("\n");
+        // Initialize all variables to 0
+        for (Map.Entry<String, Integer> entry : localIndex.entrySet()) {
+            String varName = entry.getKey();
+            int index = entry.getValue();
+            String type = symbolTable.get(varName);
+            if ("integer".equals(type)) {
+                output.append("iconst_0\n");
+                output.append("istore ").append(index).append("\n");
+            } else { // real
+                output.append("dconst_0\n");
+                output.append("dstore ").append(index).append("\n");
+            }
+        }
     }
 
     @Override
@@ -67,7 +87,12 @@ public class CodeGenerator extends AlgolBaseListener {
             return;
         }
         output.append(generateExpr(ctx.expr()));
-        output.append("dstore ").append(idx).append("\n");
+        String varType = symbolTable.get(name); // need to add symbolTable to CodeGenerator
+        if ("integer".equals(varType)) {
+            output.append("istore ").append(idx).append("\n");
+        } else {
+            output.append("dstore ").append(idx).append("\n");
+        }
     }
 
     @Override
@@ -95,35 +120,99 @@ public class CodeGenerator extends AlgolBaseListener {
         output.append("goto ").append(labelName).append("\n");
     }
 
+    @Override
+    public void enterIfStatement(AlgolParser.IfStatementContext ctx) {
+        AlgolParser.ExprContext cond = ctx.expr();
+        if (cond instanceof AlgolParser.RelExprContext rel) {
+            // Generate left and right operands
+            output.append(generateExpr(rel.expr(0)));
+            output.append(generateExpr(rel.expr(1)));
+            String op = rel.op.getText();
+            String cmpInstr = switch (op) {
+                case "<" -> "if_icmplt";
+                case "<=" -> "if_icmple";
+                case ">" -> "if_icmpgt";
+                case ">=" -> "if_icmpge";
+                case "=" -> "if_icmpeq";
+                case "<>" -> "if_icmpne";
+                default -> "if_icmpne";
+            };
+            String thenLabel = generateUniqueLabel("then");
+            output.append(cmpInstr).append(" ").append(thenLabel).append("\n");
+            // Skip then statement
+            String endLabel = generateUniqueLabel("endif");
+            output.append("goto ").append(endLabel).append("\n");
+            output.append(thenLabel).append(":\n");
+            // Then statement will be emitted here
+            // After then, jump to end
+            // But since then may be goto, we add goto end after the statement in exit
+        } else {
+            output.append("; non-rel if condition TODO\n");
+        }
+    }
+
+    @Override
+    public void exitIfStatement(AlgolParser.IfStatementContext ctx) {
+        // Emit the end label (generated in enter)
+        output.append("endif_" + (labelCounter - 1) + ":\n");
+    }
+
+    private String generateUniqueLabel(String prefix) {
+        return prefix + "_" + (labelCounter++);
+    }
+
+    private int labelCounter = 0;
+
     /**
      * Recursively generates Jasmin instructions for an expression.
-     * All arithmetic is performed in double precision (JVM type D).
-     * Integer literals are coerced to double via i2d.
+     * Uses inferred types to select appropriate JVM instructions.
      */
     private String generateExpr(ExprContext ctx) {
-        if (ctx instanceof AlgolParser.MulDivExprContext e) {
+        if (ctx instanceof AlgolParser.RelExprContext e) {
+            // TODO: implement relational expressions
+            return "; relational expr TODO\n";
+        } else if (ctx instanceof AlgolParser.MulDivExprContext e) {
             String left = generateExpr(e.expr(0));
             String right = generateExpr(e.expr(1));
-            String op = e.op.getText().equals("*") ? "dmul" : "ddiv";
-            return left + right + op + "\n";
+            String leftType = exprTypes.get(e.expr(0));
+            String rightType = exprTypes.get(e.expr(1));
+            String type = exprTypes.get(ctx);
+            // Widen integers to real if needed
+            if ("real".equals(type) && "integer".equals(leftType)) left += "i2d\n";
+            if ("real".equals(type) && "integer".equals(rightType)) right += "i2d\n";
+            String op = e.op.getText();
+            String instr = "real".equals(type) ?
+                ("*".equals(op) ? "dmul" : "ddiv") :
+                ("*".equals(op) ? "imul" : "idiv");
+            return left + right + instr + "\n";
         } else if (ctx instanceof AlgolParser.AddSubExprContext e) {
             String left = generateExpr(e.expr(0));
             String right = generateExpr(e.expr(1));
-            String op = e.op.getText().equals("+") ? "dadd" : "dsub";
-            return left + right + op + "\n";
+            String leftType = exprTypes.get(e.expr(0));
+            String rightType = exprTypes.get(e.expr(1));
+            String type = exprTypes.get(ctx);
+            // Widen integers to real if needed
+            if ("real".equals(type) && "integer".equals(leftType)) left += "i2d\n";
+            if ("real".equals(type) && "integer".equals(rightType)) right += "i2d\n";
+            String op = e.op.getText();
+            String instr = "real".equals(type) ?
+                ("+".equals(op) ? "dadd" : "dsub") :
+                ("+".equals(op) ? "iadd" : "isub");
+            return left + right + instr + "\n";
         } else if (ctx instanceof AlgolParser.VarExprContext e) {
             String name = e.identifier().getText();
             Integer idx = localIndex.get(name);
             if (idx == null) return "; ERROR: undeclared variable " + name + "\n";
-            return "dload " + idx + "\n";
+            String type = symbolTable.get(name);
+            return "integer".equals(type) ? "iload " + idx + "\n" : "dload " + idx + "\n";
         } else if (ctx instanceof AlgolParser.RealLiteralExprContext e) {
             // e.g. 0.6 → ldc2_w 0.6
             String val = e.realLiteral().getText();
             return "ldc2_w " + val + "\n";
         } else if (ctx instanceof AlgolParser.IntLiteralExprContext e) {
-            // Integer literal in real context: push int constant, then widen to double
+            // Integer literal
             String val = e.unsignedInt().getText();
-            return "ldc " + val + "\ni2d\n";
+            return "ldc " + val + "\n";
         } else if (ctx instanceof AlgolParser.ParenExprContext e) {
             return generateExpr(e.expr());
         }

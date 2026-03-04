@@ -4,6 +4,8 @@ package gnb.jalgol.compiler;
 
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -77,23 +79,32 @@ public class AntlrAlgolListener {
 				walker.walk(symBuilder, programContext);
 				Map<String, String> symbolTable = symBuilder.getSymbolTable();
 
-				// Assign JVM local variable slots: slot 0 = args, doubles take 2 slots each
+				// Assign JVM local variable slots: slot 0 = args, doubles take 2 slots, ints take 1
 				Map<String, Integer> localIndex = new LinkedHashMap<>();
 				int nextLocal = 1;
-				for (String name : symbolTable.keySet()) {
+				for (Map.Entry<String, String> entry : symbolTable.entrySet()) {
+					String name = entry.getKey();
+					String type = entry.getValue();
 					localIndex.put(name, nextLocal);
-					nextLocal += 2; // all 'real' variables are JVM double (2 slots)
+					nextLocal += "integer".equals(type) ? 1 : 2;
 				}
 				int numLocals = Math.max(nextLocal, 1); // always at least 1 for args
 
+				// Pass 1.5: type inference for expressions
+				TypeInferencer typeInf = new TypeInferencer(symbolTable);
+				walker.walk(typeInf, programContext);
+				Map<AlgolParser.ExprContext, String> exprTypes = typeInf.getExprTypes();
+
 				// Pass 2: generate Jasmin code
 				String source = Paths.get(fileName).getFileName().toString();
-				CodeGenerator codegen = new CodeGenerator(source, packageName, className, localIndex, numLocals);
+				CodeGenerator codegen = new CodeGenerator(source, packageName, className, symbolTable, localIndex, numLocals, exprTypes);
 				walker.walk(codegen, programContext);
 				output = codegen.getOutput();
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
+		} catch (Exception e) {
+			StringWriter sw = new StringWriter();
+			e.printStackTrace(new PrintWriter(sw));
+			return "ERROR: " + e.getMessage() + "\n" + sw.toString();
 		}
 		return output;
 	}

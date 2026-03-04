@@ -30,11 +30,11 @@ program: 'begin' compoundStatement 'end' | '{' compoundStatement '}';
 compoundStatement: statement  | statement ';' compoundStatement;
 
 statement
-  : label? (procedureCall | varDecl | assignment | gotoStatement)
+  : label? (procedureCall | varDecl | assignment | gotoStatement | ifStatement)
   ;
 
 varDecl
-  : 'real' varList
+  : ('real' | 'integer') varList
   ;
 
 varList
@@ -49,12 +49,17 @@ gotoStatement
   : 'goto' identifier
   ;
 
+ifStatement
+  : 'if' expr 'then' statement
+  ;
+
 label
   : identifier ':'
   ;
 
 expr
-  : expr op=('*'|'/') expr   # MulDivExpr
+  : expr op=('<'|'<='|'>'|'>='|'='|'<>') expr   # RelExpr
+  | expr op=('*'|'/') expr   # MulDivExpr
   | expr op=('+'|'-') expr   # AddSubExpr
   | realLiteral              # RealLiteralExpr
   | unsignedInt              # IntLiteralExpr
