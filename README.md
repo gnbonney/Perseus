@@ -12,16 +12,13 @@ Meanwhile, Algol 60 continued a life of its own.  In 1976 the Modified Report on
 
 ## Motivation
 
-Why would I write my own compiler?  
-* When asked by a reporter why anyone would want to climb a mountain, George Mallory famously replied, "Because it's there."  For a programmer writing a compiler is a significant challenge and that by itself is enough reason.  
-* Years ago when I was in college I took a compilers class and was disappointed that we spent the entire semester on theory and never actually wrote a compiler.  After that the closest I ever came to writing something like a compiler was a program for converting between different graphics file formats used by a flight simulator company.  I used lex and yacc for that project, but I never wrote a complete compiler for a programming language.  In recent years the idea of writing my own compiler has become a kind of "bucket list" item.
-* Recently in my jobs I have been doing more Javascript than Java, so this project is also a way to keep up my Java skills.
-
 Why create a new Algol compiler?
-* Algol is an elegant small programming language designed specifically for readability.
-* I am interested in writing a compiler for Simula 67 which is basically a superset or extension of Algol.
-* Algol and Simula are still discussed in many computer science classes, because they were so influential and because they have features that aren't commonly found in other languages.
-* Currently, there are many JVM compilers for different languages, but not one for Algol or Simula.
+
+* **AI-Ready and Tool-Friendly:** JAlgol is designed for seamless integration with AI, language servers, and modern developer tools. Its explicit, structured design enables advanced code analysis, transformation, and verification by both humans and AI systems.
+* **Education and Research:** ALGOL 60 is a foundational language for computer science, known for its clarity and structured programming. JAlgol makes it accessible on the JVM, providing a robust platform for teaching, research, and experimentation with classic and modern programming concepts.
+* **Modern JVM Ecosystem:** There are many JVM compilers for other languages, but none for Algol or Simula. JAlgol fills this gap, enabling legacy and new Algol code to run anywhere Java is available.
+* **Readable, Maintainable Code:** ALGOL 60’s low semantic density and mathematical clarity make it ideal for readable, maintainable code—benefiting education, research, and AI-driven development.
+* **Open, Extensible Architecture:** JAlgol is built for extensibility, supporting future language features, research extensions, and integration with next-generation tooling.
 
 ## Building the Project
 
@@ -71,3 +68,7 @@ JAlgol is designed from the ground up to be AI-friendly—possibly the first com
 - Architecture that enables future integration with AI assistants, IDEs, and language servers
 
 Our goal is to make JAlgol not only a robust Algol-to-JVM compiler, but also a model for next-generation, tool-friendly compiler engineering.
+
+## Semantic Clarity for Human and AI Reasoning
+
+ALGOL 60 was designed for mathematical clarity and structured programming, resulting in low semantic density—each statement expresses a single, clear idea. JAlgol preserves this property, making both the source language and the compiler pipeline highly explicit and easy to reason about. This benefits not only human readers but also AI tools and language models, which can more reliably analyze, transform, and verify code with minimal ambiguity. The result is a compiler and language ecosystem that is exceptionally well-suited for education, research, and advanced AI-driven tooling.
