@@ -59,3 +59,9 @@ java_cup/runtime/
 
 # Ignore compiled Algol programs
 bin/algol/*.class
+
+# Ignore generated parse tree files
+parse_tree.txt
+
+# Ignore temporary build files
+build/tmp/
