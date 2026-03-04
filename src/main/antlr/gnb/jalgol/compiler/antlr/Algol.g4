@@ -31,7 +31,7 @@ program: BEGIN compoundStatement END | '{' compoundStatement '}';
 compoundStatement: statement (';' statement)* ';'?;
 
 statement
-  : label? (procedureCall | varDecl | assignment | gotoStatement | ifStatement | forStatement | block)
+  : label? (procedureCall | varDecl | arrayDecl | assignment | gotoStatement | ifStatement | forStatement | block)
   ;
 
 block
@@ -42,12 +42,20 @@ varDecl
   : (REAL | INTEGER | BOOLEAN) varList
   ;
 
+arrayDecl
+  : (INTEGER | REAL) ARRAY identifier '[' unsignedInt ':' unsignedInt ']'
+  ;
+
 varList
   : identifier (',' identifier)*
   ;
 
 assignment
-  : (identifier ':=')+ expr
+  : (lvalue ':=')+ expr
+  ;
+
+lvalue
+  : identifier ('[' expr ']')?
   ;
 
 gotoStatement
@@ -70,6 +78,7 @@ expr
   : expr op=('<'|'<='|'>'|'>='|'='|'<>') expr   # RelExpr
   | expr op=('*'|'/') expr   # MulDivExpr
   | expr op=('+'|'-') expr   # AddSubExpr
+  | identifier '[' expr ']'  # ArrayAccessExpr
   | realLiteral              # RealLiteralExpr
   | unsignedInt              # IntLiteralExpr
   | identifier               # VarExpr
@@ -100,6 +109,7 @@ END : 'end';
 REAL : 'real';
 INTEGER : 'integer';
 BOOLEAN : 'boolean';
+ARRAY : 'array';
 IF : 'if';
 THEN : 'then';
 ELSE : 'else';

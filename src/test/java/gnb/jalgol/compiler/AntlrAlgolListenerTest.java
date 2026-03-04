@@ -177,6 +177,27 @@ public class AntlrAlgolListenerTest {
 	}
 
 	@Test
+	public void array_test() throws Exception {
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				"test/algol/array.alg", "gnb/jalgol/programs", "ArrayTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== ARRAY JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END ARRAY ===");
+
+		assertNotEquals("NO OUTPUT", jasminSource, "Compilation should succeed");
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run — nArr[5]=5, nArr[3]=0 (uninitialized)
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ArrayTest");
+		System.out.println("array output: [" + output + "]");
+		assertEquals("50", output.trim());
+	}
+
+	@Test
 	public void primer4() throws Exception {
 		// Compile Algol source to Jasmin (for loop with 1000 iterations)
 		Path jasminFile = AntlrAlgolListener.compileToFile(

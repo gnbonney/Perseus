@@ -26,6 +26,8 @@ public class CodeGenerator extends AlgolBaseListener {
     private final int numLocals;
     // Maps expression contexts to their inferred types ("integer" or "real")
     private final Map<AlgolParser.ExprContext, String> exprTypes;
+    // Maps array name → [lowerBound, upperBound]
+    private final Map<String, int[]> arrayBounds;
     private final StringBuilder output = new StringBuilder();
 
     // For for loops
@@ -38,7 +40,7 @@ public class CodeGenerator extends AlgolBaseListener {
 
     public CodeGenerator(String source, String packageName, String className,
                          Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
-                         Map<AlgolParser.ExprContext, String> exprTypes) {
+                         Map<AlgolParser.ExprContext, String> exprTypes, Map<String, int[]> arrayBounds) {
         this.source = source;
         this.packageName = packageName;
         this.className = className;
@@ -46,6 +48,7 @@ public class CodeGenerator extends AlgolBaseListener {
         this.localIndex = localIndex;
         this.numLocals = numLocals;
         this.exprTypes = exprTypes;
+        this.arrayBounds = arrayBounds;
     }
 
     public String getOutput() {
@@ -67,7 +70,7 @@ public class CodeGenerator extends AlgolBaseListener {
               .append(".method public static main([Ljava/lang/String;)V\n")
               .append(".limit stack 16\n") // TODO: compute via static stack analysis
               .append(".limit locals ").append(numLocals).append("\n");
-        // Initialize all variables to 0
+        // Initialize all variables to 0 / default
         for (Map.Entry<String, Integer> entry : localIndex.entrySet()) {
             String varName = entry.getKey();
             int index = entry.getValue();
@@ -75,6 +78,18 @@ public class CodeGenerator extends AlgolBaseListener {
             if ("integer".equals(type) || "boolean".equals(type)) {
                 output.append("iconst_0\n");
                 output.append("istore ").append(index).append("\n");
+            } else if ("integer[]".equals(type)) {
+                int[] bounds = arrayBounds.get(varName);
+                int size = bounds[1] - bounds[0] + 1;
+                output.append("ldc ").append(size).append("\n");
+                output.append("newarray int\n");
+                output.append("astore ").append(index).append("\n");
+            } else if ("real[]".equals(type)) {
+                int[] bounds = arrayBounds.get(varName);
+                int size = bounds[1] - bounds[0] + 1;
+                output.append("ldc ").append(size).append("\n");
+                output.append("newarray double\n");
+                output.append("astore ").append(index).append("\n");
             } else { // real
                 output.append("dconst_0\n");
                 output.append("dstore ").append(index).append("\n");
@@ -90,12 +105,32 @@ public class CodeGenerator extends AlgolBaseListener {
 
     @Override
     public void exitAssignment(AlgolParser.AssignmentContext ctx) {
-        String exprType = exprTypes.getOrDefault(ctx.expr(), "real");
-        java.util.List<AlgolParser.IdentifierContext> dests = ctx.identifier();
+        List<AlgolParser.LvalueContext> lvalues = ctx.lvalue();
 
+        // Array element assignment (single dest with subscript)
+        if (lvalues.size() == 1 && lvalues.get(0).expr() != null) {
+            AlgolParser.LvalueContext lv = lvalues.get(0);
+            String arrName = lv.identifier().getText();
+            int arrSlot = localIndex.get(arrName);
+            int[] bounds = arrayBounds.get(arrName);
+            int lower = bounds != null ? bounds[0] : 0;
+            output.append("aload ").append(arrSlot).append("\n");
+            output.append(generateExpr(lv.expr())); // subscript
+            if (lower != 0) {
+                output.append("ldc ").append(lower).append("\n");
+                output.append("isub\n");
+            }
+            output.append(generateExpr(ctx.expr())); // value
+            String elemType = symbolTable.getOrDefault(arrName, "integer[]");
+            output.append("real[]".equals(elemType) ? "dastore\n" : "iastore\n");
+            return;
+        }
+
+        // Scalar (possibly chained) assignment
+        String exprType = exprTypes.getOrDefault(ctx.expr(), "real");
         // Determine common storage type: real if any dest is real (boolean treated as integer)
-        boolean anyReal = dests.stream()
-            .map(d -> symbolTable.getOrDefault(d.getText(), "real"))
+        boolean anyReal = lvalues.stream()
+            .map(lv -> symbolTable.getOrDefault(lv.identifier().getText(), "real"))
             .anyMatch(t -> "real".equals(t));
         String storeType = anyReal ? "real" : "integer";
 
@@ -106,15 +141,15 @@ public class CodeGenerator extends AlgolBaseListener {
         }
 
         // Store to each destination; dup before all but the last
-        for (int i = 0; i < dests.size(); i++) {
-            String name = dests.get(i).getText();
+        for (int i = 0; i < lvalues.size(); i++) {
+            String name = lvalues.get(i).identifier().getText();
             Integer idx = localIndex.get(name);
             if (idx == null) {
                 output.append("; ERROR: undeclared variable ").append(name).append("\n");
                 continue;
             }
             String varType = symbolTable.get(name);
-            if (i < dests.size() - 1) {
+            if (i < lvalues.size() - 1) {
                 output.append("real".equals(storeType) ? "dup2\n" : "dup\n");
             }
             // Coerce real → integer if this destination is integer but others forced real
@@ -141,6 +176,11 @@ public class CodeGenerator extends AlgolBaseListener {
             output.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
                   .append(generateExpr(args.get(1).expr())) // the expr in arg
                   .append("invokevirtual java/io/PrintStream/print(D)V\n");
+        } else if ("outinteger".equals(name)) {
+            // outinteger(channel, expr) — channel ignored, print int
+            output.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
+                  .append(generateExpr(args.get(1).expr()))
+                  .append("invokevirtual java/io/PrintStream/print(I)V\n");
         }
     }
 
@@ -321,6 +361,22 @@ public class CodeGenerator extends AlgolBaseListener {
             if (idx == null) return "; ERROR: undeclared variable " + name + "\n";
             String type = symbolTable.get(name);
             return ("integer".equals(type) || "boolean".equals(type)) ? "iload " + idx + "\n" : "dload " + idx + "\n";
+        } else if (ctx instanceof AlgolParser.ArrayAccessExprContext e) {
+            String arrName = e.identifier().getText();
+            Integer arrSlot = localIndex.get(arrName);
+            if (arrSlot == null) return "; ERROR: undeclared array " + arrName + "\n";
+            int[] bounds = arrayBounds.get(arrName);
+            int lower = bounds != null ? bounds[0] : 0;
+            String elemType = symbolTable.getOrDefault(arrName, "integer[]");
+            StringBuilder sb = new StringBuilder();
+            sb.append("aload ").append(arrSlot).append("\n");
+            sb.append(generateExpr(e.expr())); // subscript
+            if (lower != 0) {
+                sb.append("ldc ").append(lower).append("\n");
+                sb.append("isub\n");
+            }
+            sb.append("real[]".equals(elemType) ? "daload\n" : "iaload\n");
+            return sb.toString();
         } else if (ctx instanceof AlgolParser.RealLiteralExprContext e) {
             // e.g. 0.6 → ldc2_w 0.6
             String val = e.realLiteral().getText();

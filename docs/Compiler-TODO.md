@@ -188,12 +188,13 @@ integer and string arguments.
 **Goal:** `array.alg` compiles and prints correct subscript values.
 
 **New features needed:**
-- [ ] Grammar: array declarations (`integer array nArr[1:5]`)
-- [ ] Grammar: subscript expressions (`nArr[i]`)
-- [ ] Grammar: array bounds (lower bound may be non-zero)
-- [ ] Codegen: allocate JVM int array (adjusting for non-zero lower bound)
-- [ ] Codegen: `iaload`, `iastore` with bound offset
-- [ ] Test: assert `nArr[5]` prints `5`, `nArr[3]` prints `0` (uninitialized)
+- [x] Grammar: array declarations (`integer array nArr[1:5]`)
+- [x] Grammar: subscript expressions (`nArr[i]`)
+- [x] Grammar: array bounds (lower bound may be non-zero)
+- [x] Codegen: allocate JVM int array (adjusting for non-zero lower bound)
+- [x] Codegen: `iaload`, `iastore` with bound offset
+- [x] Codegen: `outinteger(channel, expr)` → `System.out.print(int)`
+- [x] Test: assert `nArr[5]` prints `5`, `nArr[3]` prints `0` (uninitialized)
 
 ---
 

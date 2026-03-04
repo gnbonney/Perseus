@@ -78,15 +78,16 @@ public class AntlrAlgolListener {
 				SymbolTableBuilder symBuilder = new SymbolTableBuilder();
 				walker.walk(symBuilder, programContext);
 				Map<String, String> symbolTable = symBuilder.getSymbolTable();
+				Map<String, int[]> arrayBounds = symBuilder.getArrayBounds();
 
-				// Assign JVM local variable slots: slot 0 = args, doubles take 2 slots, ints take 1
+				// Assign JVM local variable slots: slot 0 = args, doubles take 2 slots, ints/refs take 1
 				Map<String, Integer> localIndex = new LinkedHashMap<>();
 				int nextLocal = 1;
 				for (Map.Entry<String, String> entry : symbolTable.entrySet()) {
 					String name = entry.getKey();
 					String type = entry.getValue();
 					localIndex.put(name, nextLocal);
-					nextLocal += ("integer".equals(type) || "boolean".equals(type)) ? 1 : 2;
+					nextLocal += "real".equals(type) ? 2 : 1; // real=double=2 slots; all others (int/bool/array ref)=1
 				}
 				int numLocals = Math.max(nextLocal, 1); // always at least 1 for args
 
@@ -97,7 +98,7 @@ public class AntlrAlgolListener {
 
 				// Pass 2: generate Jasmin code
 				String source = Paths.get(fileName).getFileName().toString();
-				CodeGenerator codegen = new CodeGenerator(source, packageName, className, symbolTable, localIndex, numLocals, exprTypes);
+				CodeGenerator codegen = new CodeGenerator(source, packageName, className, symbolTable, localIndex, numLocals, exprTypes, arrayBounds);
 				walker.walk(codegen, programContext);
 				output = codegen.getOutput();
 			}

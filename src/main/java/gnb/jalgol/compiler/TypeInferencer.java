@@ -61,6 +61,16 @@ public class TypeInferencer extends AlgolBaseListener {
     }
 
     @Override
+    public void exitArrayAccessExpr(AlgolParser.ArrayAccessExprContext ctx) {
+        String arrName = ctx.identifier().getText();
+        String arrType = symbolTable.get(arrName);
+        if (arrType == null) throw new RuntimeException("Undeclared array: " + arrName);
+        // "integer[]" → "integer",  "real[]" → "real"
+        String elemType = arrType.endsWith("[]") ? arrType.substring(0, arrType.length() - 2) : arrType;
+        exprTypes.put(ctx, elemType);
+    }
+
+    @Override
     public void exitRealLiteralExpr(AlgolParser.RealLiteralExprContext ctx) {
         exprTypes.put(ctx, "real");
     }
