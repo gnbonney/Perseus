@@ -48,6 +48,34 @@ This approach may require more initial setup, but it will pay off as the compile
 
 ---
 
+### Design Decision: TypeInferencer Pass (Pass 1.5)
+
+Starting at **Milestone 4** (when `integer` variables are introduced alongside `real`), a third pass is required between `SymbolTableBuilder` and `CodeGenerator`:
+
+- `TypeInferencer`: Walks the parse tree, annotates every expression node with its resolved type (`integer` or `real`), and enforces the type rules of the Algol 60 Modified Report.
+
+**Why a separate pass?** The `CodeGenerator` must select different JVM instructions depending on expression type (e.g. `iadd` vs. `dadd`). Those types must be resolved before codegen begins, and the logic is complex enough to warrant its own class.
+
+**Type rules from §3.3.4 of the Modified Report:**
+
+| Expression | Operand types | Result type |
+|---|---|---|
+| `a + b`, `a - b`, `a × b` | both `integer` | `integer` |
+| `a + b`, `a - b`, `a × b` | either is `real` | `real` |
+| `a / b` | any combination | always `real` |
+| `a ÷ b` | must both be `integer` (type error otherwise) | `integer` |
+| `a ↑ b` | both `integer` | `integer` |
+| `a ↑ b` | either is `real` | `real` |
+| `if B then E1 else E2` | either branch is `real` | `real` |
+
+**Assignment coercion rules from §4.2.4:**
+- `integer` → `real`: silent widening
+- `real` → `integer`: automatic transfer function ⌊E + 0.5⌋ (round-half-up, **not** Java's truncating `(int)` cast — requires `Math.floor(E + 0.5)`)
+- `Boolean` ↔ arithmetic: **disallowed** (type error)
+- All destinations in a multiple-assignment (`a := b := expr`) must share the same type
+
+---
+
 ## Milestone 1 — Hello World (`hello.alg`)
 
 **Goal:** `hello.alg` compiles to a `.class` file that runs and prints `Hello World`.
@@ -70,17 +98,17 @@ integer and string arguments.
 **⚠ Requires symbol table pass (see Architecture section above)**
 
 **New features needed:**
-- [ ] Grammar: `real` variable declarations (`real x, y, u;`)
-- [ ] **Design and implement symbol table** — first-pass visitor that collects variable names, types, and block scope
-- [ ] **Implement two-pass compile in `AntlrAlgolListener`** or split into separate `SymbolTableBuilder` and `CodeGenerator` listener classes
-- [ ] Grammar: assignment statement (`:=`)
-- [ ] Grammar: arithmetic expressions (`*`, `-`, `+`, `/`)
-- [ ] Grammar: real number literals
-- [ ] Codegen: declare local variables in Jasmin (`.limit locals`)
-- [ ] Codegen: load/store local variables (`dload`, `dstore` for `real` → JVM `double`)
-- [ ] Codegen: arithmetic instructions (`dmul`, `dsub`, `dadd`, `ddiv`)
-- [ ] Codegen: integer-to-real coercion (`5/13` in Algol is real division)
-- [ ] Test: assert final values of `x` and `y` are correct
+- [x] Grammar: `real` variable declarations (`real x, y, u;`)
+- [x] **Design and implement symbol table** — first-pass visitor that collects variable names, types, and block scope
+- [x] **Implement two-pass compile in `AntlrAlgolListener`** — split into separate `SymbolTableBuilder` and `CodeGenerator` listener classes
+- [x] Grammar: assignment statement (`:=`)
+- [x] Grammar: arithmetic expressions (`*`, `-`, `+`, `/`)
+- [x] Grammar: real number literals
+- [x] Codegen: declare local variables in Jasmin (`.limit locals`)
+- [x] Codegen: load/store local variables (`dload`, `dstore` for `real` → JVM `double`)
+- [x] Codegen: arithmetic instructions (`dmul`, `dsub`, `dadd`, `ddiv`)
+- [x] Codegen: integer-to-real coercion (`5/13` in Algol is real division)
+- [x] Test: assert final values of `x` and `y` are correct
 
 ---
 
@@ -100,10 +128,17 @@ integer and string arguments.
 
 **Goal:** `primer3.alg` compiles and terminates after 1000 iterations.
 
+**⚠ Introduces mixed `integer`/`real` types — requires TypeInferencer pass (see Architecture section above)**
+
 **New features needed:**
 - [ ] Grammar: `integer` variable declarations
 - [ ] Grammar: `if <expr> then <statement>` (no `else`)
 - [ ] Grammar: comparison operators (`<`, `>`, `<=`, `>=`, `=`, `<>`)
+- [ ] **Implement `TypeInferencer` pass** — annotates every `expr` node with its resolved type before codegen
+- [ ] TypeInferencer: enforce `+`/`-`/`×` → `integer` iff both operands `integer`, else `real`
+- [ ] TypeInferencer: enforce `/` → always `real`; `÷` → `integer` only if both operands `integer`
+- [ ] TypeInferencer: enforce assignment coercion (`real` → `integer` = ⌊E+0.5⌋, not truncation)
+- [ ] Codegen: select `iadd`/`dadd` etc. based on inferred type
 - [ ] Codegen: integer variables (`iload`, `istore`)
 - [ ] Codegen: conditional jump instructions (`if_icmplt` etc.)
 - [ ] Test: assert program terminates and produces correct output
