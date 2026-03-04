@@ -60,10 +60,11 @@ digraphs or reserved words where a single ASCII character is unavailable.
 | ≥ | `>=` | greater than or equal |
 | ≠ | `<>` | not equal |
 | ∧ | `and` | logical and (`&` also accepted) |
-| ∨ | `or` | logical or (`\|` also accepted) |
+| ∨ | `or` | logical or (`|` also accepted) |
 | ¬ | `not` | logical not (`~` also accepted) |
 | ÷ | `div` | integer division |
 | ↑ | `**` | exponentiation (`^` also accepted) |
+| string quotes | "..." | double quotes for string literals |
 
 ## Rationale
 
@@ -79,6 +80,7 @@ digraphs or reserved words where a single ASCII character is unavailable.
 - `{`/`}` as synonyms for `begin`/`end` follow BCPL and C notation; they are accepted by the
   grammar as a readability convenience for developers familiar with those languages.
 - `!` as a comment introducer follows Simula 67. Like `comment`, it ends at the next `;`.
+- Double quotes ("...") are used for string literals, following Algol 68, C, Java, Python, and most modern languages. This choice improves familiarity and ease of typing for contemporary developers, and aligns with the conventions of most Algol descendants. The original Algol 60 report used backticks and single quotes due to hardware limitations, but double quotes are now the de facto standard for string literals.
 
 ## Relationship to the Modified Report
 

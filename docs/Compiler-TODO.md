@@ -212,7 +212,7 @@ integer and string arguments.
 
 ---
 
-## Milestone 10 — Boolean Operators and Sieve (`primes.alg`)
+## Milestone 10 — Standard Math Functions (`primes.alg`)
 
 **Goal:** `primes.alg` compiles and prints all primes below 1000.
 
@@ -227,17 +227,69 @@ integer and string arguments.
 
 ---
 
+## Milestone X — New Language Feature Samples
+
+**Goal:** Each new feature sample in `test/algol` compiles and runs, demonstrating correct implementation of the corresponding language feature.
+
+### recursion_euler.alg
+- [ ] Grammar: procedure declarations with real/integer parameters and return types
+- [ ] Grammar: nested blocks, for loops, and arithmetic expressions
+- [ ] Grammar: procedure calls as expressions
+- [ ] Codegen: recursive procedure calls
+- [ ] Codegen: real arrays with nonzero lower bounds
+- [ ] Codegen: correct handling of real/integer types in expressions and assignments
+- [ ] Test: assert output matches expected result for a sample input
+
+### boolean_operators.alg
+- [ ] Grammar: boolean variable declarations and assignment
+- [ ] Grammar: `and`, `or`, `not` operators (and synonyms)
+- [ ] Grammar: if/then/else with boolean expressions
+- [ ] Codegen: boolean logic (JVM int 0/1 or boolean)
+- [ ] Test: assert output is correct for boolean logic
+
+### real_array.alg
+- [ ] Grammar: real array declarations with arbitrary bounds
+- [ ] Grammar: array subscript assignment and access
+- [ ] Codegen: real array allocation and access (with lower bound offset)
+- [ ] Test: assert output matches expected real values
+
+### string_output.alg
+- [ ] Grammar: outstring with string and variable arguments
+- [ ] Codegen: string concatenation or multi-argument output
+- [ ] Test: assert output matches expected formatted string
+
+### own_variables.alg
+- [ ] Grammar: own variable and own array declarations
+- [ ] Codegen: static/persistent local variables (retain value across block re-entry)
+- [ ] Test: assert own variables retain values as specified
+
+### switch_declaration.alg
+- [ ] Grammar: switch declarations and designational expressions
+- [ ] Codegen: multi-way goto using switch
+- [ ] Test: assert correct label selection and control flow
+
+---
+
+These milestones should be addressed after the current core milestones, and may be split further as implementation progresses. Each feature should be covered by a dedicated test to ensure correct parsing, code generation, and runtime behavior.
+
+---
+
 ## Future Milestones (not yet sequenced)
 
 - `jen.alg` — call-by-name (Jensen's device); requires thunk implementation
 - `pi.alg` / `pi2.alg` — `real` procedures; `sqrt` standard function
 - `manboy.alg` — deep recursion + procedure references + call-by-name
-- `boolean.alg` — `not` operator, `or` operator
-- `own` variables — static locals
-- Switch declarations — multi-way `goto`
 - Standard math functions (`abs`, `sqrt`, `sin`, `cos`, `ln`, `exp`, etc.)
 - Standard I/O (`ininteger`, `inreal`, `instring`)
 - Error handling (`fault` procedure)
+
+# The following features are now tracked as explicit milestones above and have been removed from this list:
+# - Recursion (recursion_euler.alg)
+# - Boolean operators (boolean_operators.alg)
+# - Real arrays (real_array.alg)
+# - String output (string_output.alg)
+# - Own variables (own_variables.alg)
+# - Switch declarations (switch_declaration.alg)
 
 ---
 

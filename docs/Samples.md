@@ -128,3 +128,88 @@ The following features are not yet covered by any sample program and should be a
 - **String output with variables** — current samples only print literals or numbers, not formatted output mixing text and values.
 - **`own` variables** — static/persistent local variables; a significant Algol 60 feature not yet represented.
 - **Switch declarations** — Algol's multi-way branch mechanism; not present in any sample.
+
+---
+
+## Filling the Gaps: Samples from the Modified Report
+
+The following examples are drawn from the [Modified Report on the Algorithmic Language Algol 60](algol60_mr.md) to illustrate features not yet covered by the current sample programs:
+
+### Simple Recursion
+
+Example: Recursive procedure (from Section 5.4.2)
+
+```
+real procedure euler(fct, eps, tim);
+    value eps, tim;
+    real procedure fct; real eps; integer tim;
+    begin
+    integer i, k, n, r;
+    array m[0:15];
+    real mn, mp, ds, sum;
+    n := t := 0;
+    m[0] := fct(0); sum := m[0]/2;
+    for i := 1, i + 1 while t < tim do
+        begin
+        mn := fct(i);
+        for k := 0 step 1 until n do
+            begin
+            mp := (mn + m[k])/2;
+            m[k] := mn; mn := mp
+            end;
+        if abs(mn) < abs(m[n]) and n < 15 then
+            begin
+            ds := mn/2; n := n + 1;
+            m[n] := mn
+            end
+        else
+            ds := mn;
+        sum := sum + ds;
+        t := if abs(ds) < eps then t + 1 else 0
+        end;
+    euler := sum
+    end euler
+```
+
+### Boolean Operators (`or`, `not`)
+
+Example: Boolean expressions (from Section 3.4.2)
+
+```
+g and not a or b or not c or d or e or not f
+```
+
+### Real Arrays
+
+Example: Array declaration (from Section 5.2.2)
+
+```
+real array q [-7: if c < 0 then 2 else 1]
+```
+
+### String Output with Variables
+
+Example: Procedure call (from Section 4.7.2)
+
+```
+outstring("Result is: ", V)
+```
+
+### Own Variables
+
+Example: Own variable declaration (from Section 5.1.2)
+
+```
+own boolean Acryl, n
+own integer array A[2:20]
+```
+
+### Switch Declarations
+
+Example: Switch declaration (from Section 5.3.2)
+
+```
+switch S := S1, S2, Q[m], if v > -5 then S3 else S4
+```
+
+For more details and additional examples, see the [Modified Report on the Algorithmic Language Algol 60](algol60_mr.md).
