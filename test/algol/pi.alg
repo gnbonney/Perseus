@@ -28,9 +28,9 @@ begin
 				a := anext; 
 				b := bnext; 
 				outreal(1, (a / 2)); 
-				outstring(1, “ > pi > “); 
+				outstring(1, " > pi > "); 
 				outreal(1, (b / 2)); 
-				outstring(1, “n”); 
+				outstring(1, "\n"); 
 			end loop; 
 	end all;
 end

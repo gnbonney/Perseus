@@ -15,9 +15,9 @@ begin
 		procedure archprint; 
 			begin 
 				outreal(1, (a / 2)); 
-				outstring(1, “ > pi > “); 
+				outstring(1, " > pi > "); 
 				outreal(1, (b / 2)); 
-				outstring(1, “n”); 
+				outstring(1, "\n"); 
 			end archprint; 
 		integer i; 
 		for i := 1 step 1 until 10 do 
