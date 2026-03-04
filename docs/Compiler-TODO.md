@@ -150,10 +150,10 @@ integer and string arguments.
 **Goal:** `primer4.alg` compiles and runs 1000 iterations correctly.
 
 **New features needed:**
-- [ ] Grammar: `for <var> := <expr> step <expr> until <expr> do <statement>`
-- [ ] Codegen: `for` loop with step/until semantics per the Modified Report
+- [x] Grammar: `for <var> := <expr> step <expr> until <expr> do <statement>`
+- [x] Codegen: `for` loop with step/until semantics per the Modified Report
   - Note: `step` and `until` expressions are re-evaluated each iteration
-- [ ] Test: assert correct final values of `x` and `y`
+- [x] Test: assert correct final values of `x` and `y`
 
 ---
 

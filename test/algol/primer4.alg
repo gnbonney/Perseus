@@ -8,5 +8,7 @@ begin
       begin u:=0.6*x-0.8*y;
             y:=0.8*x+0.6*y;
             x:=u; 
-      end
+      end;
+      comment Output added for testing purposes to verify final values after 1000 iterations;
+      outreal(1, x); outreal(1, y)
 end

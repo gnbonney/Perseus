@@ -109,6 +109,12 @@ public class CodeGenerator extends AlgolBaseListener {
             output.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
                   .append("ldc ").append(str).append("\n")
                   .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
+        } else if ("outreal".equals(name)) {
+            // outreal(channel, expr) — channel ignored, print double
+            // invokevirtual requires object ref on stack first, then args
+            output.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
+                  .append(generateExpr(args.get(1).expr())) // the expr in arg
+                  .append("invokevirtual java/io/PrintStream/print(D)V\n");
         }
     }
 
@@ -180,18 +186,18 @@ public class CodeGenerator extends AlgolBaseListener {
 
         output.append(currentForLoopLabel).append(":\n");
 
-        // Compare var against until: exit loop if var > until
+        // Compare var against until: exit loop if var > until (assumes positive step)
+        // TODO: handle negative step (check var < until when step < 0)
         if ("real".equals(varType)) {
-            output.append("dload ").append(varIndex).append("\n"); // push var
-            output.append(generateExpr(ctx.expr(2))); // push until
-            output.append("dcmpg\n"); // 1 if var > until (val1=var, val2=until)
-            output.append("ifgt ").append(currentForEndLabel).append("\n"); // exit if var > until
+            output.append("dload ").append(varIndex).append("\n");
+            output.append(generateExpr(ctx.expr(2))); // until
+            output.append("dcmpg\n");
+            output.append("ifgt ").append(currentForEndLabel).append("\n");
         } else {
-            output.append("iload ").append(varIndex).append("\n"); // push var
-            output.append(generateExpr(ctx.expr(2))); // push until
-            output.append("if_icmpgt ").append(currentForEndLabel).append("\n"); // exit if var > until
+            output.append("iload ").append(varIndex).append("\n");
+            output.append(generateExpr(ctx.expr(2))); // until
+            output.append("if_icmpgt ").append(currentForEndLabel).append("\n");
         }
-
         // Statement will be emitted here
     }
 

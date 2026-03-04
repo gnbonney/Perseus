@@ -82,7 +82,7 @@ identifier: IDENT;
 
 argList : arg (',' arg)*;
 
-arg : unsignedInt | string;
+arg : expr | string;
 
 unsignedInt : INT_NUM;
 
