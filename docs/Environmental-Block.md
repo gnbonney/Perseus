@@ -64,15 +64,21 @@ outinteger(1, result);                        comment goes to stdout;
 
 ### Input
 
+
 | ALGOL identifier | Signature (Algol 60) | JRE mapping | Status |
 |---|---|---|---|
 | `ininteger(channel, int)` | `procedure ininteger(channel, int)` | `new java.util.Scanner(System.in).nextInt()` | ☐ future |
 | `inreal(channel, re)` | `procedure inreal(channel, re)` | `new java.util.Scanner(System.in).nextDouble()` | ☐ future |
 | `inchar(channel, str, int)` | `procedure inchar(channel, str, int)` | scan one char; find its position in `str` | ☐ future |
 
-**Design note for input:** Input channels are not yet mapped (no `System.in` equivalent for
-channel selection). For now all input reads from `System.in`. A shared `Scanner` instance should
-be created once (as a static field on the generated class) rather than constructed per call.
+**Channel parameter for input procedures:**
+- The channel argument is intended to select the input source, analogous to output procedures.
+- In the current JVM implementation, only `System.in` is available for console input; there is no direct equivalent to `System.out`/`System.err` for input streams.
+- For now, all input procedures ignore the channel parameter and read from `System.in`.
+- If the channel argument is not a compile-time constant integer, codegen emits a warning comment and defaults to `System.in`.
+- Future implementations may support additional input sources (e.g., files, sockets) mapped to channel values, but this is outside the scope of the current design.
+
+**Design note for input:** A shared `Scanner` instance should be created once (as a static field on the generated class) rather than constructed per call. Channel selection is reserved for future extensibility.
 
 ---
 
@@ -159,3 +165,44 @@ This keeps the implementation entirely within `CodeGenerator` and requires no gr
 | **Later** | `maxreal`, `minreal`, `maxint`, `epsilon` | Numerical guard code |
 | **Later** | `stop`, `fault` | Error handling |
 | **Later** | `ininteger`, `inreal`, `inchar`, `outchar`, `outterminator` | Interactive programs |
+
+---
+
+## File I/O Extensions
+
+> **Note:** The following procedures and syntax are **extensions** to the Algol 60 Modified Report. They are not part of the standard, but are necessary for practical, real-world compiler implementations. These extensions are inspired by historical Algol compilers and modern language design, and are discussed in detail in Algol Extensions.md.
+
+To support file input/output and more meaningful channel usage, the following procedures are implemented by JAlgol:
+
+
+| Procedure | Syntax | Description |
+|---|---|---|
+| `openfile` | `openfile(channel, filename, mode)` | **Extension.** Opens a file and associates it with a channel. `mode` is typically "r" (read), "w" (write), or "a" (append). |
+| `closefile` | `closefile(channel)` | **Extension.** Closes the file associated with the channel. |
+| `instring` | `instring(channel, var)` | **Extension.** Reads a string from the stream or file mapped to the channel. |
+
+**Note:** String variables are an extended feature in JAlgol and many historic Algol compilers. The absence of a standard string type in Algol 60 is the reason why an `instring` procedure was not part of the original language specification. JAlgol's `instring` extension relies on the presence of string variables and associated operations. For rationale and historical context, see Algol Extensions.md.
+
+**Extension semantics:**
+- The standard I/O procedures (`outstring`, `outinteger`, `outreal`, `ininteger`, `inreal`, etc.) are extended to support file and stream channels opened with `openfile`/`closefile`.
+- Channels 0 and 1 are reserved for `System.err` and `System.out` (stderr and stdout).
+- Higher channel numbers (e.g., 2+) can be dynamically assigned to files or other streams via `openfile`.
+- All I/O procedures accept a channel parameter, which determines the target stream or file.
+- Error handling for invalid channels, file not found, or permission errors should be integrated with the `fault` procedure.
+- These extensions are not defined in the Algol 60 Modified Report, but are essential for modern usability and compatibility with historical Algol implementations.
+
+**Example usage:**
+```algol
+openfile(2, "output.txt", "w");
+outstring(2, "Hello, file!");
+closefile(2);
+```
+
+**Extension semantics:**
+- Channels 0 and 1 retain their standard meaning (`System.err` and `System.out`).
+- Higher channel numbers (e.g., 2+) can be dynamically assigned to files or other streams via `openfile`.
+- All I/O procedures accept a channel parameter, which determines the target stream or file.
+- Error handling for invalid channels, file not found, or permission errors should be integrated with the `fault` procedure.
+- These extensions are not defined in the Algol 60 Modified Report, but are essential for modern usability and compatibility with historical Algol implementations.
+
+For rationale and historical context, see Algol Extensions.md.

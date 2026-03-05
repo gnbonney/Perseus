@@ -120,6 +120,82 @@ This might be useful for implementation of a Simula Text class or we might just 
 
 The Eclipse git project has a RawText with a string saved as byte[] with no assumption of encoding (http://download.eclipse.org/jgit/docs/jgit-2.0.0.201206130900-r/apidocs/org/eclipse/jgit/diff/RawText.html).  This class is intended to represent a Unix formatted text file, not a general string.
 
+### Proposed String Type for JAlgol (Historic-Inspired Extension)
+
+Many historic Algol compilers (e.g., NU Algol, Data General Extended Algol, Algol W, Simula) introduced a string type or class, often as a variable-length array of characters or a record with a length and character array. Simula's `Text` class and Algol W's `string` type are notable examples.
+
+**Proposed JAlgol String Type:**
+
+- **Type:** `string`
+- **Representation:** A record or class with:
+  - A length field (integer)
+  - A character array (1-based, as in Algol arrays)
+- **Semantics:** Strings are mutable, variable-length, and support slicing, concatenation, and assignment.
+- **Example declaration:**  
+  `string s;`
+- **Example assignment:**  
+  `s := "Hello, world!";`
+- **String literals:** Double-quoted, as in `"example"`.
+- **Operations:**  
+  - `length(s)` returns the number of characters.
+  - `s[i]` accesses the i-th character (1-based).
+  - `concat(s1, s2)` returns a new string with the contents of `s1` followed by `s2`.
+  - `substring(s, start, end)` returns a substring from `start` to `end` (inclusive).
+  - `instring(channel, s)` reads a line or delimited string from the specified channel into `s`.
+  - `outstring(channel, s)` writes the string to the specified channel.
+
+**Rationale and Precedent:**
+- **NU Algol:** Supported `STRING` and `STRING ARRAY` variables.
+- **Algol W:** Had a `string` type and string operations.
+- **Simula:** Used a `Text` class with similar semantics.
+- **DEC Algol:** Included string handling extensions.
+
+**Implementation Note:**  
+For JVM-based JAlgol, the string type can be mapped to a Java class with a `char[]` and `int length`, or simply to Java's `StringBuilder` or `String` for simplicity, with additional methods for Algol-style indexing and mutability.
+
+#### Tradeoff Analysis: String Representation and Runtime Dependencies
+
+Introducing a custom string class for Algol semantics (mutable, 1-based, efficient) means all compiled Algol programs would depend on that class at runtime, requiring it to be distributed alongside user programs. This is a significant change from the current model, where only the Java runtime is needed.
+
+**Options:**
+1. **Use only Java’s built-in String or StringBuilder for all string operations.**
+   - No extra dependencies; leverages JVM optimizations.
+   - Sacrifices Algol-style mutability and 1-based indexing.
+2. **Generate code that uses Java String for storage, but provide static utility methods (injected as needed) for Algol-like operations.**
+   - No shared runtime class; helpers can be inlined or generated per program.
+   - Preserves zero-dependency model, but increases code size and complexity.
+3. **Accept the new dependency and distribute a small Algol runtime JAR with the custom string class and any other helpers.**
+   - Enables full Algol semantics and future extensibility.
+   - Requires distributing and versioning a runtime library with user programs.
+
+**Summary:**
+- If zero dependencies is a hard requirement, use Java String/StringBuilder and generate helper code as needed.
+- If Algol semantics and future extensibility are more important, a small runtime library is justified.
+
+#### Decision
+
+For JAlgol, we've decided the best approach is to generate code that uses Java String (or StringBuilder) for storage, but provide static utility methods (injected as needed) for Algol-like operations such as 1-based indexing, slicing, and concatenation. This approach:
+- Keeps zero external dependencies (no runtime JAR required)
+- Maximizes Java interoperability (native compatibility with Java APIs and external procedures)
+- Maintains performance (leverages JVM-optimized String/StringBuilder)
+- Preserves Algol semantics (via helper methods for 1-based indexing and mutability)
+- Allows future migration to a runtime library if advanced features are needed
+
+This balances historical fidelity, performance, Java integration, and ease of distribution.
+
+#### Example: Algol String Usage
+
+```algol
+string s;
+s := "Hello, world!";
+integer i;
+i := length(s);           % i = 13
+outstring(1, s[1]);       % outputs 'H' (first character)
+outstring(1, substring(s, 8, 12));  % outputs 'world'
+s[7] := 'W';              % changes 'w' to 'W', so s becomes "Hello, World!"
+s := concat(s, "!!!");   % s is now "Hello, World!!!"
+```
+
 ## File I/O
 
 The original Algol 60 standard, and even the Modified Report, do not specify a standard mechanism for file input/output.  I/O in Algol 60 is limited to channels, which are left implementation-defined and typically mapped to standard input/output devices (e.g., teletype, punch cards, or console streams).  File I/O was handled in a variety of incompatible ways by different compilers, and the standard explicitly leaves the mapping of channels to devices or files outside its scope.
