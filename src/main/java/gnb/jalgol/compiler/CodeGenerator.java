@@ -359,35 +359,76 @@ public class CodeGenerator extends AlgolBaseListener {
     // Procedure calls (statement form: outstring, outreal, outinteger, etc.)
     // -------------------------------------------------------------------------
 
+    /**
+     * Resolves the channel parameter to the appropriate PrintStream field reference.
+     * Per Environmental-Block.md:
+     *   - Channel 0 → System.err
+     *   - Channel 1 → System.out
+     *   - Any other value → System.out
+     * The channel must be a compile-time constant integer literal. If it's not,
+     * a warning comment is emitted and System.out is used as the default.
+     */
+    private String getChannelStream(AlgolParser.ArgContext channelArg) {
+        if (channelArg == null || channelArg.expr() == null) {
+            activeOutput.append("; WARNING: missing channel parameter, defaulting to System.out\n");
+            return "java/lang/System/out";
+        }
+        
+        // Try to evaluate as a constant integer literal
+        AlgolParser.ExprContext expr = channelArg.expr();
+        if (expr instanceof AlgolParser.IntLiteralExprContext) {
+            AlgolParser.IntLiteralExprContext intExpr = (AlgolParser.IntLiteralExprContext) expr;
+            String channelText = intExpr.unsignedInt().getText();
+            try {
+                int channelValue = Integer.parseInt(channelText);
+                if (channelValue == 0) {
+                    return "java/lang/System/err";
+                } else {
+                    return "java/lang/System/out";
+                }
+            } catch (NumberFormatException e) {
+                activeOutput.append("; WARNING: invalid channel value, defaulting to System.out\n");
+                return "java/lang/System/out";
+            }
+        } else {
+            // Not a constant integer literal
+            activeOutput.append("; WARNING: channel parameter is not a compile-time constant, defaulting to System.out\n");
+            return "java/lang/System/out";
+        }
+    }
+
     @Override
     public void exitProcedureCall(AlgolParser.ProcedureCallContext ctx) {
         String name = ctx.identifier().getText();
         List<AlgolParser.ArgContext> args = ctx.argList().arg();
         if ("outstring".equals(name)) {
+            String stream = getChannelStream(args.get(0));
             String str = args.get(1).getText();
-            activeOutput.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
+            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
                         .append("ldc ").append(str).append("\n")
                         .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
         } else if ("outreal".equals(name)) {
-            activeOutput.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
+            String stream = getChannelStream(args.get(0));
+            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
                         .append(generateExpr(args.get(1).expr()))
                         .append("invokevirtual java/io/PrintStream/print(D)V\n");
         } else if ("outinteger".equals(name)) {
-            activeOutput.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
+            String stream = getChannelStream(args.get(0));
+            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
                         .append(generateExpr(args.get(1).expr()))
                         .append("invokevirtual java/io/PrintStream/print(I)V\n");
         } else if ("outchar".equals(name)) {
             // outchar(channel, str, position) - outputs character at position in string
-            // For now, ignore channel parameter and always use System.out
-            activeOutput.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
+            String stream = getChannelStream(args.get(0));
+            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
                         .append("ldc ").append(args.get(1).getText()).append("\n")
                         .append(generateExpr(args.get(2).expr()))
                         .append("invokevirtual java/lang/String/charAt(I)C\n")
                         .append("invokevirtual java/io/PrintStream/print(C)V\n");
         } else if ("outterminator".equals(name)) {
             // outterminator(channel) - outputs a space separator
-            // For now, ignore channel parameter and always use System.out
-            activeOutput.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
+            String stream = getChannelStream(args.get(0));
+            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
                         .append("ldc \" \"\n")
                         .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
         } else {

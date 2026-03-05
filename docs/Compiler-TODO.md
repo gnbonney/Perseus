@@ -262,12 +262,13 @@ integer and string arguments.
 - [x] Codegen: `outchar(channel, str, int)` — print the character at position `int` in string `str`
 - [x] Codegen: `outterminator(channel)` — print a space separator (per Modified Report, used after `outinteger`/`outreal`)
 - [x] Test: output_procedures_test validates outchar and outterminator generate correct Jasmin code
-- [ ] Codegen: **Channel-aware stream selection for output procedures** — implement logic to select `System.out` or `System.err` based on channel parameter, per Environmental-Block.md (channel 0 → `System.err`, channel 1 → `System.out`, others → `System.out`). Warn and default to `System.out` if channel is not a compile-time constant.
+- [x] Codegen: **Channel-aware stream selection for output procedures** — implement logic to select `System.out` or `System.err` based on channel parameter, per Environmental-Block.md (channel 0 → `System.err`, channel 1 → `System.out`, others → `System.out`). Warn and default to `System.out` if channel is not a compile-time constant.
 
 **Implementation notes:**
 - `outchar(channel, str, int)` uses `String.charAt(I)C` to extract the character, then prints it
 - `outterminator(channel)` outputs a space character as a string separator
-- Channel parameter currently accepted but ignored (always uses System.out); **implement channel-aware stream selection as described above**
+- **Channel-aware stream selection implemented**: `getChannelStream()` helper method evaluates channel parameter at compile time and selects appropriate stream (channel 0 → `System.err`, channel 1/other → `System.out`). Non-constant channels emit warning and default to `System.out`.
+- All five output procedures (outstring, outinteger, outreal, outchar, outterminator) use channel-aware stream selection
 - Both procedures work with existing outinteger, outreal, outstring infrastructure
 
 ## Milestone 11C — Input Procedures

@@ -477,5 +477,49 @@ end
                 "Should generate PrintStream.print(String) for outterminator");
     }
 
+    @Test
+    public void channel_aware_stream_selection_test() throws Exception {
+        // Test channel-aware stream selection for output procedures
+        // Channel 0 -> System.err, Channel 1 -> System.out
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/channel_test.alg", "gnb/jalgol/programs",
+                "ChannelTest", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+        
+        System.out.println("=== CHANNEL TEST JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END CHANNEL TEST ===");
+        
+        // Check compilation succeeded
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+        
+        // Verify channel 0 generates System.err references
+        assertTrue(jasminSource.contains("getstatic java/lang/System/err Ljava/io/PrintStream;"),
+                "Channel 0 should use System.err");
+        
+        // Verify channel 1 generates System.out references
+        assertTrue(jasminSource.contains("getstatic java/lang/System/out Ljava/io/PrintStream;"),
+                "Channel 1 should use System.out");
+        
+        // Count occurrences to ensure proper stream selection
+        int errCount = countOccurrences(jasminSource, "getstatic java/lang/System/err");
+        int outCount = countOccurrences(jasminSource, "getstatic java/lang/System/out");
+        
+        // We have 5 channel 0 calls and 5 channel 1 calls in the test
+        assertEquals(5, errCount, "Should have 5 System.err references for channel 0");
+        assertEquals(5, outCount, "Should have 5 System.out references for channel 1");
+    }
+    
+    private int countOccurrences(String text, String substring) {
+        int count = 0;
+        int index = 0;
+        while ((index = text.indexOf(substring, index)) != -1) {
+            count++;
+            index += substring.length();
+        }
+        return count;
+    }
+
 
 }
