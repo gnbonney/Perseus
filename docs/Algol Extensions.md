@@ -2,6 +2,34 @@
 
 Algol 60 left much to the imagination of compiler-writers.  Notably, it lacked any standard i/o procedures until the 1976 Modified Report.  It also lacked string variables.  Below is a list of Algol compilers with some of the extensions they implemented.  All of them have their own incompatible i/o procedures developed ahead of the modified standard generally written very specifically for old i/o devices such as punch cards and tapes.
 
+## Data General Extended Algol
+
+Data General's Extended Algol 60 was designed for the Nova series minicomputers. It included a number of practical extensions to standard Algol 60 to support real-world programming and system integration:
+
+* Extended I/O facilities, including file handling and device-specific operations
+* String variables and string manipulation functions
+* Additional arithmetic types and operations
+* System calls and hooks for interacting with the Nova operating system
+* Enhanced error handling and debugging features
+* Support for larger identifier lengths and relaxed syntax rules
+* Pragmas and compiler directives for optimization and system integration
+
+These extensions made the language more suitable for business and scientific applications on Data General hardware, at the cost of deviating from strict Algol 60 compatibility.
+
+## DEC Algol (decsystem10-20)
+
+DEC Algol was implemented for the PDP-10 and PDP-20 mainframes. Its notable features and extensions included:
+
+* Comprehensive I/O system, including file I/O and formatted input/output
+* String handling and manipulation extensions
+* Support for larger programs and data structures (arrays, records)
+* Additional built-in functions and mathematical routines
+* Extended error handling and diagnostic messages
+* Integration with the TOPS-10/TOPS-20 operating systems (e.g., system calls, batch processing)
+* Optional language features and switches for compatibility or performance
+
+DEC Algol was widely used in academic and research settings, and its extensions reflected the needs of users on DEC mainframes, often prioritizing practicality and system integration over strict adherence to the original Algol 60 specification.
+
 ## MC-Translator
 
 In his book, A Primer of Algol 60 Programming, Dijkstra describes this translator written at the Mathematical Centre, Amsterdam.  The translator had some minor limitations and differences to standard Algol, and had very basic i/o routines including read and print (for numbers only).
@@ -91,6 +119,26 @@ I noticed with a quick google search that Hadoop has its own Text class (https:/
 This might be useful for implementation of a Simula Text class or we might just use StringBuffer.
 
 The Eclipse git project has a RawText with a string saved as byte[] with no assumption of encoding (http://download.eclipse.org/jgit/docs/jgit-2.0.0.201206130900-r/apidocs/org/eclipse/jgit/diff/RawText.html).  This class is intended to represent a Unix formatted text file, not a general string.
+
+## File I/O
+
+The original Algol 60 standard, and even the Modified Report, do not specify a standard mechanism for file input/output.  I/O in Algol 60 is limited to channels, which are left implementation-defined and typically mapped to standard input/output devices (e.g., teletype, punch cards, or console streams).  File I/O was handled in a variety of incompatible ways by different compilers, and the standard explicitly leaves the mapping of channels to devices or files outside its scope.
+
+JAlgol's current design (see Environmental-Block.md) maps channel numbers to Java streams (`System.out` for channel 1 and `System.err` for channel 0).  This is sufficient for standard output and error, but does not address file I/O.  Some recommendations for extending this:
+
+* **File Open/Close Procedures:** Introduce procedures such as `openfile(channel, filename, mode)` and `closefile(channel)` to manage file streams.  These would register a mapping from a channel number to a Java `PrintStream` or `BufferedReader`, enabling subsequent I/O procedures to use the channel as a file handle.
+* **Backward Compatibility:** Retain the current behavior for channels 0 and 1 (stderr/stdout), but allow higher channel numbers to be dynamically assigned to files.
+* **Error Handling:** Define clear error semantics for invalid channel use, file not found, or permission errors, possibly by integrating with the `fault` procedure.
+
+For example (proposed syntax):
+
+```algol
+openfile(2, "output.txt", "w");
+outstring(2, "Hello, file!");
+closefile(2);
+```
+
+This approach is consistent with the Modified Report's philosophy of implementation-defined channel-to-device mapping, while bringing JAlgol closer to modern I/O expectations.  It mirrors patterns already seen in Simula 67 (file, infile, outfile classes), NU Algol (FORMAT and LIST declarations), and DEC Algol (comprehensive file I/O).
 
 ## Lambda Notation
 
