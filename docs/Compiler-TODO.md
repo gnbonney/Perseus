@@ -275,9 +275,12 @@ integer and string arguments.
 
 **Goal:** Implement all standard input procedures.
 
+**Note:** String variables and string I/O (e.g., `instring`, `outstring`) are extensions to Algol 60, not part of the original standard. Their implementation depends on the string variable extension described in Algol Extensions.md. All string I/O procedures require grammar, symbol table, type inference, and codegen support for string variables and operations (assignment, indexing, concatenation, slicing) using Java String/StringBuilder and static utility helpers for 1-based indexing.
+
 - [ ] Codegen: `ininteger(channel, var)` → `Scanner.nextInt()` (reads from `System.in`)
 - [ ] Codegen: `inreal(channel, var)` → `Scanner.nextDouble()` (reads from `System.in`; shared `Scanner` instance)
 - [ ] Codegen: `inchar(channel, str, var)` — read one character; find its position in `str`
+- [ ] Codegen: `instring(channel, var)` — read a string from the stream or file mapped to the channel (**extension; requires string variable support**)
 
 ## Milestone 11D — Control and Error Procedures
 
@@ -331,8 +334,10 @@ integer and string arguments.
 - [ ] Test: assert output matches expected real values
 
 ### string_output.alg
+- [ ] Grammar: string variable declarations and assignment (**extension**)
 - [ ] Grammar: outstring with string and variable arguments
-- [ ] Codegen: string concatenation or multi-argument output
+- [ ] Codegen: string concatenation, assignment, and 1-based indexing (using static helpers; see Algol Extensions.md)
+- [ ] Codegen: outstring and instring procedures (**extension; requires string variable support**)
 - [ ] Test: assert output matches expected formatted string
 
 ### own_variables.alg
