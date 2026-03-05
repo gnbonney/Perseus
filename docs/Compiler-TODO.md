@@ -214,18 +214,21 @@ integer and string arguments.
 
 ---
 
-## Milestone 10 — Standard Math Functions (`primes.alg`)
+## Milestone 10 — Sieve of Eratosthenes (`primes.alg`) ✅
 
 **Goal:** `primes.alg` compiles and prints all primes below 1000.
 
-**New features needed:**
-- [ ] Grammar: `boolean array` declarations
-- [ ] Grammar: `and` / `&` boolean operator
-- [ ] Grammar: `for ... while <expr> do` (while clause in for list)
-- [ ] Grammar: `stop` / procedure call as a single statement without args
-- [ ] Codegen: boolean array (JVM `boolean[]` or `int[]`)
-- [ ] Codegen: `and`/`or`/`not` boolean instructions
-- [ ] Test: assert first few and last primes in output
+**Features implemented:**
+- [x] Grammar: `boolean array` declarations
+- [x] Grammar: `and` / `&` boolean operator
+- [x] Grammar: `for ... while <expr> do` (while clause in for-list)
+- [x] Grammar: void procedures (no return type prefix)
+- [x] Codegen: boolean array as JVM `boolean[]` static field
+- [x] Codegen: arrays as class-level static fields (enables cross-scope access from procedures)
+- [x] Codegen: for-while loops re-assign loop variable before each condition check (Algol 60 semantics)
+- [x] Codegen: user-defined void procedure calls via `invokestatic`
+- [x] Codegen: `lookupVarType`/`lookupArrayBounds` helpers for outer-scope arrays inside procedures
+- [x] Test: assert first 10 primes and last prime (997) in output
 
 ---
 
