@@ -232,15 +232,11 @@ integer and string arguments.
 
 ---
 
-## Milestone 11 — Full Environmental Block (`pi.alg`, `pi2.alg`)
 
-**Goal:** Fully implement the environmental block as specified in Appendix 2 of the Modified Report,
-enabling the standard math and I/O procedures for use in sample programs.  `pi.alg` and `pi2.alg`
-compile and produce a correct approximation of π using `sqrt`.
+## Milestone 11A — Math Functions
 
-See also: [Environmental-Block.md](Environmental-Block.md) for design details and the full procedure table.
+**Goal:** Implement all standard math functions required by the environmental block.
 
-**Math functions (expression-position, handled in `generateExpr`):**
 - [ ] Codegen: `sqrt(E)` → `Math.sqrt(double)` (needed for `pi.alg`, `pi2.alg`)
 - [ ] Codegen: `abs(E)` → `Math.abs(double)`
 - [ ] Codegen: `iabs(E)` → `Math.abs(int)`
@@ -250,27 +246,42 @@ See also: [Environmental-Block.md](Environmental-Block.md) for design details an
 - [ ] Codegen: `ln(E)` → `Math.log(double)`
 - [ ] Codegen: `exp(E)` → `Math.exp(double)`
 
-**I/O procedures (channel-aware):**
+## Milestone 11B — Output Procedures
+
+**Goal:** Implement all standard output procedures with channel-aware stream selection.
+
 - [ ] Codegen: channel-aware stream selection — channel 0 → `System.err`, channel 1 (or other) → `System.out` for all output procedures
 - [ ] Codegen: `outchar(channel, str, int)` — print the character at position `int` in string `str`
 - [ ] Codegen: `outterminator(channel)` — print a space separator (per Modified Report, used after `outinteger`/`outreal`)
 
-**Input procedures:**
+## Milestone 11C — Input Procedures
+
+**Goal:** Implement all standard input procedures.
+
 - [ ] Codegen: `ininteger(channel, var)` → `Scanner.nextInt()` (reads from `System.in`)
 - [ ] Codegen: `inreal(channel, var)` → `Scanner.nextDouble()` (reads from `System.in`; shared `Scanner` instance)
 - [ ] Codegen: `inchar(channel, str, var)` — read one character; find its position in `str`
 
-**Control and error procedures:**
+## Milestone 11D — Control and Error Procedures
+
+**Goal:** Implement control and error procedures from the environmental block.
+
 - [ ] Codegen: `stop` → `System.exit(0)`
 - [ ] Codegen: `fault(str, r)` → print to `System.err` then `System.exit(1)`
 
-**Environmental constants (handled in `generateExpr` as `VarExpr`):**
+## Milestone 11E — Environmental Constants
+
+**Goal:** Implement all standard environmental constants.
+
 - [ ] Codegen: `maxreal` → `ldc2_w Double.MAX_VALUE`
 - [ ] Codegen: `minreal` → `ldc2_w Double.MIN_VALUE`
 - [ ] Codegen: `maxint` → `ldc Integer.MAX_VALUE`
 - [ ] Codegen: `epsilon` → `ldc2_w` machine epsilon (~2.220446049250313E-16)
 
-**Tests:**
+## Milestone 11F — Integration and Tests
+
+**Goal:** Integrate all environmental block features and validate with sample programs.
+
 - [ ] Test: `pi.alg` and `pi2.alg` compile and print π to expected precision
 - [ ] Test: `sqrt` of a negative number invokes `fault` (or returns NaN — document the choice)
 
