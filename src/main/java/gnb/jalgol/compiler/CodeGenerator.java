@@ -679,6 +679,14 @@ public class CodeGenerator extends AlgolBaseListener {
             return sb.toString();
         } else if (ctx instanceof AlgolParser.ProcCallExprContext e) {
             String procName = e.identifier().getText();
+            
+            // Check for built-in math functions first
+            String builtinCode = generateBuiltinMathFunction(procName, e);
+            if (builtinCode != null) {
+                return builtinCode;
+            }
+            
+            // Otherwise, handle user-defined procedure
             SymbolTableBuilder.ProcInfo info = procedures.get(procName);
             if (info == null) return "; ERROR: undeclared procedure " + procName + "\n";
             StringBuilder sb = new StringBuilder();
@@ -717,6 +725,94 @@ public class CodeGenerator extends AlgolBaseListener {
             return generateExpr(e.expr());
         }
         return "; unknown expr type\n";
+    }
+
+    /**
+     * Generates code for built-in math functions from the environmental block.
+     * Returns null if the function name is not a recognized built-in.
+     */
+    private String generateBuiltinMathFunction(String funcName, AlgolParser.ProcCallExprContext ctx) {
+        if (ctx.argList() == null || ctx.argList().arg().isEmpty()) {
+            return "; ERROR: " + funcName + " requires an argument\n";
+        }
+        
+        AlgolParser.ExprContext argExpr = ctx.argList().arg().get(0).expr();
+        if (argExpr == null) {
+            return "; ERROR: " + funcName + " requires an expression argument\n";
+        }
+        
+        StringBuilder sb = new StringBuilder();
+        String argType = exprTypes.getOrDefault(argExpr, "integer");
+        
+        switch (funcName) {
+            case "sqrt":
+                sb.append(generateExpr(argExpr));
+                if ("integer".equals(argType)) sb.append("i2d\n");
+                sb.append("invokestatic java/lang/Math/sqrt(D)D\n");
+                return sb.toString();
+                
+            case "abs":
+                sb.append(generateExpr(argExpr));
+                if ("integer".equals(argType)) sb.append("i2d\n");
+                sb.append("invokestatic java/lang/Math/abs(D)D\n");
+                return sb.toString();
+                
+            case "iabs":
+                sb.append(generateExpr(argExpr));
+                if ("real".equals(argType)) sb.append("d2i\n");
+                sb.append("invokestatic java/lang/Math/abs(I)I\n");
+                return sb.toString();
+                
+            case "sign":
+                // sign(E) = E > 0 ? 1 : E < 0 ? -1 : 0
+                // Generate inline code for efficiency
+                sb.append(generateExpr(argExpr));
+                if ("integer".equals(argType)) sb.append("i2d\n");
+                sb.append("invokestatic java/lang/Math/signum(D)D\n");
+                sb.append("d2i\n");
+                return sb.toString();
+                
+            case "entier":
+                // entier(E) = (int)Math.floor(E)
+                sb.append(generateExpr(argExpr));
+                if ("integer".equals(argType)) sb.append("i2d\n");
+                sb.append("invokestatic java/lang/Math/floor(D)D\n");
+                sb.append("d2i\n");
+                return sb.toString();
+                
+            case "sin":
+                sb.append(generateExpr(argExpr));
+                if ("integer".equals(argType)) sb.append("i2d\n");
+                sb.append("invokestatic java/lang/Math/sin(D)D\n");
+                return sb.toString();
+                
+            case "cos":
+                sb.append(generateExpr(argExpr));
+                if ("integer".equals(argType)) sb.append("i2d\n");
+                sb.append("invokestatic java/lang/Math/cos(D)D\n");
+                return sb.toString();
+                
+            case "arctan":
+                sb.append(generateExpr(argExpr));
+                if ("integer".equals(argType)) sb.append("i2d\n");
+                sb.append("invokestatic java/lang/Math/atan(D)D\n");
+                return sb.toString();
+                
+            case "ln":
+                sb.append(generateExpr(argExpr));
+                if ("integer".equals(argType)) sb.append("i2d\n");
+                sb.append("invokestatic java/lang/Math/log(D)D\n");
+                return sb.toString();
+                
+            case "exp":
+                sb.append(generateExpr(argExpr));
+                if ("integer".equals(argType)) sb.append("i2d\n");
+                sb.append("invokestatic java/lang/Math/exp(D)D\n");
+                return sb.toString();
+                
+            default:
+                return null; // Not a built-in function
+        }
     }
 }
 

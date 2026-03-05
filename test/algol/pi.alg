@@ -16,7 +16,7 @@ begin
 			end archimedesa; 
 		real procedure archimedesb(anext, b); 
 			value anext, b; 
-			real a, b; 
+			real anext, b; 
 			begin 
 				archimedesb := sqrt (anext * b); 
 			end archimedesb; 

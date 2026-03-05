@@ -108,9 +108,29 @@ public class TypeInferencer extends AlgolBaseListener {
     @Override
     public void exitProcCallExpr(AlgolParser.ProcCallExprContext ctx) {
         String procName = ctx.identifier().getText();
+        
+        // Check for built-in math functions first
+        String builtinType = getBuiltinFunctionType(procName);
+        if (builtinType != null) {
+            exprTypes.put(ctx, builtinType);
+            return;
+        }
+        
+        // Otherwise, look up user-defined procedure
         String procType = symbolTable.get(procName);
         if (procType != null && procType.startsWith("procedure:")) {
             exprTypes.put(ctx, procType.substring("procedure:".length()));
         }
+    }
+    
+    /**
+     * Returns the return type of a built-in math function, or null if not recognized.
+     */
+    private String getBuiltinFunctionType(String name) {
+        return switch (name) {
+            case "sqrt", "abs", "sin", "cos", "arctan", "ln", "exp" -> "real";
+            case "iabs", "sign", "entier" -> "integer";
+            default -> null;
+        };
     }
 }

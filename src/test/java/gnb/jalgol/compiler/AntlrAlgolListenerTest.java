@@ -282,6 +282,135 @@ public class AntlrAlgolListenerTest {
 		assertTrue(output.trim().endsWith("997"), "Should end with 997");
 	}
 
+	@Test
+	public void math_functions_test() throws Exception {
+		// Test all math functions from Milestone 11A
+		String algolSrc = """
+begin
+	real x, y;
+	integer i;
+	
+	comment Test sqrt;
+	x := sqrt(4.0);
+	outreal(1, x);
+	outstring(1, "\\n");
+	
+	comment Test abs with negative;
+	x := abs(0.0 - 3.5);
+	outreal(1, x);
+	outstring(1, "\\n");
+	
+	comment Test iabs with negative integer;
+	i := iabs(0 - 42);
+	outinteger(1, i);
+	outstring(1, "\\n");
+	
+	comment Test sign;
+	i := sign(5.0);
+	outinteger(1, i);
+	outstring(1, " ");
+	i := sign(0.0 - 3.0);
+	outinteger(1, i);
+	outstring(1, " ");
+	i := sign(0.0);
+	outinteger(1, i);
+	outstring(1, "\\n");
+	
+	comment Test entier (floor);
+	i := entier(3.7);
+	outinteger(1, i);
+	outstring(1, " ");
+	i := entier(0.0 - 2.3);
+	outinteger(1, i);
+	outstring(1, "\\n");
+	
+	comment Test sin, cos (using known values);
+	x := sin(0.0);
+	outreal(1, x);
+	outstring(1, "\\n");
+	
+	comment Test ln and exp (inverse functions);
+	x := ln(exp(1.0));
+	outreal(1, x);
+	outstring(1, "\\n");
+	
+	comment Test arctan;
+	x := arctan(0.0);
+	outreal(1, x);
+	outstring(1, "\\n")
+end
+""";
+
+		// Write source to a temporary file
+		Path tempFile = BUILD_DIR.resolve("math_test_temp.alg");
+		Files.createDirectories(BUILD_DIR);
+		Files.writeString(tempFile, algolSrc);
+
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				tempFile.toString(), "gnb/jalgol/programs", "MathFunctionsTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		
+		assertFalse(jasminSource.startsWith("ERROR"),
+				"Compilation should not produce an error: " + jasminSource);
+		assertTrue(jasminSource.contains("invokestatic java/lang/Math/sqrt"),
+				"Should call Math.sqrt");
+		assertTrue(jasminSource.contains("invokestatic java/lang/Math/abs"),
+				"Should call Math.abs");
+		assertTrue(jasminSource.contains("invokestatic java/lang/Math/sin"),
+				"Should call Math.sin");
+		assertTrue(jasminSource.contains("invokestatic java/lang/Math/log"),
+				"Should call Math.log for ln");
+		assertTrue(jasminSource.contains("invokestatic java/lang/Math/exp"),
+				"Should call Math.exp");
+		assertTrue(jasminSource.contains("invokestatic java/lang/Math/atan"),
+				"Should call Math.atan for arctan");
+		assertTrue(jasminSource.contains("invokestatic java/lang/Math/floor"),
+				"Should call Math.floor for entier");
+		assertTrue(jasminSource.contains("invokestatic java/lang/Math/signum"),
+				"Should call Math.signum for sign");
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run and check output
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.MathFunctionsTest");
+		System.out.println("math_functions output: [" + output + "]");
+		
+		// Check specific values
+		assertTrue(output.contains("2.0"), "sqrt(4) should be 2.0");
+		assertTrue(output.contains("3.5"), "abs(-3.5) should be 3.5");
+		assertTrue(output.contains("42"), "iabs(-42) should be 42");
+		assertTrue(output.contains("1 -1 0"), "sign tests should produce 1 -1 0");
+		assertTrue(output.contains("3 -3"), "entier tests should produce 3 -3");
+		assertTrue(output.contains("0.0"), "sin(0) and arctan(0) should be 0.0");
+		// ln(exp(1)) should be very close to 1.0
+		assertTrue(output.contains("1.0"), "ln(exp(1)) should be approximately 1.0");
+	}
+
+	@Test
+	public void pi_test() throws Exception {
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				"test/algol/pi.alg", "gnb/jalgol/programs", "PiTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+				"Compilation should not produce an error: " + jasminSource);
+		assertTrue(jasminSource.contains("invokestatic java/lang/Math/sqrt"),
+				"Should call Math.sqrt");
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run — pi.alg uses Archimedes method to approximate pi
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.PiTest");
+		System.out.println("pi output: [" + output + "]");
+		
+		// Check that output contains approximations of pi improving over iterations
+		assertTrue(output.contains("> pi >"), "Should contain pi approximation format");
+		// Final approximation should be close to pi (3.14159...)
+		assertTrue(output.contains("3.14"), "Should approximate pi starting with 3.14");
+	}
+
 	private static String runClass(Path classDir, String className) throws Exception {
 		List<String> cmd = java.util.Arrays.asList("java", "-cp", classDir.toString(), className);
 		System.out.println("runClass: " + cmd);

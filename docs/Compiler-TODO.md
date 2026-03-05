@@ -233,18 +233,26 @@ integer and string arguments.
 ---
 
 
-## Milestone 11A — Math Functions
+## Milestone 11A — Math Functions ✅
 
 **Goal:** Implement all standard math functions required by the environmental block.
 
-- [ ] Codegen: `sqrt(E)` → `Math.sqrt(double)` (needed for `pi.alg`, `pi2.alg`)
-- [ ] Codegen: `abs(E)` → `Math.abs(double)`
-- [ ] Codegen: `iabs(E)` → `Math.abs(int)`
-- [ ] Codegen: `sign(E)` → inline `E > 0 ? 1 : E < 0 ? -1 : 0`
-- [ ] Codegen: `entier(E)` → `(int)Math.floor(double)` (true floor, not truncation)
-- [ ] Codegen: `sin(E)`, `cos(E)`, `arctan(E)` → `Math.sin/cos/atan(double)`
-- [ ] Codegen: `ln(E)` → `Math.log(double)`
-- [ ] Codegen: `exp(E)` → `Math.exp(double)`
+- [x] Codegen: `sqrt(E)` → `Math.sqrt(double)` (needed for `pi.alg`, `pi2.alg`)
+- [x] Codegen: `abs(E)` → `Math.abs(double)`
+- [x] Codegen: `iabs(E)` → `Math.abs(int)`
+- [x] Codegen: `sign(E)` → inline `E > 0 ? 1 : E < 0 ? -1 : 0`
+- [x] Codegen: `entier(E)` → `(int)Math.floor(double)` (true floor, not truncation)
+- [x] Codegen: `sin(E)`, `cos(E)`, `arctan(E)` → `Math.sin/cos/atan(double)`
+- [x] Codegen: `ln(E)` → `Math.log(double)`
+- [x] Codegen: `exp(E)` → `Math.exp(double)`
+- [x] Test: `math_functions_test()` validates all math functions
+- [x] Test: `pi.alg` compiles and runs, computing π using `sqrt`
+
+**Implementation notes:**
+- All math functions handled in `CodeGenerator.generateBuiltinMathFunction()`
+- Type inference for built-in functions added to `TypeInferencer.getBuiltinFunctionType()`
+- Math functions map directly to `java.lang.Math` static methods via `invokestatic`
+- Integer↔real coercion applied automatically to match Java method signatures
 
 ## Milestone 11B — Output Procedures
 
