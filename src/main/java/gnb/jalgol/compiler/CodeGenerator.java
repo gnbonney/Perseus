@@ -376,6 +376,20 @@ public class CodeGenerator extends AlgolBaseListener {
             activeOutput.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
                         .append(generateExpr(args.get(1).expr()))
                         .append("invokevirtual java/io/PrintStream/print(I)V\n");
+        } else if ("outchar".equals(name)) {
+            // outchar(channel, str, position) - outputs character at position in string
+            // For now, ignore channel parameter and always use System.out
+            activeOutput.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
+                        .append("ldc ").append(args.get(1).getText()).append("\n")
+                        .append(generateExpr(args.get(2).expr()))
+                        .append("invokevirtual java/lang/String/charAt(I)C\n")
+                        .append("invokevirtual java/io/PrintStream/print(C)V\n");
+        } else if ("outterminator".equals(name)) {
+            // outterminator(channel) - outputs a space separator
+            // For now, ignore channel parameter and always use System.out
+            activeOutput.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
+                        .append("ldc \" \"\n")
+                        .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
         } else {
             // User-defined procedure call (statement form)
             SymbolTableBuilder.ProcInfo info = procedures.get(name);

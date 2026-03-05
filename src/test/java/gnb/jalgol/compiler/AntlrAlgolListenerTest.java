@@ -445,4 +445,37 @@ end
 		return output;
 	}
 
+    @Test
+    public void output_procedures_test() throws Exception {
+        // Test outchar and outterminator procedures
+        String algolSrc = """
+begin
+    outinteger(1, 42);
+    outterminator(1);
+    outchar(1, "World", 0);
+    stop
+end
+""";
+        
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/output_test.alg", "gnb/jalgol/programs",
+                "OutputTestM11B", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+        
+        // Check compilation succeeded - no ERROR in output
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+        
+        // Verify outchar generates String.charAt invocation
+        assertTrue(jasminSource.contains("invokevirtual java/lang/String/charAt(I)C"),
+                "Should generate String.charAt for outchar");
+        
+        // Verify outterminator and outinteger generate PrintStream.print
+        assertTrue(jasminSource.contains("invokevirtual java/io/PrintStream/print(I)V"),
+                "Should generate PrintStream.print(I) for outinteger");
+        assertTrue(jasminSource.contains("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V"),
+                "Should generate PrintStream.print(String) for outterminator");
+    }
+
+
 }

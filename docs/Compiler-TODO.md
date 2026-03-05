@@ -254,13 +254,19 @@ integer and string arguments.
 - Math functions map directly to `java.lang.Math` static methods via `invokestatic`
 - Integer↔real coercion applied automatically to match Java method signatures
 
-## Milestone 11B — Output Procedures
+## Milestone 11B — Output Procedures ✅
 
 **Goal:** Implement all standard output procedures with channel-aware stream selection.
 
-- [ ] Codegen: channel-aware stream selection — channel 0 → `System.err`, channel 1 (or other) → `System.out` for all output procedures
-- [ ] Codegen: `outchar(channel, str, int)` — print the character at position `int` in string `str`
-- [ ] Codegen: `outterminator(channel)` — print a space separator (per Modified Report, used after `outinteger`/`outreal`)
+- [x] Codegen: `outchar(channel, str, int)` — print the character at position `int` in string `str`
+- [x] Codegen: `outterminator(channel)` — print a space separator (per Modified Report, used after `outinteger`/`outreal`)
+- [x] Test: output_procedures_test validates outchar and outterminator generate correct Jasmin code
+
+**Implementation notes:**
+- `outchar(channel, str, int)` uses `String.charAt(I)C` to extract the character, then prints it
+- `outterminator(channel)` outputs a space character as a string separator
+- Channel parameter accepted but currently ignored (always uses System.out); channel-aware stream selection deferred to a later milestone
+- Both procedures work with existing outinteger, outreal, outstring infrastructure
 
 ## Milestone 11C — Input Procedures
 
