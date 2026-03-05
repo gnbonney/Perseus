@@ -88,7 +88,7 @@ public class AntlrAlgolListener {
 				for (Map.Entry<String, String> entry : mainSymbolTable.entrySet()) {
 					String name = entry.getKey();
 					String type = entry.getValue();
-					if (type.startsWith("procedure:")) continue; // procedure → separate static method, no slot
+					if (type.startsWith("procedure:") || type.endsWith("[]")) continue; // procedures → static methods; arrays → static fields
 					localIndex.put(name, nextLocal);
 					nextLocal += "real".equals(type) ? 2 : 1; // real=double=2 slots; all others (int/bool/array ref)=1
 				}

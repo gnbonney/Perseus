@@ -251,6 +251,37 @@ public class AntlrAlgolListenerTest {
 		assertEquals(expected, output.trim());
 	}
 
+	@Test
+	public void primes_test() throws Exception {
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				"test/algol/primes.alg", "gnb/jalgol/programs", "PrimesTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.err.println("=== PRIMES JASMIN ===");
+		System.err.println(jasminSource);
+		System.err.println("=== END PRIMES ===");
+
+		assertNotEquals("NO OUTPUT", jasminSource, "Compilation should succeed");
+		if (jasminSource.startsWith("ERROR")) {
+			throw new RuntimeException("Compilation error: " + jasminSource);
+		}
+		assertFalse(jasminSource.startsWith("ERROR"),
+				"Compilation should not produce an error: " + jasminSource);
+		assertTrue(jasminSource.contains("newarray boolean"),
+				"Should allocate boolean array for sieve");
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run — sieve prints primes below 1000, 10 per line
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.PrimesTest");
+		System.err.println("primes output: [" + output + "]");
+		// Check first few primes
+		assertTrue(output.contains("2 3 5 7 11 13 17 19 23 29"),
+				"Should contain first 10 primes");
+		// Check last prime below 1000 is 997
+		assertTrue(output.trim().endsWith("997"), "Should end with 997");
+	}
+
 	private static String runClass(Path classDir, String className) throws Exception {
 		List<String> cmd = java.util.Arrays.asList("java", "-cp", classDir.toString(), className);
 		System.out.println("runClass: " + cmd);

@@ -43,7 +43,7 @@ endComment
   ;
 
 procedureDecl
-  : (INTEGER | REAL) PROCEDURE identifier '(' paramList ')' ';'
+  : (INTEGER | REAL)? PROCEDURE identifier '(' paramList ')' ';'
     valueSpec?
     paramSpec*
     statement
@@ -66,7 +66,7 @@ varDecl
   ;
 
 arrayDecl
-  : (INTEGER | REAL) ARRAY identifier '[' unsignedInt ':' unsignedInt ']'
+  : (INTEGER | REAL | BOOLEAN) ARRAY identifier '[' unsignedInt ':' unsignedInt ']'
   ;
 
 varList
@@ -90,7 +90,7 @@ ifStatement
   ;
 
 forStatement
-  : FOR identifier ':=' expr STEP expr UNTIL expr DO statement
+  : FOR identifier (':=' | '=') expr (STEP expr UNTIL expr | WHILE expr) DO statement
   ;
 
 label
@@ -101,6 +101,7 @@ expr
   : expr op=('<'|'<='|'>'|'>='|'='|'<>') expr   # RelExpr
   | expr op=('*'|'/') expr   # MulDivExpr
   | expr op=('+'|'-') expr   # AddSubExpr
+  | expr op='&' expr         # AndExpr
   | identifier '[' expr ']'  # ArrayAccessExpr
   | identifier '(' argList ')' # ProcCallExpr
   | realLiteral              # RealLiteralExpr
@@ -142,6 +143,7 @@ ELSE : 'else';
 FOR : 'for';
 STEP : 'step';
 UNTIL : 'until';
+WHILE : 'while';
 DO : 'do';
 GOTO : 'goto';
 TRUE : 'true';

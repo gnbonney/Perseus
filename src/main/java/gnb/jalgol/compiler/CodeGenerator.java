@@ -95,7 +95,19 @@ public class CodeGenerator extends AlgolBaseListener {
         // Class header and <init>
         classHeader.append(".source ").append(source).append("\n")
                    .append(".class public ").append(packageName).append("/").append(className).append("\n")
-                   .append(".super java/lang/Object\n\n")
+                   .append(".super java/lang/Object\n\n");
+
+        // Emit static field declarations for arrays (must appear BEFORE methods in Jasmin)
+        for (Map.Entry<String, String> symEntry : currentSymbolTable.entrySet()) {
+            String arrName = symEntry.getKey();
+            String arrType = symEntry.getValue();
+            if (arrType.endsWith("[]")) {
+                classHeader.append(".field public static ").append(arrName)
+                           .append(" ").append(arrayTypeToJvmDesc(arrType)).append("\n");
+            }
+        }
+
+        classHeader.append("\n")
                    .append(".method public <init>()V\n")
                    .append(".limit stack 1\n")
                    .append(".limit locals 1\n")
@@ -109,28 +121,31 @@ public class CodeGenerator extends AlgolBaseListener {
                 .append(".limit stack 16\n")
                 .append(".limit locals ").append(currentNumLocals).append("\n");
 
-        // Initialize all main variables
+        // Initialize scalars from localIndex
         for (Map.Entry<String, Integer> entry : currentLocalIndex.entrySet()) {
             String varName = entry.getKey();
             int index = entry.getValue();
             String type = currentSymbolTable.get(varName);
             if ("integer".equals(type) || "boolean".equals(type)) {
                 mainCode.append("iconst_0\n").append("istore ").append(index).append("\n");
-            } else if ("integer[]".equals(type)) {
-                int[] bounds = currentArrayBounds.get(varName);
-                int size = bounds[1] - bounds[0] + 1;
-                mainCode.append("ldc ").append(size).append("\n")
-                        .append("newarray int\n")
-                        .append("astore ").append(index).append("\n");
-            } else if ("real[]".equals(type)) {
-                int[] bounds = currentArrayBounds.get(varName);
-                int size = bounds[1] - bounds[0] + 1;
-                mainCode.append("ldc ").append(size).append("\n")
-                        .append("newarray double\n")
-                        .append("astore ").append(index).append("\n");
             } else { // real
                 mainCode.append("dconst_0\n").append("dstore ").append(index).append("\n");
             }
+        }
+
+        // Initialize arrays as static fields (newarray + putstatic)
+        for (Map.Entry<String, String> symEntry : currentSymbolTable.entrySet()) {
+            String varName = symEntry.getKey();
+            String type = symEntry.getValue();
+            if (!type.endsWith("[]")) continue;
+            int[] bounds = currentArrayBounds.get(varName);
+            if (bounds == null) continue;
+            int size = bounds[1] - bounds[0] + 1;
+            String elemType = "real[]".equals(type) ? "double" : "boolean[]".equals(type) ? "boolean" : "int";
+            mainCode.append("ldc ").append(size).append("\n")
+                    .append("newarray ").append(elemType).append("\n")
+                    .append("putstatic ").append(packageName).append("/").append(className)
+                    .append("/").append(varName).append(" ").append(arrayTypeToJvmDesc(type)).append("\n");
         }
 
         activeOutput = mainCode;
@@ -183,9 +198,13 @@ public class CodeGenerator extends AlgolBaseListener {
             procLI.put(varName, nextSlot);
             nextSlot += "real".equals(varType) ? 2 : 1;
         }
-        // Retval slot at end
-        procRetvalSlot = nextSlot;
-        nextSlot += "real".equals(info.returnType) ? 2 : 1;
+        // Retval slot at end (only for typed function procedures, not void)
+        if (!"void".equals(info.returnType)) {
+            procRetvalSlot = nextSlot;
+            nextSlot += "real".equals(info.returnType) ? 2 : 1;
+        } else {
+            procRetvalSlot = -1;
+        }
         int procNumLocals = nextSlot;
 
         currentSymbolTable   = procST;
@@ -197,7 +216,7 @@ public class CodeGenerator extends AlgolBaseListener {
         String paramDesc = info.paramNames.stream()
             .map(p -> "real".equals(info.paramTypes.getOrDefault(p, "integer")) ? "D" : "I")
             .collect(Collectors.joining());
-        String retDesc = "real".equals(info.returnType) ? "D" : "I";
+        String retDesc = "void".equals(info.returnType) ? "V" : "real".equals(info.returnType) ? "D" : "I";
 
         activeOutput.append(".method public static ").append(procName)
                     .append("(").append(paramDesc).append(")").append(retDesc).append("\n")
@@ -215,18 +234,22 @@ public class CodeGenerator extends AlgolBaseListener {
                 activeOutput.append("iconst_0\n").append("istore ").append(slot).append("\n");
             }
         }
-        // Initialize retval slot
-        if ("real".equals(info.returnType)) {
-            activeOutput.append("dconst_0\n").append("dstore ").append(procRetvalSlot).append("\n");
-        } else {
-            activeOutput.append("iconst_0\n").append("istore ").append(procRetvalSlot).append("\n");
+        // Initialize retval slot (only for typed functions)
+        if (procRetvalSlot >= 0) {
+            if ("real".equals(info.returnType)) {
+                activeOutput.append("dconst_0\n").append("dstore ").append(procRetvalSlot).append("\n");
+            } else {
+                activeOutput.append("iconst_0\n").append("istore ").append(procRetvalSlot).append("\n");
+            }
         }
     }
 
     @Override
     public void exitProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
-        // Load retval and return
-        if ("real".equals(currentProcReturnType)) {
+        // Emit return instruction based on return type
+        if ("void".equals(currentProcReturnType)) {
+            activeOutput.append("return\n");
+        } else if ("real".equals(currentProcReturnType)) {
             activeOutput.append("dload ").append(procRetvalSlot).append("\n")
                         .append("dreturn\n");
         } else {
@@ -261,18 +284,23 @@ public class CodeGenerator extends AlgolBaseListener {
         if (lvalues.size() == 1 && lvalues.get(0).expr() != null) {
             AlgolParser.LvalueContext lv = lvalues.get(0);
             String arrName = lv.identifier().getText();
-            int arrSlot = currentLocalIndex.get(arrName);
-            int[] bounds = currentArrayBounds.get(arrName);
+            String elemType = lookupVarType(arrName);
+            if (elemType == null) {
+                activeOutput.append("; ERROR: undeclared array ").append(arrName).append("\n");
+                return;
+            }
+            int[] bounds = lookupArrayBounds(arrName);
             int lower = bounds != null ? bounds[0] : 0;
-            activeOutput.append("aload ").append(arrSlot).append("\n");
+            String jvmDesc = arrayTypeToJvmDesc(elemType);
+            activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                        .append("/").append(arrName).append(" ").append(jvmDesc).append("\n");
             activeOutput.append(generateExpr(lv.expr())); // subscript
             if (lower != 0) {
                 activeOutput.append("ldc ").append(lower).append("\n");
                 activeOutput.append("isub\n");
             }
             activeOutput.append(generateExpr(ctx.expr())); // value
-            String elemType = currentSymbolTable.getOrDefault(arrName, "integer[]");
-            activeOutput.append("real[]".equals(elemType) ? "dastore\n" : "iastore\n");
+            activeOutput.append("real[]".equals(elemType) ? "dastore\n" : "boolean[]".equals(elemType) ? "bastore\n" : "iastore\n");
             return;
         }
 
@@ -348,6 +376,36 @@ public class CodeGenerator extends AlgolBaseListener {
             activeOutput.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
                         .append(generateExpr(args.get(1).expr()))
                         .append("invokevirtual java/io/PrintStream/print(I)V\n");
+        } else {
+            // User-defined procedure call (statement form)
+            SymbolTableBuilder.ProcInfo info = procedures.get(name);
+            if (info != null) {
+                for (int ai = 0; ai < args.size(); ai++) {
+                    AlgolParser.ArgContext arg = args.get(ai);
+                    if (arg.expr() == null) continue; // skip string args
+                    activeOutput.append(generateExpr(arg.expr()));
+                    if (ai < info.paramNames.size()) {
+                        String paramName = info.paramNames.get(ai);
+                        String paramType = info.paramTypes.getOrDefault(paramName, "integer");
+                        String argType = exprTypes.getOrDefault(arg.expr(), "integer");
+                        if ("real".equals(paramType) && "integer".equals(argType)) {
+                            activeOutput.append("i2d\n");
+                        }
+                    }
+                }
+                String paramDesc = info.paramNames.stream()
+                    .map(p -> "real".equals(info.paramTypes.getOrDefault(p, "integer")) ? "D" : "I")
+                    .collect(Collectors.joining());
+                String retDesc = "void".equals(info.returnType) ? "V" : "real".equals(info.returnType) ? "D" : "I";
+                activeOutput.append("invokestatic ").append(packageName).append("/").append(className)
+                            .append("/").append(name)
+                            .append("(").append(paramDesc).append(")").append(retDesc).append("\n");
+                // Pop non-void return value (it's a statement, result discarded)
+                if ("D".equals(retDesc)) activeOutput.append("pop2\n");
+                else if (!"V".equals(retDesc)) activeOutput.append("pop\n");
+            } else {
+                activeOutput.append("; unknown procedure: ").append(name).append("\n");
+            }
         }
     }
 
@@ -440,45 +498,68 @@ public class CodeGenerator extends AlgolBaseListener {
         int    varIndex = currentLocalIndex.get(varName);
         String varType  = currentSymbolTable.get(varName);
 
-        activeOutput.append(generateExpr(ctx.expr(0))); // start
-        if ("real".equals(varType)) {
-            activeOutput.append("dstore ").append(varIndex).append("\n");
-        } else {
-            activeOutput.append("istore ").append(varIndex).append("\n");
-        }
-
         currentForLoopLabel = generateUniqueLabel("loop");
         currentForEndLabel  = generateUniqueLabel("endfor");
 
-        activeOutput.append(currentForLoopLabel).append(":\n");
-
-        if ("real".equals(varType)) {
-            activeOutput.append("dload ").append(varIndex).append("\n");
-            activeOutput.append(generateExpr(ctx.expr(2))); // until
-            activeOutput.append("dcmpg\n");
-            activeOutput.append("ifgt ").append(currentForEndLabel).append("\n");
+        if (ctx.STEP() != null) {
+            // step until: init before loop label, condition check at loop top
+            activeOutput.append(generateExpr(ctx.expr(0))); // start
+            if ("real".equals(varType)) {
+                activeOutput.append("dstore ").append(varIndex).append("\n");
+            } else {
+                activeOutput.append("istore ").append(varIndex).append("\n");
+            }
+            activeOutput.append(currentForLoopLabel).append(":\n");
+            if ("real".equals(varType)) {
+                activeOutput.append("dload ").append(varIndex).append("\n");
+                activeOutput.append(generateExpr(ctx.expr(2))); // until
+                activeOutput.append("dcmpg\n");
+                activeOutput.append("ifgt ").append(currentForEndLabel).append("\n");
+            } else {
+                activeOutput.append("iload ").append(varIndex).append("\n");
+                activeOutput.append(generateExpr(ctx.expr(2))); // until
+                activeOutput.append("if_icmpgt ").append(currentForEndLabel).append("\n");
+            }
+        } else if (ctx.WHILE() != null) {
+            // while: per Algol 60 semantics, V := E is re-evaluated before EACH iteration
+            activeOutput.append(currentForLoopLabel).append(":\n");
+            activeOutput.append(generateExpr(ctx.expr(0))); // initial value (re-assigned each iteration)
+            if ("real".equals(varType)) {
+                activeOutput.append("dstore ").append(varIndex).append("\n");
+            } else {
+                activeOutput.append("istore ").append(varIndex).append("\n");
+            }
+            activeOutput.append(generateExpr(ctx.expr(1))); // while condition
+            activeOutput.append("ifeq ").append(currentForEndLabel).append("\n");
         } else {
-            activeOutput.append("iload ").append(varIndex).append("\n");
-            activeOutput.append(generateExpr(ctx.expr(2))); // until
-            activeOutput.append("if_icmpgt ").append(currentForEndLabel).append("\n");
+            // bare for (no step/while): just set variable, no loop
+            activeOutput.append(generateExpr(ctx.expr(0)));
+            if ("real".equals(varType)) {
+                activeOutput.append("dstore ").append(varIndex).append("\n");
+            } else {
+                activeOutput.append("istore ").append(varIndex).append("\n");
+            }
+            activeOutput.append(currentForLoopLabel).append(":\n");
         }
     }
 
     @Override
     public void exitForStatement(AlgolParser.ForStatementContext ctx) {
-        String varName  = ctx.identifier().getText();
-        int    varIndex = currentLocalIndex.get(varName);
-        String varType  = currentSymbolTable.get(varName);
+        if (ctx.STEP() != null) {
+            String varName  = ctx.identifier().getText();
+            int    varIndex = currentLocalIndex.get(varName);
+            String varType  = currentSymbolTable.get(varName);
 
-        activeOutput.append(generateExpr(ctx.expr(1))); // step
-        if ("real".equals(varType)) {
-            activeOutput.append("dload ").append(varIndex).append("\n");
-            activeOutput.append("dadd\n");
-            activeOutput.append("dstore ").append(varIndex).append("\n");
-        } else {
-            activeOutput.append("iload ").append(varIndex).append("\n");
-            activeOutput.append("iadd\n");
-            activeOutput.append("istore ").append(varIndex).append("\n");
+            activeOutput.append(generateExpr(ctx.expr(1))); // step
+            if ("real".equals(varType)) {
+                activeOutput.append("dload ").append(varIndex).append("\n");
+                activeOutput.append("dadd\n");
+                activeOutput.append("dstore ").append(varIndex).append("\n");
+            } else {
+                activeOutput.append("iload ").append(varIndex).append("\n");
+                activeOutput.append("iadd\n");
+                activeOutput.append("istore ").append(varIndex).append("\n");
+            }
         }
 
         activeOutput.append("goto ").append(currentForLoopLabel).append("\n");
@@ -495,13 +576,56 @@ public class CodeGenerator extends AlgolBaseListener {
         return prefix + "_" + (labelCounter++);
     }
 
+    /** Returns the JVM array descriptor for a JAlgol array type. */
+    private static String arrayTypeToJvmDesc(String arrayType) {
+        return switch (arrayType) {
+            case "boolean[]" -> "[Z";
+            case "integer[]" -> "[I";
+            case "real[]"    -> "[D";
+            default -> "[I";
+        };
+    }
+
+    /** Looks up variable type in the current scope, falling back to main-scope if inside a procedure. */
+    private String lookupVarType(String name) {
+        String type = currentSymbolTable.get(name);
+        if (type == null && mainSymbolTable != null) type = mainSymbolTable.get(name);
+        return type;
+    }
+
+    /** Looks up array bounds in the current scope, falling back to main-scope bounds if inside a procedure. */
+    private int[] lookupArrayBounds(String name) {
+        int[] bounds = currentArrayBounds.get(name);
+        if (bounds == null && mainArrayBounds != null) bounds = mainArrayBounds.get(name);
+        return bounds;
+    }
+
     // -------------------------------------------------------------------------
     // Expression code generation
     // -------------------------------------------------------------------------
 
     private String generateExpr(ExprContext ctx) {
         if (ctx instanceof AlgolParser.RelExprContext e) {
-            return "; relational expr TODO\n";
+            String left = generateExpr(e.expr(0));
+            String right = generateExpr(e.expr(1));
+            String op = e.op.getText();
+            String trueLabel = generateUniqueLabel("rel_true");
+            String endLabel = generateUniqueLabel("rel_end");
+            String cmpOp = switch (op) {
+                case "<" -> "lt";
+                case "<=" -> "le";
+                case ">" -> "gt";
+                case ">=" -> "ge";
+                case "=" -> "eq";
+                case "<>" -> "ne";
+                default -> throw new RuntimeException("Unknown rel op " + op);
+            };
+            return left + right + "if_icmp" + cmpOp + " " + trueLabel + "\n" +
+                "iconst_0\n" +
+                "goto " + endLabel + "\n" +
+                trueLabel + ":\n" +
+                "iconst_1\n" +
+                endLabel + ":\n";
         } else if (ctx instanceof AlgolParser.MulDivExprContext e) {
             String left  = generateExpr(e.expr(0));
             String right = generateExpr(e.expr(1));
@@ -528,6 +652,8 @@ public class CodeGenerator extends AlgolBaseListener {
                 ("+".equals(op) ? "dadd" : "dsub") :
                 ("+".equals(op) ? "iadd" : "isub");
             return left + right + instr + "\n";
+        } else if (ctx instanceof AlgolParser.AndExprContext e) {
+            return generateExpr(e.expr(0)) + generateExpr(e.expr(1)) + "iand\n";
         } else if (ctx instanceof AlgolParser.VarExprContext e) {
             String name = e.identifier().getText();
             Integer idx = currentLocalIndex.get(name);
@@ -536,19 +662,20 @@ public class CodeGenerator extends AlgolBaseListener {
             return ("integer".equals(type) || "boolean".equals(type)) ? "iload " + idx + "\n" : "dload " + idx + "\n";
         } else if (ctx instanceof AlgolParser.ArrayAccessExprContext e) {
             String arrName = e.identifier().getText();
-            Integer arrSlot = currentLocalIndex.get(arrName);
-            if (arrSlot == null) return "; ERROR: undeclared array " + arrName + "\n";
-            int[] bounds = currentArrayBounds.get(arrName);
+            String elemType = lookupVarType(arrName);
+            if (elemType == null) return "; ERROR: undeclared array " + arrName + "\n";
+            int[] bounds = lookupArrayBounds(arrName);
             int lower = bounds != null ? bounds[0] : 0;
-            String elemType = currentSymbolTable.getOrDefault(arrName, "integer[]");
+            String jvmDesc = arrayTypeToJvmDesc(elemType);
             StringBuilder sb = new StringBuilder();
-            sb.append("aload ").append(arrSlot).append("\n");
+            sb.append("getstatic ").append(packageName).append("/").append(className)
+              .append("/").append(arrName).append(" ").append(jvmDesc).append("\n");
             sb.append(generateExpr(e.expr()));
             if (lower != 0) {
                 sb.append("ldc ").append(lower).append("\n");
                 sb.append("isub\n");
             }
-            sb.append("real[]".equals(elemType) ? "daload\n" : "iaload\n");
+            sb.append("real[]".equals(elemType) ? "daload\n" : "boolean[]".equals(elemType) ? "baload\n" : "iaload\n");
             return sb.toString();
         } else if (ctx instanceof AlgolParser.ProcCallExprContext e) {
             String procName = e.identifier().getText();

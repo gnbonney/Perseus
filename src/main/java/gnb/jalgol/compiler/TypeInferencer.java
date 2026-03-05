@@ -24,8 +24,7 @@ public class TypeInferencer extends AlgolBaseListener {
 
     @Override
     public void exitRelExpr(AlgolParser.RelExprContext ctx) {
-        // Relational expressions always yield Boolean, but for now we don't store it
-        // since if statements handle it directly
+        exprTypes.put(ctx, "boolean");
     }
 
     @Override
@@ -48,6 +47,16 @@ public class TypeInferencer extends AlgolBaseListener {
         String rightType = exprTypes.get(ctx.expr(1));
         String resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
         exprTypes.put(ctx, resultType);
+    }
+
+    @Override
+    public void exitAndExpr(AlgolParser.AndExprContext ctx) {
+        String leftType = exprTypes.get(ctx.expr(0));
+        String rightType = exprTypes.get(ctx.expr(1));
+        if (!"boolean".equals(leftType) || !"boolean".equals(rightType)) {
+            throw new RuntimeException("& operator requires boolean operands");
+        }
+        exprTypes.put(ctx, "boolean");
     }
 
     @Override

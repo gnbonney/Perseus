@@ -3,7 +3,7 @@ begin
             Mississippi College, http://sandbox.mc.edu/~bennet/cs404/doc/index.html.;
     comment Algol program print the primes less than 1000 using the 
             sieve method.;
-    Boolean array sieve[2:1000];
+    boolean array sieve[2:1000];
     integer p, count;
 
     comment Eliminate the multiples of the argument prime number;

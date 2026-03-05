@@ -62,7 +62,12 @@ public class SymbolTableBuilder extends AlgolBaseListener {
 
     @Override
     public void enterProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
-        String returnType = ctx.getStart().getText(); // "integer" or "real"
+        // First token is INTEGER/REAL (typed) or PROCEDURE (void)
+        String firstToken = ctx.getStart().getText();
+        String returnType;
+        if ("integer".equals(firstToken)) returnType = "integer";
+        else if ("real".equals(firstToken)) returnType = "real";
+        else returnType = "void";
         String name = ctx.identifier().getText();
         // Add to global symbol table so TypeInferencer knows the return type
         symbolTable.put(name, "procedure:" + returnType);
@@ -117,7 +122,7 @@ public class SymbolTableBuilder extends AlgolBaseListener {
 
     @Override
     public void enterArrayDecl(AlgolParser.ArrayDeclContext ctx) {
-        String elemType = ctx.getStart().getText(); // 'integer' or 'real'
+        String elemType = ctx.INTEGER() != null ? "integer" : ctx.REAL() != null ? "real" : "boolean";
         String arrType = elemType + "[]";
         String name = ctx.identifier().getText();
         int lower = Integer.parseInt(ctx.unsignedInt(0).getText());
