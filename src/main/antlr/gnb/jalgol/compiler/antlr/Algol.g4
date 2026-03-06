@@ -102,6 +102,7 @@ expr
   | expr op=('*'|'/') expr   # MulDivExpr
   | expr op=('+'|'-') expr   # AddSubExpr
   | expr op='&' expr         # AndExpr
+  | '-' expr                 # UnaryMinusExpr
   | identifier '[' expr ']'  # ArrayAccessExpr
   | identifier '(' argList ')' # ProcCallExpr
   | realLiteral              # RealLiteralExpr

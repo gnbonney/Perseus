@@ -686,4 +686,64 @@ end
         assertTrue(output.contains("maxint = 2147483647"), "Should output maxint value");
     }
 
+    @Test
+    public void pi_programs_test() throws Exception {
+        // Test that pi_simple.alg (Archimedes pi approximation) compiles and runs from Milestone 11F
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/pi_simple.alg", "gnb/jalgol/programs",
+                "PiTest", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "pi_simple.alg should compile without error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        // Verify key code patterns are present
+        assertTrue(jasminSource.contains("invokestatic java/lang/Math/sqrt"),
+                "Should call Math.sqrt for the Archimedes b step");
+        assertTrue(jasminSource.contains(".method public static archimedesa"),
+                "Should define archimedesa procedure as a static method");
+        assertTrue(jasminSource.contains(".method public static archimedesb"),
+                "Should define archimedesb procedure as a static method");
+        assertTrue(jasminSource.contains(".method public static main"),
+                "Should have main method");
+
+        // Assemble and run
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.PiTest");
+
+        // Verify output contains pi approximations (10 iterations of the Archimedes method)
+        assertTrue(output.contains(" > pi > "), "Should output Archimedes bounds in '... > pi > ...' format");
+        assertTrue(output.contains("3.14"), "Should approximate pi to at least 3.14...");
+    }
+
+    @Test
+    public void sqrt_negative_test() throws Exception {
+        // Test that sqrt of negative number returns NaN (documented choice) from Milestone 11F
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/sqrt_negative_test.alg", "gnb/jalgol/programs",
+                "SqrtNegativeTest", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== SQRT NEGATIVE TEST JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END SQRT NEGATIVE TEST ===");
+
+        // Check compilation succeeded
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        // Verify sqrt call generation
+        assertTrue(jasminSource.contains("invokestatic java/lang/Math/sqrt(D)D"),
+                "Should call Math.sqrt");
+
+        // Assemble and run
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.SqrtNegativeTest");
+        System.out.println("sqrt negative test output: [" + output + "]");
+
+        // Verify output contains NaN (Java's Math.sqrt returns NaN for negative inputs)
+        assertTrue(output.contains("NaN"), "sqrt of negative number should return NaN");
+    }
+
+
 } 

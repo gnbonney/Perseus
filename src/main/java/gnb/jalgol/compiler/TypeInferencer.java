@@ -111,6 +111,12 @@ public class TypeInferencer extends AlgolBaseListener {
     }
 
     @Override
+    public void exitUnaryMinusExpr(AlgolParser.UnaryMinusExprContext ctx) {
+        String innerType = exprTypes.get(ctx.expr());
+        exprTypes.put(ctx, innerType == null ? "integer" : innerType);
+    }
+
+    @Override
     public void exitParenExpr(AlgolParser.ParenExprContext ctx) {
         String innerType = exprTypes.get(ctx.expr());
         exprTypes.put(ctx, innerType);

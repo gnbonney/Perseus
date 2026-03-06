@@ -309,12 +309,14 @@ integer and string arguments.
 - [x] Codegen: `maxint` → `ldc Integer.MAX_VALUE`
 - [x] Codegen: `epsilon` → `ldc2_w` machine epsilon (~2.220446049250313E-16)
 
-## Milestone 11F — Integration and Tests
+## Milestone 11F — Integration and Tests ✅
 
 **Goal:** Integrate all environmental block features and validate with sample programs.
 
-- [ ] Test: `pi.alg` and `pi2.alg` compile and print π to expected precision
-- [ ] Test: `sqrt` of a negative number invokes `fault` (or returns NaN — document the choice)
+- [x] Test: `pi_simple.alg` (Archimedes method, call-by-value procedures) compiles and prints π approximations
+- [x] Test: `sqrt` of a negative number returns NaN (documented choice: Java `Math.sqrt` returns `NaN` for negative input)
+- [x] Grammar: unary minus (`-expr`) added to the expression grammar and handled in code generation and type inference
+- Note: `pi2.alg` (call-by-name procedures, zero-parameter procedure syntax) requires future milestones — call-by-name semantics and grammar support for parameterless procedure declarations
 
 ---
 

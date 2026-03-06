@@ -434,6 +434,7 @@ public class CodeGenerator extends AlgolBaseListener {
     @Override
     public void exitProcedureCall(AlgolParser.ProcedureCallContext ctx) {
         String name = ctx.identifier().getText();
+        System.out.println("Processing procedure call: " + name);
         List<AlgolParser.ArgContext> args = ctx.argList().arg();
         if ("outstring".equals(name)) {
             String stream = getChannelStream(args.get(0));
@@ -613,6 +614,26 @@ public class CodeGenerator extends AlgolBaseListener {
             activeOutput.append("goto ").append(endLabel).append("\n");
             activeOutput.append(elseLabel).append(":\n");
         }
+    }
+
+    @Override
+    public void enterBlock(AlgolParser.BlockContext ctx) {
+        // Blocks are just containers for statements - no special handling needed
+    }
+
+    @Override
+    public void exitBlock(AlgolParser.BlockContext ctx) {
+        // Blocks are just containers for statements - no special handling needed
+    }
+
+    @Override
+    public void enterCompoundStatement(AlgolParser.CompoundStatementContext ctx) {
+        // Compound statements are just containers for statements - no special handling needed
+    }
+
+    @Override
+    public void exitCompoundStatement(AlgolParser.CompoundStatementContext ctx) {
+        // Compound statements are just containers for statements - no special handling needed
     }
 
     @Override
@@ -923,6 +944,14 @@ public class CodeGenerator extends AlgolBaseListener {
             return "iconst_1\n";
         } else if (ctx instanceof AlgolParser.FalseLiteralExprContext) {
             return "iconst_0\n";
+        } else if (ctx instanceof AlgolParser.UnaryMinusExprContext e) {
+            String type = exprTypes.getOrDefault(ctx, "integer");
+            String inner = generateExpr(e.expr());
+            if ("real".equals(type)) {
+                return inner + "dneg\n";
+            } else {
+                return inner + "ineg\n";
+            }
         } else if (ctx instanceof AlgolParser.ParenExprContext e) {
             return generateExpr(e.expr());
         }
