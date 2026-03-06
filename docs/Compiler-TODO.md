@@ -297,8 +297,8 @@ integer and string arguments.
 
 **Goal:** Implement control and error procedures from the environmental block.
 
-- [ ] Codegen: `stop` → `System.exit(0)`
-- [ ] Codegen: `fault(str, r)` → print to `System.err` then `System.exit(1)`
+- [x] Codegen: `stop` → `System.exit(0)`
+- [x] Codegen: `fault(str, r)` → print to `System.err` then `System.exit(1)`
 
 ## Milestone 11E — Environmental Constants
 

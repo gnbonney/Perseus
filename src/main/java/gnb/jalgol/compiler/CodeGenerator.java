@@ -539,6 +539,17 @@ public class CodeGenerator extends AlgolBaseListener {
             } else {
                 activeOutput.append("; ERROR: instring requires a variable as second argument\n");
             }
+        } else if ("stop".equals(name)) {
+            // stop - terminates the program normally
+            activeOutput.append("iconst_0\n")
+                        .append("invokestatic java/lang/System/exit(I)V\n");
+        } else if ("fault".equals(name)) {
+            // fault(str, r) - prints error message to System.err then exits with code 1
+            activeOutput.append("getstatic java/lang/System/err Ljava/io/PrintStream;\n")
+                        .append(generateExpr(args.get(0).expr()))
+                        .append("invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V\n")
+                        .append("iconst_1\n")
+                        .append("invokestatic java/lang/System/exit(I)V\n");
         } else {
             // User-defined procedure call (statement form)
             SymbolTableBuilder.ProcInfo info = procedures.get(name);

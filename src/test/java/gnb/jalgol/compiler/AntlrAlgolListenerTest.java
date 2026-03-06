@@ -609,5 +609,41 @@ end
         assertEquals("Test Input String", output.trim(), "Should read and output the input string");
     }
 
+    @Test
+    public void stop_fault_test() throws Exception {
+        // Test stop and fault procedures from Milestone 11D
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/stop_fault_test.alg", "gnb/jalgol/programs",
+                "StopFaultTest", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== STOP FAULT TEST JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END STOP FAULT TEST ===");
+
+        // Check compilation succeeded
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        // Verify stop call generation
+        assertTrue(jasminSource.contains("iconst_0"),
+                "Should load exit code 0 for stop");
+        assertTrue(jasminSource.contains("invokestatic java/lang/System/exit(I)V"),
+                "Should call System.exit() for stop");
+
+        // Verify fault call generation
+        assertTrue(jasminSource.contains("getstatic java/lang/System/err Ljava/io/PrintStream;"),
+                "Should get System.err for fault");
+        assertTrue(jasminSource.contains("invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V"),
+                "Should call println for fault message");
+        assertTrue(jasminSource.contains("iconst_1"),
+                "Should load exit code 1 for fault");
+
+        // Assemble to .class
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        // Note: We don't run the program since stop and fault exit the JVM
+        // Just verify that compilation and Jasmin generation work correctly
+    }
 
 } 
