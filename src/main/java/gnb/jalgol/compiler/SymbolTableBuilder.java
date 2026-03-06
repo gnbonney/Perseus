@@ -62,11 +62,12 @@ public class SymbolTableBuilder extends AlgolBaseListener {
 
     @Override
     public void enterProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
-        // First token is INTEGER/REAL (typed) or PROCEDURE (void)
+        // First token is INTEGER/REAL/STRING (typed) or PROCEDURE (void)
         String firstToken = ctx.getStart().getText();
         String returnType;
         if ("integer".equals(firstToken)) returnType = "integer";
         else if ("real".equals(firstToken)) returnType = "real";
+        else if ("string".equals(firstToken)) returnType = "string";
         else returnType = "void";
         String name = ctx.identifier().getText();
         // Add to global symbol table so TypeInferencer knows the return type
@@ -96,7 +97,7 @@ public class SymbolTableBuilder extends AlgolBaseListener {
     @Override
     public void enterParamSpec(AlgolParser.ParamSpecContext ctx) {
         if (currentProc != null) {
-            String type = ctx.getStart().getText(); // "integer" or "real"
+            String type = ctx.getStart().getText(); // "integer", "real", or "string"
             for (AlgolParser.IdentifierContext id : ctx.paramList().identifier()) {
                 String paramName = id.getText();
                 currentProc.paramTypes.put(paramName, type);
@@ -122,7 +123,11 @@ public class SymbolTableBuilder extends AlgolBaseListener {
 
     @Override
     public void enterArrayDecl(AlgolParser.ArrayDeclContext ctx) {
-        String elemType = ctx.INTEGER() != null ? "integer" : ctx.REAL() != null ? "real" : "boolean";
+        String elemType;
+        if (ctx.INTEGER() != null) elemType = "integer";
+        else if (ctx.REAL() != null) elemType = "real";
+        else if (ctx.STRING() != null) elemType = "string";
+        else elemType = "boolean";
         String arrType = elemType + "[]";
         String name = ctx.identifier().getText();
         int lower = Integer.parseInt(ctx.unsignedInt(0).getText());

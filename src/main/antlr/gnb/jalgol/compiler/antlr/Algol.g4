@@ -43,7 +43,7 @@ endComment
   ;
 
 procedureDecl
-  : (INTEGER | REAL)? PROCEDURE identifier '(' paramList ')' ';'
+  : (INTEGER | REAL | STRING)? PROCEDURE identifier '(' paramList ')' ';'
     valueSpec?
     paramSpec*
     statement
@@ -54,7 +54,7 @@ valueSpec
   ;
 
 paramSpec
-  : (INTEGER | REAL) paramList ';'
+  : (INTEGER | REAL | STRING) paramList ';'
   ;
 
 paramList
@@ -62,11 +62,11 @@ paramList
   ;
 
 varDecl
-  : (REAL | INTEGER | BOOLEAN) varList
+  : (REAL | INTEGER | BOOLEAN | STRING) varList
   ;
 
 arrayDecl
-  : (INTEGER | REAL | BOOLEAN) ARRAY identifier '[' unsignedInt ':' unsignedInt ']'
+  : (INTEGER | REAL | BOOLEAN | STRING) ARRAY identifier '[' unsignedInt ':' unsignedInt ']'
   ;
 
 varList
@@ -106,6 +106,7 @@ expr
   | identifier '(' argList ')' # ProcCallExpr
   | realLiteral              # RealLiteralExpr
   | unsignedInt              # IntLiteralExpr
+  | string                   # StringLiteralExpr
   | identifier               # VarExpr
   | '(' expr ')'             # ParenExpr
   | TRUE                     # TrueLiteralExpr
@@ -134,6 +135,7 @@ END : 'end';
 REAL : 'real';
 INTEGER : 'integer';
 BOOLEAN : 'boolean';
+STRING : 'string';
 ARRAY : 'array';
 PROCEDURE : 'procedure';
 VALUE : 'value';

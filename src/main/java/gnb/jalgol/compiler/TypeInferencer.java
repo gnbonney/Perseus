@@ -95,8 +95,8 @@ public class TypeInferencer extends AlgolBaseListener {
     }
 
     @Override
-    public void exitFalseLiteralExpr(AlgolParser.FalseLiteralExprContext ctx) {
-        exprTypes.put(ctx, "boolean");
+    public void exitStringLiteralExpr(AlgolParser.StringLiteralExprContext ctx) {
+        exprTypes.put(ctx, "string");
     }
 
     @Override

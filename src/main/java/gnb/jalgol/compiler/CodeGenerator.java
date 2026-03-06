@@ -131,8 +131,10 @@ public class CodeGenerator extends AlgolBaseListener {
             String type = currentSymbolTable.get(varName);
             if ("integer".equals(type) || "boolean".equals(type)) {
                 mainCode.append("iconst_0\n").append("istore ").append(index).append("\n");
-            } else { // real
+            } else if ("real".equals(type)) {
                 mainCode.append("dconst_0\n").append("dstore ").append(index).append("\n");
+            } else if ("string".equals(type)) {
+                mainCode.append("ldc \"\"\n").append("astore ").append(index).append("\n");
             }
         }
 
@@ -144,9 +146,10 @@ public class CodeGenerator extends AlgolBaseListener {
             int[] bounds = currentArrayBounds.get(varName);
             if (bounds == null) continue;
             int size = bounds[1] - bounds[0] + 1;
-            String elemType = "real[]".equals(type) ? "double" : "boolean[]".equals(type) ? "boolean" : "int";
+            String elemType = "real[]".equals(type) ? "double" : "boolean[]".equals(type) ? "boolean" : "string[]".equals(type) ? "java/lang/String" : "int";
+            String newarrayInstr = "string[]".equals(type) ? "anewarray" : "newarray";
             mainCode.append("ldc ").append(size).append("\n")
-                    .append("newarray ").append(elemType).append("\n")
+                    .append(newarrayInstr).append(" ").append(elemType).append("\n")
                     .append("putstatic ").append(packageName).append("/").append(className)
                     .append("/").append(varName).append(" ").append(arrayTypeToJvmDesc(type)).append("\n");
         }
@@ -225,9 +228,12 @@ public class CodeGenerator extends AlgolBaseListener {
 
         // Build JVM method descriptor
         String paramDesc = info.paramNames.stream()
-            .map(p -> "real".equals(info.paramTypes.getOrDefault(p, "integer")) ? "D" : "I")
+            .map(p -> {
+                String type = info.paramTypes.getOrDefault(p, "integer");
+                return "real".equals(type) ? "D" : "string".equals(type) ? "Ljava/lang/String;" : "I";
+            })
             .collect(Collectors.joining());
-        String retDesc = "void".equals(info.returnType) ? "V" : "real".equals(info.returnType) ? "D" : "I";
+        String retDesc = "void".equals(info.returnType) ? "V" : "real".equals(info.returnType) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
 
         activeOutput.append(".method public static ").append(procName)
                     .append("(").append(paramDesc).append(")").append(retDesc).append("\n")
@@ -241,6 +247,8 @@ public class CodeGenerator extends AlgolBaseListener {
             int slot = e.getValue();
             if ("real".equals(varType)) {
                 activeOutput.append("dconst_0\n").append("dstore ").append(slot).append("\n");
+            } else if ("string".equals(varType)) {
+                activeOutput.append("ldc \"\"\n").append("astore ").append(slot).append("\n");
             } else {
                 activeOutput.append("iconst_0\n").append("istore ").append(slot).append("\n");
             }
@@ -263,6 +271,9 @@ public class CodeGenerator extends AlgolBaseListener {
         } else if ("real".equals(currentProcReturnType)) {
             activeOutput.append("dload ").append(procRetvalSlot).append("\n")
                         .append("dreturn\n");
+        } else if ("string".equals(currentProcReturnType)) {
+            activeOutput.append("aload ").append(procRetvalSlot).append("\n")
+                        .append("areturn\n");
         } else {
             activeOutput.append("iload ").append(procRetvalSlot).append("\n")
                         .append("ireturn\n");
@@ -311,20 +322,25 @@ public class CodeGenerator extends AlgolBaseListener {
                 activeOutput.append("isub\n");
             }
             activeOutput.append(generateExpr(ctx.expr())); // value
-            activeOutput.append("real[]".equals(elemType) ? "dastore\n" : "boolean[]".equals(elemType) ? "bastore\n" : "iastore\n");
+            activeOutput.append("real[]".equals(elemType) ? "dastore\n" : "boolean[]".equals(elemType) ? "bastore\n" : "string[]".equals(elemType) ? "aastore\n" : "iastore\n");
             return;
         }
 
         // Scalar (possibly chained) assignment
         String exprType = exprTypes.getOrDefault(ctx.expr(), "integer");
 
-        // Determine storage type: real if any destination is real (treats procedure return as its return type)
+        // Determine storage type: real if any destination is real, string if any destination is string
         boolean anyReal = lvalues.stream().anyMatch(lv -> {
             String lvName = lv.identifier().getText();
             if (lvName.equals(currentProcName)) return "real".equals(currentProcReturnType);
-            return "real".equals(currentSymbolTable.getOrDefault(lvName, "real"));
+            return "real".equals(currentSymbolTable.getOrDefault(lvName, "integer"));
         });
-        String storeType = anyReal ? "real" : "integer";
+        boolean anyString = lvalues.stream().anyMatch(lv -> {
+            String lvName = lv.identifier().getText();
+            if (lvName.equals(currentProcName)) return "string".equals(currentProcReturnType);
+            return "string".equals(currentSymbolTable.getOrDefault(lvName, "integer"));
+        });
+        String storeType = anyReal ? "real" : anyString ? "string" : "integer";
 
         // Generate expression and widen if needed
         activeOutput.append(generateExpr(ctx.expr()));
@@ -343,6 +359,8 @@ public class CodeGenerator extends AlgolBaseListener {
                 }
                 if ("real".equals(currentProcReturnType)) {
                     activeOutput.append("dstore ").append(procRetvalSlot).append("\n");
+                } else if ("string".equals(currentProcReturnType)) {
+                    activeOutput.append("astore ").append(procRetvalSlot).append("\n");
                 } else {
                     activeOutput.append("istore ").append(procRetvalSlot).append("\n");
                 }
@@ -361,8 +379,13 @@ public class CodeGenerator extends AlgolBaseListener {
             if ("integer".equals(varType) && "real".equals(storeType)) {
                 activeOutput.append("d2i\n");
             }
-            activeOutput.append(("integer".equals(varType) || "boolean".equals(varType)) ? "istore " : "dstore ")
-                        .append(idx).append("\n");
+            if ("integer".equals(varType) || "boolean".equals(varType)) {
+                activeOutput.append("istore ").append(idx).append("\n");
+            } else if ("real".equals(varType)) {
+                activeOutput.append("dstore ").append(idx).append("\n");
+            } else if ("string".equals(varType)) {
+                activeOutput.append("astore ").append(idx).append("\n");
+            }
         }
     }
 
@@ -414,9 +437,8 @@ public class CodeGenerator extends AlgolBaseListener {
         List<AlgolParser.ArgContext> args = ctx.argList().arg();
         if ("outstring".equals(name)) {
             String stream = getChannelStream(args.get(0));
-            String str = args.get(1).getText();
             activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
-                        .append("ldc ").append(str).append("\n")
+                        .append(generateExpr(args.get(1).expr()))
                         .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
         } else if ("outreal".equals(name)) {
             String stream = getChannelStream(args.get(0));
@@ -706,6 +728,7 @@ public class CodeGenerator extends AlgolBaseListener {
             case "boolean[]" -> "[Z";
             case "integer[]" -> "[I";
             case "real[]"    -> "[D";
+            case "string[]"  -> "[Ljava/lang/String;";
             default -> "[I";
         };
     }
@@ -783,7 +806,15 @@ public class CodeGenerator extends AlgolBaseListener {
             Integer idx = currentLocalIndex.get(name);
             if (idx == null) return "; ERROR: undeclared variable " + name + "\n";
             String type = currentSymbolTable.get(name);
-            return ("integer".equals(type) || "boolean".equals(type)) ? "iload " + idx + "\n" : "dload " + idx + "\n";
+            if ("integer".equals(type) || "boolean".equals(type)) {
+                return "iload " + idx + "\n";
+            } else if ("real".equals(type)) {
+                return "dload " + idx + "\n";
+            } else if ("string".equals(type)) {
+                return "aload " + idx + "\n";
+            } else {
+                return "; ERROR: unknown variable type " + type + "\n";
+            }
         } else if (ctx instanceof AlgolParser.ArrayAccessExprContext e) {
             String arrName = e.identifier().getText();
             String elemType = lookupVarType(arrName);
@@ -799,7 +830,7 @@ public class CodeGenerator extends AlgolBaseListener {
                 sb.append("ldc ").append(lower).append("\n");
                 sb.append("isub\n");
             }
-            sb.append("real[]".equals(elemType) ? "daload\n" : "boolean[]".equals(elemType) ? "baload\n" : "iaload\n");
+            sb.append("real[]".equals(elemType) ? "daload\n" : "boolean[]".equals(elemType) ? "baload\n" : "string[]".equals(elemType) ? "aaload\n" : "iaload\n");
             return sb.toString();
         } else if (ctx instanceof AlgolParser.ProcCallExprContext e) {
             String procName = e.identifier().getText();
@@ -830,9 +861,12 @@ public class CodeGenerator extends AlgolBaseListener {
                 }
             }
             String paramDesc = info.paramNames.stream()
-                .map(p -> "real".equals(info.paramTypes.getOrDefault(p, "integer")) ? "D" : "I")
+                .map(p -> {
+                    String type = info.paramTypes.getOrDefault(p, "integer");
+                    return "real".equals(type) ? "D" : "string".equals(type) ? "Ljava/lang/String;" : "I";
+                })
                 .collect(Collectors.joining());
-            String retDesc = "real".equals(info.returnType) ? "D" : "I";
+            String retDesc = "real".equals(info.returnType) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
             sb.append("invokestatic ").append(packageName).append("/").append(className)
               .append("/").append(procName)
               .append("(").append(paramDesc).append(")").append(retDesc).append("\n");
@@ -841,6 +875,8 @@ public class CodeGenerator extends AlgolBaseListener {
             return "ldc2_w " + e.realLiteral().getText() + "\n";
         } else if (ctx instanceof AlgolParser.IntLiteralExprContext e) {
             return "ldc " + e.unsignedInt().getText() + "\n";
+        } else if (ctx instanceof AlgolParser.StringLiteralExprContext e) {
+            return "ldc " + e.string().getText() + "\n";
         } else if (ctx instanceof AlgolParser.TrueLiteralExprContext) {
             return "iconst_1\n";
         } else if (ctx instanceof AlgolParser.FalseLiteralExprContext) {

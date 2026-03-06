@@ -522,63 +522,44 @@ end
     }
 
     @Test
-    public void input_procedures_test() throws Exception {
-        // Test ininteger, inreal, and inchar procedures from Milestone 11C.1
+    public void string_test() throws Exception {
+        // Test string variable support from Milestone 11C.2
         Path jasminFile = AntlrAlgolListener.compileToFile(
-                "test/algol/input_procedures.alg", "gnb/jalgol/programs",
-                "InputProceduresTest", BUILD_DIR);
+                "test/algol/string_test.alg", "gnb/jalgol/programs",
+                "StringTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
-        System.out.println("=== INPUT PROCEDURES JASMIN ===");
+        System.out.println("=== STRING TEST JASMIN ===");
         System.out.println(jasminSource);
-        System.out.println("=== END INPUT PROCEDURES ===");
+        System.out.println("=== END STRING TEST ===");
 
         // Check compilation succeeded
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
-        // Verify Scanner field declaration
-        assertTrue(jasminSource.contains(".field public static __scanner Ljava/util/Scanner;"),
-                "Should declare static Scanner field");
+        // Verify string variable initialization
+        assertTrue(jasminSource.contains("ldc \"\"\nastore"),
+                "Should initialize string variables to empty string");
 
-        // Verify Scanner initialization in main method
-        assertTrue(jasminSource.contains("new java/util/Scanner"),
-                "Should create new Scanner instance");
-        assertTrue(jasminSource.contains("dup"),
-                "Should dup Scanner reference for constructor call");
-        assertTrue(jasminSource.contains("getstatic java/lang/System/in Ljava/io/InputStream;"),
-                "Should pass System.in to Scanner constructor");
-        assertTrue(jasminSource.contains("putstatic"),
-                "Should store Scanner in static field");
+        // Verify string literal loading
+        assertTrue(jasminSource.contains("ldc \"Hello, World!\""),
+                "Should load string literals");
 
-        // Verify ininteger generates Scanner.nextInt() call
-        assertTrue(jasminSource.contains("invokevirtual java/util/Scanner/nextInt()I"),
-                "Should generate Scanner.nextInt() for ininteger");
+        // Verify string variable storage
+        assertTrue(jasminSource.contains("astore"),
+                "Should generate astore for string variable assignment");
 
-        // Verify inreal generates Scanner.nextDouble() call
-        assertTrue(jasminSource.contains("invokevirtual java/util/Scanner/nextDouble()D"),
-                "Should generate Scanner.nextDouble() for inreal");
-
-        // Verify inchar generates Scanner.next() and String operations
-        assertTrue(jasminSource.contains("invokevirtual java/util/Scanner/next()Ljava/lang/String;"),
-                "Should generate Scanner.next() for inchar");
-        assertTrue(jasminSource.contains("invokevirtual java/lang/String/charAt(I)C"),
-                "Should generate String.charAt for inchar");
-        assertTrue(jasminSource.contains("invokevirtual java/lang/String/indexOf(I)I"),
-                "Should generate String.indexOf for inchar");
-
-        // Verify variable storage (istore for integers, dstore for reals)
-        assertTrue(jasminSource.contains("istore"),
-                "Should generate istore for integer variable storage");
-        assertTrue(jasminSource.contains("dstore"),
-                "Should generate dstore for real variable storage");
+        // Verify string variable loading
+        assertTrue(jasminSource.contains("aload"),
+                "Should generate aload for string variable access");
 
         // Assemble to .class
         AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-        // Note: We cannot run this test automatically because it requires interactive input
-        // The test verifies that compilation succeeds and generates correct Jasmin bytecode
-        // Manual testing would require providing input to System.in
+        // Run and check output
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.StringTest");
+        System.out.println("string test output: [" + output + "]");
+        assertEquals("Hello, World! ", output, "Should output the string with space terminator");
     }
 
 

@@ -285,10 +285,10 @@ integer and string arguments.
 - [x] Codegen: `inchar(channel, str, var)` — read one character; find its position in `str`
 
 **11C.2 — String Variable Support (prerequisite for string I/O):**
-- [ ] Grammar: string variable declarations and assignment
-- [ ] SymbolTableBuilder: track string variables and scope
-- [ ] TypeInferencer: handle string types and type rules
-- [ ] Codegen: emit JVM code for string operations (assignment, indexing, concatenation, slicing) using Java String/StringBuilder and static helpers
+- [x] Grammar: string variable declarations and assignment
+- [x] SymbolTableBuilder: track string variables and scope
+- [x] TypeInferencer: handle string types and type rules
+- [x] Codegen: emit JVM code for string operations (assignment, indexing, concatenation, slicing) using Java String/StringBuilder and static helpers
 
 **11C.3 — String Input Procedures (requires 11C.2):**
 - [ ] Codegen: `instring(channel, var)` — read a string from the stream or file mapped to the channel (**extension; requires string variable support**)
