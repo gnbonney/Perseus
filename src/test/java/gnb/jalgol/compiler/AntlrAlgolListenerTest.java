@@ -646,4 +646,44 @@ end
         // Just verify that compilation and Jasmin generation work correctly
     }
 
+    @Test
+    public void constants_test() throws Exception {
+        // Test environmental constants from Milestone 11E
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/constants_test.alg", "gnb/jalgol/programs",
+                "ConstantsTest", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== CONSTANTS TEST JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END CONSTANTS TEST ===");
+
+        // Check compilation succeeded
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        // Verify constant loading
+        assertTrue(jasminSource.contains("ldc2_w " + Double.MAX_VALUE),
+                "Should load Double.MAX_VALUE for maxreal");
+        assertTrue(jasminSource.contains("ldc2_w " + Double.MIN_VALUE),
+                "Should load Double.MIN_VALUE for minreal");
+        assertTrue(jasminSource.contains("ldc2_w " + Double.MIN_NORMAL),
+                "Should load machine epsilon for epsilon");
+        assertTrue(jasminSource.contains("ldc " + Integer.MAX_VALUE),
+                "Should load Integer.MAX_VALUE for maxint");
+
+        // Assemble to .class
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        // Run and check output
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ConstantsTest");
+        System.out.println("constants test output: [" + output + "]");
+        
+        // Verify the output contains the expected values
+        assertTrue(output.contains("maxreal = 1.7976931348623157E308"), "Should output maxreal value");
+        assertTrue(output.contains("minreal = 4.9E-324"), "Should output minreal value");
+        assertTrue(output.contains("epsilon = 2.2250738585072014E-308"), "Should output epsilon value");
+        assertTrue(output.contains("maxint = 2147483647"), "Should output maxint value");
+    }
+
 } 

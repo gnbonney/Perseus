@@ -62,6 +62,17 @@ public class TypeInferencer extends AlgolBaseListener {
     @Override
     public void exitVarExpr(AlgolParser.VarExprContext ctx) {
         String varName = ctx.identifier().getText();
+        
+        // Check for environmental constants
+        if ("maxreal".equals(varName) || "minreal".equals(varName) || "epsilon".equals(varName)) {
+            exprTypes.put(ctx, "real");
+            return;
+        } else if ("maxint".equals(varName)) {
+            exprTypes.put(ctx, "integer");
+            return;
+        }
+        
+        // Regular variable lookup
         String type = symbolTable.get(varName);
         if (type == null) {
             throw new RuntimeException("Undeclared variable: " + varName);

@@ -304,10 +304,10 @@ integer and string arguments.
 
 **Goal:** Implement all standard environmental constants.
 
-- [ ] Codegen: `maxreal` → `ldc2_w Double.MAX_VALUE`
-- [ ] Codegen: `minreal` → `ldc2_w Double.MIN_VALUE`
-- [ ] Codegen: `maxint` → `ldc Integer.MAX_VALUE`
-- [ ] Codegen: `epsilon` → `ldc2_w` machine epsilon (~2.220446049250313E-16)
+- [x] Codegen: `maxreal` → `ldc2_w Double.MAX_VALUE`
+- [x] Codegen: `minreal` → `ldc2_w Double.MIN_VALUE`
+- [x] Codegen: `maxint` → `ldc Integer.MAX_VALUE`
+- [x] Codegen: `epsilon` → `ldc2_w` machine epsilon (~2.220446049250313E-16)
 
 ## Milestone 11F — Integration and Tests
 

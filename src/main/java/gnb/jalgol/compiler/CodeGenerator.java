@@ -831,6 +831,20 @@ public class CodeGenerator extends AlgolBaseListener {
             return generateExpr(e.expr(0)) + generateExpr(e.expr(1)) + "iand\n";
         } else if (ctx instanceof AlgolParser.VarExprContext e) {
             String name = e.identifier().getText();
+            
+            // Check for environmental constants first
+            if ("maxreal".equals(name)) {
+                return "ldc2_w " + Double.MAX_VALUE + "\n";
+            } else if ("minreal".equals(name)) {
+                return "ldc2_w " + Double.MIN_VALUE + "\n";
+            } else if ("maxint".equals(name)) {
+                return "ldc " + Integer.MAX_VALUE + "\n";
+            } else if ("epsilon".equals(name)) {
+                // Machine epsilon - using Double.MIN_NORMAL as a reasonable approximation
+                return "ldc2_w " + Double.MIN_NORMAL + "\n";
+            }
+            
+            // Regular variable lookup
             Integer idx = currentLocalIndex.get(name);
             if (idx == null) return "; ERROR: undeclared variable " + name + "\n";
             String type = currentSymbolTable.get(name);
