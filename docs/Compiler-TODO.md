@@ -291,7 +291,7 @@ integer and string arguments.
 - [x] Codegen: emit JVM code for string operations (assignment, indexing, concatenation, slicing) using Java String/StringBuilder and static helpers
 
 **11C.3 — String Input Procedures (requires 11C.2):**
-- [ ] Codegen: `instring(channel, var)` — read a string from the stream or file mapped to the channel (**extension; requires string variable support**)
+- [x] Codegen: `instring(channel, var)` — read a string from the stream or file mapped to the channel (**extension; requires string variable support**)
 
 ## Milestone 11D — Control and Error Procedures
 

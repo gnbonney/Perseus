@@ -445,6 +445,22 @@ end
 		return output;
 	}
 
+	private static String runClassWithInput(Path classDir, String className, String input) throws Exception {
+		List<String> cmd = java.util.Arrays.asList("java", "-cp", classDir.toString(), className);
+		System.out.println("runClassWithInput: " + cmd + " input=[" + input.replace("\n", "\\n") + "]");
+		ProcessBuilder pb = new ProcessBuilder(cmd);
+		pb.redirectErrorStream(true);
+		Process p = pb.start();
+		// Write input to subprocess stdin
+		try (java.io.OutputStream os = p.getOutputStream()) {
+			os.write(input.getBytes());
+		}
+		String output = new String(p.getInputStream().readAllBytes());
+		int exitCode = p.waitFor();
+		System.out.println("runClassWithInput: exit=" + exitCode + " output=[" + output + "]");
+		return output;
+	}
+
     @Test
     public void output_procedures_test() throws Exception {
         // Test outchar and outterminator procedures
@@ -560,6 +576,37 @@ end
         String output = runClass(BUILD_DIR, "gnb.jalgol.programs.StringTest");
         System.out.println("string test output: [" + output + "]");
         assertEquals("Hello, World! ", output, "Should output the string with space terminator");
+    }
+
+    @Test
+    public void instring_test() throws Exception {
+        // Test instring procedure from Milestone 11C.3
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/instring_test.alg", "gnb/jalgol/programs",
+                "InstringTest", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== INSTRING TEST JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END INSTRING TEST ===");
+
+        // Check compilation succeeded
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        // Verify instring call generation
+        assertTrue(jasminSource.contains("invokevirtual java/util/Scanner/nextLine()Ljava/lang/String;"),
+                "Should call Scanner.nextLine() for instring");
+        assertTrue(jasminSource.contains("astore"),
+                "Should store result in string variable");
+
+        // Assemble to .class
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        // Run with input and check output
+        String output = runClassWithInput(BUILD_DIR, "gnb.jalgol.programs.InstringTest", "Test Input String\n");
+        System.out.println("instring test output: [" + output + "]");
+        assertEquals("Test Input String", output.trim(), "Should read and output the input string");
     }
 
 

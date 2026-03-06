@@ -522,6 +522,23 @@ public class CodeGenerator extends AlgolBaseListener {
             } else {
                 activeOutput.append("; ERROR: inchar requires a variable as third argument\n");
             }
+        } else if ("instring".equals(name)) {
+            // instring(channel, var) - reads a string from System.in and stores in var
+            AlgolParser.ExprContext varExpr = args.get(1).expr();
+            if (varExpr instanceof AlgolParser.VarExprContext) {
+                String varName = ((AlgolParser.VarExprContext) varExpr).identifier().getText();
+                Integer varSlot = currentLocalIndex.get(varName);
+                if (varSlot == null) {
+                    activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
+                } else {
+                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                                .append("/__scanner Ljava/util/Scanner;\n")
+                                .append("invokevirtual java/util/Scanner/nextLine()Ljava/lang/String;\n")
+                                .append("astore ").append(varSlot).append("\n");
+                }
+            } else {
+                activeOutput.append("; ERROR: instring requires a variable as second argument\n");
+            }
         } else {
             // User-defined procedure call (statement form)
             SymbolTableBuilder.ProcInfo info = procedures.get(name);
