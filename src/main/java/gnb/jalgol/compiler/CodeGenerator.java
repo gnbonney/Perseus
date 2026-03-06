@@ -107,6 +107,9 @@ public class CodeGenerator extends AlgolBaseListener {
             }
         }
 
+        // Add static Scanner field for input procedures (used for System.in reading)
+        classHeader.append(".field public static __scanner Ljava/util/Scanner;\n");
+
         classHeader.append("\n")
                    .append(".method public <init>()V\n")
                    .append(".limit stack 1\n")
@@ -147,6 +150,14 @@ public class CodeGenerator extends AlgolBaseListener {
                     .append("putstatic ").append(packageName).append("/").append(className)
                     .append("/").append(varName).append(" ").append(arrayTypeToJvmDesc(type)).append("\n");
         }
+
+        // Initialize Scanner for input procedures
+        mainCode.append("new java/util/Scanner\n")
+                .append("dup\n")
+                .append("getstatic java/lang/System/in Ljava/io/InputStream;\n")
+                .append("invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V\n")
+                .append("putstatic ").append(packageName).append("/").append(className)
+                .append("/__scanner Ljava/util/Scanner;\n");
 
         activeOutput = mainCode;
     }
@@ -431,6 +442,64 @@ public class CodeGenerator extends AlgolBaseListener {
             activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
                         .append("ldc \" \"\n")
                         .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
+        } else if ("ininteger".equals(name)) {
+            // ininteger(channel, var) - reads an integer from System.in and stores in var
+            AlgolParser.ExprContext varExpr = args.get(1).expr();
+            if (varExpr instanceof AlgolParser.VarExprContext) {
+                String varName = ((AlgolParser.VarExprContext) varExpr).identifier().getText();
+                Integer varSlot = currentLocalIndex.get(varName);
+                if (varSlot == null) {
+                    activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
+                } else {
+                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                                .append("/__scanner Ljava/util/Scanner;\n")
+                                .append("invokevirtual java/util/Scanner/nextInt()I\n")
+                                .append("istore ").append(varSlot).append("\n");
+                }
+            } else {
+                activeOutput.append("; ERROR: ininteger requires a variable as second argument\n");
+            }
+        } else if ("inreal".equals(name)) {
+            // inreal(channel, var) - reads a real from System.in and stores in var
+            AlgolParser.ExprContext varExpr = args.get(1).expr();
+            if (varExpr instanceof AlgolParser.VarExprContext) {
+                String varName = ((AlgolParser.VarExprContext) varExpr).identifier().getText();
+                Integer varSlot = currentLocalIndex.get(varName);
+                if (varSlot == null) {
+                    activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
+                } else {
+                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                                .append("/__scanner Ljava/util/Scanner;\n")
+                                .append("invokevirtual java/util/Scanner/nextDouble()D\n")
+                                .append("dstore ").append(varSlot).append("\n");
+                }
+            } else {
+                activeOutput.append("; ERROR: inreal requires a variable as second argument\n");
+            }
+        } else if ("inchar".equals(name)) {
+            // inchar(channel, str, var) - reads one character and finds its position in str
+            String str = args.get(1).getText();
+            AlgolParser.ExprContext varExpr = args.get(2).expr();
+            if (varExpr instanceof AlgolParser.VarExprContext) {
+                String varName = ((AlgolParser.VarExprContext) varExpr).identifier().getText();
+                Integer varSlot = currentLocalIndex.get(varName);
+                if (varSlot == null) {
+                    activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
+                } else {
+                    // Read next token from scanner
+                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                                .append("/__scanner Ljava/util/Scanner;\n")
+                                .append("invokevirtual java/util/Scanner/next()Ljava/lang/String;\n")
+                                .append("iconst_0\n")
+                                .append("invokevirtual java/lang/String/charAt(I)C\n")
+                                .append("ldc ").append(str).append("\n")
+                                .append("swap\n")
+                                .append("invokevirtual java/lang/String/indexOf(I)I\n")
+                                .append("istore ").append(varSlot).append("\n");
+                }
+            } else {
+                activeOutput.append("; ERROR: inchar requires a variable as third argument\n");
+            }
         } else {
             // User-defined procedure call (statement form)
             SymbolTableBuilder.ProcInfo info = procedures.get(name);
