@@ -47,6 +47,49 @@ sequenceDiagram
     JVM-->>User: Execute program
 ```
 
+## Environmental Block Implementation
+
+The Algol 60 Modified Report defines a fictitious outermost block called the **environmental block** that pre-declares all standard identifiers (I/O procedures, math functions, constants). JAlgol implements this without generating any extra class files or runtime declarations. Instead, environmental identifiers are recognised **by name** in `CodeGenerator` and mapped directly to the appropriate JVM instruction sequences.
+
+Recognition happens at two code-generation sites:
+
+1. **`exitProcedureCall`** — for void-returning procedures used as statements:
+   `outstring`, `outinteger`, `outreal`, `outchar`, `outterminator`, `outformat`, `stop`, `fault`,
+   `openfile`, `openstring`, `closefile`
+
+2. **`generateExpr`** — for value-returning function designators (expression position):
+   `sqrt`, `abs`, `iabs`, `sign`, `entier`, `sin`, `cos`, `arctan`, `ln`, `exp`, `length`,
+   `ininteger`, `inreal`, `informat`
+
+3. **Variable name resolution** — for constants (no argument list):
+   `maxreal`, `minreal`, `maxint`, `epsilon`
+
+Environmental identifiers are **not** entered in `SymbolTableBuilder`'s symbol table, to avoid polluting user-visible scope or consuming JVM local-variable slots.
+
+### Channel Resolution
+
+The channel parameter (first argument of all I/O procedures) is a compile-time constant integer. JAlgol resolves it at code-generation time:
+
+| Channel | Target | Use |
+|---|---|---|
+| `0` | `System.err` | Standard error |
+| `1` | `System.out` | Standard output |
+| `2`+ | File or string buffer | Mapped at runtime via `openfile`/`openstring` |
+
+Channels 0 and 1 are resolved statically because Jasmin `getstatic` targets are determined at compile time. Higher-numbered channels require a runtime dispatch table (a helper method or static array of streams), which is needed once file and string channel support is implemented.
+
+If the channel argument is not a compile-time constant integer, codegen emits a warning comment and defaults to `System.out`.
+
+### Math Functions
+
+Math functions are mapped to `java/lang/Math` static methods via `invokestatic`. Constants (`maxreal`, `minreal`, `maxint`, `epsilon`) are inlined as `ldc`/`ldc2_w` instructions at their use sites. No `Math` object is created.
+
+### Input Procedures
+
+Input procedures (`ininteger`, `inreal`, `inchar`) read from `System.in` via a shared `Scanner` instance created once as a static field on the generated class, rather than constructed per call.
+
+---
+
 ## Directory Structure
 
 - `src/main/java/` - Java source code

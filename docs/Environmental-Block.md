@@ -2,41 +2,27 @@
 
 Every ALGOL 60 program executes inside a fictitious outermost block called the **environmental block**
 (Modified Report §1, Appendix 2). It pre-declares all standard functions and procedures so that
-programs can call them without declaring them. JAlgol implements this block not as generated ALGOL
-code at runtime, but as **special-cased bytecode emission** in `CodeGenerator`, mapping each
-standard identifier directly to the appropriate JRE call or JVM instruction sequence.
+programs can call them without declaring them. No explicit declarations are needed in the program source.
 
 ---
 
-## Implementation Strategy
+## Channel Mapping
 
-JAlgol recognises environmental-block identifiers at **code-generation time**, inside
-`exitProcedureCall` (statement form) and `generateExpr` (expression/function-designator form).
-No ALGOL source declarations are needed. No extra class file is produced.
+The channel parameter (first argument of all I/O procedures) selects the target stream:
 
-The channel parameter (first argument of all I/O procedures) is a **compile-time constant integer**
-that selects the target stream. JAlgol resolves it at code-generation time using the following
-mapping:
-
-| Channel value | Java stream | Use |
+| Channel value | Target | Use |
 |---|---|---|
-| `0` | `System.err` | Standard error |
-| `1` | `System.out` | Standard output (conventional ALGOL default) |
-| Any other value | `System.out` | Treated as standard output |
+| `0` | Standard error | Diagnostics and error output |
+| `1` | Standard output | Normal program output (conventional default) |
+| `2`+ | File or string buffer | **Extension.** Opened via `openfile` or `openstring` |
 
-The channel argument must be a literal integer (or a constant expression reducible at compile time).
-If it is a variable or non-constant expression, codegen emits a warning comment and defaults to
-`System.out`. This restriction exists because Jasmin `getstatic` targets are determined at compile
-time; dynamic stream dispatch would require a helper method.
+The channel argument must be a literal integer. If it is a variable or non-constant expression, the compiler defaults to standard output.
 
-**Rationale:** The Modified Report says the method of channel-to-device mapping is outside the
-scope of the language. Using `System.err` for channel 0 maps naturally to Unix convention (fd 2 =
-stderr) and lets ALGOL programs write diagnostics and error output cleanly separable from normal
-output — for example:
+The Algol 60 Modified Report says the method of channel-to-device mapping is outside the scope of the language. Channel 0 maps naturally to standard error, letting programs write diagnostics cleanly separable from normal output:
 
 ```algol
-outstring(0, "error: value out of range");   comment goes to stderr;
-outinteger(1, result);                        comment goes to stdout;
+outstring(0, "error: value out of range");   comment goes to standard error;
+outinteger(1, result);                        comment goes to standard output;
 ```
 
 ---
@@ -45,126 +31,91 @@ outinteger(1, result);                        comment goes to stdout;
 
 ### Output
 
-| ALGOL identifier | Signature (Algol 60) | JRE mapping | Status |
-|---|---|---|---|
-| `outstring(channel, str)` | `procedure outstring(channel, str)` | `channel(0→err, 1→out).print(String)` | ✅ implemented (channel ignored — defaults to out; channel-aware: future) |
-| `outinteger(channel, int)` | `procedure outinteger(channel, int)` | `channel(0→err, 1→out).print(int)` | ✅ implemented (same caveat) |
-| `outreal(channel, re)` | `procedure outreal(channel, re)` | `channel(0→err, 1→out).print(double)` | ✅ implemented (same caveat) |
-| `outchar(channel, str, int)` | `procedure outchar(channel, str, int)` | `channel(0→err, 1→out).print(char)` — extract char at position `int` from `str` | ☐ future |
-| `outterminator(channel)` | `procedure outterminator(channel)` | `channel(0→err, 1→out).print(' ')` (space) | ☐ future |
+| ALGOL identifier | Signature (Algol 60) | Description |
+|---|---|---|
+| `outstring(channel, str)` | `procedure outstring(channel, str)` | Writes `str` to the given channel |
+| `outinteger(channel, int)` | `procedure outinteger(channel, int)` | Writes `int` to the given channel |
+| `outreal(channel, re)` | `procedure outreal(channel, re)` | Writes `re` to the given channel |
+| `outchar(channel, str, int)` | `procedure outchar(channel, str, int)` | Writes the character at position `int` in `str` to the given channel |
+| `outterminator(channel)` | `procedure outterminator(channel)` | Writes a field terminator (space) to the given channel |
+| `outformat(channel, format, ...)` | `procedure outformat(channel, format, ...)` | **Extension.** Formatted output to the given channel (see Format String Examples below) |
 
-**Notes:**
-- Per Appendix 2, `outstring` is defined in terms of `outchar`. JAlgol short-circuits this to a
-  direct `PrintStream.print(String)` call, which is semantically equivalent for well-formed strings.
-- Per Appendix 2, `outinteger` calls `outterminator` after printing the number. JAlgol currently
-  omits the terminator call; this is acceptable because the ALGOL spec says the terminator is only
-  required to separate successive numbers read back with `ininteger`. If `outterminator` is added
-  it can emit `System.out.print(' ')`.
-- Per Appendix 2, `outreal` similarly calls `outterminator`. Same note applies.
+**Notes (Algol 60 Modified Report, Appendix 2):**
+- `outstring` is defined in terms of `outchar`. JAlgol short-circuits this to a direct string output, which is semantically equivalent for well-formed strings.
+- `outinteger` and `outreal` are specified to call `outterminator` after printing. JAlgol currently omits this; the terminator is only required to separate successive numbers read back with `ininteger`.
 
 ### Input
 
+| ALGOL identifier | Signature (Algol 60) | Description |
+|---|---|---|
+| `ininteger(channel, int)` | `procedure ininteger(channel, int)` | Reads an integer from the given channel into `int` |
+| `inreal(channel, re)` | `procedure inreal(channel, re)` | Reads a real from the given channel into `re` |
+| `inchar(channel, str, int)` | `procedure inchar(channel, str, int)` | Reads one character from the channel; sets `int` to its position in `str` |
+| `informat(channel, format, ...)` | `procedure informat(channel, format, ...)` | **Extension.** Formatted input from the given channel (see Format String Examples below) |
 
-| ALGOL identifier | Signature (Algol 60) | JRE mapping | Status |
+Currently all input procedures read from standard input. File and string channel support for input will be added when file I/O is implemented.
+
+---
+
+## Format String Examples
+
+> **Extension.** `outformat` and `informat` are JAlgol extensions, not part of the Algol 60 Modified Report. See Algol Extensions.md for rationale and historical context.
+
+The `outformat` and `informat` procedures accept a format string that specifies the width, type, and precision of each output field. Multiple fields are separated by commas or spaces.
+
+| Format specifier | Meaning | Example call | Example output |
 |---|---|---|---|
-| `ininteger(channel, int)` | `procedure ininteger(channel, int)` | `new java.util.Scanner(System.in).nextInt()` | ☐ future |
-| `inreal(channel, re)` | `procedure inreal(channel, re)` | `new java.util.Scanner(System.in).nextDouble()` | ☐ future |
-| `inchar(channel, str, int)` | `procedure inchar(channel, str, int)` | scan one char; find its position in `str` | ☐ future |
-
-**Channel parameter for input procedures:**
-- The channel argument is intended to select the input source, analogous to output procedures.
-- In the current JVM implementation, only `System.in` is available for console input; there is no direct equivalent to `System.out`/`System.err` for input streams.
-- For now, all input procedures ignore the channel parameter and read from `System.in`.
-- If the channel argument is not a compile-time constant integer, codegen emits a warning comment and defaults to `System.in`.
-- Future implementations may support additional input sources (e.g., files, sockets) mapped to channel values, but this is outside the scope of the current design.
-
-**Design note for input:** A shared `Scanner` instance should be created once (as a static field on the generated class) rather than constructed per call. Channel selection is reserved for future extensibility.
+| `I5` | Integer, width 5 | `outformat(1, "I5", 42)` | `   42` |
+| `F8.2` | Real, width 8, 2 decimal places | `outformat(1, "F8.2", 3.14159)` | `    3.14` |
+| `A10` | String, width 10 | `outformat(1, "A10", "Algol")` | `     Algol` |
+| `I4, F6.2` | Integer width 4, then real width 6 | `outformat(1, "I4, F6.2", 42, 3.14)` | `  42  3.14` |
+| `A5, I3, F7.3` | String, integer, real | `outformat(1, "A5, I3, F7.3", "Test", 7, 2.718)` | ` Test  7  2.718` |
 
 ---
 
 ## Math Functions
 
-All math functions are **expression-position** calls (function designators) returning a value.
-They are handled in `generateExpr` when the expr is a `ProcCallExpr` whose name matches a
-standard identifier.
+All math functions are expression-position calls (function designators) that return a value.
 
-| ALGOL identifier | Type | JRE mapping | Notes |
-|---|---|---|---|
-| `sqrt(E)` | `real procedure sqrt(E)` | `Math.sqrt(double)` → `invokestatic java/lang/Math/sqrt(D)D` | Appendix 2 calls `fault` if E < 0; we can `invokestatic` Math.sqrt (returns NaN for negative, which JVM handles gracefully) or add runtime check |
-| `abs(E)` | `real procedure abs(E)` | `Math.abs(double)` → `invokestatic java/lang/Math/abs(D)D` | |
-| `iabs(E)` | `integer procedure iabs(E)` | `Math.abs(int)` → `invokestatic java/lang/Math/abs(I)I` | |
-| `sign(E)` | `integer procedure sign(E)` | inline: `E > 0 ? 1 : E < 0 ? -1 : 0` | or `(int)Math.signum(double)` |
-| `entier(E)` | `integer procedure entier(E)` | `(int)Math.floor(double)` | Appendix 2: largest integer not greater than E (true floor, not truncation) |
-| `sin(E)` | `real procedure sin(E)` | `Math.sin(double)` → `invokestatic java/lang/Math/sin(D)D` | E in radians |
-| `cos(E)` | `real procedure cos(E)` | `Math.cos(double)` → `invokestatic java/lang/Math/cos(D)D` | E in radians |
-| `arctan(E)` | `real procedure arctan(E)` | `Math.atan(double)` → `invokestatic java/lang/Math/atan(D)D` | returns −π/2 to π/2 |
-| `ln(E)` | `real procedure ln(E)` | `Math.log(double)` → `invokestatic java/lang/Math/log(D)D` | Appendix 2 calls `fault` if E ≤ 0 |
-| `exp(E)` | `real procedure exp(E)` | `Math.exp(double)` → `invokestatic java/lang/Math/exp(D)D` | |
-| `length(str)` | `integer procedure length(str)` | `String.length()` → `invokevirtual java/lang/String/length()I` | for use inside `outstring` etc. |
-
-**Required for:** `pi.alg` (`sqrt`), `pi2.alg` (`sqrt`), `recursion_euler.alg` (potentially `sqrt`).
+| ALGOL identifier | Signature | Notes |
+|---|---|---|
+| `sqrt(E)` | `real procedure sqrt(E)` | The Modified Report (Appendix 2) specifies `fault` if E < 0 |
+| `abs(E)` | `real procedure abs(E)` | |
+| `iabs(E)` | `integer procedure iabs(E)` | |
+| `sign(E)` | `integer procedure sign(E)` | Returns 1, 0, or −1 |
+| `entier(E)` | `integer procedure entier(E)` | Largest integer not greater than E (true floor, not truncation) |
+| `sin(E)` | `real procedure sin(E)` | E in radians |
+| `cos(E)` | `real procedure cos(E)` | E in radians |
+| `arctan(E)` | `real procedure arctan(E)` | Returns −π/2 to π/2 |
+| `ln(E)` | `real procedure ln(E)` | The Modified Report (Appendix 2) specifies `fault` if E ≤ 0 |
+| `exp(E)` | `real procedure exp(E)` | |
+| `length(str)` | `integer procedure length(str)` | **Extension.** Returns the number of characters in `str` |
 
 ---
 
 ## Constants
 
-These are declared as read-only values in the environmental block. JAlgol will treat them as
-special `VarExpr` names and inline their values at code-generation time.
+These read-only values are pre-declared in the environmental block and may be used in any expression.
 
-| ALGOL identifier | Type | Value / JRE source |
+| ALGOL identifier | Type | Value |
 |---|---|---|
-| `maxreal` | `real` | `Double.MAX_VALUE` → `ldc2_w 1.7976931348623157E308` |
-| `minreal` | `real` | `Double.MIN_VALUE` → `ldc2_w 5.0E-324` (smallest positive double) |
-| `maxint` | `integer` | `Integer.MAX_VALUE` → `ldc 2147483647` |
-| `epsilon` | `real` | `Math.ulp(1.0)` / `Double.MIN_NORMAL` → machine epsilon ≈ `2.220446049250313E-16` |
+| `maxreal` | `real` | Largest representable real value |
+| `minreal` | `real` | Smallest positive representable real value |
+| `maxint` | `integer` | Largest representable integer value |
+| `epsilon` | `real` | Machine epsilon: smallest real ε such that 1 + ε ≠ 1 |
 
 ---
 
 ## Control / Error Procedures
 
-| ALGOL identifier | Signature | Behaviour | JRE mapping |
-|---|---|---|---|
-| `stop` | `procedure stop` | Terminate execution immediately | `invokestatic java/lang/System/exit(I)V` with arg 0 |
-| `fault(str, r)` | `procedure fault(str, r)` | Print error message and stop | `System.err.print(str + " " + r)` + `System.exit(1)` — `fault` always writes to `System.err` regardless of channel |
-
-**Notes:**
-- Appendix 2 implements `stop` as a `goto` to a label outside the program; on the JVM this
-  maps cleanly to `System.exit(0)`.
-- `fault` is called internally by `sqrt` (negative arg) and `ln` (non-positive arg). JAlgol can
-  either suppress these checks (rely on JVM NaN/Infinity semantics) or emit inline guard code.
-
----
-
-## Codegen Approach
-
-Environmental identifiers are recognised **by name** in `CodeGenerator` — they are not entered
-in `SymbolTableBuilder`'s symbol table (to avoid polluting user-visible scope or consuming JVM
-local-variable slots). Recognition happens in two places:
-
-1. **`exitProcedureCall`** — for void-returning procedures used as statements:
-   `outstring`, `outinteger`, `outreal`, `outchar`, `outterminator`, `stop`, `fault`
-
-2. **`generateExpr` → `ProcCallExprContext`** — for value-returning function designators:
-   `sqrt`, `abs`, `iabs`, `sign`, `entier`, `sin`, `cos`, `arctan`, `ln`, `exp`, `length`,
-   `ininteger`, `inreal`
-
-3. **`generateExpr` → `VarExprContext`** — for constants (no argument list):
-   `maxreal`, `minreal`, `maxint`, `epsilon`
-
-This keeps the implementation entirely within `CodeGenerator` and requires no grammar changes.
-
----
-
-## Implementation Priority
-
-| Priority | Identifiers | Needed for |
+| ALGOL identifier | Signature | Behaviour |
 |---|---|---|
-| **Now** | `sqrt` | `pi.alg`, `pi2.alg` (Milestone X) |
-| **Soon** | `abs`, `iabs`, `entier`, `sign` | `primes.alg`, general use |
-| **Soon** | `sin`, `cos`, `arctan`, `ln`, `exp` | `primer4.alg` final values, future science samples |
-| **Later** | `maxreal`, `minreal`, `maxint`, `epsilon` | Numerical guard code |
-| **Later** | `stop`, `fault` | Error handling |
-| **Later** | `ininteger`, `inreal`, `inchar`, `outchar`, `outterminator` | Interactive programs |
+| `stop` | `procedure stop` | Terminates execution immediately |
+| `fault(str, r)` | `procedure fault(str, r)` | Prints an error message to standard error and terminates |
+
+**Notes (Algol 60 Modified Report, Appendix 2):**
+- `stop` is defined as a `goto` to a label outside the program.
+- `fault` always writes to standard error regardless of channel. It is called internally by `sqrt` (if E < 0) and `ln` (if E ≤ 0).
 
 ---
 
@@ -178,18 +129,22 @@ To support file input/output and more meaningful channel usage, the following pr
 | Procedure | Syntax | Description |
 |---|---|---|
 | `openfile` | `openfile(channel, filename, mode)` | **Extension.** Opens a file and associates it with a channel. `mode` is typically "r" (read), "w" (write), or "a" (append). |
-| `closefile` | `closefile(channel)` | **Extension.** Closes the file associated with the channel. |
+| `closefile` | `closefile(channel)` | **Extension.** Closes the file or string buffer associated with the channel. |
 | `instring` | `instring(channel, var)` | **Extension.** Reads a string from the stream or file mapped to the channel. |
 
 **Note:** String variables are an extended feature in JAlgol and many historic Algol compilers. The absence of a standard string type in Algol 60 is the reason why an `instring` procedure was not part of the original language specification. JAlgol's `instring` extension relies on the presence of string variables and associated operations. For rationale and historical context, see Algol Extensions.md.
 
+
+
 **Extension semantics:**
-- The standard I/O procedures (`outstring`, `outinteger`, `outreal`, `ininteger`, `inreal`, etc.) are extended to support file and stream channels opened with `openfile`/`closefile`.
-- Channels 0 and 1 are reserved for `System.err` and `System.out` (stderr and stdout).
-- Higher channel numbers (e.g., 2+) can be dynamically assigned to files or other streams via `openfile`.
-- All I/O procedures accept a channel parameter, which determines the target stream or file.
-- Error handling for invalid channels, file not found, or permission errors should be integrated with the `fault` procedure.
-- These extensions are not defined in the Algol 60 Modified Report, but are essential for modern usability and compatibility with historical Algol implementations.
+- All standard I/O procedures work with file channels opened via `openfile`/`closefile`.
+- Channels 0 and 1 are reserved for standard error and standard output.
+- Channel numbers 2 and above can be assigned to files or string buffers.
+- Invalid channel use, file not found, or permission errors are handled via the `fault` procedure.
+- These extensions are not defined in the Algol 60 Modified Report, but are consistent with historical Algol compiler practice.
+
+For string channel support (sprintf-style output), see the next section.
+
 
 **Example usage:**
 ```algol
@@ -198,11 +153,30 @@ outstring(2, "Hello, file!");
 closefile(2);
 ```
 
+---
+
+## String Channels and sprintf-style Output
+
+JAlgol supports associating a channel with a string variable, enabling output procedures to write directly to a string buffer. This provides the equivalent of `sprintf` in C or `StringWriter` in Java.
+
+| Procedure | Syntax | Description |
+|---|---|---|
+| `openstring` | `openstring(channel, stringvar)` | **Extension.** Associates a channel with a string variable as a writable buffer. Output to this channel is appended to the string, enabling formatted string construction. |
+| `closefile` | `closefile(channel)` | **Extension.** Closes the string buffer associated with the channel (also used for files). |
+
+**Example usage:**
+```algol
+string buf;
+openstring(5, buf);  % channel 5 writes to buf
+outformat(5, "I4, F6.2", 42, 3.14);
+closefile(5);
+% buf now contains "  42  3.14"
+```
+
 **Extension semantics:**
-- Channels 0 and 1 retain their standard meaning (`System.err` and `System.out`).
-- Higher channel numbers (e.g., 2+) can be dynamically assigned to files or other streams via `openfile`.
-- All I/O procedures accept a channel parameter, which determines the target stream or file.
-- Error handling for invalid channels, file not found, or permission errors should be integrated with the `fault` procedure.
-- These extensions are not defined in the Algol 60 Modified Report, but are essential for modern usability and compatibility with historical Algol implementations.
+- Channels 0 and 1 retain their standard meaning (standard error and standard output).
+- Channel numbers 2 and above can be assigned to string buffers via `openstring` or to files via `openfile`.
+- All I/O procedures work with string channels in the same way as file and console channels.
+- These extensions are not defined in the Algol 60 Modified Report, but are consistent with historical Algol compiler practice.
 
 For rationale and historical context, see Algol Extensions.md.

@@ -320,11 +320,40 @@ integer and string arguments.
 
 ---
 
-## Milestone X — New Language Feature Samples
+## Milestone 12 — Call-by-Name (Jensen's Device) (`jen.alg`)
 
-**Goal:** Each new feature sample in `test/algol` compiles and runs, demonstrating correct implementation of the corresponding language feature.
+**Goal:** `jen.alg` compiles and runs, demonstrating correct call-by-name parameter passing.
 
-### recursion_euler.alg
+**New features needed:**
+- [ ] Grammar: call-by-name parameters (default for parameters without `value`)
+- [ ] Codegen: thunk implementation using `Thunk<T>` interface (as outlined in Development.md)
+- [ ] Codegen: generate anonymous classes for name parameters at call sites
+- [ ] Codegen: invoke `get()` and `set()` methods for parameter access/assignment
+- [ ] SymbolTableBuilder: track parameter passing modes (value vs. name)
+- [ ] TypeInferencer: handle thunk types and delayed evaluation
+- [ ] Test: assert correct Jensen's device behavior (e.g., sum(i,1,10,A[i]) increments i)
+
+---
+
+## Milestone 13 — Deep Recursion and Procedure References (`manboy.alg`)
+
+**Goal:** `manboy.alg` compiles and runs, demonstrating deep recursion, procedure references as parameters, and call-by-name.
+
+**New features needed:**
+- [ ] Grammar: procedure references as parameters (e.g., passing procedures to procedures)
+- [ ] Codegen: deep recursion (stack handling for recursive calls)
+- [ ] Codegen: thunk-based call-by-name for procedure parameters
+- [ ] SymbolTableBuilder: track procedure references and nested scopes
+- [ ] TypeInferencer: handle procedure types and thunk evaluation
+- [ ] Test: assert correct "Man or Boy" result (-67)
+
+---
+
+## Milestone 14 — Procedure Parameters and Real Arrays (`recursion_euler.alg`)
+
+**Goal:** `recursion_euler.alg` compiles and runs, demonstrating procedure parameters (call-by-name), real arrays with nonzero bounds, and complex expressions.
+
+**New features needed:**
 - [ ] Grammar: procedure declarations with real/integer parameters and return types
 - [ ] Grammar: nested blocks, for loops, and arithmetic expressions
 - [ ] Grammar: procedure calls as expressions
@@ -333,58 +362,101 @@ integer and string arguments.
 - [ ] Codegen: correct handling of real/integer types in expressions and assignments
 - [ ] Test: assert output matches expected result for a sample input
 
-### boolean_operators.alg
-- [ ] Grammar: boolean variable declarations and assignment
-- [ ] Grammar: `and`, `or`, `not` operators (and synonyms)
-- [ ] Grammar: if/then/else with boolean expressions
-- [ ] Codegen: boolean logic (JVM int 0/1 or boolean)
+---
+
+## Milestone 15 — Call-by-Name Procedures (`pi2.alg`)
+
+**Goal:** `pi2.alg` compiles and runs, demonstrating call-by-name parameters in a real-procedure context.
+
+**New features needed:**
+- [ ] Grammar: parameterless procedure declarations (zero-arg procedure syntax)
+- [ ] Codegen: call-by-name for real variable parameters (builds on Milestone 12 thunk support)
+- [ ] Test: assert correct π approximation output
+
+---
+
+## Milestone 16 — Boolean Operators (`boolean_operators.alg`)
+
+**Goal:** `boolean_operators.alg` compiles and runs with correct `or` and `not` behavior.
+
+**New features needed:**
+- [ ] Grammar: `or` / `not` operators (and synonyms)
+- [ ] Codegen: boolean `or` and `not` instructions
 - [ ] Test: assert output is correct for boolean logic
 
-### real_array.alg
+---
+
+## Milestone 17 — Real Arrays (`real_array.alg`)
+
+**Goal:** `real_array.alg` compiles and prints correct real array values.
+
+**New features needed:**
 - [ ] Grammar: real array declarations with arbitrary bounds
 - [ ] Grammar: array subscript assignment and access
-- [ ] Codegen: real array allocation and access (with lower bound offset)
+- [ ] Codegen: real array allocation and access (`daload`/`dastore` with lower bound offset)
 - [ ] Test: assert output matches expected real values
 
-### string_output.alg
-- [ ] Grammar: string variable declarations and assignment (**extension**)
-- [ ] Grammar: outstring with string and variable arguments
-- [ ] Codegen: string concatenation, assignment, and 1-based indexing (using static helpers; see Algol Extensions.md)
-- [ ] Codegen: outstring and instring procedures (**extension; requires string variable support**)
-- [ ] Test: assert output matches expected formatted string
+---
 
-### own_variables.alg
-- [ ] Grammar: own variable and own array declarations
+## Milestone 18 — String Output (`string_output.alg`)
+
+**Goal:** `string_output.alg` compiles and prints correct formatted string output.
+
+**Note:** String variable support (grammar, symbol table, type inference, codegen) completed in Milestone 11C.2. `instring` completed in Milestone 11C.3. Remaining work is validating `outstring` with string variable arguments against the sample.
+
+- [x] Grammar: string variable declarations and assignment
+- [x] Codegen: string operations (assignment, indexing, concatenation, slicing)
+- [x] Codegen: `instring` procedure
+- [ ] Test: assert output matches expected formatted string for `string_output.alg`
+
+---
+
+## Milestone 19 — Own Variables (`own_variables.alg`)
+
+**Goal:** `own_variables.alg` compiles and demonstrates persistent local variable behavior across block re-entry.
+
+**New features needed:**
+- [ ] Grammar: `own` variable and `own` array declarations
 - [ ] Codegen: static/persistent local variables (retain value across block re-entry)
 - [ ] Test: assert own variables retain values as specified
 
-### switch_declaration.alg
+---
+
+## Milestone 20 — Switch Declarations (`switch_declaration.alg`)
+
+**Goal:** `switch_declaration.alg` compiles and demonstrates correct multi-way goto behavior.
+
+**New features needed:**
 - [ ] Grammar: switch declarations and designational expressions
 - [ ] Codegen: multi-way goto using switch
 - [ ] Test: assert correct label selection and control flow
 
 ---
 
-These milestones should be addressed after the current core milestones, and may be split further as implementation progresses. Each feature should be covered by a dedicated test to ensure correct parsing, code generation, and runtime behavior.
-
----
-
 ## Future Milestones (not yet sequenced)
 
-- `jen.alg` — call-by-name (Jensen's device); requires thunk implementation
-- `pi.alg` / `pi2.alg` — `real` procedures; `sqrt` standard function
-- `manboy.alg` — deep recursion + procedure references + call-by-name
-- Standard math functions (`abs`, `sqrt`, `sin`, `cos`, `ln`, `exp`, etc.)
-- Standard I/O (`ininteger`, `inreal`, `instring`)
-- Error handling (`fault` procedure)
+- Nested procedures with non-local variable access (display/frame pointer)
+- Algol 60 formal array parameters
+- File I/O extensions (`openfile`, `closefile`, extended channel support) — channels 2+ mapped to files; all I/O procedures extended to use dynamic stream dispatch; error handling via `fault`
+- External procedures — declare and call JVM static/virtual methods from Algol; syntax along the lines of `external static(java.lang.Math) real procedure cos(real a);`; restrictions: no call-by-name parameters, no label parameters, no external goto (see Algol Extensions.md)
+- Lambda notation — anonymous procedure expressions (`λ(x) x × x`); syntactic sugar for inline procedure values; useful for higher-order procedures and call-by-name arguments (see Algol Extensions.md)
+- Formatted I/O — `outformat(channel, format, ...)` and `informat(channel, format, ...)` with Algol-style format strings (e.g. `"I5, F8.2, A10"`); includes string channel support via `openstring`/`closefile` for sprintf-style output (see Algol Extensions.md and Environmental-Block.md)
 
-# The following features are now tracked as explicit milestones above and have been removed from this list:
-# - Recursion (recursion_euler.alg)
-# - Boolean operators (boolean_operators.alg)
-# - Real arrays (real_array.alg)
-# - String output (string_output.alg)
-# - Own variables (own_variables.alg)
-# - Switch declarations (switch_declaration.alg)
+# Completed from previous Future Milestones:
+# - Standard math functions (`abs`, `sqrt`, `sin`, `cos`, `ln`, `exp`, etc.) — ✅ Milestone 11A
+# - `pi.alg` — `real` procedures; `sqrt` standard function — ✅ Milestone 11F
+# - Standard I/O (`ininteger`, `inreal`, `inchar`) — ✅ Milestone 11C.1
+# - Standard I/O (`instring`), string variables — ✅ Milestones 11C.2, 11C.3
+# - Error handling (`fault` procedure) — ✅ Milestone 11D
+# - `jen.alg` (call-by-name) — Milestone 12
+# - `manboy.alg` (deep recursion + procedure refs) — Milestone 13
+# - `recursion_euler.alg` (procedure parameters + real arrays) — Milestone 14
+# - `pi2.alg` (call-by-name procedures) — Milestone 15
+# - `boolean_operators.alg` — Milestone 16
+# - `real_array.alg` — Milestone 17
+# - `string_output.alg` — Milestone 18
+# - `own_variables.alg` — Milestone 19
+# - `switch_declaration.alg` — Milestone 20
 
 ---
 
@@ -399,21 +471,18 @@ These milestones should be addressed after the current core milestones, and may 
 
 # AI-Friendly Compiler Design: Implementation Priorities
 
-To ensure long-term maintainability and enable advanced tooling/AI workflows, the following improvements are prioritized for implementation. **High-priority items should be addressed before or alongside Milestone 2. Lower-priority items can be added incrementally with minimal rework.**
+To ensure long-term maintainability and enable advanced tooling/AI workflows, the following improvements are tracked below. Items marked ✅ have been addressed; remaining items can be added incrementally.
 
-## High Priority (Before/With Milestone 2)
-- Deterministic Jasmin output: canonical label naming, stable ordering of methods/fields, reproducible output for identical input.
-- Modular two-pass architecture: clear separation of symbol table and codegen, enabling future IR/diagnostic hooks.
+## Completed
+- ✅ Modular multi-pass architecture: `SymbolTableBuilder` → `TypeInferencer` → `CodeGenerator` — clear separation of concerns, implemented from Milestone 2 onward.
+- ✅ Deterministic Jasmin output: canonical label naming, stable method/field ordering (sufficient for current milestones).
+
+## Still Relevant (Can Be Added Any Time)
 - Minimal structured diagnostics: error reporting with file, line, column, and stable error codes (as Java objects, even if not yet JSON). Allow multiple errors per run.
-- Snapshot/golden tests: verify Jasmin output and diagnostics are stable and deterministic.
-
-## Lower Priority (Can Be Added Any Time)
+- Snapshot/golden tests: verify Jasmin output and diagnostics are stable and deterministic across compiler changes.
 - Full structured JSON diagnostics: machine-readable output, fix-it suggestions, deterministic ordering.
 - CLI options to emit AST, IR, or JVM IR for inspection/tooling.
 - Compile-time stack analysis and mapping of JVM verifier errors to Algol source.
 - Consistent debug metadata: line number tables, local variable tables, source-to-bytecode mapping.
 - Modern CLI commands: `check`, `emit-jasmin`, `emit-ast`, `emit-jvmir`, etc.
 - Versioned diagnostic schemas, stable IR formats, and LSP (Language Server Protocol) integration.
-
-**Recommendation:**
-Focus on the high-priority items as you implement Milestone 2. The rest can be layered on with minimal disruption once the core architecture is in place.
