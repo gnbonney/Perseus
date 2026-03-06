@@ -66,6 +66,40 @@ I found a google groups discussion where somebody was asking about how to implem
 * Scope rules are different from Algol to Java.  Algol has nested procedures, but Java does not.  Algol also has call-by-name, but Java does not.  Implementing these features on the JVM will be non-trivial.  
 * Java doesn't have nested procedures.  The Free Pascal documentation describes how nested procedures are implemented in that compiler:  "When a routine is declared within the scope of a procedure or function, it is said to be nested. In this case, an additional invisible parameter is passed to the nested routine. This additional parameter is the frame pointer address of the parent routine. This permits the nested routine to access the local variables and parameters of the calling routine."
 * Algol parameters are passed by value or by name.  Call-by-name was apparently usually implemented by something called a "thunk" (http://wiki.c2.com/?CallByName).  Java does not have call-by-name, so implementing it in jvm bytecode may be challenging.  Scala is a JVM language that does have pass by name (see https://dzone.com/articles/scala-call-me-my-name-please).
+
+## JVM Implementation Strategy for Call-by-Name
+
+The JVM actually makes this quite doable.
+
+You can represent a name parameter as something like:
+
+```java
+interface Thunk<T> {
+	T get();
+	void set(T v);
+}
+```
+
+The caller generates an implementation capturing the environment.
+
+Example translation idea:
+
+```
+sum(i,1,10,A[i])
+```
+
+becomes something like:
+
+```java
+new Thunk<Integer>() {
+	Integer get() { return A[i]; }
+	void set(Integer v) { A[i] = v; }
+}
+```
+
+The procedure then calls `get()` whenever the parameter is used, and `set()` to assign to it.
+
+This is very close to how Scala implements call-by-name: it compiles parameters into zero-argument functions (lambdas or anonymous classes) that are invoked each time the parameter is referenced.
 * Simula has pass by reference as well, which Java also does not have.  (see http://javadude.com/articles/passbyvalue.htm, http://stackoverflow.com/questions/7884581/how-can-i-simulate-pass-by-reference-in-java and https://softwareengineering.stackexchange.com/questions/286008/parameters-are-passed-by-value-but-editing-them-will-edit-the-actual-object-li)
 * Some variables or procedures may need to be renamed, because the list of reserved words differ between Algol and Java.  For example, "int" is used as a variable name in the Algol 60 modified report, but it is a reserved word in Java.
 * Algol does not have exceptions, but the JVM, of course, could throw an exception.  The Algol 60 standard has a fault procedure, but it seems all it does it output an error message and then stop the program; it is like a throw with no catch.  Burroughs/Unisys Extended Algol had "fault declarations" and an ON statement for catching faults.  This seems to be the best example of how to do exceptions in the Algol flavor.
