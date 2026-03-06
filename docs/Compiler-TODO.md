@@ -280,9 +280,9 @@ integer and string arguments.
 **Subtasks:**
 
 **11C.1 — Integer and Real Input Procedures (no string dependency):**
-- [ ] Codegen: `ininteger(channel, var)` → `Scanner.nextInt()` (reads from `System.in`)
-- [ ] Codegen: `inreal(channel, var)` → `Scanner.nextDouble()` (reads from `System.in`; shared `Scanner` instance)
-- [ ] Codegen: `inchar(channel, str, var)` — read one character; find its position in `str`
+- [x] Codegen: `ininteger(channel, var)` → `Scanner.nextInt()` (reads from `System.in`)
+- [x] Codegen: `inreal(channel, var)` → `Scanner.nextDouble()` (reads from `System.in`; shared `Scanner` instance)
+- [x] Codegen: `inchar(channel, str, var)` — read one character; find its position in `str`
 
 **11C.2 — String Variable Support (prerequisite for string I/O):**
 - [ ] Grammar: string variable declarations and assignment
