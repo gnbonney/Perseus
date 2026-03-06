@@ -275,11 +275,22 @@ integer and string arguments.
 
 **Goal:** Implement all standard input procedures.
 
-**Note:** String variables and string I/O (e.g., `instring`, `outstring`) are extensions to Algol 60, not part of the original standard. Their implementation depends on the string variable extension described in Algol Extensions.md. All string I/O procedures require grammar, symbol table, type inference, and codegen support for string variables and operations (assignment, indexing, concatenation, slicing) using Java String/StringBuilder and static utility helpers for 1-based indexing.
+**Note:** String variables and string I/O (e.g., `instring`, `outstring`) are extensions to Algol 60, not part of the original standard. Implementation of string input procedures depends on first supporting string variables (see Algol Extensions.md).
 
+**Subtasks:**
+
+**11C.1 — Integer and Real Input Procedures (no string dependency):**
 - [ ] Codegen: `ininteger(channel, var)` → `Scanner.nextInt()` (reads from `System.in`)
 - [ ] Codegen: `inreal(channel, var)` → `Scanner.nextDouble()` (reads from `System.in`; shared `Scanner` instance)
 - [ ] Codegen: `inchar(channel, str, var)` — read one character; find its position in `str`
+
+**11C.2 — String Variable Support (prerequisite for string I/O):**
+- [ ] Grammar: string variable declarations and assignment
+- [ ] SymbolTableBuilder: track string variables and scope
+- [ ] TypeInferencer: handle string types and type rules
+- [ ] Codegen: emit JVM code for string operations (assignment, indexing, concatenation, slicing) using Java String/StringBuilder and static helpers
+
+**11C.3 — String Input Procedures (requires 11C.2):**
 - [ ] Codegen: `instring(channel, var)` — read a string from the stream or file mapped to the channel (**extension; requires string variable support**)
 
 ## Milestone 11D — Control and Error Procedures
