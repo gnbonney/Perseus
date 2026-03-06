@@ -1724,60 +1724,38 @@ It is understood that the procedure body may be expressed in non-ALGOL language.
 
 Appendix 1   Subsets
 --------------------
-
    
 Two subsets of ALGOL 60 are defined, denoted as level 1 and level 2. The full language is level 0.
 
 The level 1 subset is defined as level 0 with the following additional restrictions:
 
+1. The <u>own</u> declarator is not included.
+2. Additional restrictions are placed upon 
+actual parameters as given by the following replacement lines to the 
+table in Section 4.7.5.5. 
 
+| *Formal parameter* | *Mode* | *Actual parameter* |
+| --- | --- | --- |
+| integer | name | integer expression (see 4.7.5.2) |
+| real name | real | expression (see 4.7.5.2) |
+| integer array | value | integer array (see 4.7.5.3) |
+| real array | value | realarray (see 4.7.5.3) |
+| typeless procedure | name | typeless procedure (see 4.7.5.3) |
+| integer procedure | name | integer procedure (see 4.7.5.3) |
+| real procedure | name | real procedure (see 4.7.5.3) |
 
-* 1.: 2.
-  * The own declarator is not included.: Additional restrictions are placed upon actual parameters as given by the following replacement lines to the table in Section 4.7.5.5.
-* 1.:  
-  * The own declarator is not included.: 		Formal parameter
-  * Mode
-  * Actual parameter
-* 1.: integer
-  * The own declarator is not included.: name
-  * integer expression (see 4.7.5.2)
-* 1.: real name
-  * The own declarator is not included.: real
-  * expression (see 4.7.5.2)
-* 1.: integer array
-  * The own declarator is not included.: value
-  * integer array (see 4.7.5.3)
-* 1.: real array
-  * The own declarator is not included.: value
-  *  realarray (see 4.7.5.3)
-* 1.: typeless procedure
-  * The own declarator is not included.: name
-  * typeless procedure (see 4.7.5.3)
-* 1.: integer procedure
-  * The own declarator is not included.: name
-  * integer procedure (see 4.7.5.3)
-* 1.: real procedure
-  * The own declarator is not included.: name
-  * real procedure (see 4.7.5.3)
-
-
-3.Only one alphabet of 26 letters is provided, which is regarded of being the lower case alphabet of the reference language. 4.If deleting every symbol after the twelfth in every identifier would change the action of the program, then the program is undefined.
+3. Only one alphabet of 26 letters is provided, which is regarded of being the lower case alphabet of the reference language.
+4. If deleting every symbol after the twelfth in every identifier would change the action of the program, then the program is undefined.
 
 The level 2 subset consists of 1-3 of level 1 and in addition:
 
-
-
-* 5.: 6.
-  * Procedures may not be called recursively, either directly or indirectly.: If a parameter is called by name, then the corresponding actual parameter may only be an identifier or a string.
-* 5.: 7.
-  * Procedures may not be called recursively, either directly or indirectly.: The designational expressions occurring in a switch list may only be lables.
-* 5.: 8.
-  * Procedures may not be called recursively, either directly or indirectly.: The specifiers switch, procedure and <type> procedure are not included.
-* 5.: 9.
-  * Procedures may not be called recursively, either directly or indirectly.: A left part list may only be a left part.
-* 5.: 10.
-  * Procedures may not be called recursively, either directly or indirectly.: If deleting every symbol after the sixth in every identifier would change the action of the program, then the program is undefined.
-
+| 5.  | Procedures may not be called recursively, either directly or indirectly. |
+| --- | --- |
+| 6.  | If a parameter is called by name, then the corresponding actual parameter may only be an identifier or a string. |
+| 7.  | The designational expressions occurring in a switch list may only be lables. |
+| 8.  | The specifiers <u>switch</u>, <u>procedure</u> and <type> <u>procedure</u> are not included. |
+| 9.  | A left part list may only be a left part. |
+| 10. | If deleting every symbol after the <br>sixth in every identifier would change the action of the program, then <br>the program is undefined. |
 
    [^ top](#top)
 
