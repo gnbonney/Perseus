@@ -12,6 +12,14 @@ grammar Algol;
 /* NOTE:  Lexer rules start with a capital letter; parser rules start with a lower case letter */
 /* More on lexer rules at:  https://github.com/antlr/antlr4/blob/master/doc/lexer-rules.md */
 
+/* Block comments starting with the word "comment" (or '!' from Simula) and ending with a semicolon. */
+BLOCK_COMMENT
+	: 'comment' ~[;]* ';' -> channel(HIDDEN)
+	;
+
+/* extension: TeX style single line comments (also used in Unisys Extended Algol) */
+LINE_COMMENT : '%' ~[\r\n]* '\r'? '\n' -> skip ;
+
 INT_NUM : ('0'..'9')+;
     
 STRING_LITERAL
@@ -43,7 +51,7 @@ endComment
   ;
 
 procedureDecl
-  : (INTEGER | REAL | STRING)? PROCEDURE identifier '(' paramList ')' ';'
+  : (INTEGER | REAL | STRING)? PROCEDURE identifier '(' paramList? ')' ';'
     valueSpec?
     paramSpec*
     statement
@@ -54,7 +62,7 @@ valueSpec
   ;
 
 paramSpec
-  : (INTEGER | REAL | STRING) paramList ';'
+  : (INTEGER | REAL | STRING | PROCEDURE) paramList ';'
   ;
 
 paramList
@@ -62,11 +70,11 @@ paramList
   ;
 
 varDecl
-  : (REAL | INTEGER | BOOLEAN | STRING) varList
+  : (REAL | INTEGER | BOOLEAN | STRING | PROCEDURE) varList
   ;
 
 arrayDecl
-  : (INTEGER | REAL | BOOLEAN | STRING) ARRAY identifier '[' unsignedInt ':' unsignedInt ']'
+  : (INTEGER | REAL | BOOLEAN | STRING | PROCEDURE) ARRAY identifier '[' unsignedInt ':' unsignedInt ']'
   ;
 
 varList
@@ -154,14 +162,6 @@ FALSE : 'false';
 
 /* IDENT should be defined after your other keywords */
 IDENT : ('a'..'z' | 'A'..'Z')  ('a'..'z'|'A'..'Z' | '0'..'9'| '_')*;
-
-/* Block comments starting with the word "comment" (or '!' from Simula) and ending with a semicolon. */
-BLOCK_COMMENT
-	: ('comment' | '!') ~[;]* ';' -> channel(HIDDEN)
-	;
-	
-/* extension: TeX style single line comments (also used in Unisys Extended Algol) */
-LINE_COMMENT : '%' ~[\r\n]* '\r'? '\n' -> skip ;
 
 /* TBD: Algol allowed comments after any end and before a semicolon or another "end" or "else". */
 

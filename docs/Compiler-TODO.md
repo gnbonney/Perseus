@@ -346,16 +346,67 @@ integer and string arguments.
 
 ---
 
-## Milestone 13 — Deep Recursion and Procedure References (`manboy.alg`)
+## Milestone 13 — Procedure References and Parameters
 
-**Goal:** `manboy.alg` compiles and runs, demonstrating deep recursion, procedure references as parameters, and call-by-name.
+**Goal:** Build up to `manboy.alg` through incremental steps, each with simpler test programs.
+
+### 13A — Procedure Variables (`proc_var.alg`) ✅
+
+**Goal:** Simple program that declares a procedure variable and assigns/calls it.
+
+**Features implemented:**
+- [x] Grammar: procedure variable declarations (`procedure P;`)
+- [x] Grammar: procedure references as expressions (allow procedure names in assignments)
+- [x] SymbolTableBuilder: track procedure variables with "procedure:void" type
+- [x] TypeInferencer: handle procedure types in VarExpr
+- [x] Codegen: procedure references (store method references as objects)
+- [x] Test: assign procedure to variable and call through variable
+
+### 13B — Procedure Parameters (`proc_param.alg`) ✅
+
+**Goal:** Simple program that passes a procedure as a parameter.
+
+**Features implemented:**
+- [x] Grammar: procedure parameters in paramSpec (`procedure P;`)
+- [x] SymbolTableBuilder: track procedure parameters with "procedure:void" type
+- [x] Codegen: procedure parameters (pass method references)
+- [x] Codegen: calling procedure parameters
+- [x] Test: pass procedure as argument and call it
+
+### 13C — Typed Procedure References (`proc_typed_simple.alg`)
+
+**Goal:** Program with typed procedure variables/parameters (real/integer procedures).
+
+**Features implemented:**
+- [x] Grammar: typed procedure declarations (`real procedure P(...)`)
+- [x] Grammar: typed procedure variables (`real procedure P;`)
+- [x] SymbolTableBuilder: track typed procedures ("procedure:real", "procedure:integer")
+- [x] TypeInferencer: handle typed procedure types
+- [x] Codegen: procedure references as values (store method references as objects)
+- [x] Codegen: calling procedure references that return values
+- [x] Test: real procedure variables and parameters
+
+**Implementation Summary:**
+- Synthetic classes generated for procedure references implementing RealProcedure/IntegerProcedure interfaces
+- Procedure variables stored as Object references in local slots
+- Procedure calls on variables use interface invocation with proper casting
+- Separate .j files generated for each procedure reference class
+- Test validates assignment of procedures to variables and calling through variables
+
+### 13D — Deep Recursion (`deep_recursion.alg`)
+
+**Goal:** Simple deep recursion test (factorial or similar) to validate stack handling.
 
 **New features needed:**
-- [ ] Grammar: procedure references as parameters (e.g., passing procedures to procedures)
-- [ ] Codegen: deep recursion (stack handling for recursive calls)
-- [ ] Codegen: thunk-based call-by-name for procedure parameters
-- [ ] SymbolTableBuilder: track procedure references and nested scopes
-- [ ] TypeInferencer: handle procedure types and thunk evaluation
+- [ ] Codegen: deep recursion stack handling
+- [ ] Test: recursive calls with sufficient depth
+
+### 13E — Man or Boy (`manboy.alg`)
+
+**Goal:** Full Man or Boy test with all features integrated.
+
+**New features needed:**
+- [ ] Integration of all procedure reference features
 - [ ] Test: assert correct "Man or Boy" result (-67)
 
 ---

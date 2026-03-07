@@ -75,13 +75,24 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         currentProc = new ProcInfo(returnType);
         procedures.put(name, currentProc);
         // Collect parameter names from formal-parameter-list
-        for (AlgolParser.IdentifierContext id : ctx.paramList().identifier()) {
-            currentProc.paramNames.add(id.getText());
+        if (ctx.paramList() != null) {
+            for (AlgolParser.IdentifierContext id : ctx.paramList().identifier()) {
+                currentProc.paramNames.add(id.getText());
+            }
         }
     }
 
     @Override
     public void exitProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
+        // Add parameters to symbol table for type inference
+        if (currentProc != null) {
+            for (String param : currentProc.paramNames) {
+                String baseType = currentProc.paramTypes.get(param);
+                if (baseType == null) baseType = "real"; // default
+                String type = currentProc.valueParams.contains(param) ? baseType : "thunk:" + baseType;
+                symbolTable.put(param, type);
+            }
+        }
         currentProc = null;
     }
 
@@ -97,19 +108,37 @@ public class SymbolTableBuilder extends AlgolBaseListener {
     @Override
     public void enterParamSpec(AlgolParser.ParamSpecContext ctx) {
         if (currentProc != null) {
-            String type = ctx.getStart().getText(); // "integer", "real", or "string"
+            String type = ctx.getStart().getText(); // "integer", "real", "string", or "procedure"
             for (AlgolParser.IdentifierContext id : ctx.paramList().identifier()) {
                 String paramName = id.getText();
-                currentProc.paramTypes.put(paramName, type);
+                String actualType = "procedure".equals(type) ? "procedure:real" : type;
+                currentProc.paramTypes.put(paramName, actualType);
                 // Add to global symbol table so TypeInferencer can resolve types of param uses
-                symbolTable.put(paramName, type);
+                symbolTable.put(paramName, actualType);
             }
         }
     }
 
     @Override
     public void enterVarDecl(AlgolParser.VarDeclContext ctx) {
-        String type = ctx.getStart().getText(); // 'real', 'integer', or 'boolean'
+        // Check if this is a procedure variable declaration
+        boolean isProcedure = ctx.PROCEDURE() != null;
+        String type;
+        if (isProcedure) {
+            // Check if there's a return type specified
+            if (ctx.REAL() != null) type = "procedure:real";
+            else if (ctx.INTEGER() != null) type = "procedure:integer";
+            else if (ctx.STRING() != null) type = "procedure:string";
+            else type = "procedure:void"; // untyped procedure variable
+        } else {
+            // Regular variable
+            if (ctx.REAL() != null) type = "real";
+            else if (ctx.INTEGER() != null) type = "integer";
+            else if (ctx.BOOLEAN() != null) type = "boolean";
+            else if (ctx.STRING() != null) type = "string";
+            else type = "integer"; // default
+        }
+        
         for (AlgolParser.IdentifierContext idCtx : ctx.varList().identifier()) {
             String name = idCtx.getText();
             symbolTable.put(name, type); // always add to full table for TypeInferencer

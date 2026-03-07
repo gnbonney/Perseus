@@ -36,6 +36,21 @@ public class AntlrAlgolListener {
 		".method public abstract get()Ljava/lang/Object;\n.end method\n\n" +
 		".method public abstract set(Ljava/lang/Object;)V\n.end method\n";
 
+	/** Jasmin source for procedure reference interfaces needed by procedure-as-values compiled programs. */
+	private static final String PROCEDURE_INTERFACES_JASMIN =
+		".interface public gnb/jalgol/compiler/VoidProcedure\n" +
+		".super java/lang/Object\n\n" +
+		".method public abstract invoke([Ljava/lang/Object;)V\n.end method\n\n" +
+		".interface public gnb/jalgol/compiler/RealProcedure\n" +
+		".super java/lang/Object\n\n" +
+		".method public abstract invoke([Ljava/lang/Object;)D\n.end method\n\n" +
+		".interface public gnb/jalgol/compiler/IntegerProcedure\n" +
+		".super java/lang/Object\n\n" +
+		".method public abstract invoke([Ljava/lang/Object;)I\n.end method\n\n" +
+		".interface public gnb/jalgol/compiler/StringProcedure\n" +
+		".super java/lang/Object\n\n" +
+		".method public abstract invoke([Ljava/lang/Object;)Ljava/lang/String;\n.end method\n";
+
 	public static Path compileToFile(String algolFile, String packageName, String className, Path outputDir)
 			throws IOException {
 		// Run the full pipeline so we can access the CodeGenerator for thunk outputs
@@ -58,11 +73,24 @@ public class AntlrAlgolListener {
 			Files.writeString(thunkFile, thunk.getValue());
 		}
 
+		// Write each procedure reference class as its own .j file
+		Map<String, String> procRefOutputs = codegen.getProcRefClassOutputs();
+		for (Map.Entry<String, String> procRef : procRefOutputs.entrySet()) {
+			Path procRefFile = outputDir.resolve(procRef.getKey() + ".j");
+			Files.writeString(procRefFile, procRef.getValue());
+		}
+
 		// If there are any thunk classes, also emit the Thunk interface so the compiled
 		// program is self-contained and doesn't depend on the compiler's own class files.
 		if (!thunkOutputs.isEmpty()) {
 			Path thunkIfaceFile = outputDir.resolve("Thunk.j");
 			Files.writeString(thunkIfaceFile, THUNK_INTERFACE_JASMIN);
+		}
+
+		// If there are any procedure reference classes, emit the procedure interfaces
+		if (!procRefOutputs.isEmpty()) {
+			Path procIfaceFile = outputDir.resolve("ProcedureInterfaces.j");
+			Files.writeString(procIfaceFile, PROCEDURE_INTERFACES_JASMIN);
 		}
 
 		return jasminFile;
@@ -85,6 +113,12 @@ public class AntlrAlgolListener {
 		Path thunkIface = jasminFile.getParent().resolve("Thunk.j");
 		if (java.nio.file.Files.exists(thunkIface)) {
 			assembleOne(thunkIface, classOutputDir);
+		}
+
+		// Assemble the ProcedureInterfaces if they were emitted alongside this file
+		Path procIface = jasminFile.getParent().resolve("ProcedureInterfaces.j");
+		if (java.nio.file.Files.exists(procIface)) {
+			assembleOne(procIface, classOutputDir);
 		}
 	}
 
@@ -149,7 +183,7 @@ public class AntlrAlgolListener {
 		for (Map.Entry<String, String> entry : mainSymbolTable.entrySet()) {
 			String name = entry.getKey();
 			String type = entry.getValue();
-			if (type.startsWith("procedure:") || type.endsWith("[]")) continue;
+			if (type.endsWith("[]")) continue;
 			localIndex.put(name, nextLocal);
 			nextLocal += "real".equals(type) ? 2 : 1;
 		}

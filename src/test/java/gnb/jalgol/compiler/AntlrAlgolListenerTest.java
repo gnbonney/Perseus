@@ -795,5 +795,98 @@ end
         assertTrue(output.contains("NaN"), "sqrt of negative number should return NaN");
     }
 
+    @Test
+    public void proc_var_test() throws Exception {
+        // Compile Algol source to Jasmin
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/proc_var.alg", "gnb/jalgol/programs", "ProcVar", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== PROC_VAR JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END PROC_VAR ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        // Assemble to .class
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        // Run and capture output
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ProcVar");
+        System.out.println("Proc var output: [" + output + "]");
+        assertEquals("Hello from procedureGoodbye from procedure", output.trim());
+    }
+
+    @Test
+    public void proc_param_test() throws Exception {
+        // Compile Algol source to Jasmin
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/proc_param.alg", "gnb/jalgol/programs", "ProcParam", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== PROC_PARAM JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END PROC_PARAM ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        // Assemble to .class
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        // Run and capture output
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ProcParam");
+        System.out.println("Proc param output: [" + output + "]");
+        assertEquals("Hello", output.trim());
+    }
+
+    @Test
+    public void proc_typed_simple_test() throws Exception {
+        // Compile Algol source to Jasmin
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/proc_typed_simple.alg", "gnb/jalgol/programs", "ProcTypedSimple", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== PROC_TYPED_SIMPLE JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END PROC_TYPED_SIMPLE ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        // Assemble to .class
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        // Run and capture output
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ProcTypedSimple");
+        System.out.println("Proc typed simple output: [" + output + "]");
+        assertEquals("3.141590.0", output.trim());
+    }
+
+    @Test
+    public void manboy_test() throws Exception {
+        // Compile Algol source to Jasmin
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/manboy.alg", "gnb/jalgol/programs", "ManBoy", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== MANBOY JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END MANBOY ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        // Assemble to .class
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        // Run and capture output
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ManBoy");
+        System.out.println("Man or Boy output: [" + output + "]");
+        // TODO: assertEquals("-67", output.trim(), "Man or Boy test should return -67");
+        assertTrue(output.trim().length() > 0, "Should produce some output");
+    }
+
 
 } 

@@ -100,7 +100,58 @@ new Thunk<Integer>() {
 The procedure then calls `get()` whenever the parameter is used, and `set()` to assign to it.
 
 This is very close to how Scala implements call-by-name: it compiles parameters into zero-argument functions (lambdas or anonymous classes) that are invoked each time the parameter is referenced.
-* Simula has pass by reference as well, which Java also does not have.  (see http://javadude.com/articles/passbyvalue.htm, http://stackoverflow.com/questions/7884581/how-can-i-simulate-pass-by-reference-in-java and https://softwareengineering.stackexchange.com/questions/286008/parameters-are-passed-by-value-but-editing-them-will-edit-the-actual-object-li)
+
+## JVM Implementation Strategy for Procedure References
+
+Similar to call-by-name parameters, ALGOL 60 allows procedures to be treated as first-class values that can be stored in variables and passed as parameters. This requires representing procedure references as JVM objects.
+
+### Procedure Reference Interface
+
+We extend the thunk pattern to create procedure reference objects:
+
+```java
+interface Procedure {
+    Object invoke(Object... args);
+}
+```
+
+Type-specialized versions for different return types:
+```java
+interface VoidProcedure {
+    void invoke(Object... args);
+}
+interface RealProcedure {
+    double invoke(Object... args);
+}
+```
+
+### Implementation Strategy
+
+1. **Synthetic Class Generation**: For each procedure reference, generate a synthetic class that implements the appropriate Procedure interface
+2. **Static Method Delegation**: The synthetic class delegates to the actual static method via `invokestatic`
+3. **Variable Storage**: Procedure variables store instances of these synthetic classes
+4. **Dynamic Invocation**: When calling through a procedure variable, invoke the interface method
+
+### Example Generated Code
+
+For `real procedure P; P := getPi; outreal(1, P);`:
+
+```java
+// Generated synthetic class
+class Main$ProcRef0 implements RealProcedure {
+    public double invoke(Object... args) {
+        return Main.getPi(); // delegate to static method
+    }
+}
+
+// In main method:
+P = new Main$ProcRef0(); // store procedure reference
+outreal(1, ((RealProcedure)P).invoke()); // call through reference
+```
+
+This approach maintains consistency with the existing thunk-based architecture while enabling ALGOL's procedure-as-values semantics.
+
+### Complications
 * Some variables or procedures may need to be renamed, because the list of reserved words differ between Algol and Java.  For example, "int" is used as a variable name in the Algol 60 modified report, but it is a reserved word in Java.
 * Algol does not have exceptions, but the JVM, of course, could throw an exception.  The Algol 60 standard has a fault procedure, but it seems all it does it output an error message and then stop the program; it is like a throw with no catch.  Burroughs/Unisys Extended Algol had "fault declarations" and an ON statement for catching faults.  This seems to be the best example of how to do exceptions in the Algol flavor.
 
