@@ -536,7 +536,7 @@ public class CodeGenerator extends AlgolBaseListener {
     public void exitProcedureCall(AlgolParser.ProcedureCallContext ctx) {
         String name = ctx.identifier().getText();
         System.out.println("Processing procedure call: " + name);
-        List<AlgolParser.ArgContext> args = ctx.argList().arg();
+        List<AlgolParser.ArgContext> args = ctx.argList() != null ? ctx.argList().arg() : List.of();
         if ("outstring".equals(name)) {
             AlgolParser.ArgContext channelArg = args.size() > 1 ? args.get(0) : null;
             String stream = getChannelStream(channelArg);

@@ -1,8 +1,12 @@
 begin comment Test procedure variables - Milestone 13A;
       procedure hello;
-         outstring(1, "Hello from procedure");
+      begin
+         outstring(1, "Hello from procedure")
+      end;
       procedure goodbye;
-         outstring(1, "Goodbye from procedure");
+      begin
+         outstring(1, "Goodbye from procedure")
+      end;
       procedure P;
       begin
          P := hello;
