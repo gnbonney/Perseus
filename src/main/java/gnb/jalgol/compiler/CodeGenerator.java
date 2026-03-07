@@ -9,8 +9,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -31,6 +33,12 @@ public class CodeGenerator extends AlgolBaseListener {
     private final String className;
     // Procedure definitions from SymbolTableBuilder (name → ProcInfo)
     private final Map<String, SymbolTableBuilder.ProcInfo> procedures;
+
+    // --- Thunk helper data ---
+    // counter for generating unique thunk class names
+    private int thunkCounter = 0;
+    // collects (shortClassName, jasminSource) for generated thunk classes (each needs its own .j file)
+    private final List<Map.Entry<String,String>> thunkClassDefinitions = new ArrayList<>();
 
     // --- Current context (swapped when entering/exiting procedures) ---
     private Map<String, String> currentSymbolTable;
@@ -88,6 +96,19 @@ public class CodeGenerator extends AlgolBaseListener {
         for (String pm : procMethods) full.append(pm);
         full.append(mainCode);
         return full.toString();
+    }
+
+    /**
+     * Returns the generated thunk class definitions as a map from short class name
+     * (e.g. "JenTest$Thunk0") to the full Jasmin source for that class.
+     * Each entry must be written to its own .j file and assembled separately.
+     */
+    public Map<String,String> getThunkClassOutputs() {
+        Map<String,String> result = new LinkedHashMap<>();
+        for (Map.Entry<String,String> e : thunkClassDefinitions) {
+            result.put(e.getKey(), e.getValue());
+        }
+        return result;
     }
 
     @Override
@@ -199,10 +220,18 @@ public class CodeGenerator extends AlgolBaseListener {
 
         // Parameters occupy the first slots
         for (String paramName : info.paramNames) {
-            String paramType = info.paramTypes.getOrDefault(paramName, "integer");
+            String baseType = info.paramTypes.getOrDefault(paramName, "integer");
+            String paramType;
+            if (info.valueParams.contains(paramName)) {
+                paramType = baseType;
+            } else {
+                // call-by-name parameter is represented internally as a thunk object
+                paramType = "thunk:" + baseType;
+            }
             procST.put(paramName, paramType);
             procLI.put(paramName, nextSlot);
-            nextSlot += "real".equals(paramType) ? 2 : 1;
+            // thunks are object references so occupy 1 slot, real still 2
+            nextSlot += paramType.startsWith("thunk:") ? 1 : ("real".equals(paramType) ? 2 : 1);
         }
         // Then locals
         for (Map.Entry<String, String> local : info.localVars.entrySet()) {
@@ -229,8 +258,15 @@ public class CodeGenerator extends AlgolBaseListener {
         // Build JVM method descriptor
         String paramDesc = info.paramNames.stream()
             .map(p -> {
+                if (!info.valueParams.contains(p)) {
+                    // call-by-name parameter passed as Thunk
+                    return "L" + "gnb/jalgol/compiler/Thunk" + ";";
+                }
                 String type = info.paramTypes.getOrDefault(p, "integer");
-                return "real".equals(type) ? "D" : "string".equals(type) ? "Ljava/lang/String;" : "I";
+                if ("real".equals(type)) return "D";
+                if ("string".equals(type)) return "Ljava/lang/String;";
+                // boolean and integer both treated as I
+                return "I";
             })
             .collect(Collectors.joining());
         String retDesc = "void".equals(info.returnType) ? "V" : "real".equals(info.returnType) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
@@ -332,13 +368,17 @@ public class CodeGenerator extends AlgolBaseListener {
         // Determine storage type: real if any destination is real, string if any destination is string
         boolean anyReal = lvalues.stream().anyMatch(lv -> {
             String lvName = lv.identifier().getText();
+            String vt = currentSymbolTable.get(lvName);
+            if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
             if (lvName.equals(currentProcName)) return "real".equals(currentProcReturnType);
-            return "real".equals(currentSymbolTable.getOrDefault(lvName, "integer"));
+            return "real".equals(vt);
         });
         boolean anyString = lvalues.stream().anyMatch(lv -> {
             String lvName = lv.identifier().getText();
+            String vt = currentSymbolTable.get(lvName);
+            if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
             if (lvName.equals(currentProcName)) return "string".equals(currentProcReturnType);
-            return "string".equals(currentSymbolTable.getOrDefault(lvName, "integer"));
+            return "string".equals(vt);
         });
         String storeType = anyReal ? "real" : anyString ? "string" : "integer";
 
@@ -368,17 +408,34 @@ public class CodeGenerator extends AlgolBaseListener {
             }
 
             Integer idx = currentLocalIndex.get(name);
-            if (idx == null) {
+            String varType = currentSymbolTable.get(name);
+            boolean isThunk = varType != null && varType.startsWith("thunk:");
+            if (idx == null && !isThunk) {
                 activeOutput.append("; ERROR: undeclared variable ").append(name).append("\n");
                 continue;
             }
-            String varType = currentSymbolTable.get(name);
+
             if (i < lvalues.size() - 1) {
                 activeOutput.append("real".equals(storeType) ? "dup2\n" : "dup\n");
             }
-            if ("integer".equals(varType) && "real".equals(storeType)) {
-                activeOutput.append("d2i\n");
+
+            if (isThunk) {
+                // assignment to a name parameter: call thunk.set(boxedValue)
+                // stack has the primitive/reference value; box it, then swap the thunk ref in
+                if ("real".equals(storeType)) {
+                    activeOutput.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+                } else if (!"string".equals(storeType)) {
+                    activeOutput.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+                }
+                // push thunk ref, swap so order is: thunk, boxed_value
+                activeOutput.append("aload ").append(idx).append("\n");
+                activeOutput.append("swap\n");
+                activeOutput.append("invokeinterface ")
+                            .append("gnb/jalgol/compiler/Thunk/set(Ljava/lang/Object;)V 2\n");
+                continue;
             }
+
+            // normal local variable storage
             if ("integer".equals(varType) || "boolean".equals(varType)) {
                 activeOutput.append("istore ").append(idx).append("\n");
             } else if ("real".equals(varType)) {
@@ -553,34 +610,7 @@ public class CodeGenerator extends AlgolBaseListener {
                         .append("invokestatic java/lang/System/exit(I)V\n");
         } else {
             // User-defined procedure call (statement form)
-            SymbolTableBuilder.ProcInfo info = procedures.get(name);
-            if (info != null) {
-                for (int ai = 0; ai < args.size(); ai++) {
-                    AlgolParser.ArgContext arg = args.get(ai);
-                    if (arg.expr() == null) continue; // skip string args
-                    activeOutput.append(generateExpr(arg.expr()));
-                    if (ai < info.paramNames.size()) {
-                        String paramName = info.paramNames.get(ai);
-                        String paramType = info.paramTypes.getOrDefault(paramName, "integer");
-                        String argType = exprTypes.getOrDefault(arg.expr(), "integer");
-                        if ("real".equals(paramType) && "integer".equals(argType)) {
-                            activeOutput.append("i2d\n");
-                        }
-                    }
-                }
-                String paramDesc = info.paramNames.stream()
-                    .map(p -> "real".equals(info.paramTypes.getOrDefault(p, "integer")) ? "D" : "I")
-                    .collect(Collectors.joining());
-                String retDesc = "void".equals(info.returnType) ? "V" : "real".equals(info.returnType) ? "D" : "I";
-                activeOutput.append("invokestatic ").append(packageName).append("/").append(className)
-                            .append("/").append(name)
-                            .append("(").append(paramDesc).append(")").append(retDesc).append("\n");
-                // Pop non-void return value (it's a statement, result discarded)
-                if ("D".equals(retDesc)) activeOutput.append("pop2\n");
-                else if (!"V".equals(retDesc)) activeOutput.append("pop\n");
-            } else {
-                activeOutput.append("; unknown procedure: ").append(name).append("\n");
-            }
+            activeOutput.append(generateUserProcedureInvocation(name, args, true));
         }
     }
 
@@ -692,6 +722,8 @@ public class CodeGenerator extends AlgolBaseListener {
         String varName  = ctx.identifier().getText();
         int    varIndex = currentLocalIndex.get(varName);
         String varType  = currentSymbolTable.get(varName);
+        boolean varIsThunk = varType != null && varType.startsWith("thunk:");
+        String baseVarType = varIsThunk ? varType.substring("thunk:".length()) : varType;
 
         currentForLoopLabel = generateUniqueLabel("loop");
         currentForEndLabel  = generateUniqueLabel("endfor");
@@ -699,13 +731,39 @@ public class CodeGenerator extends AlgolBaseListener {
         if (ctx.STEP() != null) {
             // step until: init before loop label, condition check at loop top
             activeOutput.append(generateExpr(ctx.expr(0))); // start
-            if ("real".equals(varType)) {
+            if (varIsThunk) {
+                // initialize the thunk target: box the start value and call set()
+                if ("real".equals(baseVarType)) {
+                    activeOutput.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+                } else {
+                    activeOutput.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+                }
+                activeOutput.append("aload ").append(varIndex).append("\n");
+                activeOutput.append("swap\n");
+                activeOutput.append("invokeinterface gnb/jalgol/compiler/Thunk/set(Ljava/lang/Object;)V 2\n");
+            } else if ("real".equals(varType)) {
                 activeOutput.append("dstore ").append(varIndex).append("\n");
             } else {
                 activeOutput.append("istore ").append(varIndex).append("\n");
             }
             activeOutput.append(currentForLoopLabel).append(":\n");
-            if ("real".equals(varType)) {
+            if (varIsThunk) {
+                // load current value via thunk.get()
+                activeOutput.append("aload ").append(varIndex).append("\n");
+                activeOutput.append("invokeinterface gnb/jalgol/compiler/Thunk/get()Ljava/lang/Object; 1\n");
+                if ("real".equals(baseVarType)) {
+                    activeOutput.append("checkcast java/lang/Double\n");
+                    activeOutput.append("invokevirtual java/lang/Double/doubleValue()D\n");
+                    activeOutput.append(generateExpr(ctx.expr(2))); // until
+                    activeOutput.append("dcmpg\n");
+                    activeOutput.append("ifgt ").append(currentForEndLabel).append("\n");
+                } else {
+                    activeOutput.append("checkcast java/lang/Integer\n");
+                    activeOutput.append("invokevirtual java/lang/Integer/intValue()I\n");
+                    activeOutput.append(generateExpr(ctx.expr(2))); // until
+                    activeOutput.append("if_icmpgt ").append(currentForEndLabel).append("\n");
+                }
+            } else if ("real".equals(varType)) {
                 activeOutput.append("dload ").append(varIndex).append("\n");
                 activeOutput.append(generateExpr(ctx.expr(2))); // until
                 activeOutput.append("dcmpg\n");
@@ -744,16 +802,40 @@ public class CodeGenerator extends AlgolBaseListener {
             String varName  = ctx.identifier().getText();
             int    varIndex = currentLocalIndex.get(varName);
             String varType  = currentSymbolTable.get(varName);
+            boolean varIsThunk = varType != null && varType.startsWith("thunk:");
+            String baseVarType = varIsThunk ? varType.substring("thunk:".length()) : varType;
 
-            activeOutput.append(generateExpr(ctx.expr(1))); // step
-            if ("real".equals(varType)) {
-                activeOutput.append("dload ").append(varIndex).append("\n");
-                activeOutput.append("dadd\n");
-                activeOutput.append("dstore ").append(varIndex).append("\n");
+            if (varIsThunk) {
+                // current_val + step → new_val → thunk.set(box(new_val))
+                activeOutput.append("aload ").append(varIndex).append("\n");
+                activeOutput.append("invokeinterface gnb/jalgol/compiler/Thunk/get()Ljava/lang/Object; 1\n");
+                if ("real".equals(baseVarType)) {
+                    activeOutput.append("checkcast java/lang/Double\n");
+                    activeOutput.append("invokevirtual java/lang/Double/doubleValue()D\n");
+                    activeOutput.append(generateExpr(ctx.expr(1))); // step
+                    activeOutput.append("dadd\n");
+                    activeOutput.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+                } else {
+                    activeOutput.append("checkcast java/lang/Integer\n");
+                    activeOutput.append("invokevirtual java/lang/Integer/intValue()I\n");
+                    activeOutput.append(generateExpr(ctx.expr(1))); // step
+                    activeOutput.append("iadd\n");
+                    activeOutput.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+                }
+                activeOutput.append("aload ").append(varIndex).append("\n");
+                activeOutput.append("swap\n");
+                activeOutput.append("invokeinterface gnb/jalgol/compiler/Thunk/set(Ljava/lang/Object;)V 2\n");
             } else {
-                activeOutput.append("iload ").append(varIndex).append("\n");
-                activeOutput.append("iadd\n");
-                activeOutput.append("istore ").append(varIndex).append("\n");
+                activeOutput.append(generateExpr(ctx.expr(1))); // step
+                if ("real".equals(varType)) {
+                    activeOutput.append("dload ").append(varIndex).append("\n");
+                    activeOutput.append("dadd\n");
+                    activeOutput.append("dstore ").append(varIndex).append("\n");
+                } else {
+                    activeOutput.append("iload ").append(varIndex).append("\n");
+                    activeOutput.append("iadd\n");
+                    activeOutput.append("istore ").append(varIndex).append("\n");
+                }
             }
         }
 
@@ -772,6 +854,345 @@ public class CodeGenerator extends AlgolBaseListener {
     }
 
     /** Returns the JVM array descriptor for a JAlgol array type. */
+    
+    // ---------- helpers for thunk / variable box support ----------
+
+    /**
+     * Allocate a fresh local variable slot with a generated name hint
+     * and update locals limit accordingly.
+     */
+    private int allocateNewLocal(String hint) {
+        int slot = currentNumLocals;
+        String name = hint + slot;
+        currentLocalIndex.put(name, slot);
+        currentNumLocals += 1;
+        ensureLocalLimit(currentNumLocals);
+        return slot;
+    }
+
+    /**
+     * Ensure that the current method's .limit locals directive is at least the
+     * given value.  Scans the activeOutput or classHeader/procBuffer for the
+     * directive and updates it.
+     */
+    private void ensureLocalLimit(int required) {
+        StringBuilder buf = (procBuffer != null) ? procBuffer : mainCode;
+        String search = ".limit locals ";
+        int idx = buf.indexOf(search);
+        if (idx >= 0) {
+            int end = buf.indexOf("\n", idx);
+            if (end > idx) {
+                buf.replace(idx + search.length(), end, Integer.toString(required));
+            }
+        }
+    }
+
+    /**
+     * Collect all simple variable names occurring in an expression tree.
+     */
+    private Set<String> collectVarNames(ExprContext ctx) {
+        Set<String> names = new LinkedHashSet<>();
+        if (ctx instanceof AlgolParser.VarExprContext ve) {
+            names.add(ve.identifier().getText());
+        } else if (ctx instanceof AlgolParser.ArrayAccessExprContext ae) {
+            names.add(ae.identifier().getText());
+            names.addAll(collectVarNames(ae.expr()));
+        } else if (ctx instanceof AlgolParser.ProcCallExprContext pc) {
+            for (AlgolParser.ArgContext a : pc.argList().arg()) {
+                if (a.expr() != null) names.addAll(collectVarNames(a.expr()));
+            }
+        } else if (ctx instanceof AlgolParser.RelExprContext re) {
+            names.addAll(collectVarNames(re.expr(0)));
+            names.addAll(collectVarNames(re.expr(1)));
+        } else if (ctx instanceof AlgolParser.MulDivExprContext me) {
+            names.addAll(collectVarNames(me.expr(0)));
+            names.addAll(collectVarNames(me.expr(1)));
+        } else if (ctx instanceof AlgolParser.AddSubExprContext ae) {
+            names.addAll(collectVarNames(ae.expr(0)));
+            names.addAll(collectVarNames(ae.expr(1)));
+        } else if (ctx instanceof AlgolParser.AndExprContext ae) {
+            names.addAll(collectVarNames(ae.expr(0)));
+            names.addAll(collectVarNames(ae.expr(1)));
+        } else if (ctx instanceof AlgolParser.UnaryMinusExprContext ue) {
+            names.addAll(collectVarNames(ue.expr()));
+        } else if (ctx instanceof AlgolParser.ParenExprContext pe) {
+            names.addAll(collectVarNames(pe.expr()));
+        }
+        // other cases (literals, true/false) add nothing
+        return names;
+    }
+
+    /**
+     * Generate code to load the current value of a named variable (ignores thunk
+     * state).  Used when initializing boxes.
+     */
+    private String generateLoadVar(String name) {
+        Integer idx = currentLocalIndex.get(name);
+        if (idx == null) return "; ERROR: undeclared variable " + name + "\n";
+        String type = currentSymbolTable.get(name);
+        if (type != null && type.startsWith("thunk:")) {
+            // thunk formal inside caller? not expected here
+            type = type.substring("thunk:".length());
+        }
+        if ("integer".equals(type) || "boolean".equals(type)) {
+            return "iload " + idx + "\n";
+        } else if ("real".equals(type)) {
+            return "dload " + idx + "\n";
+        } else if ("string".equals(type)) {
+            return "aload " + idx + "\n";
+        } else {
+            return "; ERROR: unknown var type " + type + "\n";
+        }
+    }
+
+    /**
+     * Build a thunk class definition for one call-by-name parameter.
+     * varToField maps variable names referenced by this argument to a field index
+     * within the thunk class.  actual may be null (in case of string literal arg)
+     * and baseType gives the underlying Algol type ("integer", "real", "string").
+     * Returns the internal class name (e.g. "pkg/Cls$Thunk0").
+     */
+    private String createThunkClass(Map<String,Integer> varToField, ExprContext actual, String baseType) {
+        String thunkLocalName = className + "$Thunk" + thunkCounter++;
+        String internalName = packageName + "/" + thunkLocalName;
+        StringBuilder cls = new StringBuilder();
+        cls.append(".class public ").append(internalName).append("\n");
+        cls.append(".super java/lang/Object\n");
+        cls.append(".implements gnb/jalgol/compiler/Thunk\n\n");
+        // fields for each referenced variable box
+        for (int i = 0; i < varToField.size(); i++) {
+            cls.append(".field public box").append(i).append(" [Ljava/lang/Object;\n");
+        }
+        cls.append("\n");
+        // constructor
+        StringBuilder ctorDesc = new StringBuilder("(");
+        for (int i = 0; i < varToField.size(); i++) {
+            ctorDesc.append("[Ljava/lang/Object;");
+        }
+        ctorDesc.append(")V");
+        cls.append(".method public <init>").append(ctorDesc).append("\n");
+        cls.append(".limit stack 10\n");
+        cls.append(".limit locals ").append(varToField.size() + 1).append("\n");
+        cls.append("aload_0\n");
+        cls.append("invokespecial java/lang/Object/<init>()V\n");
+        // store constructor args into fields
+        for (int i = 0; i < varToField.size(); i++) {
+            cls.append("aload_0\n");
+            // load parameter i+1 (slot 1..)
+            if (i + 1 <= 3) {
+                cls.append("aload_").append(i+1).append("\n");
+            } else {
+                cls.append("aload ").append(i+1).append("\n");
+            }
+            cls.append("putfield ").append(internalName).append("/box").append(i)
+               .append(" [Ljava/lang/Object;\n");
+        }
+        cls.append("return\n");
+        cls.append(".end method\n\n");
+        // generate get() method
+        cls.append(".method public get()Ljava/lang/Object;\n");
+        cls.append(".limit stack 10\n");
+        cls.append(".limit locals 1\n");
+        if (actual != null) {
+            // generate expression code inside thunk, using mapping from vars to field indexes
+            cls.append(generateExpr(actual, varToField));
+            // result on stack is primitive or reference; box it if necessary
+            String actualExprType = exprTypes.getOrDefault(actual, "integer");
+            switch (baseType) {
+                case "real":
+                    // coerce integer expression to double if needed before boxing
+                    if ("integer".equals(actualExprType)) cls.append("i2d\n");
+                    cls.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+                    break;
+                case "integer":
+                case "boolean":
+                    cls.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+                    break;
+                default:
+                    // string already reference, nothing to box
+                    break;
+            }
+        } else {
+            // no expression (shouldn't happen) just return null
+            cls.append("aconst_null\n");
+        }
+        cls.append("areturn\n");
+        cls.append(".end method\n\n");
+        // generate set(Object) method
+        cls.append(".method public set(Ljava/lang/Object;)V\n");
+        cls.append(".limit stack 10\n");
+        cls.append(".limit locals 2\n");
+        // for simplicity always store value into first box field if any
+        if (!varToField.isEmpty()) {
+            // store into first box regardless; actual semantics for expr not needed
+            cls.append("aload_0\n");
+            cls.append("getfield ").append(internalName).append("/box0 [Ljava/lang/Object;\n");
+            cls.append("iconst_0\n");
+            cls.append("aload_1\n");
+            cls.append("aastore\n");
+        }
+        cls.append("return\n");
+        cls.append(".end method\n\n");
+
+        thunkClassDefinitions.add(Map.entry(thunkLocalName, cls.toString()));
+        return internalName;
+    }
+
+    // -------------------------------------------------------------
+    // End thunk/helper methods
+    // -------------------------------------------------------------
+
+    /**
+     * Generate Jasmin code for a user-defined procedure call, handling both
+     * standard value parameters and call-by-name (thunk) parameters.
+     *
+     * @param name the procedure name
+     * @param args the argument contexts from the call site
+     * @param isStatement whether the call appears in statement position; if true,
+     *                    the return value will be popped when non-void.
+     * @return a string containing the Jasmin instructions for the call (including
+     *         any temporary box initialization and variable restoration).
+     */
+    private String generateUserProcedureInvocation(String name, List<AlgolParser.ArgContext> args, boolean isStatement) {
+        SymbolTableBuilder.ProcInfo info = procedures.get(name);
+        if (info == null) {
+            return "; unknown procedure: " + name + "\n";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        // Determine which parameters are call-by-name and collect variable
+        // boxes needed for all of them.
+        Map<String,Integer> varToBoxSlot = new LinkedHashMap<>();
+        Set<String> varsToRestore = new LinkedHashSet<>();
+
+        // first pass: discover variables referenced by each name argument
+        List<AlgolParser.ArgContext> argList = args;
+        for (int ai = 0; ai < argList.size() && ai < info.paramNames.size(); ai++) {
+            String paramName = info.paramNames.get(ai);
+            boolean isValue = info.valueParams.contains(paramName);
+            if (!isValue) {
+                AlgolParser.ArgContext arg = argList.get(ai);
+                if (arg.expr() != null) {
+                    Set<String> names = collectVarNames(arg.expr());
+                    for (String vn : names) {
+                        if (!varToBoxSlot.containsKey(vn)) {
+                            int slot = allocateNewLocal("__box_" + vn);
+                            varToBoxSlot.put(vn, slot);
+                        }
+                    }
+                    if (arg.expr() instanceof AlgolParser.VarExprContext) {
+                        varsToRestore.add(((AlgolParser.VarExprContext)arg.expr()).identifier().getText());
+                    }
+                }
+            }
+        }
+
+        // allocate and initialize boxes in caller
+        for (Map.Entry<String,Integer> e : varToBoxSlot.entrySet()) {
+            String vn = e.getKey();
+            int slot = e.getValue();
+            String varType = currentSymbolTable.get(vn);
+            sb.append("iconst_1\n");
+            sb.append("anewarray java/lang/Object\n");
+            sb.append("astore ").append(slot).append("\n");
+            sb.append(generateLoadVar(vn));
+            if ("real".equals(varType)) {
+                sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+            } else if ("integer".equals(varType) || "boolean".equals(varType)) {
+                sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+            }
+            sb.append("aload ").append(slot).append("\n");
+            sb.append("swap\n");
+            sb.append("iconst_0\n");
+            sb.append("swap\n");
+            sb.append("aastore\n");
+        }
+
+        // second pass: push arguments, creating thunks as needed
+        for (int ai = 0; ai < argList.size() && ai < info.paramNames.size(); ai++) {
+            String paramName = info.paramNames.get(ai);
+            boolean isValue = info.valueParams.contains(paramName);
+            AlgolParser.ArgContext arg = argList.get(ai);
+            if (isValue) {
+                if (arg.expr() != null) {
+                    sb.append(generateExpr(arg.expr()));
+                    String paramType = info.paramTypes.getOrDefault(paramName, "integer");
+                    String argType = exprTypes.getOrDefault(arg.expr(), "integer");
+                    if ("real".equals(paramType) && "integer".equals(argType)) {
+                        sb.append("i2d\n");
+                    }
+                } else {
+                    sb.append(arg.getText()).append("\n");
+                }
+            } else {
+                ExprContext actual = arg.expr();
+                Set<String> names = actual != null ? collectVarNames(actual) : Set.of();
+                Map<String,Integer> varToField = new LinkedHashMap<>();
+                int fi = 0;
+                for (String vn : names) {
+                    varToField.put(vn, fi++);
+                }
+                String baseType = info.paramTypes.getOrDefault(paramName, "integer");
+                String thunkClass = createThunkClass(varToField, actual, baseType);
+                sb.append("new ").append(thunkClass).append("\n");
+                sb.append("dup\n");
+                for (String vn : varToField.keySet()) {
+                    int boxSlot = varToBoxSlot.get(vn);
+                    sb.append("aload ").append(boxSlot).append("\n");
+                }
+                String ctorDesc = varToField.keySet().stream()
+                                    .map(vn -> "[Ljava/lang/Object;")
+                                    .collect(Collectors.joining("", "(", ")V"));
+                sb.append("invokespecial ").append(thunkClass)
+                            .append("/<init>").append(ctorDesc).append("\n");
+            }
+        }
+
+        // perform invocation
+        String paramDesc = info.paramNames.stream()
+            .map(p -> {
+                if (!info.valueParams.contains(p)) {
+                    return "L" + "gnb/jalgol/compiler/Thunk" + ";";
+                }
+                String type = info.paramTypes.getOrDefault(p, "integer");
+                if ("real".equals(type)) return "D";
+                if ("string".equals(type)) return "Ljava/lang/String;";
+                return "I";
+            })
+            .collect(Collectors.joining());
+        String retDesc = "void".equals(info.returnType) ? "V" : "real".equals(info.returnType) ? "D" : "Ljava/lang/String;".equals(info.returnType) ? "Ljava/lang/String;" : "I";
+        sb.append("invokestatic ").append(packageName).append("/")
+                    .append(className).append("/").append(name)
+                    .append("(").append(paramDesc).append(")").append(retDesc).append("\n");
+        if (isStatement && !"V".equals(retDesc)) {
+            if ("D".equals(retDesc)) sb.append("pop2\n");
+            else sb.append("pop\n");
+        }
+
+        // restore caller variables
+        for (String vn : varsToRestore) {
+            int boxSlot = varToBoxSlot.get(vn);
+            Integer varSlot = currentLocalIndex.get(vn);
+            String varType = currentSymbolTable.get(vn);
+            sb.append("aload ").append(boxSlot).append("\n");
+            sb.append("iconst_0\n");
+            sb.append("aaload\n");
+            if ("real".equals(varType)) {
+                sb.append("checkcast java/lang/Double\n");
+                sb.append("invokevirtual java/lang/Double/doubleValue()D\n");
+                sb.append("dstore ").append(varSlot).append("\n");
+            } else if ("string".equals(varType)) {
+                sb.append("checkcast java/lang/String\n");
+                sb.append("astore ").append(varSlot).append("\n");
+            } else {
+                sb.append("checkcast java/lang/Integer\n");
+                sb.append("invokevirtual java/lang/Integer/intValue()I\n");
+                sb.append("istore ").append(varSlot).append("\n");
+            }
+        }
+
+        return sb.toString();
+    }
     private static String arrayTypeToJvmDesc(String arrayType) {
         return switch (arrayType) {
             case "boolean[]" -> "[Z";
@@ -800,10 +1221,19 @@ public class CodeGenerator extends AlgolBaseListener {
     // Expression code generation
     // -------------------------------------------------------------------------
 
+    /**
+     * Generate code for an expression. When varToFieldIndex is non-null, it maps
+     * variable names to a field index inside a thunk object; the generated code
+     * will load from thunk fields rather than normal local variables.
+     */
     private String generateExpr(ExprContext ctx) {
+        return generateExpr(ctx, null);
+    }
+
+    private String generateExpr(ExprContext ctx, Map<String,Integer> varToFieldIndex) {
         if (ctx instanceof AlgolParser.RelExprContext e) {
-            String left = generateExpr(e.expr(0));
-            String right = generateExpr(e.expr(1));
+            String left = generateExpr(e.expr(0), varToFieldIndex);
+            String right = generateExpr(e.expr(1), varToFieldIndex);
             String op = e.op.getText();
             String trueLabel = generateUniqueLabel("rel_true");
             String endLabel = generateUniqueLabel("rel_end");
@@ -823,8 +1253,8 @@ public class CodeGenerator extends AlgolBaseListener {
                 "iconst_1\n" +
                 endLabel + ":\n";
         } else if (ctx instanceof AlgolParser.MulDivExprContext e) {
-            String left  = generateExpr(e.expr(0));
-            String right = generateExpr(e.expr(1));
+            String left  = generateExpr(e.expr(0), varToFieldIndex);
+            String right = generateExpr(e.expr(1), varToFieldIndex);
             String leftType  = exprTypes.get(e.expr(0));
             String rightType = exprTypes.get(e.expr(1));
             String type = exprTypes.get(ctx);
@@ -836,8 +1266,8 @@ public class CodeGenerator extends AlgolBaseListener {
                 ("*".equals(op) ? "imul" : "idiv");
             return left + right + instr + "\n";
         } else if (ctx instanceof AlgolParser.AddSubExprContext e) {
-            String left  = generateExpr(e.expr(0));
-            String right = generateExpr(e.expr(1));
+            String left  = generateExpr(e.expr(0), varToFieldIndex);
+            String right = generateExpr(e.expr(1), varToFieldIndex);
             String leftType  = exprTypes.get(e.expr(0));
             String rightType = exprTypes.get(e.expr(1));
             String type = exprTypes.get(ctx);
@@ -849,10 +1279,49 @@ public class CodeGenerator extends AlgolBaseListener {
                 ("+".equals(op) ? "iadd" : "isub");
             return left + right + instr + "\n";
         } else if (ctx instanceof AlgolParser.AndExprContext e) {
-            return generateExpr(e.expr(0)) + generateExpr(e.expr(1)) + "iand\n";
+            return generateExpr(e.expr(0), varToFieldIndex) + generateExpr(e.expr(1), varToFieldIndex) + "iand\n";
         } else if (ctx instanceof AlgolParser.VarExprContext e) {
             String name = e.identifier().getText();
-            
+
+            // If we're generating code inside a thunk, some variables may be
+            // stored in thunk fields instead of caller locals.
+            if (varToFieldIndex != null && varToFieldIndex.containsKey(name)) {
+                int fieldIdx = varToFieldIndex.get(name);
+                StringBuilder sb = new StringBuilder();
+                // load boxes field for this variable
+                sb.append("aload_0\n");
+                sb.append("getfield ").append(packageName).append("/")
+                  .append(className).append("$Thunk").append((thunkCounter-1))
+                  .append("/box").append(fieldIdx).append(" [Ljava/lang/Object;\n");
+                sb.append("iconst_0\n");
+                sb.append("aaload\n");
+                // now unbox based on expected type in currentSymbolTable? but inside thunk
+                // we want primitive for expression evaluation.  Determine base type from
+                // info? We'll look up underlying type from currentSymbolTable if it
+                // contains a thunk entry.  Otherwise default integer.
+                String type = currentSymbolTable.get(name);
+                String baseType = "integer";
+                if (type != null && type.startsWith("thunk:")) {
+                    baseType = type.substring("thunk:".length());
+                } else if (type != null) {
+                    baseType = type;
+                }
+                switch (baseType) {
+                    case "real":
+                        sb.append("checkcast java/lang/Double\n");
+                        sb.append("invokevirtual java/lang/Double/doubleValue()D\n");
+                        break;
+                    case "string":
+                        sb.append("checkcast java/lang/String\n");
+                        break;
+                    default: // integer/boolean
+                        sb.append("checkcast java/lang/Integer\n");
+                        sb.append("invokevirtual java/lang/Integer/intValue()I\n");
+                        break;
+                }
+                return sb.toString();
+            }
+
             // Check for environmental constants first
             if ("maxreal".equals(name)) {
                 return "ldc2_w " + Double.MAX_VALUE + "\n";
@@ -864,11 +1333,30 @@ public class CodeGenerator extends AlgolBaseListener {
                 // Machine epsilon - using Double.MIN_NORMAL as a reasonable approximation
                 return "ldc2_w " + Double.MIN_NORMAL + "\n";
             }
-            
+
             // Regular variable lookup
             Integer idx = currentLocalIndex.get(name);
             if (idx == null) return "; ERROR: undeclared variable " + name + "\n";
             String type = currentSymbolTable.get(name);
+            // support call-by-name thunk parameters
+            if (type != null && type.startsWith("thunk:")) {
+                String baseType = type.substring("thunk:".length());
+                StringBuilder sb2 = new StringBuilder();
+                sb2.append("aload ").append(idx).append("\n");
+                sb2.append("invokeinterface gnb/jalgol/compiler/Thunk/get()Ljava/lang/Object; 1\n");
+                switch (baseType) {
+                    case "real" -> {
+                        sb2.append("checkcast java/lang/Double\n");
+                        sb2.append("invokevirtual java/lang/Double/doubleValue()D\n");
+                    }
+                    case "string" -> sb2.append("checkcast java/lang/String\n");
+                    default -> {
+                        sb2.append("checkcast java/lang/Integer\n");
+                        sb2.append("invokevirtual java/lang/Integer/intValue()I\n");
+                    }
+                }
+                return sb2.toString();
+            }
             if ("integer".equals(type) || "boolean".equals(type)) {
                 return "iload " + idx + "\n";
             } else if ("real".equals(type)) {
@@ -888,7 +1376,7 @@ public class CodeGenerator extends AlgolBaseListener {
             StringBuilder sb = new StringBuilder();
             sb.append("getstatic ").append(packageName).append("/").append(className)
               .append("/").append(arrName).append(" ").append(jvmDesc).append("\n");
-            sb.append(generateExpr(e.expr()));
+            sb.append(generateExpr(e.expr(), varToFieldIndex));
             if (lower != 0) {
                 sb.append("ldc ").append(lower).append("\n");
                 sb.append("isub\n");
@@ -903,37 +1391,8 @@ public class CodeGenerator extends AlgolBaseListener {
             if (builtinCode != null) {
                 return builtinCode;
             }
-            
-            // Otherwise, handle user-defined procedure
-            SymbolTableBuilder.ProcInfo info = procedures.get(procName);
-            if (info == null) return "; ERROR: undeclared procedure " + procName + "\n";
-            StringBuilder sb = new StringBuilder();
-            List<AlgolParser.ArgContext> args = e.argList().arg();
-            for (int i = 0; i < args.size(); i++) {
-                AlgolParser.ArgContext arg = args.get(i);
-                if (arg.expr() == null) continue; // skip string args
-                sb.append(generateExpr(arg.expr()));
-                // Widen integer arg to double if the corresponding param is real
-                if (i < info.paramNames.size()) {
-                    String paramName = info.paramNames.get(i);
-                    String paramType = info.paramTypes.getOrDefault(paramName, "integer");
-                    String argType   = exprTypes.getOrDefault(arg.expr(), "integer");
-                    if ("real".equals(paramType) && "integer".equals(argType)) {
-                        sb.append("i2d\n");
-                    }
-                }
-            }
-            String paramDesc = info.paramNames.stream()
-                .map(p -> {
-                    String type = info.paramTypes.getOrDefault(p, "integer");
-                    return "real".equals(type) ? "D" : "string".equals(type) ? "Ljava/lang/String;" : "I";
-                })
-                .collect(Collectors.joining());
-            String retDesc = "real".equals(info.returnType) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
-            sb.append("invokestatic ").append(packageName).append("/").append(className)
-              .append("/").append(procName)
-              .append("(").append(paramDesc).append(")").append(retDesc).append("\n");
-            return sb.toString();
+            // Delegate user-defined procedures (handles call-by-name internally)
+            return generateUserProcedureInvocation(procName, e.argList().arg(), false);
         } else if (ctx instanceof AlgolParser.RealLiteralExprContext e) {
             return "ldc2_w " + e.realLiteral().getText() + "\n";
         } else if (ctx instanceof AlgolParser.IntLiteralExprContext e) {
@@ -946,14 +1405,14 @@ public class CodeGenerator extends AlgolBaseListener {
             return "iconst_0\n";
         } else if (ctx instanceof AlgolParser.UnaryMinusExprContext e) {
             String type = exprTypes.getOrDefault(ctx, "integer");
-            String inner = generateExpr(e.expr());
+            String inner = generateExpr(e.expr(), varToFieldIndex);
             if ("real".equals(type)) {
                 return inner + "dneg\n";
             } else {
                 return inner + "ineg\n";
             }
         } else if (ctx instanceof AlgolParser.ParenExprContext e) {
-            return generateExpr(e.expr());
+            return generateExpr(e.expr(), varToFieldIndex);
         }
         return "; unknown expr type\n";
     }

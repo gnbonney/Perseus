@@ -47,6 +47,17 @@ sequenceDiagram
     JVM-->>User: Execute program
 ```
 
+## Output Class Files
+
+The compiler produces one or more `.class` files per Algol source file:
+
+- **`Hello.class`** — the main compiled class (always produced)
+- **`Hello$Thunk0.class`, `Hello$Thunk1.class`, …** — synthetic thunk classes, one per call-by-name argument at each call site that uses a procedure with name-parameters
+
+This follows the same convention as `javac`, which emits `Foo$Inner.class` for inner classes and `Foo$1.class` for anonymous classes. Users run the program the same way regardless: `java -cp . Hello`. No JAR packaging is required.
+
+---
+
 ## Environmental Block Implementation
 
 The Algol 60 Modified Report defines a fictitious outermost block called the **environmental block** that pre-declares all standard identifiers (I/O procedures, math functions, constants). JAlgol implements this without generating any extra class files or runtime declarations. Instead, environmental identifiers are recognised **by name** in `CodeGenerator` and mapped directly to the appropriate JVM instruction sequences.

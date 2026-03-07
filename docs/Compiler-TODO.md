@@ -320,18 +320,29 @@ integer and string arguments.
 
 ---
 
-## Milestone 12 — Call-by-Name (Jensen's Device) (`jen.alg`)
+## Milestone 12 — Call-by-Name (Jensen's Device) (`jen.alg`) ✅
 
 **Goal:** `jen.alg` compiles and runs, demonstrating correct call-by-name parameter passing.
 
-**New features needed:**
-- [ ] Grammar: call-by-name parameters (default for parameters without `value`)
-- [ ] Codegen: thunk implementation using `Thunk<T>` interface (as outlined in Development.md)
-- [ ] Codegen: generate anonymous classes for name parameters at call sites
-- [ ] Codegen: invoke `get()` and `set()` methods for parameter access/assignment
-- [ ] SymbolTableBuilder: track parameter passing modes (value vs. name)
-- [ ] TypeInferencer: handle thunk types and delayed evaluation
-- [ ] Test: assert correct Jensen's device behavior (e.g., sum(i,1,10,A[i]) increments i)
+**Features implemented:**
+- [x] Grammar: call-by-name parameters (default for parameters without `value`)
+- [x] Codegen: thunk implementation using `Thunk` interface emitted as Jasmin (self-contained; no compiler runtime dependency)
+- [x] Codegen: generate synthetic `ClassName$ThunkN` classes for name parameters at each call site
+- [x] Codegen: invoke `get()` and `set()` methods for parameter access/assignment
+- [x] Codegen: `for` loop with thunk loop variable (set/get through thunk instead of direct istore/iload)
+- [x] Codegen: `generateExpr` propagates `varToFieldIndex` recursively so thunk field access works inside complex expressions
+- [x] Codegen: integer→double coercion when a real name-parameter thunk wraps an integer expression
+- [x] SymbolTableBuilder: parameter passing modes already tracked via `valueParams`
+- [x] TypeInferencer: strips `thunk:` prefix when resolving variable types
+- [x] `Thunk` interface emitted as `Thunk.j` alongside compiled program; assembled into output dir so program is self-contained
+- [x] `AntlrAlgolListener`: `assemble()` picks up all `ClassName$ThunkN.j` and `Thunk.j` companion files automatically
+- [x] Test: `jen_test()` — `sumof(1,10,i,i)` = 55.0 and `sumof(-5,5,j,j*j)` = 110.0
+- [x] Test: `callByNameUpdateTest()` — `inc(i)` updates caller's `i` from 5 to 6
+
+**Implementation notes:**
+- Each call-by-name argument creates one `Object[1]` box in the caller; multiple name args referencing the same variable share the same box (enabling Jensen's Device)
+- Thunk classes are separate `.j` files; Jasmin cannot handle multiple `.class` directives in one file
+- After a call with name parameters, the caller restores simple-variable name args from their boxes
 
 ---
 
@@ -435,6 +446,7 @@ integer and string arguments.
 
 ## Future Milestones (not yet sequenced)
 
+- **`jalgol` CLI** — a command-line entry point mirroring `javac`: accepts one or more `.alg` source files, optional `-d <outdir>` flag, invokes the compiler pipeline and Jasmin assembler, exits non-zero on errors. Produces `Hello.class` and any `Hello$ThunkN.class` files in the output directory. No JAR packaging required — users run with `java -cp <outdir> Hello`.
 - Nested procedures with non-local variable access (display/frame pointer)
 - Algol 60 formal array parameters
 - File I/O extensions (`openfile`, `closefile`, extended channel support) — channels 2+ mapped to files; all I/O procedures extended to use dynamic stream dispatch; error handling via `fault`

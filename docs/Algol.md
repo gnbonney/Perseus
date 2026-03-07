@@ -16,6 +16,50 @@ Java can only pass parameters by value, although in many cases the value being p
 
 Scala is one of the few newer programming languages that has call-by-name.  In reading several Scala programmers' discussions online, I get the impression there is no bias against call-by-name.  However, in discussions of Algol call-by-name is often maligned generally on the grounds that it can cause surprising side effects.  
 
+### Call-by-value
+
+The argument expression is evaluated **once** at the call site and the result is copied into the procedure's local parameter slot. Changes to the parameter inside the procedure do not affect the caller. Declared explicitly with `value`:
+
+```algol
+real procedure double(x);  value x;  real x;
+begin double := x * 2 end;
+```
+
+### Call-by-name (the Algol default)
+
+The argument expression is passed as a *thunk* — a callable object that re-evaluates the expression in the **caller's environment** every time the parameter is read or written inside the procedure. This is the default when `value` is not declared.
+
+```algol
+real procedure sumof(start, stop, index, expr);
+value start, stop;           comment evaluated once;
+integer start, stop, index;  comment index is call-by-name;
+real expr;                   comment expr is call-by-name;
+begin ...
+```
+
+Here, reading `index` inside the procedure re-evaluates whatever variable was passed by the caller, and writing `index := index + 1` updates the caller's variable directly. Reading `expr` re-evaluates the entire expression (e.g. `i*i`) in the caller's scope on each access, so its value changes as `index` changes. This is Jensen's Device.
+
+### Comparison with Java
+
+Java has a single parameter passing mode often described as "pass-by-value, always":
+
+| Java type | What is passed | Writes affect caller? |
+|---|---|---|
+| Primitive (`int`, `double`) | A copy of the value | No |
+| Object reference | A copy of the *reference* | Mutating the object: yes; reassigning the variable: no |
+
+Mapped to Algol terms:
+
+| | Algol call-by-value | Algol call-by-name | Java |
+|---|---|---|---|
+| Argument evaluated | Once, at call | Every access, in caller scope | Once, at call |
+| Writes affect caller | No | Yes | No (for primitives) |
+| Lazy/re-evaluation | No | Yes | No |
+
+**Algol call-by-value ≈ Java primitives** — effectively the same for `integer` and `real`.
+
+**Algol call-by-name has no direct Java equivalent.** The closest analogies are `Supplier<T>` (read-only re-evaluation) combined with a mutable wrapper for writes, but neither gives you the transparent read+write syntax Algol provides. JAlgol implements call-by-name using a `Thunk` interface with `get()` and `set()` methods, generating a synthetic `$ThunkN` class at each call site — the boilerplate that Algol requires the compiler to produce automatically.
+
 ## Nesting
 
 Procedures can be declared within procedures.  This is different from C.  Java does allow nesting of classes (inner classes).

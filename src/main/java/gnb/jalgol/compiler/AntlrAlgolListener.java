@@ -29,16 +29,66 @@ import gnb.jalgol.compiler.antlr.AlgolParser.ProgramContext;
  */
 public class AntlrAlgolListener {
 
+	/** Jasmin source for the Thunk interface needed by call-by-name compiled programs. */
+	private static final String THUNK_INTERFACE_JASMIN =
+		".interface public gnb/jalgol/compiler/Thunk\n" +
+		".super java/lang/Object\n\n" +
+		".method public abstract get()Ljava/lang/Object;\n.end method\n\n" +
+		".method public abstract set(Ljava/lang/Object;)V\n.end method\n";
+
 	public static Path compileToFile(String algolFile, String packageName, String className, Path outputDir)
 			throws IOException {
-		String jasminSource = compile(algolFile, packageName, className);
+		// Run the full pipeline so we can access the CodeGenerator for thunk outputs
+		CodeGenerator codegen;
+		try {
+			codegen = runPipeline(algolFile, packageName, className);
+		} catch (Exception e) {
+			throw new IOException("Compilation failed", e);
+		}
 		Files.createDirectories(outputDir);
+
+		// Write main .j file
 		Path jasminFile = outputDir.resolve(className + ".j");
-		Files.writeString(jasminFile, jasminSource);
+		Files.writeString(jasminFile, codegen.getOutput());
+
+		// Write each thunk class as its own .j file (Jasmin can only handle one class per file)
+		Map<String, String> thunkOutputs = codegen.getThunkClassOutputs();
+		for (Map.Entry<String, String> thunk : thunkOutputs.entrySet()) {
+			Path thunkFile = outputDir.resolve(thunk.getKey() + ".j");
+			Files.writeString(thunkFile, thunk.getValue());
+		}
+
+		// If there are any thunk classes, also emit the Thunk interface so the compiled
+		// program is self-contained and doesn't depend on the compiler's own class files.
+		if (!thunkOutputs.isEmpty()) {
+			Path thunkIfaceFile = outputDir.resolve("Thunk.j");
+			Files.writeString(thunkIfaceFile, THUNK_INTERFACE_JASMIN);
+		}
+
 		return jasminFile;
 	}
 
 	public static void assemble(Path jasminFile, Path classOutputDir) throws IOException, InterruptedException {
+		// Assemble the main file
+		assembleOne(jasminFile, classOutputDir);
+
+		// Also assemble any companion thunk class files (e.g. Foo$Thunk0.j, Foo$Thunk1.j)
+		String baseName = jasminFile.getFileName().toString().replace(".j", "");
+		try (java.nio.file.DirectoryStream<Path> ds =
+				java.nio.file.Files.newDirectoryStream(jasminFile.getParent(), baseName + "$*.j")) {
+			for (Path companion : ds) {
+				assembleOne(companion, classOutputDir);
+			}
+		} catch (java.nio.file.NoSuchFileException ignored) { }
+
+		// Assemble the Thunk interface if it was emitted alongside this file
+		Path thunkIface = jasminFile.getParent().resolve("Thunk.j");
+		if (java.nio.file.Files.exists(thunkIface)) {
+			assembleOne(thunkIface, classOutputDir);
+		}
+	}
+
+	private static void assembleOne(Path jasminFile, Path classOutputDir) throws IOException, InterruptedException {
 		Files.createDirectories(classOutputDir);
 		// Find jasmin-2.4/jasmin.jar on the classpath (self-contained: includes jas + java_cup)
 		String jasminJar = Arrays.stream(System.getProperty("java.class.path").split(java.io.File.pathSeparator))
@@ -60,56 +110,62 @@ public class AntlrAlgolListener {
 
 	@SuppressWarnings("deprecation")
 	public static String compile(String fileName, String packageName, String className) {
-		String output = "NO OUTPUT";
 		try {
-			ANTLRInputStream is = new ANTLRInputStream(new FileReader(fileName));
-			AlgolLexer lexer = new AlgolLexer(is);
-			CommonTokenStream tokens = new CommonTokenStream(lexer);
-			AlgolParser parser = new AlgolParser(tokens);
-			lexer.removeErrorListeners();
-			lexer.addErrorListener(DescriptiveErrorListener.INSTANCE);
-			parser.removeErrorListeners();
-			parser.addErrorListener(DescriptiveErrorListener.INSTANCE);
-			ProgramContext programContext = parser.program();
-			if (programContext != null) {
-				ParseTreeWalker walker = new ParseTreeWalker();
-
-				// Pass 1: build symbol table (variable names and types, in declaration order)
-				SymbolTableBuilder symBuilder = new SymbolTableBuilder();
-				walker.walk(symBuilder, programContext);
-				Map<String, String> symbolTable = symBuilder.getSymbolTable();
-				Map<String, String> mainSymbolTable = symBuilder.getMainSymbolTable();
-				Map<String, int[]> arrayBounds = symBuilder.getArrayBounds();
-
-				// Assign JVM local variable slots: slot 0 = args, doubles take 2 slots, ints/refs take 1
-				// Procedures do not get a main-method slot (they become static methods).
-				Map<String, Integer> localIndex = new LinkedHashMap<>();
-				int nextLocal = 1;
-				for (Map.Entry<String, String> entry : mainSymbolTable.entrySet()) {
-					String name = entry.getKey();
-					String type = entry.getValue();
-					if (type.startsWith("procedure:") || type.endsWith("[]")) continue; // procedures → static methods; arrays → static fields
-					localIndex.put(name, nextLocal);
-					nextLocal += "real".equals(type) ? 2 : 1; // real=double=2 slots; all others (int/bool/array ref)=1
-				}
-				int numLocals = Math.max(nextLocal, 1); // always at least 1 for args
-
-				// Pass 1.5: type inference for expressions (uses full symbol table)
-				TypeInferencer typeInf = new TypeInferencer(symbolTable);
-				walker.walk(typeInf, programContext);
-				Map<AlgolParser.ExprContext, String> exprTypes = typeInf.getExprTypes();
-
-				// Pass 2: generate Jasmin code
-				String source = Paths.get(fileName).getFileName().toString();
-				CodeGenerator codegen = new CodeGenerator(source, packageName, className, mainSymbolTable, localIndex, numLocals, exprTypes, arrayBounds, symBuilder.getProcedures());
-				walker.walk(codegen, programContext);
-				output = codegen.getOutput();
-			}
+			return runPipeline(fileName, packageName, className).getOutput();
 		} catch (Exception e) {
 			StringWriter sw = new StringWriter();
 			e.printStackTrace(new PrintWriter(sw));
 			return "ERROR: " + e.getMessage() + "\n" + sw.toString();
 		}
-		return output;
+	}
+
+	/**
+	 * Runs the full compilation pipeline and returns the CodeGenerator so callers
+	 * can access both the main Jasmin output and any generated thunk class outputs.
+	 */
+	@SuppressWarnings("deprecation")
+	static CodeGenerator runPipeline(String fileName, String packageName, String className) throws Exception {
+		ANTLRInputStream is = new ANTLRInputStream(new FileReader(fileName));
+		AlgolLexer lexer = new AlgolLexer(is);
+		CommonTokenStream tokens = new CommonTokenStream(lexer);
+		AlgolParser parser = new AlgolParser(tokens);
+		lexer.removeErrorListeners();
+		lexer.addErrorListener(DescriptiveErrorListener.INSTANCE);
+		parser.removeErrorListeners();
+		parser.addErrorListener(DescriptiveErrorListener.INSTANCE);
+		ProgramContext programContext = parser.program();
+
+		// Pass 1: build symbol table
+		SymbolTableBuilder symBuilder = new SymbolTableBuilder();
+		ParseTreeWalker walker = new ParseTreeWalker();
+		walker.walk(symBuilder, programContext);
+		Map<String, String> symbolTable = symBuilder.getSymbolTable();
+		Map<String, String> mainSymbolTable = symBuilder.getMainSymbolTable();
+		Map<String, int[]> arrayBounds = symBuilder.getArrayBounds();
+
+		// Assign JVM local variable slots
+		Map<String, Integer> localIndex = new LinkedHashMap<>();
+		int nextLocal = 1;
+		for (Map.Entry<String, String> entry : mainSymbolTable.entrySet()) {
+			String name = entry.getKey();
+			String type = entry.getValue();
+			if (type.startsWith("procedure:") || type.endsWith("[]")) continue;
+			localIndex.put(name, nextLocal);
+			nextLocal += "real".equals(type) ? 2 : 1;
+		}
+		int numLocals = Math.max(nextLocal, 1);
+
+		// Pass 1.5: type inference
+		TypeInferencer typeInf = new TypeInferencer(symbolTable);
+		walker.walk(typeInf, programContext);
+		Map<AlgolParser.ExprContext, String> exprTypes = typeInf.getExprTypes();
+
+		// Pass 2: code generation
+		String source = Paths.get(fileName).getFileName().toString();
+		CodeGenerator codegen = new CodeGenerator(source, packageName, className,
+				mainSymbolTable, localIndex, numLocals, exprTypes, arrayBounds,
+				symBuilder.getProcedures());
+		walker.walk(codegen, programContext);
+		return codegen;
 	}
 }

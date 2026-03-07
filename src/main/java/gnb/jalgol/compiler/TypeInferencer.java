@@ -77,6 +77,11 @@ public class TypeInferencer extends AlgolBaseListener {
         if (type == null) {
             throw new RuntimeException("Undeclared variable: " + varName);
         }
+        // call-by-name parameters are stored as "thunk:base" in the symbol table;
+        // for type inference we only care about the underlying base type.
+        if (type.startsWith("thunk:")) {
+            type = type.substring("thunk:".length());
+        }
         exprTypes.put(ctx, type);
     }
 

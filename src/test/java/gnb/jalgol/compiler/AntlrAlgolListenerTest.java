@@ -388,6 +388,56 @@ end
 	}
 
 	@Test
+	public void jen_test() throws Exception {
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				"test/algol/jen.alg", "gnb/jalgol/programs", "JenTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not error: " + jasminSource);
+
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.JenTest");
+		System.out.println("jen output: [" + output + "]");
+		String[] lines = output.trim().split("\\R");
+		assertTrue(lines.length >= 2, "Expected at least two lines of output");
+		double v1 = Double.parseDouble(lines[0]);
+		double v2 = Double.parseDouble(lines[1]);
+		assertEquals(55.0, v1, 1e-9);
+		assertEquals(110.0, v2, 1e-9);
+	}
+
+	@Test
+	public void callByNameUpdateTest() throws Exception {
+		String algolSrc = """
+begin
+    integer i;
+    i := 5;
+    real procedure inc(x);
+        integer x;
+    begin
+        x := x + 1;
+        inc := x
+    end;
+    outreal(1, inc(i));
+    outstring(1, "\\n");
+    outinteger(1, i);
+end
+""";
+		Path temp = BUILD_DIR.resolve("cbn_test.alg");
+		Files.createDirectories(BUILD_DIR);
+		Files.writeString(temp, algolSrc);
+		Path jas = AntlrAlgolListener.compileToFile(
+			temp.toString(), "gnb/jalgol/programs", "CbnTest", BUILD_DIR);
+		String jasSrc = Files.readString(jas);
+		assertFalse(jasSrc.startsWith("ERROR"), "Compilation should succeed");
+		AntlrAlgolListener.assemble(jas, BUILD_DIR);
+		String out = runClass(BUILD_DIR, "gnb.jalgol.programs.CbnTest");
+		System.out.println("cbn output: [" + out + "]");
+		String[] parts = out.trim().split("\\R");
+		assertEquals("6.0", parts[0]);
+		assertEquals("6", parts[1]);
+	}
+
+	@Test
 	public void pi_test() throws Exception {
 		Path jasminFile = AntlrAlgolListener.compileToFile(
 				"test/algol/pi.alg", "gnb/jalgol/programs", "PiTest", BUILD_DIR);
