@@ -31,3 +31,18 @@ generateGrammarSource {
 test {
     useJUnitPlatform()
 }
+
+// Add a Gradle task to compile Algol to Jasmin and then to class files
+task compileAlgol(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    main = 'gnb.algol.AntlrAlgolListener'
+    args 'compileToFile', 'test/algol/hello.alg', 'build/test-algol', 'Hello'
+
+    doLast {
+        // Assemble the generated Jasmin file into a .class file
+        javaexec {
+            main = '-jar'
+            args = ['jasmin-2.4/jasmin.jar', '-d', 'build/test-algol', 'build/test-algol/Hello.j']
+        }
+    }
+}

@@ -44,6 +44,40 @@ This project uses Gradle for build and dependency management. Below are the key 
 
 See [docs/Gradle-Build.md](docs/Gradle-Build.md) for more details.
 
+## Using the `compileAlgol` Gradle Task
+
+The `compileAlgol` Gradle task simplifies the process of compiling Algol source files into Jasmin assembly and then assembling the Jasmin files into JVM class files. This task performs the following steps:
+
+1. **Compile Algol to Jasmin**:
+   - The task uses the `AntlrAlgolListener` class to parse the Algol source file and generate a Jasmin `.j` file.
+
+2. **Assemble Jasmin to Class Files**:
+   - The task invokes the Jasmin assembler to convert the `.j` file into a `.class` file.
+
+### Running the Task
+
+To use the `compileAlgol` task, run the following command:
+
+```bash
+gradle compileAlgol
+```
+
+This will:
+1. Compile the Algol source file located at `test/algol/hello.alg`.
+2. Generate the Jasmin file (`Hello.j`) in the `build/test-algol` directory.
+3. Assemble the Jasmin file into a JVM class file (`Hello.class`) in the same directory.
+
+### Output
+After running the task, you can find the following files in the `build/test-algol` directory:
+- `Hello.j`: The generated Jasmin assembly file.
+- `Hello.class`: The compiled JVM class file.
+
+You can then run the compiled class file using the `java` command:
+
+```bash
+java -cp build/test-algol gnb.jalgol.programs.Hello
+```
+
 ## Folder Structure of this Project
 
 * `src/main/java/` - Java source code for the compiler

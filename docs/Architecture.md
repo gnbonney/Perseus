@@ -101,6 +101,44 @@ Input procedures (`ininteger`, `inreal`, `inchar`) read from `System.in` via a s
 
 ---
 
+## Compiling Algol to Jasmin
+
+To compile an Algol source file to Jasmin assembly, the following steps are performed:
+
+1. **Compile Algol to Jasmin**:
+   Use the `AntlrAlgolListener.compileToFile` method to compile the Algol source file into a Jasmin `.j` file. This method:
+   - Parses the Algol source file.
+   - Generates the Jasmin assembly code.
+   - Writes the output to the specified directory.
+
+   Example:
+   ```java
+   Path jasminFile = AntlrAlgolListener.compileToFile(
+       "test/algol/hello.alg", "gnb/jalgol/programs", "Hello", Paths.get("build/test-algol"));
+   ```
+
+2. **Assemble Jasmin to Class Files**:
+   Use the `AntlrAlgolListener.assemble` method to convert the Jasmin `.j` file into a `.class` file. This method:
+   - Assembles the main `.j` file.
+   - Assembles any companion files (e.g., Thunk classes or procedure reference classes).
+
+   Example:
+   ```java
+   AntlrAlgolListener.assemble(jasminFile, Paths.get("build/test-algol"));
+   ```
+
+3. **Run the Compiled Class**:
+   Use a helper method (e.g., `runClass`) to execute the compiled `.class` file and capture its output.
+
+   Example:
+   ```java
+   String output = runClass(Paths.get("build/test-algol"), "gnb.jalgol.programs.Hello");
+   ```
+
+These steps are demonstrated in the unit tests, such as `AntlrAlgolListenerTest.hello()`.
+
+---
+
 ## Directory Structure
 
 - `src/main/java/` - Java source code
