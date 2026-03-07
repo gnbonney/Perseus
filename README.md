@@ -56,26 +56,32 @@ The `compileAlgol` Gradle task simplifies the process of compiling Algol source 
 
 ### Running the Task
 
-To use the `compileAlgol` task, run the following command:
+To use the `compileAlgol` task, you can specify the input file, output directory, and class name as parameters. For example:
 
 ```bash
-gradle compileAlgol
+gradle compileAlgol -PinputFile=test/algol/myfile.alg -PoutputDir=build/output -PclassName=MyClass
 ```
 
 This will:
-1. Compile the Algol source file located at `test/algol/hello.alg`.
-2. Generate the Jasmin file (`Hello.j`) in the `build/test-algol` directory.
-3. Assemble the Jasmin file into a JVM class file (`Hello.class`) in the same directory.
+1. Compile the Algol source file located at `test/algol/myfile.alg`.
+2. Generate the Jasmin file (`MyClass.j`) in the `build/output` directory.
+3. Assemble the Jasmin file into a JVM class file (`MyClass.class`) in the same directory.
+
+### Default Behavior
+If no parameters are provided, the task defaults to:
+- **Input File**: `test/algol/hello.alg`
+- **Output Directory**: `build/test-algol`
+- **Class Name**: `Hello`
 
 ### Output
-After running the task, you can find the following files in the `build/test-algol` directory:
-- `Hello.j`: The generated Jasmin assembly file.
-- `Hello.class`: The compiled JVM class file.
+After running the task, you can find the following files in the specified output directory:
+- `MyClass.j`: The generated Jasmin assembly file.
+- `MyClass.class`: The compiled JVM class file.
 
 You can then run the compiled class file using the `java` command:
 
 ```bash
-java -cp build/test-algol gnb.jalgol.programs.Hello
+java -cp build/output gnb.jalgol.programs.MyClass
 ```
 
 ## Folder Structure of this Project
