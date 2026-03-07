@@ -84,6 +84,40 @@ You can then run the compiled class file using the `java` command:
 java -cp build/output gnb.jalgol.programs.MyClass
 ```
 
+## Using the JAlgol CLI
+
+In addition to the Gradle task, you can use the `JAlgolCLI` directly to compile Algol source files. The CLI provides a simple interface for specifying the input file, output directory, and class name.
+
+### Running the CLI
+
+To use the CLI, run the following command:
+
+```bash
+java -cp build/classes/java/main gnb.jalgol.cli.JAlgolCLI <inputFile> <outputDir> <className>
+```
+
+For example:
+
+```bash
+java -cp build/classes/java/main gnb.jalgol.cli.JAlgolCLI test/algol/hello.alg build/output Hello
+```
+
+This will:
+1. Compile the Algol source file located at `test/algol/hello.alg`.
+2. Generate the Jasmin file (`Hello.j`) in the `build/output` directory.
+3. Assemble the Jasmin file into a JVM class file (`Hello.class`) in the same directory.
+
+### Output
+After running the CLI, you can find the following files in the specified output directory:
+- `Hello.j`: The generated Jasmin assembly file.
+- `Hello.class`: The compiled JVM class file.
+
+You can then run the compiled class file using the `java` command:
+
+```bash
+java -cp build/output gnb.jalgol.programs.Hello
+```
+
 ## Folder Structure of this Project
 
 * `src/main/java/` - Java source code for the compiler

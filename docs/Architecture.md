@@ -139,6 +139,27 @@ These steps are demonstrated in the unit tests, such as `AntlrAlgolListenerTest.
 
 ---
 
+## Command-Line Interface (CLI)
+
+The project includes a dedicated CLI, `JAlgolCLI`, for compiling Algol source files. The CLI wraps the `AntlrAlgolListener` and provides a user-friendly interface for compilation. Users can specify the input file, output directory, and class name directly from the command line.
+
+### Workflow with the CLI
+
+1. **Input**: Provide the Algol source file to the CLI.
+2. **Compilation**: The CLI invokes the `AntlrAlgolListener` to parse the source file and generate Jasmin assembly.
+3. **Assembly**: The Jasmin assembler converts the `.j` file into a `.class` file.
+4. **Output**: The `.class` file is ready to be executed on the JVM.
+
+### Example Command
+
+```bash
+java -cp build/classes/java/main gnb.jalgol.cli.JAlgolCLI test/algol/hello.alg build/output Hello
+```
+
+This command compiles `hello.alg` into `Hello.j` and `Hello.class` in the `build/output` directory.
+
+---
+
 ## Directory Structure
 
 - `src/main/java/` - Java source code

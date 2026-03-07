@@ -34,15 +34,15 @@ test {
 
 // Add a Gradle task to compile Algol to Jasmin and then to class files
 task compileAlgol(type: JavaExec) {
-    classpath = sourceSets.main.runtimeClasspath
-    main = 'gnb.algol.AntlrAlgolListener'
+    classpath = files(sourceSets.main.runtimeClasspath)
+    main = 'gnb.jalgol.cli.JAlgolCLI'
 
     // Define parameters for the task
     def inputFile = project.hasProperty('inputFile') ? project.inputFile : 'test/algol/hello.alg'
     def outputDir = project.hasProperty('outputDir') ? project.outputDir : 'build/test-algol'
     def className = project.hasProperty('className') ? project.className : 'Hello'
 
-    args 'compileToFile', inputFile, outputDir, className
+    args inputFile, outputDir, className
 
     doLast {
         // Assemble the generated Jasmin file into a .class file
