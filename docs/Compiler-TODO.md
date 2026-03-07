@@ -360,7 +360,7 @@ integer and string arguments.
 - [x] SymbolTableBuilder: track procedure variables with "procedure:void" type
 - [x] TypeInferencer: handle procedure types in VarExpr
 - [x] Codegen: procedure references (store method references as objects)
-- [x] Test: assign procedure to variable and call through variable
+- [ ] Test: assign procedure to variable and call through variable
 
 ### 13B — Procedure Parameters (`proc_param.alg`) ✅
 
@@ -371,7 +371,7 @@ integer and string arguments.
 - [x] SymbolTableBuilder: track procedure parameters with "procedure:void" type
 - [x] Codegen: procedure parameters (pass method references)
 - [x] Codegen: calling procedure parameters
-- [x] Test: pass procedure as argument and call it
+- [ ] Test: pass procedure as argument and call it
 
 ### 13C — Typed Procedure References (`proc_typed_simple.alg`)
 

@@ -32,6 +32,17 @@ gradle clean
 
 See [docs/Gradle-Build.md](docs/Gradle-Build.md) for more details.
 
+## Gradle Targets
+
+This project uses Gradle for build and dependency management. Below are the key Gradle targets available:
+
+- **`gradle build`**: Compiles the source code, generates the ANTLR parser and lexer, and packages the project.
+- **`gradle test`**: Runs all unit tests using JUnit 5.
+- **`gradle clean`**: Cleans the build directory, removing all generated files.
+- **`gradle generateGrammarSource`**: Regenerates the ANTLR parser and lexer from the grammar file (`Algol.g4`).
+
+See [docs/Gradle-Build.md](docs/Gradle-Build.md) for more details.
+
 ## Folder Structure of this Project
 
 * `src/main/java/` - Java source code for the compiler
