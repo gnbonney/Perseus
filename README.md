@@ -40,6 +40,7 @@ This project uses Gradle for build and dependency management. Below are the key 
 - **`gradle test`**: Runs all unit tests using JUnit 5.
 - **`gradle clean`**: Cleans the build directory, removing all generated files.
 - **`gradle generateGrammarSource`**: Regenerates the ANTLR parser and lexer from the grammar file (`Algol.g4`).
+- **`gradle build -x test`**: Compiles the source code, generates the ANTLR parser and lexer, and packages the project, skipping all unit tests.
 
 See [docs/Gradle-Build.md](docs/Gradle-Build.md) for more details.
 
