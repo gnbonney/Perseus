@@ -92,14 +92,14 @@ The following components from `CodeGenerator.java` will be moved to specialized 
 - [x] Verify 24/28 tests passing
 
 ### Phase 3: Procedure & Thunk Logic
-- [ ] Create `ProcedureGenerator.java`
-- [ ] Migrate `createThunkClass` and thunk state
-- [ ] Migrate `generateProcedureReference`
+- [x] Create `ProcedureGenerator.java`
+- [/] Migrate `createThunkClass` and thunk state
+- [x] Migrate `generateProcedureReference`
 - [ ] Migrate `generateProcedureVariableCall`
 - [ ] Fix the 4 failing procedure tests (`proc_var`, `proc_param`, `proc_typed`, `manboy`)
 - [ ] Verify 28/28 tests passing
 
 ### Phase 4: Cleanup
-- [ ] Migrate `allocateNewLocal` and `ensureLocalLimit` to `ContextManager`
-- [ ] Remove dead code from `CodeGenerator.java`
+- [x] Migrate `allocateNewLocal` and `ensureLocalLimit` to `ContextManager`
+- [x] Remove dead code from `CodeGenerator.java`
 - [ ] Final full build and test run
