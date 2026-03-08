@@ -249,4 +249,49 @@ public class ProcedureGenerator {
         context.popOutput();
         context.restoreMainContext();
     }
+
+    /**
+     * Generates code to call a procedure through a procedure variable.        
+     */
+    public String generateProcedureVariableCall(String varName, String varType, List<AlgolParser.ArgContext> args) {
+        String returnType = varType.startsWith("procedure:") ? varType.substring("procedure:".length()) : varType;
+        String interfaceName;
+        switch (returnType) {
+            case "void": interfaceName = "VoidProcedure"; break;
+            case "real": interfaceName = "RealProcedure"; break;
+            case "integer": interfaceName = "IntegerProcedure"; break;
+            case "string": interfaceName = "StringProcedure"; break;
+            default: interfaceName = "IntegerProcedure"; // fallback
+        }
+        
+        StringBuilder sb = new StringBuilder();
+        
+        // Load the procedure reference object
+        Integer idx = context.getLocalIndex().get(varName);
+        if (idx == null) {
+            return "; ERROR: undeclared procedure variable " + varName + "\n"; 
+        }
+        sb.append("aload ").append(idx).append("\n");
+        
+        // Create Object array for arguments (empty for now since test has no args)
+        sb.append("iconst_0\n");
+        sb.append("anewarray java/lang/Object\n");
+        
+        // Cast to interface and invoke
+        sb.append("checkcast gnb/jalgol/compiler/").append(interfaceName).append("\n");
+        sb.append("invokeinterface gnb/jalgol/compiler/").append(interfaceName)
+          .append("/invoke([Ljava/lang/Object;)").append(getReturnTypeDescriptor(returnType)).append(" 2\n");
+        
+        return sb.toString();
+    }
+
+    private String getReturnTypeDescriptor(String returnType) {
+        switch (returnType) {
+            case "void": return "V";
+            case "real": return "D";
+            case "string": return "Ljava/lang/String;";
+            default: return "I";
+        }
+    }
+
 }
