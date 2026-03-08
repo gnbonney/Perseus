@@ -31,7 +31,7 @@ public class StatementGenerator implements GeneratorDelegate {
     @Override
     public void setContext(ContextManager context) {
         this.context = context;
-        this.exprGen.setContext(context);
+        if (this.exprGen != null) this.exprGen.setContext(context);
     }
 
     public void setProcedureContext(boolean isInProcedureDecl, boolean inProcedureWalk) {
@@ -86,9 +86,10 @@ public class StatementGenerator implements GeneratorDelegate {
         activeOutput.append(endLabel).append(":\n");
     }
 
-    public void exitAssignment(AlgolParser.AssignmentContext ctx, StringBuilder activeOutput, String packageName, String className) {
-        if (isInProcedureDecl && !inProcedureWalk) return;
+    public String generateAssignment(AlgolParser.AssignmentContext ctx, String packageName, String className) {
+        if (isInProcedureDecl && !inProcedureWalk) return "";
         List<AlgolParser.LvalueContext> lvalues = ctx.lvalue();
+        StringBuilder activeOutput = new StringBuilder();
 
         String currentProcName = context.getCurrentProcName();
         String currentProcReturnType = context.getCurrentProcReturnType();
@@ -100,9 +101,11 @@ public class StatementGenerator implements GeneratorDelegate {
             AlgolParser.LvalueContext lv = lvalues.get(0);
             String arrName = lv.identifier().getText();
             String elemType = currentSymbolTable.get(arrName);
+            if (elemType == null && context.getMainSymbolTable() != null) elemType = context.getMainSymbolTable().get(arrName);
+
             if (elemType == null) {
                 activeOutput.append("; ERROR: undeclared array ").append(arrName).append("\n");
-                return;
+                return activeOutput.toString();
             }
             int[] bounds = currentArrayBounds.get(arrName);
             int lower = bounds != null ? bounds[0] : 0;
@@ -116,7 +119,7 @@ public class StatementGenerator implements GeneratorDelegate {
             }
             activeOutput.append(exprGen.generateExpr(ctx.expr()));
             activeOutput.append("real[]".equals(elemType) ? "dastore\n" : "boolean[]".equals(elemType) ? "bastore\n" : "string[]".equals(elemType) ? "aastore\n" : "iastore\n");
-            return;
+            return activeOutput.toString();
         }
 
         String exprType = context.getExprTypes().getOrDefault(ctx.expr(), "integer");
@@ -124,6 +127,7 @@ public class StatementGenerator implements GeneratorDelegate {
         boolean anyReal = lvalues.stream().anyMatch(lv -> {
             String lvName = lv.identifier().getText();
             String vt = context.getSymbolTable().get(lvName);
+            if (vt == null && context.getMainSymbolTable() != null) vt = context.getMainSymbolTable().get(lvName);
             if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
             if (lvName.equals(currentProcName)) return "real".equals(currentProcReturnType);
             return "real".equals(vt);
@@ -145,17 +149,22 @@ public class StatementGenerator implements GeneratorDelegate {
             }
             Integer idx = context.getLocalIndex().get(name);
             String varType = context.getSymbolTable().get(name);
-            if (idx == null) continue;
+            if (idx == null) {
+                activeOutput.append("; ERROR: unknown variable ").append(name).append("\n");
+                continue;
+            }
             if (i < lvalues.size() - 1) activeOutput.append("real".equals(storeType) ? "dup2\n" : "dup\n");
             if ("real".equals(varType)) activeOutput.append("dstore ").append(idx).append("\n");
             else activeOutput.append("istore ").append(idx).append("\n");
         }
+        return activeOutput.toString();
     }
 
     public void enterForStatement(AlgolParser.ForStatementContext ctx, StringBuilder activeOutput) {
         if (isInProcedureDecl && !inProcedureWalk) return;
         String varName = ctx.identifier().getText();
         Integer varIndex = context.getLocalIndex().get(varName);
+        if (varIndex == null) return;
 
         currentForLoopLabel = CodeGenUtils.generateUniqueLabel("loop");
         currentForEndLabel = CodeGenUtils.generateUniqueLabel("endfor");
@@ -175,6 +184,7 @@ public class StatementGenerator implements GeneratorDelegate {
         if (ctx.STEP() != null) {
             String varName = ctx.identifier().getText();
             Integer varIndex = context.getLocalIndex().get(varName);
+            if (varIndex == null) return;
             activeOutput.append("iload ").append(varIndex).append("\n");
             activeOutput.append(exprGen.generateExpr(ctx.expr(1)));
             activeOutput.append("iadd\nistore ").append(varIndex).append("\n");
@@ -183,20 +193,22 @@ public class StatementGenerator implements GeneratorDelegate {
         activeOutput.append(currentForEndLabel).append(":\n");
     }
 
-    public void exitProcedureCall(AlgolParser.ProcedureCallContext ctx, StringBuilder activeOutput) {
-        if (isInProcedureDecl && !inProcedureWalk) return;
+    public String exitProcedureCall(AlgolParser.ProcedureCallContext ctx) {
+        if (isInProcedureDecl && !inProcedureWalk) return "";
         String name = ctx.identifier().getText();
         List<AlgolParser.ArgContext> args = ctx.argList() != null ? ctx.argList().arg() : new ArrayList<>();
+        StringBuilder sb = new StringBuilder();
         
         // Handle built-ins first (Simplified for now)
         if ("outstring".equals(name) || "outreal".equals(name) || "outinteger".equals(name)) {
-            activeOutput.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
+            sb.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
                         .append(exprGen.generateExpr(args.get(args.size()-1).expr()))
                         .append("invokevirtual java/io/PrintStream/print(")
                         .append(name.equals("outstring") ? "Ljava/lang/String;" : name.equals("outreal") ? "D" : "I")
                         .append(")V\n");
         } else {
-            activeOutput.append(procGen.generateProcedureCall(name, args, true));
+            sb.append(procGen.generateProcedureCall(name, args, true));
         }
+        return sb.toString();
     }
 }

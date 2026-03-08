@@ -93,9 +93,9 @@ The following components from `CodeGenerator.java` will be moved to specialized 
 
 ### Phase 3: Procedure & Thunk Logic
 - [x] Create `ProcedureGenerator.java`
-- [/] Migrate `createThunkClass` and thunk state
+- [x] Migrate `createThunkClass` and thunk state
 - [x] Migrate `generateProcedureReference`
-- [ ] Migrate `generateProcedureVariableCall`
+- [x] Migrate `generateProcedureVariableCall`
 - [ ] Fix the 4 failing procedure tests (`proc_var`, `proc_param`, `proc_typed`, `manboy`)
 - [ ] Verify 28/28 tests passing
 

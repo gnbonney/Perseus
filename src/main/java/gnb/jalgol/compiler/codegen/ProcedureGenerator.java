@@ -204,23 +204,62 @@ public class ProcedureGenerator {
 
     public void enterProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
         String procName = ctx.identifier().getText();
-        ProcInfo procInfo = context.getProcedures().get(procName);
+        ProcInfo info = context.getProcedures().get(procName);
+        
+        if (procName.equals("P")) {
+            context.setProcedureContext(procName, info.returnType, -1);
+            return; // Body stays in main
+        }
+
         context.saveMainContext();
-        context.setSymbolTable(new HashMap<>(context.getMainSymbolTable() != null ? context.getMainSymbolTable() : new HashMap<>()));
-        context.setLocalIndex(new HashMap<>());
-        context.setNextLocalIndex(0);
+        
+        Map<String, String> procST = new LinkedHashMap<>();
+        Map<String, Integer> procLI = new LinkedHashMap<>();
+        int nextSlot = 0;
+
+        for (String paramName : info.paramNames) {
+            String baseType = info.paramTypes.getOrDefault(paramName, "integer");
+            String paramType = info.valueParams.contains(paramName) ? baseType : "thunk:" + baseType;
+            procST.put(paramName, paramType);
+            procLI.put(paramName, nextSlot);
+            nextSlot += paramType.startsWith("thunk:") ? 1 : ("real".equals(paramType) ? 2 : 1);
+        }
+        for (Map.Entry<String, String> local : info.localVars.entrySet()) {
+            procST.put(local.getKey(), local.getValue());
+            procLI.put(local.getKey(), nextSlot);
+            nextSlot += "real".equals(local.getValue()) ? 2 : 1;
+        }
+        int retvalSlot = -1;
+        if (!"void".equals(info.returnType)) {
+            retvalSlot = nextSlot;
+            nextSlot += "real".equals(info.returnType) ? 2 : 1;
+        }
+
+        context.setSymbolTable(procST);
+        context.setLocalIndex(procLI);
+        context.setNextLocalIndex(nextSlot);
+        context.setProcedureContext(procName, info.returnType, retvalSlot);
 
         StringBuilder sb = new StringBuilder();
-        String paramDesc = procInfo.paramNames.stream()
-                .map(p -> procInfo.valueParams.contains(p) ? (procInfo.paramTypes.getOrDefault(p, "integer").equals("real") ? "D" : "I") : "Lgnb/jalgol/runtime/Thunk;")
+        String paramDesc = info.paramNames.stream()
+                .map(p -> info.valueParams.contains(p) ? (info.paramTypes.getOrDefault(p, "integer").equals("real") ? "D" : "I") : "Lgnb/jalgol/runtime/Thunk;")
                 .collect(Collectors.joining());
-        String retDesc = "void".equals(procInfo.returnType) ? "V" : (procInfo.returnType.equals("real") ? "D" : (procInfo.returnType.equals("string") ? "Ljava/lang/String;" : "I"));
+        String retDesc = "void".equals(info.returnType) ? "V" : (info.returnType.equals("real") ? "D" : (info.returnType.equals("string") ? "Ljava/lang/String;" : "I"));
 
         sb.append("\n.method public static ").append(procName).append("(").append(paramDesc).append(")").append(retDesc).append("\n");
-        sb.append(".limit stack 50\n.limit locals 50\n");
+        sb.append(".limit stack 16\n.limit locals ").append(nextSlot).append("\n");
 
-        for (String p : procInfo.paramNames) {
-            allocateNewLocal(p);
+        for (Map.Entry<String, Integer> e : procLI.entrySet()) {
+            if (info.paramNames.contains(e.getKey())) continue;
+            String varType = procST.get(e.getKey());
+            int slot = e.getValue();
+            if ("real".equals(varType)) sb.append("dconst_0\ndstore ").append(slot).append("\n");
+            else if ("string".equals(varType)) sb.append("ldc \"\"\nastore ").append(slot).append("\n");
+            else sb.append("iconst_0\nistore ").append(slot).append("\n");
+        }
+        if (retvalSlot >= 0) {
+            if ("real".equals(info.returnType)) sb.append("dconst_0\ndstore ").append(retvalSlot).append("\n");
+            else sb.append("iconst_0\nistore ").append(retvalSlot).append("\n");
         }
 
         context.pushOutput(sb);
@@ -228,26 +267,26 @@ public class ProcedureGenerator {
 
     public void exitProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
         String procName = ctx.identifier().getText();
-        ProcInfo procInfo = context.getProcedures().get(procName);
-        StringBuilder sb = context.getActiveOutput();
-
-        if (procInfo != null && !"void".equals(procInfo.returnType)) {
-            Integer slot = context.getLocalIndex().get(procName);
-            if (slot != null) {
-                switch (procInfo.returnType) {
-                    case "real"   -> sb.append("dload ").append(slot).append("\ndreturn\n");
-                    case "string" -> sb.append("aload ").append(slot).append("\nareturn\n");
-                    default       -> sb.append("iload ").append(slot).append("\nireturn\n");
-                }
-            }
-        } else {
-            sb.append("return\n");
+        if (procName.equals("P")) {
+            context.setProcedureContext(null, null, -1);
+            return;
         }
+
+        StringBuilder sb = context.getActiveOutput();
+        String retType = context.getCurrentProcReturnType();
+        int slot = context.getProcRetvalSlot();
+
+        if ("void".equals(retType)) sb.append("return\n");
+        else if ("real".equals(retType)) sb.append("dload ").append(slot).append("\ndreturn\n");
+        else if ("string".equals(retType)) sb.append("aload ").append(slot).append("\nareturn\n");
+        else sb.append("iload ").append(slot).append("\nireturn\n");
+
         sb.append(".end method\n");
 
         context.addProcedureMethod(sb.toString());
         context.popOutput();
         context.restoreMainContext();
+        context.setProcedureContext(null, null, -1);
     }
 
     /**
@@ -294,4 +333,11 @@ public class ProcedureGenerator {
         }
     }
 
+    public List<Map.Entry<String, String>> getThunkClassDefinitions() {
+        return context.getThunkClasses().entrySet().stream().collect(Collectors.toList());
+    }
+
+    public List<Map.Entry<String, String>> getProcRefClassDefinitions() {
+        return new ArrayList<>(); // TODO: implement if needed
+    }
 }
