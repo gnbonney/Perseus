@@ -1,0 +1,76 @@
+public class CodeGenerator extends AlgolBaseListener {
+    private final String source;
+    private final String packageName;
+    private final String className;
+    // Procedure definitions from SymbolTableBuilder (name → ProcInfo)
+    private final Map<String, SymbolTableBuilder.ProcInfo> procedures;
+
+    // --- Thunk helper data ---
+    // counter for generating unique thunk class names
+    private int thunkCounter = 0;
+    // collects (shortClassName, jasminSource) for generated thunk classes (each needs its own .j file)
+    private final List<Map.Entry<String,String>> thunkClassDefinitions = new ArrayList<>();
+
+    // --- Procedure reference helper data ---
+    // counter for generating unique procedure reference class names
+    private int procRefCounter = 0;
+    // collects (shortClassName, jasminSource) for generated procedure reference classes
+    private final List<Map.Entry<String,String>> procRefClassDefinitions = new ArrayList<>();
+
+    // --- Current context (swapped when entering/exiting procedures) ---
+    private Map<String, String> currentSymbolTable;
+    private Map<String, Integer> currentLocalIndex;
+    private int currentNumLocals;
+    private Map<String, int[]> currentArrayBounds;
+
+    // --- Saved main context (restored after a procedure is emitted) ---
+    private Map<String, String> mainSymbolTable;
+    private Map<String, Integer> mainLocalIndex;
+    private int mainNumLocals;
+    private Map<String, int[]> mainArrayBounds;
+
+    // Maps expression contexts to their inferred types ("integer" or "real")
+    private final Map<AlgolParser.ExprContext, String> exprTypes;
+
+    // --- Output buffers ---
+    private final StringBuilder classHeader = new StringBuilder();
+    private final StringBuilder mainCode    = new StringBuilder();
+    private final List<String>  procMethods = new ArrayList<>();
+    private StringBuilder activeOutput;   // points to mainCode or current procBuffer
+    private StringBuilder procBuffer;     // non-null while inside a procedureDecl
+
+    // --- Procedure return-value tracking ---
+    private String currentProcName = null;
+    private String currentProcReturnType = null;
+    private int    procRetvalSlot = -1;
+
+    // For for loops
+    private String currentForLoopLabel;
+    private String currentForEndLabel;
+
+    // Stacks for if/then/else label management (supports nesting)
+    private final Deque<String> ifEndLabelStack  = new ArrayDeque<>();
+    private final Deque<String> ifElseLabelStack = new ArrayDeque<>();
+
+    public CodeGenerator(String source, String packageName, String className,
+                         Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
+                         Map<AlgolParser.ExprContext, String> exprTypes, Map<String, int[]> arrayBounds,
+                         Map<String, SymbolTableBuilder.ProcInfo> procedures) {
+        this.source = source;
+        this.packageName = packageName;
+        this.className = className;
+        this.exprTypes = exprTypes;
+        this.procedures = procedures;
+        this.currentSymbolTable = symbolTable;
+        this.currentLocalIndex  = localIndex;
+        this.currentNumLocals   = numLocals;
+        this.currentArrayBounds = arrayBounds;
+    }
+
+    public String getOutput() {
+        StringBuilder full = new StringBuilder();
+        full.append(classHeader);
+        for (String pm : procMethods) full.append(pm);
+        full.append(mainCode);
+        return full.toString();
+    }
