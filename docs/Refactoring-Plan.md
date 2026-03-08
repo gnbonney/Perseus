@@ -72,24 +72,24 @@ The following components from `CodeGenerator.java` will be moved to specialized 
 ## TODO List
 
 ### Infrastructure
-- [ ] Create a physical backup of `CodeGenerator.java` as `CodeGenerator.java.bak`
-- [ ] Define communication interface between `CodeGenerator` and delegates
-- [ ] Create `ContextManager` to handle shared state (Symbol Tables, Loop Labels)
+- [x] Create a physical backup of `CodeGenerator.java` as `CodeGenerator.java.bak`
+- [x] Define communication interface between `CodeGenerator` and delegates
+- [x] Create `ContextManager` to handle shared state (Symbol Tables, Loop Labels)
 
 ### Phase 1: Expression Logic
-- [ ] Create `ExpressionGenerator.java`
-- [ ] Migrate `generateExpr` method
-- [ ] Migrate `generateBuiltinMathFunction` method
-- [ ] Migrate `lookupArrayBounds` utility
-- [ ] Update `CodeGenerator` to use `ExpressionGenerator`
-- [ ] Verify 24/28 tests passing
+- [x] Create `ExpressionGenerator.java`
+- [x] Migrate `generateExpr` method
+- [x] Migrate `generateBuiltinMathFunction` method
+- [x] Migrate `lookupArrayBounds` utility
+- [x] Update `CodeGenerator` to use `ExpressionGenerator`
+- [x] Verify 24/28 tests passing
 
 ### Phase 2: Statement Logic
-- [ ] Create `StatementGenerator.java`
-- [ ] Migrate `enterIfStatement` / `exitIfStatement`
-- [ ] Migrate `enterForStatement` / `exitForStatement`
-- [ ] Restore/Implement `exitAssignmentStatement`
-- [ ] Verify 24/28 tests passing
+- [x] Create `StatementGenerator.java`
+- [x] Migrate `enterIfStatement` / `exitIfStatement`
+- [x] Migrate `enterForStatement` / `exitForStatement`
+- [x] Restore/Implement `exitAssignmentStatement`
+- [x] Verify 24/28 tests passing
 
 ### Phase 3: Procedure & Thunk Logic
 - [ ] Create `ProcedureGenerator.java`
