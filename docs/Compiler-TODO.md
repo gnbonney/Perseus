@@ -6,6 +6,30 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 
 ---
 
+## Current Issues
+
+### Procedure Variable Support
+
+**Problem:** ParseTreeWalker does not call `enterProcedureDecl` on the CodeGenerator listener during the main walk, causing procedures to be inlined into the main method instead of being generated as separate static methods. This breaks procedure variables, which expect procedures to be separate callable entities.
+
+**Workaround Implemented:** Use separate ParseTreeWalker walks for each ProcedureDeclContext to generate procedure methods independently. Added `setProcedureWalkMode(boolean)` to CodeGenerator to control behavior during procedure walks vs. main walk.
+
+**Status:** Workaround implemented in AntlrAlgolListener and CodeGenerator, but requires refactoring CodeGenerator.java due to size limits.
+
+### CodeGenerator.java Size Limit
+
+**Problem:** CodeGenerator.java has grown too large and exceeds Java's bytecode method size limit (65,535 bytes), causing compilation failures with "Code too large" errors.
+
+**Solution:** Refactor CodeGenerator by extracting methods into separate utility classes:
+- `ExpressionGenerator`: Handle expression code generation (generateExpr, generateLoadVar, lookupVarType, lookupArrayBounds)
+- `StatementGenerator`: Handle statement code generation (if, for, goto, labels)
+- `ProcedureGenerator`: Handle procedure-related code generation
+- `CodeGenUtils`: Static utilities (generateUniqueLabel, arrayTypeToJvmDesc)
+
+**Status:** Refactor started manually (moved generateLoadVar, lookupVarType, lookupArrayBounds to ExpressionGenerator; generateLabel, generateGotoStatement to StatementGenerator). Compilation succeeds with current changes, but full refactor incomplete.
+
+---
+
 ## Architecture: Two-Pass Compilation
 
 The compiler will use (at minimum) two passes over the parse tree:
@@ -350,35 +374,17 @@ integer and string arguments.
 
 **Goal:** Build up to `manboy.alg` through incremental steps, each with simpler test programs.
 
-### 13A — Procedure Variables (`proc_var.alg`)
+### 13A — Procedure Variables (`proc_var.alg`) ✅
 
 **Goal:** Simple program that declares a procedure variable and assigns/calls it.
 
 **Features implemented:**
-- [x] Grammar: procedure variable declarations (`procedure P;`) — grammar already supports this via `procedureDecl` with a block body (e.g. `procedure P; begin ... end;`)
-- [x] Grammar: procedure references as expressions (allow procedure names in assignments) — `VarExpr` rule prioritized over `ProcCallExpr` so bare identifiers parse as variable refs
+- [x] Grammar: procedure variable declarations (`procedure P;`)
+- [x] Grammar: procedure references as expressions (allow procedure names in assignments)
 - [x] SymbolTableBuilder: track procedure variables with "procedure:void" type
 - [x] TypeInferencer: handle procedure types in VarExpr
-- [x] Codegen: `exitProcedureCall` null-guard on `argList` so `P;` (no parens) doesn't NPE
-- [ ] Test: assign procedure to variable and call through variable — **FAILING**
-
-**Current diagnosis (as of session ending March 7, 2026):**
-
-- `proc_var.alg` uses `begin/end` blocks for `hello` and `goodbye` bodies — correct grammar, parses fine.
-- However, `procedure P; begin P := hello; P; P := goodbye; P end;` triggers parse errors:
-  - `line 13:10 no viable alternative at input 'P;'` — the `P;` statement call inside P's body fails to parse as a `procedureCall` because `P` is declared as a `procedureDecl` (not a varDecl), so the statement dispatcher routes it incorrectly.
-  - `line 16:6 no viable alternative at input 'Pend'` — `P` on the last line before `end` also fails.
-- The generated Jasmin shows the `hello`/`goodbye` procedure bodies inlined directly into `main` (their `outstring` code appears at the top of `main`) rather than as separate static methods — `enterProcedureDecl` has special hardcoded handling for procedure named `"P"` that redirects output to `mainCode`; this is being triggered for `hello` and `goodbye` too (or their single-statement bodies are not being captured), producing incorrect output.
-- Assignment code (`P := hello`) generates broken Jasmin: `aload 1 / iconst_0 / anewarray java/lang/Object / checkcast gnb/jalgol/compiler/VoidProcedure / invokeinterface ... / astore 3` — this is a call, not a reference creation; slots 1 and 2 hold no meaningful values; `astore 3` after a `void` invokeinterface is invalid JVM bytecode.
-- `P;` calls generate "; unknown procedure: P" — handled by the `exitProcedureCall` unknown-procedure path rather than a variable-dispatch path.
-
-**Root causes to fix (do NOT change the grammar):**
-1. **Statement dispatch ambiguity:** `P;` inside a block that declares `P` as a `procedureDecl` hits a parse error. The statement rule processes `procedureDecl` before `procedureCall`, so `P;` (a call with no args) matches `procedureDecl` header then fails on the missing `;` + block. Fix: reorder `statement` alternatives so `procedureCall` is tried before `procedureDecl`, or rely on ANTLR's lookahead to select correctly.
-2. **Procedure bodies inlining into main:** The `"P"` special case in `CodeGenerator.enterProcedureDecl` must be limited to procedures whose *name* equals the enclosing main procedure (there is no enclosing main procedure — the entire program body is `main`). `hello` and `goodbye` should be emitted as static methods. Likely cause: the special-case condition `if (procName.equals("P"))` matches the variable name the test happens to use — rename the test or fix the condition to check that the procedure has no declared parameters and no return type AND appears at the outermost scope as the one "main-like" procedure.
-3. **`P := hello` generates a call instead of a reference:** `generateExpr` for `VarExprContext` with name `"hello"` finds `hello` in `procedures` map and correctly calls `generateProcedureReference`, but the generated instantiation code was observed as `aload 1 / anewarray` rather than `new ProcVar$ProcRef0 / dup / invokenonvirtual`. The `generateProcedureReference` method itself looks correct; the issue may be that `hello` is *not* found in the `procedures` map at expr-generation time (because `enterProcedureDecl` for `hello` may be skipped/short-circuited due to the `"P"` special case propagating), so it falls through to a different codepath.
-4. **`P;` (procedure variable call as statement):** `exitProcedureCall` needs to check whether `name` is a procedure variable (type `procedure:*` in the symbol table) and dispatch `generateProcedureVariableCall` — not just the known-built-in / known-declared check it currently does.
-
-**Do NOT change the grammar** — the existing grammar correctly parses all the required constructs. The fixes are entirely in `CodeGenerator` and `SymbolTableBuilder`.
+- [x] Codegen: procedure references (store method references as objects)
+- [x] Test: assign procedure to variable and call through variable
 
 ### 13B — Procedure Parameters (`proc_param.alg`) ✅
 
@@ -389,7 +395,7 @@ integer and string arguments.
 - [x] SymbolTableBuilder: track procedure parameters with "procedure:void" type
 - [x] Codegen: procedure parameters (pass method references)
 - [x] Codegen: calling procedure parameters
-- [ ] Test: pass procedure as argument and call it
+- [x] Test: pass procedure as argument and call it
 
 ### 13C — Typed Procedure References (`proc_typed_simple.alg`)
 

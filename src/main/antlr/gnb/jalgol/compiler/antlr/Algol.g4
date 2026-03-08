@@ -39,7 +39,7 @@ program: BEGIN compoundStatement END | '{' compoundStatement '}';
 compoundStatement: statement (';' statement)* ';'?;
 
 statement
-  : label? (procedureCall | varDecl | arrayDecl | procedureDecl | assignment | gotoStatement | ifStatement | forStatement | block)
+  : label? (procedureCall | procedureDecl | varDecl | arrayDecl | assignment | gotoStatement | ifStatement | forStatement | block)
   ;
 
 block
@@ -51,7 +51,7 @@ endComment
   ;
 
 procedureDecl
-  : (INTEGER | REAL | STRING)? PROCEDURE identifier '(' paramList? ')' ';'
+  : (INTEGER | REAL | STRING)? PROCEDURE identifier ('(' paramList? ')')? ';'
     valueSpec?
     paramSpec*
     statement
@@ -122,7 +122,7 @@ expr
   | FALSE                    # FalseLiteralExpr
   ;
 
-procedureCall: identifier '(' argList ')';
+procedureCall: identifier ('(' argList ')')?;
 
 identifier: IDENT;
 
