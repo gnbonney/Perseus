@@ -16,6 +16,7 @@ public class ContextManager {
     private final Map<AlgolParser.ExprContext, String> exprTypes;
     private Map<String, int[]> arrayBounds;
     private final Map<String, SymbolTableBuilder.ProcInfo> procedures;
+    private Map<String, Integer> procVarSlots = new HashMap<>();
     
     // State for thunks and procedure blocks
     private final Map<String, String> thunkClasses = new LinkedHashMap<>();
@@ -30,6 +31,7 @@ public class ContextManager {
     private String currentProcReturnType;
     private int procRetvalSlot;
     private Map<String, int[]> mainArrayBounds;
+    private Map<String, Integer> mainLocalIndex;
 
     private final StringBuilder mainCode = new StringBuilder();
     private final Deque<StringBuilder> outputStack = new ArrayDeque<>();
@@ -51,6 +53,7 @@ public class ContextManager {
     public void setMainContext(Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals, Map<String, int[]> arrayBounds) {
         this.symbolTable = symbolTable;
         this.localIndex = localIndex;
+        this.mainLocalIndex = localIndex;
         this.nextLocalIndex = numLocals;
         this.arrayBounds = arrayBounds;
     }
@@ -113,13 +116,19 @@ public class ContextManager {
     public String getClassName() { return className; }
     public Map<String, String> getSymbolTable() { return symbolTable; }
     public void setSymbolTable(Map<String, String> st) { this.symbolTable = st; }
-    public Map<String, Integer> getLocalIndex() { return localIndex; }
+    public Map<String, Integer> getLocalIndex() { 
+        return localIndex;
+    }
+    public Map<String, Integer> getMainLocalIndex() { return mainLocalIndex; }
     public void setLocalIndex(Map<String, Integer> li) { this.localIndex = li; }
     public Map<AlgolParser.ExprContext, String> getExprTypes() { return exprTypes; }
     public Map<String, int[]> getArrayBounds() { return arrayBounds; }
     public void setArrayBounds(Map<String, int[]> ab) { this.arrayBounds = ab; }
     public Map<String, SymbolTableBuilder.ProcInfo> getProcedures() { return procedures; }
     public Map<String, String> getMainSymbolTable() { return mainSymbolTable; }
+
+    public Map<String, Integer> getProcVarSlots() { return procVarSlots; }
+    public void setProcVarSlots(Map<String, Integer> procVarSlots) { this.procVarSlots = procVarSlots; }
 
     public int getThunkId() { return thunkId; }
     public void incrementThunkId() { thunkId++; }
@@ -129,6 +138,14 @@ public class ContextManager {
     public boolean isInProcedureDecl() { return inProcedureDecl; }
     public void setInProcedureDecl(boolean b) { inProcedureDecl = b; }
     public boolean isInProcedureWalk() { return inProcedureWalk; }
+    public StringBuilder getMainCode() {
+        return mainCode;
+    }
+
+    public void setMainSymbolTable(Map<String, String> st) {
+        this.mainSymbolTable = st;
+    }
+
     public void setInProcedureWalk(boolean b) { inProcedureWalk = b; }
 
     private int procRefId = 0;

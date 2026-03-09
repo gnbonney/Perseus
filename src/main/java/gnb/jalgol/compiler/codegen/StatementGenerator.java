@@ -145,17 +145,17 @@ public class StatementGenerator implements GeneratorDelegate {
 
         for (int i = 0; i < lvalues.size(); i++) {
             String name = lvalues.get(i).identifier().getText();
-            System.out.println("DEBUG: StatementGenerator assigning to " + name);
             if (name.equals(currentProcName)) {
                 if (i < lvalues.size() - 1) activeOutput.append("real".equals(storeType) ? "dup2\n" : "dup\n");
                 activeOutput.append("real".equals(currentProcReturnType) ? "dstore " : "istore ").append(procRetvalSlot).append("\n");
                 continue;
             }
             Integer idx = context.getLocalIndex().get(name);
-            System.out.println("DEBUG:   Stored index for " + name + " is " + idx);
+            if (idx == null && context.getMainLocalIndex() != null) idx = context.getMainLocalIndex().get(name);
+            if (idx == null && context.getProcVarSlots() != null) idx = context.getProcVarSlots().get(name);
             String varType = context.getSymbolTable().get(name);
             if (varType == null && context.getMainSymbolTable() != null) varType = context.getMainSymbolTable().get(name);
-            System.out.println("DEBUG:   Type for " + name + " is " + varType);
+
             if (idx == null) {
                 activeOutput.append("; ERROR: unknown variable ").append(name).append("\n");
                 continue;

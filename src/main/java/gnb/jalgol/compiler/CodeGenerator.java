@@ -84,7 +84,7 @@ public class CodeGenerator extends AlgolBaseListener {
     public CodeGenerator(String source, String packageName, String className,
                          Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
                          Map<AlgolParser.ExprContext, String> exprTypes, Map<String, int[]> arrayBounds,
-                         Map<String, SymbolTableBuilder.ProcInfo> procedures) {
+                         Map<String, SymbolTableBuilder.ProcInfo> procedures, Map<String, Integer> procVarSlots) {
         this.source = source;
         this.packageName = packageName;
         this.className = className;

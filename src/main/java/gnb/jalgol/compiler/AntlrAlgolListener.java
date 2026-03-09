@@ -328,7 +328,7 @@ public class AntlrAlgolListener {
 		String source = Paths.get(fileName).getFileName().toString();
 		CodeGenerator codegen = new CodeGenerator(source, packageName, className,
 				mainSymbolTable, localIndex, numLocals, exprTypes, arrayBounds,
-				symBuilder.getProcedures());
+				symBuilder.getProcedures(), procVarSlotsMap);
 		walker.walk(codegen, programContext);
 		return codegen;
 	}
