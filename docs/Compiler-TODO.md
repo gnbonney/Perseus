@@ -25,8 +25,9 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 - `StatementGenerator`: Handle statement code generation (if, for, goto, labels)
 - `ProcedureGenerator`: Handle procedure-related code generation
 - `CodeGenUtils`: Static utilities (generateUniqueLabel, arrayTypeToJvmDesc)
+- `ContextManager`: Shared compiler state and output management
 
-**Status:** Refactor started manually (moved generateLoadVar, lookupVarType, lookupArrayBounds to ExpressionGenerator; generateLabel, generateGotoStatement to StatementGenerator). Compilation succeeds with current changes, but full refactor incomplete.
+**Status:** ✅ **Refactor into Modular Delegation Architecture Complete.** `CodeGenerator.java` now delegates to `ExpressionGenerator`, `StatementGenerator`, and `ProcedureGenerator`. `ContextManager` handles shared identifiers, symbol tables, and assembly output.
 
 ---
 
@@ -374,30 +375,36 @@ integer and string arguments.
 
 **Goal:** Build up to `manboy.alg` through incremental steps, each with simpler test programs.
 
-### 13A — Procedure Variables (`proc_var.alg`) ✅
+### 13A — Procedure Variables (`proc_var.alg`) ⚠️
 
 **Goal:** Simple program that declares a procedure variable and assigns/calls it.
 
-**Features implemented:**
+**Features Implemented:**
 - [x] Grammar: procedure variable declarations (`procedure P;`)
 - [x] Grammar: procedure references as expressions (allow procedure names in assignments)
 - [x] SymbolTableBuilder: track procedure variables with "procedure:void" type
 - [x] TypeInferencer: handle procedure types in VarExpr
-- [x] Codegen: procedure references (store method references as objects)
-- [x] Test: assign procedure to variable and call through variable
+- [x] Codegen: `ProcRef` synthetic class generation for procedures (lift into objects)
+- [x] Codegen: `generateProcedureReference` and `generateProcedureVariableCall` (logic present)
 
-### 13B — Procedure Parameters (`proc_param.alg`) ✅
+**Current Status:** **Partially Broken/Buggy.**
+- [ ] Bug: `StatementGenerator.generateAssignment` emits `istore -1` for procedure assignments (needs `astore` and valid slot).
+- [ ] Bug: `ExpressionGenerator.generateExpr` doesn't handle loading procedure references correctly.
+- [ ] Bug: `StatementGenerator.exitProcedureCall` doesn't route variable-based calls to `generateProcedureVariableCall`.
+- [ ] Test: `proc_var_test` failing with `VerifyError: Illegal local variable number`.
+
+### 13B — Procedure Parameters (`proc_param.alg`) ⚠️
 
 **Goal:** Simple program that passes a procedure as a parameter.
 
-**Features implemented:**
+**Features Implemented:**
 - [x] Grammar: procedure parameters in paramSpec (`procedure P;`)
 - [x] SymbolTableBuilder: track procedure parameters with "procedure:void" type
-- [x] Codegen: procedure parameters (pass method references)
-- [x] Codegen: calling procedure parameters
-- [x] Test: pass procedure as argument and call it
+- [ ] Codegen: procedure parameters (pass method references)
+- [ ] Codegen: calling procedure parameters
+- [ ] Test: pass procedure as argument and call it (Currently failing)
 
-### 13C — Typed Procedure References (`proc_typed_simple.alg`)
+### 13C — Typed Procedure References (`proc_typed_simple.alg`) ⚠️
 
 **Goal:** Program with typed procedure variables/parameters (real/integer procedures).
 

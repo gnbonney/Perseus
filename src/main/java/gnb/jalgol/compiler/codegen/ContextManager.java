@@ -123,4 +123,12 @@ public class ContextManager {
     public void setInProcedureDecl(boolean b) { inProcedureDecl = b; }
     public boolean isInProcedureWalk() { return inProcedureWalk; }
     public void setInProcedureWalk(boolean b) { inProcedureWalk = b; }
+
+    private int procRefId = 0;
+    private final Map<String, String> procRefClasses = new LinkedHashMap<>();
+
+    public int getProcRefId() { return procRefId; }
+    public void incrementProcRefId() { procRefId++; }
+    public void addProcRefClass(String name, String content) { procRefClasses.put(name, content); }
+    public Map<String, String> getProcRefClasses() { return procRefClasses; }
 }

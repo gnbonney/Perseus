@@ -338,6 +338,46 @@ public class ProcedureGenerator {
     }
 
     public List<Map.Entry<String, String>> getProcRefClassDefinitions() {
-        return new ArrayList<>(); // TODO: implement if needed
+        return context.getProcRefClasses().entrySet().stream().collect(Collectors.toList());
+    }
+
+    public String generateProcedureReference(String procName, SymbolTableBuilder.ProcInfo procInfo) {
+        String procRefClassName = "ProcRef" + context.getProcRefId();
+        context.incrementProcRefId();
+        
+        String returnType = procInfo.returnType;
+        String interfaceName;
+        switch (returnType) {
+            case "void": interfaceName = "VoidProcedure"; break;
+            case "real": interfaceName = "RealProcedure"; break;
+            case "integer": interfaceName = "IntegerProcedure"; break;
+            case "string": interfaceName = "StringProcedure"; break;
+            default: interfaceName = "IntegerProcedure";
+        }
+        
+        StringBuilder sb = new StringBuilder();
+        sb.append(".class public ").append(context.getPackageName()).append("/").append(context.getClassName()).append("$").append(procRefClassName).append("\n");
+        sb.append(".super java/lang/Object\n");
+        sb.append(".implements gnb/jalgol/compiler/").append(interfaceName).append("\n\n");
+        
+        sb.append(".method public <init>()V\n");
+        sb.append("aload_0\ninvokespecial java/lang/Object/<init>()V\nreturn\n.end method\n\n");
+        
+        sb.append(".method public invoke([Ljava/lang/Object;)").append(getReturnTypeDescriptor(returnType)).append("\n");
+        sb.append(".limit stack 10\n.limit locals 2\n");
+        
+        // No parameters supported yet in this simple version
+        sb.append("invokestatic ").append(context.getPackageName()).append("/").append(context.getClassName()).append("/").append(procName).append("()").append(getReturnTypeDescriptor(returnType)).append("\n");
+        
+        if (returnType.equals("real")) sb.append("dreturn\n");
+        else if (returnType.equals("string")) sb.append("areturn\n");
+        else if (returnType.equals("void")) sb.append("return\n");
+        else sb.append("ireturn\n");
+        
+        sb.append(".end method\n");
+        
+        context.addProcRefClass(procRefClassName, sb.toString());
+        
+        return "new " + context.getPackageName() + "/" + context.getClassName() + "$" + procRefClassName + "\ndup\ninvokespecial " + context.getPackageName() + "/" + context.getClassName() + "$" + procRefClassName + "/<init>()V\n";
     }
 }

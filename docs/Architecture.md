@@ -101,6 +101,27 @@ Input procedures (`ininteger`, `inreal`, `inchar`) read from `System.in` via a s
 
 ---
 
+## Modular Code Generation Architecture (2026 Refactor)
+
+As of March 2026, the code generation phase (Pass 2) has been refactored to use a modular, delegation-based architecture for maintainability and scalability:
+
+- **CodeGenerator (Facade Listener):** Implements the main ANTLR listener and delegates code generation tasks to specialized generator classes.
+- **ExpressionGenerator:** Handles all expression code generation, including literals, variables, arithmetic, and built-in math functions.
+- **StatementGenerator:** Handles statement-level code generation, including assignments, control flow (`if`, `for`, `goto`), and procedure calls.
+- **ProcedureGenerator:** Handles procedure declarations, procedure references (lifting static methods to objects), procedure variable calls, and thunk class generation for call-by-name parameters.
+- **ContextManager:** Centralizes all shared state (symbol tables, local indices, output buffers, and synthetic class definitions for thunks and procedure references).
+- **Synthetic Class Emission:** The compiler emits additional `.j` files for each required thunk class (call-by-name) and procedure reference class (procedure variables/parameters), following the convention `MainClass$ThunkN.j` and `MainClass$ProcRefN.j`.
+
+This modular approach enables:
+- Clean separation of concerns for each code generation domain
+- Easier testing and extension of codegen logic
+- Support for advanced Algol features (call-by-name, procedure variables, higher-order procedures)
+- Deterministic and maintainable output structure
+
+The overall data flow and output conventions remain as described above, but the code generation logic is now distributed across these specialized classes, coordinated by the `CodeGenerator` facade and the `ContextManager` state hub.
+
+---
+
 ## Compiling Algol to Jasmin
 
 To compile an Algol source file to Jasmin assembly, the following steps are performed:
