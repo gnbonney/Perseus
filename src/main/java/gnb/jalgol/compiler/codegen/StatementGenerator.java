@@ -23,8 +23,11 @@ public class StatementGenerator implements GeneratorDelegate {
     private boolean isInProcedureDecl;
     private boolean inProcedureWalk;
 
-    public StatementGenerator(ExpressionGenerator exprGen, ProcedureGenerator procGen) {
+    public StatementGenerator(ExpressionGenerator exprGen) {
         this.exprGen = exprGen;
+    }
+
+    public void setProcedureGenerator(ProcedureGenerator procGen) {
         this.procGen = procGen;
     }
 
@@ -142,19 +145,24 @@ public class StatementGenerator implements GeneratorDelegate {
 
         for (int i = 0; i < lvalues.size(); i++) {
             String name = lvalues.get(i).identifier().getText();
+            System.out.println("DEBUG: StatementGenerator assigning to " + name);
             if (name.equals(currentProcName)) {
                 if (i < lvalues.size() - 1) activeOutput.append("real".equals(storeType) ? "dup2\n" : "dup\n");
                 activeOutput.append("real".equals(currentProcReturnType) ? "dstore " : "istore ").append(procRetvalSlot).append("\n");
                 continue;
             }
             Integer idx = context.getLocalIndex().get(name);
+            System.out.println("DEBUG:   Stored index for " + name + " is " + idx);
             String varType = context.getSymbolTable().get(name);
+            if (varType == null && context.getMainSymbolTable() != null) varType = context.getMainSymbolTable().get(name);
+            System.out.println("DEBUG:   Type for " + name + " is " + varType);
             if (idx == null) {
                 activeOutput.append("; ERROR: unknown variable ").append(name).append("\n");
                 continue;
             }
             if (i < lvalues.size() - 1) activeOutput.append("real".equals(storeType) ? "dup2\n" : "dup\n");
             if ("real".equals(varType)) activeOutput.append("dstore ").append(idx).append("\n");
+            else if (varType != null && varType.startsWith("procedure:")) activeOutput.append("astore ").append(idx).append("\n");
             else activeOutput.append("istore ").append(idx).append("\n");
         }
         return activeOutput.toString();
@@ -207,7 +215,12 @@ public class StatementGenerator implements GeneratorDelegate {
                         .append(name.equals("outstring") ? "Ljava/lang/String;" : name.equals("outreal") ? "D" : "I")
                         .append(")V\n");
         } else {
-            sb.append(procGen.generateProcedureCall(name, args, true));
+            String varType = context.getSymbolTable().get(name);
+            if (varType != null && varType.startsWith("procedure:")) {
+                sb.append(procGen.generateProcedureVariableCall(name, varType, args));
+            } else {
+                sb.append(procGen.generateProcedureCall(name, args, true));
+            }
         }
         return sb.toString();
     }

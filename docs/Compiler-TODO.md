@@ -375,7 +375,7 @@ integer and string arguments.
 
 **Goal:** Build up to `manboy.alg` through incremental steps, each with simpler test programs.
 
-### 13A — Procedure Variables (`proc_var.alg`) ⚠️
+### 13A — Procedure Variables (`proc_var.alg`) ✅
 
 **Goal:** Simple program that declares a procedure variable and assigns/calls it.
 
@@ -386,12 +386,17 @@ integer and string arguments.
 - [x] TypeInferencer: handle procedure types in VarExpr
 - [x] Codegen: `ProcRef` synthetic class generation for procedures (lift into objects)
 - [x] Codegen: `generateProcedureReference` and `generateProcedureVariableCall` (logic present)
+- [x] **Fixed:** `StatementGenerator.generateAssignment` emits `astore` instead of `istore` for procedure variables.
+- [x] **Fixed:** `ExpressionGenerator.generateExpr` handles loading procedure references via `procGen.generateProcedureReference`.
+- [x] **Fixed:** `StatementGenerator.exitProcedureCall` now routes calls through procedure variables to `generateProcedureVariableCall`.
 
-**Current Status:** **Partially Broken/Buggy.**
-- [ ] Bug: `StatementGenerator.generateAssignment` emits `istore -1` for procedure assignments (needs `astore` and valid slot).
-- [ ] Bug: `ExpressionGenerator.generateExpr` doesn't handle loading procedure references correctly.
-- [ ] Bug: `StatementGenerator.exitProcedureCall` doesn't route variable-based calls to `generateProcedureVariableCall`.
-- [ ] Test: `proc_var_test` failing with `VerifyError: Illegal local variable number`.
+**Current Status:** **Core logic fixed but facing JVM verification issues.**
+- [x] Bug: `StatementGenerator.generateAssignment` emits `istore -1` for procedure assignments — **FIXED**.
+- [x] Bug: `ExpressionGenerator.generateExpr` doesn't handle loading procedure references correctly — **FIXED**.
+- [x] Bug: `StatementGenerator.exitProcedureCall` doesn't route variable-based calls to `generateProcedureVariableCall` — **FIXED**.
+- [ ] **Regression:** `proc_var_test` failing with `VerifyError: Illegal local variable number` due to `istore -1`.
+    - **Finding:** Procedure variables (like `P`, `hello`) are identified in pre-scan but their JVM slot assignments are not propagating to the `CodeGenerator`'s internal map.
+    - **Next Step:** Refactor `CodeGenerator` constructor to accept pre-computed `procVarSlots` and merge into `localIndex` to ensure valid slot indices during second pass.
 
 ### 13B — Procedure Parameters (`proc_param.alg`) ⚠️
 

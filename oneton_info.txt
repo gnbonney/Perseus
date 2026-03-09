@@ -1,0 +1,228 @@
+Initialized native services in: C:\Users\gnbon\.gradle\native
+Initialized jansi services in: C:\Users\gnbon\.gradle\native
+Received JVM installation metadata from 'C:\Program Files\Eclipse Adoptium\jdk-21.0.4.7-hotspot': {JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-21.0.4.7-hotspot, JAVA_VERSION=21.0.4, JAVA_VENDOR=Eclipse Adoptium, RUNTIME_NAME=OpenJDK Runtime Environment, RUNTIME_VERSION=21.0.4+7-LTS, VM_NAME=OpenJDK 64-Bit Server VM, VM_VERSION=21.0.4+7-LTS, VM_VENDOR=Eclipse Adoptium, OS_ARCH=amd64}
+Found daemon DaemonInfo{pid=36196, address=[85bf2e0f-9563-4b8b-9012-365316e5f3bd port:60528, addresses:[/127.0.0.1]], state=Idle, lastBusy=1773008286087, context=DefaultDaemonContext[uid=7bfd94ce-3274-4a0b-96e4-a7d6b20ff608,javaHome=C:\Users\gnbon\.vscode-insiders\extensions\redhat.java-1.53.0-win32-x64\jre\21.0.10-win32-x86_64,daemonRegistryDir=C:\Users\gnbon\.gradle\daemon,pid=36196,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-XX:MaxMetaspaceSize=384m,-XX:+HeapDumpOnOutOfMemoryError,-Xms256m,-Xmx512m,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]} however its context does not match the desired criteria.
+Java home is different.
+Wanted: DefaultDaemonContext[uid=null,javaHome=C:\Program Files\Eclipse Adoptium\jdk-21.0.4.7-hotspot,daemonRegistryDir=C:\Users\gnbon\.gradle\daemon,pid=13484,idleTimeout=null,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-XX:MaxMetaspaceSize=384m,-XX:+HeapDumpOnOutOfMemoryError,-Xms256m,-Xmx512m,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]
+Actual: DefaultDaemonContext[uid=7bfd94ce-3274-4a0b-96e4-a7d6b20ff608,javaHome=C:\Users\gnbon\.vscode-insiders\extensions\redhat.java-1.53.0-win32-x64\jre\21.0.10-win32-x86_64,daemonRegistryDir=C:\Users\gnbon\.gradle\daemon,pid=36196,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-XX:MaxMetaspaceSize=384m,-XX:+HeapDumpOnOutOfMemoryError,-Xms256m,-Xmx512m,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]
+
+  Looking for a different daemon...
+Found daemon DaemonInfo{pid=30116, address=[aa30ca82-4ad6-4ca5-bbf9-b035274c5370 port:60531, addresses:[/127.0.0.1]], state=Idle, lastBusy=1773008289797, context=DefaultDaemonContext[uid=2b6d9929-34ea-4ac3-9f1e-68bb001eeb5d,javaHome=C:\Users\gnbon\.vscode-insiders\extensions\redhat.java-1.53.0-win32-x64\jre\21.0.10-win32-x86_64,daemonRegistryDir=C:\Users\gnbon\.gradle\daemon,pid=30116,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]} however its context does not match the desired criteria.
+Java home is different.
+Wanted: DefaultDaemonContext[uid=null,javaHome=C:\Program Files\Eclipse Adoptium\jdk-21.0.4.7-hotspot,daemonRegistryDir=C:\Users\gnbon\.gradle\daemon,pid=13484,idleTimeout=null,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-XX:MaxMetaspaceSize=384m,-XX:+HeapDumpOnOutOfMemoryError,-Xms256m,-Xmx512m,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]
+Actual: DefaultDaemonContext[uid=2b6d9929-34ea-4ac3-9f1e-68bb001eeb5d,javaHome=C:\Users\gnbon\.vscode-insiders\extensions\redhat.java-1.53.0-win32-x64\jre\21.0.10-win32-x86_64,daemonRegistryDir=C:\Users\gnbon\.gradle\daemon,pid=30116,idleTimeout=10800000,priority=NORMAL,applyInstrumentationAgent=true,daemonOpts=--add-opens=java.base/java.util=ALL-UNNAMED,--add-opens=java.base/java.lang=ALL-UNNAMED,--add-opens=java.base/java.lang.invoke=ALL-UNNAMED,--add-opens=java.prefs/java.util.prefs=ALL-UNNAMED,--add-opens=java.base/java.nio.charset=ALL-UNNAMED,--add-opens=java.base/java.net=ALL-UNNAMED,--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED,-Dfile.encoding=UTF-8,-Duser.country=US,-Duser.language=en,-Duser.variant]
+
+  Looking for a different daemon...
+The client will now receive all logging from the daemon (pid: 30276). The daemon log file: C:\Users\gnbon\.gradle\daemon\8.7\daemon-30276.out.log
+Starting 172nd build in daemon [uptime: 8 hrs 56 mins 14.556 secs, performance: 100%, GC rate: 0.00/s, heap usage: 0% of 512 MiB, non-heap usage: 20% of 384 MiB]
+Using 16 worker leases.
+Now considering [C:\Users\gnbon\Projects\JAlgol] as hierarchies to watch
+Watching the file system is configured to be enabled if available
+File system watching is active
+Starting Build
+Settings evaluated using settings file 'C:\Users\gnbon\Projects\JAlgol\settings.gradle'.
+Projects loaded. Root project using build file 'C:\Users\gnbon\Projects\JAlgol\build.gradle'.
+Included projects: [root project 'JAlgol']
+
+> Configure project :
+Evaluating root project 'JAlgol' using build file 'C:\Users\gnbon\Projects\JAlgol\build.gradle'.
+All projects evaluated.
+Task name matched 'test'
+Selected primary task 'test' from project :
+Tasks to be executed: [task ':generateGrammarSource', task ':compileJava', task ':processResources', task ':classes', task ':generateTestGrammarSource', task ':compileTestJava', task ':processTestResources', task ':testClasses', task ':test']
+Tasks that were excluded: []
+Resolve mutations for :generateGrammarSource (Thread[#9156,Execution worker,5,main]) started.
+:generateGrammarSource (Thread[#9156,Execution worker,5,main]) started.
+
+> Task :generateGrammarSource UP-TO-DATE
+Caching disabled for task ':generateGrammarSource' because:
+  Build cache is disabled
+Skipping task ':generateGrammarSource' as it is up-to-date.
+Resolve mutations for :compileJava (Thread[#9156,Execution worker,5,main]) started.
+:compileJava (Thread[#9156,Execution worker,5,main]) started.
+
+> Task :compileJava UP-TO-DATE
+Caching disabled for task ':compileJava' because:
+  Build cache is disabled
+Skipping task ':compileJava' as it is up-to-date.
+Resolve mutations for :processResources (Thread[#9156,Execution worker,5,main]) started.
+:processResources (Thread[#9155,included builds,5,main]) started.
+
+> Task :processResources NO-SOURCE
+Skipping task ':processResources' as it has no source files and no previous output files.
+Resolve mutations for :classes (Thread[#9155,included builds,5,main]) started.
+:classes (Thread[#9155,included builds,5,main]) started.
+
+> Task :classes UP-TO-DATE
+Skipping task ':classes' as it has no actions.
+Resolve mutations for :generateTestGrammarSource (Thread[#9155,included builds,5,main]) started.
+:generateTestGrammarSource (Thread[#9168,Execution worker Thread 13,5,main]) started.
+
+> Task :generateTestGrammarSource NO-SOURCE
+Skipping task ':generateTestGrammarSource' as it has no source files and no previous output files.
+Resolve mutations for :compileTestJava (Thread[#9168,Execution worker Thread 13,5,main]) started.
+:compileTestJava (Thread[#9168,Execution worker Thread 13,5,main]) started.
+
+> Task :compileTestJava UP-TO-DATE
+Caching disabled for task ':compileTestJava' because:
+  Build cache is disabled
+Skipping task ':compileTestJava' as it is up-to-date.
+Resolve mutations for :processTestResources (Thread[#9168,Execution worker Thread 13,5,main]) started.
+:processTestResources (Thread[#9168,Execution worker Thread 13,5,main]) started.
+
+> Task :processTestResources NO-SOURCE
+Skipping task ':processTestResources' as it has no source files and no previous output files.
+Resolve mutations for :testClasses (Thread[#9168,Execution worker Thread 13,5,main]) started.
+:testClasses (Thread[#9168,Execution worker Thread 13,5,main]) started.
+
+> Task :testClasses UP-TO-DATE
+Skipping task ':testClasses' as it has no actions.
+Resolve mutations for :test (Thread[#9168,Execution worker Thread 13,5,main]) started.
+:test (Thread[#9168,Execution worker Thread 13,5,main]) started.
+Gradle Test Executor 96 started executing tests.
+Gradle Test Executor 96 finished executing tests.
+
+> Task :test FAILED
+Caching disabled for task ':test' because:
+  Build cache is disabled
+Task ':test' is not up-to-date because:
+  Task has failed previously.
+Starting process 'Gradle Test Executor 96'. Working directory: C:\Users\gnbon\Projects\JAlgol Command: C:\Program Files\Eclipse Adoptium\jdk-21.0.4.7-hotspot\bin\java.exe -Dorg.gradle.internal.worker.tmpdir=C:\Users\gnbon\Projects\JAlgol\build\tmp\test\work -Dorg.gradle.native=false @C:\Users\gnbon\.gradle\.tmp\gradle-worker-classpath15008130762103110659txt -Xmx512m -Dfile.encoding=UTF-8 -Duser.country=US -Duser.language=en -Duser.variant -ea worker.org.gradle.process.internal.worker.GradleWorkerMain 'Gradle Test Executor 96'
+Successfully started process 'Gradle Test Executor 96'
+
+AntlrAlgolListenerTest > oneton_test() STANDARD_OUT
+    DEBUG: Declaring variable N with type integer in main
+    DEBUG: Declaring variable M with type integer in main
+    DEBUG: Declaring variable i with type integer in locals
+    Processing procedure call: outinteger
+    Processing procedure call: outstring
+    Processing procedure call: outinteger
+    === ONETON JASMIN ===
+    .source oneton.alg
+    .class public gnb/jalgol/programs/OnetonTest
+    .super java/lang/Object
+
+    .field public static __scanner Ljava/util/Scanner;
+
+    .method public <init>()V
+    .limit stack 1
+    .limit locals 1
+    aload_0
+    invokespecial java/lang/Object/<init>()V
+    return
+    .end method
+
+    .method public static oneton(I)I
+    .limit stack 16
+    .limit locals 3
+    iconst_0
+    istore 1
+    iconst_0
+    istore 2
+    ldc 1
+    istore 1
+    loop_0:
+    iload 1
+    iload 0
+    if_icmpgt endfor_1
+    getstatic java/lang/System/out Ljava/io/PrintStream;
+    iload 1
+    invokevirtual java/io/PrintStream/print(I)V
+    getstatic java/lang/System/out Ljava/io/PrintStream;
+    ldc "\n"
+    invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V
+    ldc 1
+    iload 1
+    iadd
+    istore 1
+    goto loop_0
+    endfor_1:
+    iload 0
+    ldc 2
+    imul
+    istore 2
+    iload 2
+    ireturn
+    .end method
+
+    .method public static main([Ljava/lang/String;)V
+    .limit stack 16
+    .limit locals 4
+    iconst_0
+    istore 1
+    iconst_0
+    istore 2
+    new java/util/Scanner
+    dup
+    getstatic java/lang/System/in Ljava/io/InputStream;
+    invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V
+    putstatic gnb/jalgol/programs/OnetonTest/__scanner Ljava/util/Scanner;
+    ldc 12
+    istore 1
+    aload 3
+    iconst_0
+    anewarray java/lang/Object
+    checkcast gnb/jalgol/compiler/IntegerProcedure
+    invokeinterface gnb/jalgol/compiler/IntegerProcedure/invoke([Ljava/lang/Object;)I 2
+    istore 2
+    getstatic java/lang/System/out Ljava/io/PrintStream;
+    iload 2
+    invokevirtual java/io/PrintStream/print(I)V
+    return
+    .end method
+
+    === END ONETON ===
+    runClass: [java, -cp, build\test-algol, gnb.jalgol.programs.OnetonTest]
+    runClass: exit=1 output=[Error: Unable to initialize main class gnb.jalgol.programs.OnetonTest
+    Caused by: java.lang.VerifyError: (class: gnb/jalgol/programs/OnetonTest, method: main signature: ([Ljava/lang/String;)V) Accessing value from uninitialized register 3
+    ]
+    oneton output: [Error: Unable to initialize main class gnb.jalgol.programs.OnetonTest
+    Caused by: java.lang.VerifyError: (class: gnb/jalgol/programs/OnetonTest, method: main signature: ([Ljava/lang/String;)V) Accessing value from uninitialized register 3
+    ]
+
+AntlrAlgolListenerTest > oneton_test() FAILED
+    org.opentest4j.AssertionFailedError: expected: <1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    11
+    12
+    24> but was: <Error: Unable to initialize main class gnb.jalgol.programs.OnetonTest
+    Caused by: java.lang.VerifyError: (class: gnb/jalgol/programs/OnetonTest, method: main signature: ([Ljava/lang/String;)V) Accessing value from uninitialized register 3>
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.build(AssertionFailureBuilder.java:151)
+        at app//org.junit.jupiter.api.AssertionFailureBuilder.buildAndThrow(AssertionFailureBuilder.java:132)
+        at app//org.junit.jupiter.api.AssertEquals.failNotEqual(AssertEquals.java:197)
+        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:182)
+        at app//org.junit.jupiter.api.AssertEquals.assertEquals(AssertEquals.java:177)
+        at app//org.junit.jupiter.api.Assertions.assertEquals(Assertions.java:1145)
+        at app//gnb.jalgol.compiler.AntlrAlgolListenerTest.oneton_test(AntlrAlgolListenerTest.java:251)
+
+1 test completed, 1 failed
+Finished generating test XML results (0.002 secs) into: C:\Users\gnbon\Projects\JAlgol\build\test-results\test
+Generating HTML test report...
+Finished generating test html results (0.004 secs) into: C:\Users\gnbon\Projects\JAlgol\build\reports\tests\test
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':test'.
+> There were failing tests. See the report at: file:///C:/Users/gnbon/Projects/JAlgol/build/reports/tests/test/index.html
+
+* Try:
+> Run with --scan to get full insights.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.7/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 2s
+4 actionable tasks: 1 executed, 3 up-to-date
+Watched directory hierarchies: [C:\Users\gnbon\Projects\JAlgol]

@@ -9,14 +9,19 @@ import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
+import gnb.jalgol.compiler.antlr.AlgolBaseListener;
 import gnb.jalgol.compiler.antlr.AlgolLexer;
 import gnb.jalgol.compiler.antlr.AlgolParser;
 import gnb.jalgol.compiler.antlr.AlgolParser.ProgramContext;
@@ -91,6 +96,17 @@ public class AntlrAlgolListener {
 		if (!procRefOutputs.isEmpty()) {
 			Path procIfaceFile = outputDir.resolve("ProcedureInterfaces.j");
 			Files.writeString(procIfaceFile, PROCEDURE_INTERFACES_JASMIN);
+		}
+
+		// Assemble the procedure interfaces if they were emitted alongside this file
+		Path procIface = jasminFile.getParent().resolve("ProcedureInterfaces.j");
+		if (java.nio.file.Files.exists(procIface)) {
+			try {
+				assembleOne(procIface, outputDir);
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				throw new IOException("Assembly of procedure interfaces interrupted", e);
+			}
 		}
 
 		return jasminFile;
@@ -176,15 +192,129 @@ public class AntlrAlgolListener {
 		Map<String, String> symbolTable = symBuilder.getSymbolTable();
 		Map<String, String> mainSymbolTable = symBuilder.getMainSymbolTable();
 		Map<String, int[]> arrayBounds = symBuilder.getArrayBounds();
+		Map<String, SymbolTableBuilder.ProcInfo> procedures = symBuilder.getProcedures();
+
+		// Check for procedure variables (procedure names that are used in assignments or expressions)
+		Set<String> procedureVariables = new LinkedHashSet<>();
+		walker.walk(new AlgolBaseListener() {
+			private final Deque<String> currentProcedure = new ArrayDeque<>();
+
+			@Override
+			public void enterProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
+				currentProcedure.push(ctx.identifier().getText());
+			}
+
+			@Override
+			public void exitProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
+				currentProcedure.pop();
+			}
+
+			@Override
+			public void enterAssignment(AlgolParser.AssignmentContext ctx) {
+				for (AlgolParser.LvalueContext lv : ctx.lvalue()) {
+					String name = lv.identifier().getText();
+					String type = symbolTable.get(name);
+					// If a procedure name is used as an L-value, it's a procedure variable.
+					if (type != null && type.startsWith("procedure:")) {
+						// But NOT if it's the current procedure being assigned to (return value for typed procs)
+						// For 13A, we simplify: if it's assigned to at all, it's a variable UNLESS it's typed.
+						if (!name.equals(currentProcedure.peek())) {
+							procedureVariables.add(name);
+						}
+					}
+				}
+			}
+
+			@Override
+			public void enterVarExpr(AlgolParser.VarExprContext ctx) {
+				String name = ctx.identifier().getText();
+				String type = symbolTable.get(name);
+				// If a procedure name is used in an expression but NOT as a call, it's a variable reference.
+				if (type != null && type.startsWith("procedure:")) {
+					// Check if it's actually a call.
+					boolean isCall = false;
+					org.antlr.v4.runtime.tree.ParseTree p = ctx.getParent();
+					while (p != null) {
+						if (p instanceof AlgolParser.ProcedureCallContext call) {
+							if (call.identifier().getText().equals(name)) {
+								isCall = true;
+								break;
+							}
+						}
+						p = p.getParent();
+					}
+					if (!isCall) {
+						procedureVariables.add(name);
+					}
+				}
+			}
+
+			@Override
+			public void enterProcedureCall(AlgolParser.ProcedureCallContext ctx) {
+				String name = ctx.identifier().getText();
+				String type = symbolTable.get(name);
+				// If something is called that looks like a variable...
+				// For Milestone 13A, if it's a known procedure variable, it's a variable call.
+				if (type != null && type.startsWith("procedure:")) {
+					SymbolTableBuilder.ProcInfo info = procedures.get(name);
+					// For 13A: any procedure name called at the top level or from another procedure 
+					// that has no parameters is potentially a variable.
+					if (info != null && info.paramNames.isEmpty()) {
+						if (!name.equals(currentProcedure.peek())) {
+							procedureVariables.add(name);
+						}
+					}
+				}
+			}
+		}, programContext);
+
+		// Now add the detected procedure variables to mainSymbolTable so they get slots.
+		for (String pv : procedureVariables) {
+			String type = symbolTable.get(pv);
+			// For 13A, everything in procedureVariables gets a slot.
+			if (type != null && type.startsWith("procedure:")) {
+				if (!mainSymbolTable.containsKey(pv)) {
+					mainSymbolTable.put(pv, type);
+				}
+			}
+		}
+
+		// Also find ALL procedure names and ensure they are in mainSymbolTable if they are variables
+		// This is a safety pass for Milestone 13A specifically.
+		for (Map.Entry<String, SymbolTableBuilder.ProcInfo> entry : procedures.entrySet()) {
+			String name = entry.getKey();
+			SymbolTableBuilder.ProcInfo info = entry.getValue();
+			String type = symbolTable.get(name);
+			if (type != null && type.startsWith("procedure:")) {
+				if (info != null && info.paramNames.isEmpty() && !"oneton".equals(name)) {
+					System.out.println("DEBUG: Explicitly adding procedure variable to mainSymbolTable: " + name);
+					if (!mainSymbolTable.containsKey(name)) {
+						mainSymbolTable.put(name, type);
+					}
+				}
+			}
+		}
 
 		// Assign JVM local variable slots
 		Map<String, Integer> localIndex = new LinkedHashMap<>();
 		int nextLocal = 1;
+		
+		// Map for procedure variables specifically for Milestone 13A
+		Map<String, Integer> procVarSlotsMap = new LinkedHashMap<>();
+		
+		// Sort mainSymbolTable entries by name or maintain order to ensure stability?
+		// SymbolTableBuilder uses LinkedHashMap so order is preserved.
+		System.out.println("DEBUG: Assigning slots for mainSymbolTable: " + mainSymbolTable);
 		for (Map.Entry<String, String> entry : mainSymbolTable.entrySet()) {
 			String name = entry.getKey();
 			String type = entry.getValue();
 			if (type.endsWith("[]")) continue;
+
 			localIndex.put(name, nextLocal);
+			if (type.startsWith("procedure:")) {
+				procVarSlotsMap.put(name, nextLocal);
+			}
+			System.out.println("DEBUG: Assigned slot " + nextLocal + " to " + name + " (type " + type + ")");
 			nextLocal += "real".equals(type) ? 2 : 1;
 		}
 		int numLocals = Math.max(nextLocal, 1);

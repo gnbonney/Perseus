@@ -48,6 +48,13 @@ public class ContextManager {
         this.localIndex = new HashMap<>();
     }
 
+    public void setMainContext(Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals, Map<String, int[]> arrayBounds) {
+        this.symbolTable = symbolTable;
+        this.localIndex = localIndex;
+        this.nextLocalIndex = numLocals;
+        this.arrayBounds = arrayBounds;
+    }
+
     public void pushOutput(StringBuilder sb) {
         outputStack.push(activeOutput);
         activeOutput = sb;

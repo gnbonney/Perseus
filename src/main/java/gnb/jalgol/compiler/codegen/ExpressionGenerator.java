@@ -12,8 +12,13 @@ import java.util.List;
  */
 public class ExpressionGenerator implements GeneratorDelegate {
     private ContextManager context;
+    private ProcedureGenerator procGen;
 
     public ExpressionGenerator() {
+    }
+
+    public void setProcedureGenerator(ProcedureGenerator procGen) {
+        this.procGen = procGen;
     }
 
     @Override
@@ -22,12 +27,57 @@ public class ExpressionGenerator implements GeneratorDelegate {
     }
 
     public String generateExpr(AlgolParser.ExprContext ctx) {
+        if (ctx == null) return "";
         if (ctx instanceof AlgolParser.IntLiteralExprContext) {
             return "ldc " + ctx.getText() + "\n";
         } else if (ctx instanceof AlgolParser.RealLiteralExprContext) {
             return "ldc2_w " + ctx.getText() + "\n";
         } else if (ctx instanceof AlgolParser.VarExprContext varCtx) {
-            return generateLoadVar(varCtx.identifier().getText());
+            String name = varCtx.identifier().getText();
+            System.out.println("DEBUG: ExpressionGenerator generating for VarExpr: " + name);
+            // Check if it's a procedure name being used as a value or a variable call
+            String type = context.getSymbolTable().get(name);
+            if (type == null && context.getMainSymbolTable() != null) type = context.getMainSymbolTable().get(name);
+            System.out.println("DEBUG:   Type for " + name + " is " + type);
+
+            if (type != null && type.startsWith("procedure:")) {
+                Integer idx = context.getLocalIndex().get(name);
+                System.out.println("DEBUG:   Local index for " + name + " is " + idx);
+                if (idx != null) {
+                    // It's a procedure variable.
+                    // If this VarExpr is NOT the identifier of a ProcedureCallContext, it's a reference.
+                    boolean isCall = false;
+                    org.antlr.v4.runtime.tree.ParseTree p = varCtx.getParent();
+                    while (p != null) {
+                        if (p instanceof AlgolParser.ProcedureCallContext call) {
+                            if (call.identifier().getText().equals(name)) {
+                                isCall = true;
+                                break;
+                            }
+                        }
+                        p = p.getParent();
+                    }
+                    if (!isCall) {
+                        System.out.println("DEBUG:   Generating aload " + idx + " for procedure variable " + name);
+                        // Return the reference object stored in the variable
+                        return "aload " + idx + "\n";
+                    } else {
+                        System.out.println("DEBUG:   VarExpr is part of a call to " + name);
+                        // It's a call through a variable. But wait, ProcedureCall handles this.
+                        // Actually, if it's an Expression (function call), it might be here.
+                        // For 13A, we'll let ProcedureCall/exitProcedureCall handle it for statements.
+                        // For expressions...
+                    }
+                } else {
+                    System.out.println("DEBUG:   Generating static reference for procedure " + name);
+                    // Not a local variable, must be a direct reference to a static procedure
+                    SymbolTableBuilder.ProcInfo info = context.getProcedures().get(name);
+                    if (info != null && procGen != null) {
+                        return procGen.generateProcedureReference(name, info);
+                    }
+                }
+            }
+            return generateLoadVar(name);
         } else if (ctx instanceof AlgolParser.AddSubExprContext binCtx) {
             String op = binCtx.op.getText();
             return generateExpr(binCtx.expr(0)) + generateExpr(binCtx.expr(1)) + ("+".equals(op) ? "iadd\n" : "isub\n");

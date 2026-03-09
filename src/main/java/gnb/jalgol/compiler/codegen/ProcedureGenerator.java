@@ -7,12 +7,16 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class ProcedureGenerator {
-    private final ContextManager context;
-    private final ExpressionGenerator exprGen;
+public class ProcedureGenerator implements GeneratorDelegate {
+    private ContextManager context;
+    private ExpressionGenerator exprGen;
 
     public ProcedureGenerator(ContextManager context, ExpressionGenerator exprGen) {
         this.context = context;
+        this.exprGen = exprGen;
+    }
+
+    public ProcedureGenerator(ExpressionGenerator exprGen) {
         this.exprGen = exprGen;
     }
 
@@ -206,11 +210,6 @@ public class ProcedureGenerator {
         String procName = ctx.identifier().getText();
         ProcInfo info = context.getProcedures().get(procName);
         
-        if (procName.equals("P")) {
-            context.setProcedureContext(procName, info.returnType, -1);
-            return; // Body stays in main
-        }
-
         context.saveMainContext();
         
         Map<String, String> procST = new LinkedHashMap<>();
@@ -267,11 +266,7 @@ public class ProcedureGenerator {
 
     public void exitProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
         String procName = ctx.identifier().getText();
-        if (procName.equals("P")) {
-            context.setProcedureContext(null, null, -1);
-            return;
-        }
-
+        
         StringBuilder sb = context.getActiveOutput();
         String retType = context.getCurrentProcReturnType();
         int slot = context.getProcRetvalSlot();
@@ -293,6 +288,7 @@ public class ProcedureGenerator {
      * Generates code to call a procedure through a procedure variable.        
      */
     public String generateProcedureVariableCall(String varName, String varType, List<AlgolParser.ArgContext> args) {
+        System.out.println("DEBUG: generateProcedureVariableCall for " + varName);
         String returnType = varType.startsWith("procedure:") ? varType.substring("procedure:".length()) : varType;
         String interfaceName;
         switch (returnType) {
@@ -307,6 +303,7 @@ public class ProcedureGenerator {
         
         // Load the procedure reference object
         Integer idx = context.getLocalIndex().get(varName);
+        System.out.println("DEBUG:   Index for " + varName + " is " + idx);
         if (idx == null) {
             return "; ERROR: undeclared procedure variable " + varName + "\n"; 
         }
@@ -379,5 +376,11 @@ public class ProcedureGenerator {
         context.addProcRefClass(procRefClassName, sb.toString());
         
         return "new " + context.getPackageName() + "/" + context.getClassName() + "$" + procRefClassName + "\ndup\ninvokespecial " + context.getPackageName() + "/" + context.getClassName() + "$" + procRefClassName + "/<init>()V\n";
+    }
+
+    @Override
+    public void setContext(ContextManager context) {
+        this.context = context;
+        if (this.exprGen != null) this.exprGen.setContext(context);
     }
 }

@@ -70,10 +70,17 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         else if ("string".equals(firstToken)) returnType = "string";
         else returnType = "void";
         String name = ctx.identifier().getText();
+
         // Add to global symbol table so TypeInferencer knows the return type
         symbolTable.put(name, "procedure:" + returnType);
+        
+        // Note: We used to add to mainSymbolTable here (which causes it to get a slot). 
+        // We now handle procedure variables (slots) through a manual scan in AntlrAlgolListener.
+        // mainSymbolTable.put(name, "procedure:" + returnType);
+
         currentProc = new ProcInfo(returnType);
         procedures.put(name, currentProc);
+
         // Collect parameter names from formal-parameter-list
         if (ctx.paramList() != null) {
             for (AlgolParser.IdentifierContext id : ctx.paramList().identifier()) {
@@ -141,6 +148,7 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         
         for (AlgolParser.IdentifierContext idCtx : ctx.varList().identifier()) {
             String name = idCtx.getText();
+            System.out.println("DEBUG: Declaring variable " + name + " with type " + type + " in " + (currentProc == null ? "main" : currentProc.paramNames.contains(name) ? "params" : "locals"));
             symbolTable.put(name, type); // always add to full table for TypeInferencer
             if (currentProc == null) {
                 mainSymbolTable.put(name, type); // main scope only
