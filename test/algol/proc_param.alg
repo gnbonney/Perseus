@@ -1,7 +1,7 @@
 begin comment Test procedure parameters - Milestone 13B;
       procedure hello;
          outstring(1, "Hello");
-      procedure callIt;
+      procedure callIt(P);
          procedure P;
          begin
             P

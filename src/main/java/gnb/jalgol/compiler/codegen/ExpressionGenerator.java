@@ -31,7 +31,7 @@ public class ExpressionGenerator implements GeneratorDelegate {
         if (ctx instanceof AlgolParser.IntLiteralExprContext) {
             return "ldc " + ctx.getText() + "\n";
         } else if (ctx instanceof AlgolParser.RealLiteralExprContext) {
-            return "ldc2_w " + ctx.getText() + "\n";
+            return "ldc2_w " + ctx.getText() + "d\n";
         } else if (ctx instanceof AlgolParser.VarExprContext varCtx) {
             String name = varCtx.identifier().getText();
             System.out.println("DEBUG: ExpressionGenerator generating for VarExpr: " + name);

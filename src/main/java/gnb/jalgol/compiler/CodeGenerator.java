@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,11 +53,18 @@ public class CodeGenerator extends AlgolBaseListener {
     private int currentNumLocals;
     private Map<String, int[]> currentArrayBounds;
 
-    // --- Saved main context (restored after a procedure is emitted) ---
-    private Map<String, String> mainSymbolTable;
+    // --- Saved outer context (one entry per active nested procedure level) ---
+    private Map<String, String>  mainSymbolTable;
     private Map<String, Integer> mainLocalIndex;
-    private int mainNumLocals;
-    private Map<String, int[]> mainArrayBounds;
+    private int                  mainNumLocals;
+    private Map<String, int[]>   mainArrayBounds;
+    private final Deque<Map<String, String>>  savedOuterSTStack     = new LinkedList<>();
+    private final Deque<Map<String, Integer>> savedOuterLIStack     = new LinkedList<>();
+    private final Deque<Integer>              savedOuterNLStack     = new LinkedList<>();
+    private final Deque<Map<String, int[]>>   savedOuterABStack     = new LinkedList<>();
+    private final Deque<String>               savedProcNameStack    = new LinkedList<>();
+    private final Deque<String>               savedProcRetTypeStack = new LinkedList<>();
+    private final Deque<Integer>              savedProcRetSlotStack = new LinkedList<>();
 
     // Maps expression contexts to their inferred types ("integer" or "real")
     private final Map<AlgolParser.ExprContext, String> exprTypes;
@@ -65,8 +73,8 @@ public class CodeGenerator extends AlgolBaseListener {
     private final StringBuilder classHeader = new StringBuilder();
     private final StringBuilder mainCode    = new StringBuilder();
     private final List<String>  procMethods = new ArrayList<>();
-    private StringBuilder activeOutput;   // points to mainCode or current procBuffer
-    private StringBuilder procBuffer;     // non-null while inside a procedureDecl
+    private StringBuilder activeOutput;   // points to mainCode or top of procBufferStack
+    private final Deque<StringBuilder> procBufferStack = new ArrayDeque<>();
 
     // --- Procedure return-value tracking ---
     private String currentProcName = null;
@@ -225,10 +233,20 @@ public class CodeGenerator extends AlgolBaseListener {
         SymbolTableBuilder.ProcInfo info = procedures.get(procName);
 
         // Switch to a fresh procedure buffer
-        procBuffer   = new StringBuilder();
-        activeOutput = procBuffer;
+        StringBuilder newBuf = new StringBuilder();
+        procBufferStack.push(newBuf);
+        activeOutput = newBuf;
 
-        // Save main context
+        // Save outer context before making current context the new "outer" (supports nesting)
+        savedOuterSTStack.push(mainSymbolTable);
+        savedOuterLIStack.push(mainLocalIndex);
+        savedOuterNLStack.push(mainNumLocals);
+        savedOuterABStack.push(mainArrayBounds);
+        savedProcNameStack.push(currentProcName);
+        savedProcRetTypeStack.push(currentProcReturnType);
+        savedProcRetSlotStack.push(procRetvalSlot);
+
+        // Make the current scope the new "outer" scope
         mainSymbolTable   = currentSymbolTable;
         mainLocalIndex    = currentLocalIndex;
         mainNumLocals     = currentNumLocals;
@@ -364,18 +382,21 @@ public class CodeGenerator extends AlgolBaseListener {
         }
         activeOutput.append(".end method\n\n");
 
-        procMethods.add(procBuffer.toString());
+        procMethods.add(procBufferStack.pop().toString());
 
-        // Restore main context
-        currentSymbolTable   = mainSymbolTable;
-        currentLocalIndex    = mainLocalIndex;
-        currentNumLocals     = mainNumLocals;
-        currentArrayBounds   = mainArrayBounds;
-        activeOutput         = mainCode;
-        currentProcName      = null;
-        currentProcReturnType = null;
-        procRetvalSlot       = -1;
-        procBuffer           = null;
+        // Restore context (supports nested procedures via saved stacks)
+        currentSymbolTable    = mainSymbolTable;
+        currentLocalIndex     = mainLocalIndex;
+        currentNumLocals      = mainNumLocals;
+        currentArrayBounds    = mainArrayBounds;
+        activeOutput          = procBufferStack.isEmpty() ? mainCode : procBufferStack.peek();
+        mainSymbolTable       = savedOuterSTStack.pop();
+        mainLocalIndex        = savedOuterLIStack.pop();
+        mainNumLocals         = savedOuterNLStack.pop();
+        mainArrayBounds       = savedOuterABStack.pop();
+        currentProcName       = savedProcNameStack.pop();
+        currentProcReturnType = savedProcRetTypeStack.pop();
+        procRetvalSlot        = savedProcRetSlotStack.pop();
     }
 
     // -------------------------------------------------------------------------
@@ -945,11 +966,11 @@ public class CodeGenerator extends AlgolBaseListener {
 
     /**
      * Ensure that the current method's .limit locals directive is at least the
-     * given value.  Scans the activeOutput or classHeader/procBuffer for the
+     * given value.  Scans the activeOutput or classHeader/procBufferStack for the
      * directive and updates it.
      */
     private void ensureLocalLimit(int required) {
-        StringBuilder buf = (procBuffer != null) ? procBuffer : mainCode;
+        StringBuilder buf = procBufferStack.isEmpty() ? mainCode : procBufferStack.peek();
         String search = ".limit locals ";
         int idx = buf.indexOf(search);
         if (idx >= 0) {
@@ -1520,7 +1541,7 @@ public class CodeGenerator extends AlgolBaseListener {
             // Delegate user-defined procedures (handles call-by-name internally)
             return generateUserProcedureInvocation(procName, e.argList().arg(), false);
         } else if (ctx instanceof AlgolParser.RealLiteralExprContext e) {
-            return "ldc2_w " + e.realLiteral().getText() + "\n";
+            return "ldc2_w " + e.realLiteral().getText() + "d\n";
         } else if (ctx instanceof AlgolParser.IntLiteralExprContext e) {
             return "ldc " + e.unsignedInt().getText() + "\n";
         } else if (ctx instanceof AlgolParser.StringLiteralExprContext e) {
