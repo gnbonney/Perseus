@@ -38,6 +38,13 @@ public class ExpressionGenerator implements GeneratorDelegate {
             // Check if it's a procedure name being used as a value or a variable call
             String type = context.getSymbolTable().get(name);
             if (type == null && context.getMainSymbolTable() != null) type = context.getMainSymbolTable().get(name);
+            // If still no type, check procedures map (procedure name used as a value)
+            if (type == null && context.getProcedures().containsKey(name)) {
+                SymbolTableBuilder.ProcInfo pInfo = context.getProcedures().get(name);
+                if (pInfo != null && procGen != null) {
+                    return procGen.generateProcedureReference(name, pInfo);
+                }
+            }
             System.out.println("DEBUG:   Type for " + name + " is " + type);
 
             if (type != null && type.startsWith("procedure:")) {

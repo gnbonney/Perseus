@@ -13,5 +13,7 @@ begin comment Test typed procedure references - Milestone 13C;
          outreal(1, P);
          P := getZero;
          outreal(1, P)
-      end
+      end;
+      P
+end
 end;

@@ -2,7 +2,9 @@ package gnb.jalgol.compiler;
 
 import gnb.jalgol.compiler.antlr.AlgolBaseListener;
 import gnb.jalgol.compiler.antlr.AlgolParser;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -24,7 +26,11 @@ public class SymbolTableBuilder extends AlgolBaseListener {
     private final Map<String, int[]> arrayBounds = new LinkedHashMap<>();
     // Procedure definitions: name → ProcInfo
     private final Map<String, ProcInfo> procedures = new LinkedHashMap<>();
-    private ProcInfo currentProc = null;
+    // Stack of currently-open procedure declarations (supports nested procedures like manboy)
+    private final Deque<ProcInfo> procStack = new ArrayDeque<>();
+
+    /** Convenience accessor: returns the innermost open procedure, or null if at top level. */
+    private ProcInfo currentProc() { return procStack.isEmpty() ? null : procStack.peek(); }
 
     /** Metadata for a declared procedure. */
     public static class ProcInfo {
@@ -78,13 +84,14 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         // We now handle procedure variables (slots) through a manual scan in AntlrAlgolListener.
         // mainSymbolTable.put(name, "procedure:" + returnType);
 
-        currentProc = new ProcInfo(returnType);
-        procedures.put(name, currentProc);
+        ProcInfo newProc = new ProcInfo(returnType);
+        procedures.put(name, newProc);
+        procStack.push(newProc);
 
         // Collect parameter names from formal-parameter-list
         if (ctx.paramList() != null) {
             for (AlgolParser.IdentifierContext id : ctx.paramList().identifier()) {
-                currentProc.paramNames.add(id.getText());
+                newProc.paramNames.add(id.getText());
             }
         }
     }
@@ -92,34 +99,49 @@ public class SymbolTableBuilder extends AlgolBaseListener {
     @Override
     public void exitProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
         // Add parameters to symbol table for type inference
-        if (currentProc != null) {
-            for (String param : currentProc.paramNames) {
-                String baseType = currentProc.paramTypes.get(param);
-                if (baseType == null) baseType = "real"; // default
-                String type = currentProc.valueParams.contains(param) ? baseType : "thunk:" + baseType;
-                symbolTable.put(param, type);
+        ProcInfo proc = procStack.peek();
+        if (proc != null) {
+            for (String param : proc.paramNames) {
+                String baseType = proc.paramTypes.get(param);
+                if (baseType == null) baseType = "real"; // default for unspecified numeric params
+                // procedure-type params are value params (passed as ProcRef); others depend on valueParams set
+                if (baseType.startsWith("procedure:")) {
+                    symbolTable.put(param, baseType);
+                } else {
+                    String type = proc.valueParams.contains(param) ? baseType : "thunk:" + baseType;
+                    symbolTable.put(param, type);
+                }
             }
         }
-        currentProc = null;
+        procStack.pop();
     }
 
     @Override
     public void enterValueSpec(AlgolParser.ValueSpecContext ctx) {
-        if (currentProc != null) {
+        ProcInfo proc = currentProc();
+        if (proc != null) {
             for (AlgolParser.IdentifierContext id : ctx.paramList().identifier()) {
-                currentProc.valueParams.add(id.getText());
+                proc.valueParams.add(id.getText());
             }
         }
     }
 
     @Override
     public void enterParamSpec(AlgolParser.ParamSpecContext ctx) {
-        if (currentProc != null) {
+        ProcInfo proc = currentProc();
+        if (proc != null) {
             String type = ctx.getStart().getText(); // "integer", "real", "string", or "procedure"
             for (AlgolParser.IdentifierContext id : ctx.paramList().identifier()) {
                 String paramName = id.getText();
-                String actualType = "procedure".equals(type) ? "procedure:real" : type;
-                currentProc.paramTypes.put(paramName, actualType);
+                String actualType;
+                if ("procedure".equals(type)) {
+                    actualType = "procedure:void"; // default for untyped procedure params
+                    // Procedure parameters are passed as ProcRef objects (by value), not as thunks
+                    proc.valueParams.add(paramName);
+                } else {
+                    actualType = type;
+                }
+                proc.paramTypes.put(paramName, actualType);
                 // Add to global symbol table so TypeInferencer can resolve types of param uses
                 symbolTable.put(paramName, actualType);
             }
@@ -148,12 +170,13 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         
         for (AlgolParser.IdentifierContext idCtx : ctx.varList().identifier()) {
             String name = idCtx.getText();
-            System.out.println("DEBUG: Declaring variable " + name + " with type " + type + " in " + (currentProc == null ? "main" : currentProc.paramNames.contains(name) ? "params" : "locals"));
+            ProcInfo proc = currentProc();
+            System.out.println("DEBUG: Declaring variable " + name + " with type " + type + " in " + (proc == null ? "main" : proc.paramNames.contains(name) ? "params" : "locals"));
             symbolTable.put(name, type); // always add to full table for TypeInferencer
-            if (currentProc == null) {
+            if (proc == null) {
                 mainSymbolTable.put(name, type); // main scope only
             } else {
-                currentProc.localVars.put(name, type);
+                proc.localVars.put(name, type);
             }
         }
     }

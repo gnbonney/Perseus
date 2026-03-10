@@ -81,6 +81,9 @@ public class CodeGenerator extends AlgolBaseListener {
     private final Deque<String> ifEndLabelStack  = new ArrayDeque<>();
     private final Deque<String> ifElseLabelStack = new ArrayDeque<>();
 
+    // Map of procedure variable names to their main-method JVM slot indices
+    private final Map<String, Integer> procVarSlots;
+
     public CodeGenerator(String source, String packageName, String className,
                          Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
                          Map<AlgolParser.ExprContext, String> exprTypes, Map<String, int[]> arrayBounds,
@@ -90,6 +93,7 @@ public class CodeGenerator extends AlgolBaseListener {
         this.className = className;
         this.exprTypes = exprTypes;
         this.procedures = procedures;
+        this.procVarSlots = procVarSlots != null ? procVarSlots : Map.of();
         this.currentSymbolTable = symbolTable;
         this.currentLocalIndex  = localIndex;
         this.currentNumLocals   = numLocals;
@@ -174,6 +178,8 @@ public class CodeGenerator extends AlgolBaseListener {
                 mainCode.append("dconst_0\n").append("dstore ").append(index).append("\n");
             } else if ("string".equals(type)) {
                 mainCode.append("ldc \"\"\n").append("astore ").append(index).append("\n");
+            } else if (type != null && type.startsWith("procedure:")) {
+                mainCode.append("aconst_null\n").append("astore ").append(index).append("\n");
             }
         }
 
@@ -218,15 +224,6 @@ public class CodeGenerator extends AlgolBaseListener {
         String procName = ctx.identifier().getText();
         SymbolTableBuilder.ProcInfo info = procedures.get(procName);
 
-        if (procName.equals("P")) {
-            // Special handling for main procedure P: generate body in mainCode
-            currentProcName = procName;
-            currentProcReturnType = info.returnType;
-            procRetvalSlot = -1; // not used as return value in this context
-            activeOutput = mainCode;
-            return;
-        }
-
         // Switch to a fresh procedure buffer
         procBuffer   = new StringBuilder();
         activeOutput = procBuffer;
@@ -257,8 +254,8 @@ public class CodeGenerator extends AlgolBaseListener {
             }
             procST.put(paramName, paramType);
             procLI.put(paramName, nextSlot);
-            // thunks are object references so occupy 1 slot, real still 2
-            nextSlot += paramType.startsWith("thunk:") ? 1 : ("real".equals(paramType) ? 2 : 1);
+            // thunks and procedure refs are object references so occupy 1 slot, real still 2
+            nextSlot += (paramType.startsWith("thunk:") || paramType.startsWith("procedure:")) ? 1 : ("real".equals(paramType) ? 2 : 1);
         }
         // Then locals
         for (Map.Entry<String, String> local : info.localVars.entrySet()) {
@@ -275,6 +272,15 @@ public class CodeGenerator extends AlgolBaseListener {
         } else {
             procRetvalSlot = -1;
         }
+        // Self-reference slot: if this procedure is used as a procedure variable,
+        // reserve an extra slot so the body can store/load a ProcRef for itself.
+        int selfRefSlot = -1;
+        if (procVarSlots.containsKey(procName)) {
+            selfRefSlot = nextSlot;
+            nextSlot++;
+            procST.put(procName, "procedure:" + info.returnType);
+            procLI.put(procName, selfRefSlot);
+        }
         int procNumLocals = nextSlot;
 
         currentSymbolTable   = procST;
@@ -287,11 +293,19 @@ public class CodeGenerator extends AlgolBaseListener {
             .map(p -> {
                 if (!info.valueParams.contains(p)) {
                     // call-by-name parameter passed as Thunk
-                    return "L" + "gnb/jalgol/compiler/Thunk" + ";";
+                    return "Lgnb/jalgol/compiler/Thunk;";
                 }
                 String type = info.paramTypes.getOrDefault(p, "integer");
                 if ("real".equals(type)) return "D";
                 if ("string".equals(type)) return "Ljava/lang/String;";
+                if (type.startsWith("procedure:")) {
+                    return switch (type.substring("procedure:".length())) {
+                        case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
+                        case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
+                        case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
+                        default -> "Lgnb/jalgol/compiler/VoidProcedure;";
+                    };
+                }
                 // boolean and integer both treated as I
                 return "I";
             })
@@ -306,15 +320,22 @@ public class CodeGenerator extends AlgolBaseListener {
         // Initialize local variables (not parameters) and the retval slot
         for (Map.Entry<String, Integer> e : procLI.entrySet()) {
             if (info.paramNames.contains(e.getKey())) continue; // params set by caller
+            if (e.getKey().equals(procName)) continue; // self-ref slot initialized below
             String varType = procST.get(e.getKey());
             int slot = e.getValue();
             if ("real".equals(varType)) {
                 activeOutput.append("dconst_0\n").append("dstore ").append(slot).append("\n");
             } else if ("string".equals(varType)) {
                 activeOutput.append("ldc \"\"\n").append("astore ").append(slot).append("\n");
+            } else if (varType != null && varType.startsWith("procedure:")) {
+                activeOutput.append("aconst_null\n").append("astore ").append(slot).append("\n");
             } else {
                 activeOutput.append("iconst_0\n").append("istore ").append(slot).append("\n");
             }
+        }
+        // Initialize self-reference slot to null
+        if (selfRefSlot >= 0) {
+            activeOutput.append("aconst_null\n").append("astore ").append(selfRefSlot).append("\n");
         }
         // Initialize retval slot (only for typed functions)
         if (procRetvalSlot >= 0) {
@@ -328,16 +349,6 @@ public class CodeGenerator extends AlgolBaseListener {
 
     @Override
     public void exitProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
-        String name = ctx.identifier().getText();
-
-        if (name.equals("P")) {
-            // For P, body is in mainCode, no method to add
-            currentProcName = null;
-            currentProcReturnType = null;
-            procRetvalSlot = -1;
-            return;
-        }
-
         // Emit return instruction based on return type
         if ("void".equals(currentProcReturnType)) {
             activeOutput.append("return\n");
@@ -434,8 +445,10 @@ public class CodeGenerator extends AlgolBaseListener {
         for (int i = 0; i < lvalues.size(); i++) {
             String name = lvalues.get(i).identifier().getText();
 
-            // Procedure return value assignment
-            if (name.equals(currentProcName)) {
+            // Procedure return value assignment - but ONLY if the RHS is not a procedure reference
+            // (if RHS is a procedure ref, fall through to the normal variable assignment below,
+            //  so that `P := hello` inside procedure P stores into P's self-reference slot)
+            if (name.equals(currentProcName) && !"procedure".equals(storeType)) {
                 if (i < lvalues.size() - 1) {
                     activeOutput.append("real".equals(storeType) ? "dup2\n" : "dup\n");
                 }
@@ -452,7 +465,8 @@ public class CodeGenerator extends AlgolBaseListener {
             Integer idx = currentLocalIndex.get(name);
             String varType = currentSymbolTable.get(name);
             boolean isThunk = varType != null && varType.startsWith("thunk:");
-            if (idx == null && !isThunk) {
+            boolean isProcVar = varType != null && varType.startsWith("procedure:");
+            if (idx == null && !isThunk && !isProcVar) {
                 activeOutput.append("; ERROR: undeclared variable ").append(name).append("\n");
                 continue;
             }
@@ -484,7 +498,7 @@ public class CodeGenerator extends AlgolBaseListener {
                 activeOutput.append("dstore ").append(idx).append("\n");
             } else if ("string".equals(varType)) {
                 activeOutput.append("astore ").append(idx).append("\n");
-            } else if (varType != null && varType.startsWith("procedure:")) {
+            } else if (isProcVar) {
                 activeOutput.append("astore ").append(idx).append("\n");
             }
         }
@@ -656,8 +670,20 @@ public class CodeGenerator extends AlgolBaseListener {
                         .append("iconst_1\n")
                         .append("invokestatic java/lang/System/exit(I)V\n");
         } else {
-            // User-defined procedure call (statement form)
-            activeOutput.append(generateUserProcedureInvocation(name, args, true));
+            // Check if it's a call through a procedure variable (local or param).
+            // Only route through slot when we are INSIDE a procedure (currentProcName != null),
+            // because in the outer (main) scope a procedure-variable slot may be uninitialized
+            // and the call should be a plain invokestatic.
+            String varType = currentSymbolTable.get(name);
+            Integer varIdx = currentLocalIndex.get(name);
+            boolean isInProc = currentProcName != null;
+            if (isInProc && varType != null && varType.startsWith("procedure:") && varIdx != null) {
+                // Call through a procedure variable slot
+                activeOutput.append(generateProcedureVariableCall(name, varType, args));
+            } else {
+                // User-defined procedure call (statement form)
+                activeOutput.append(generateUserProcedureInvocation(name, args, true));
+            }
         }
     }
 
@@ -1199,15 +1225,23 @@ public class CodeGenerator extends AlgolBaseListener {
         String paramDesc = info.paramNames.stream()
             .map(p -> {
                 if (!info.valueParams.contains(p)) {
-                    return "L" + "gnb/jalgol/compiler/Thunk" + ";";
+                    return "Lgnb/jalgol/compiler/Thunk;";
                 }
                 String type = info.paramTypes.getOrDefault(p, "integer");
                 if ("real".equals(type)) return "D";
                 if ("string".equals(type)) return "Ljava/lang/String;";
+                if (type.startsWith("procedure:")) {
+                    return switch (type.substring("procedure:".length())) {
+                        case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
+                        case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
+                        case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
+                        default -> "Lgnb/jalgol/compiler/VoidProcedure;";
+                    };
+                }
                 return "I";
             })
             .collect(Collectors.joining());
-        String retDesc = "void".equals(info.returnType) ? "V" : "real".equals(info.returnType) ? "D" : "Ljava/lang/String;".equals(info.returnType) ? "Ljava/lang/String;" : "I";
+        String retDesc = "void".equals(info.returnType) ? "V" : "real".equals(info.returnType) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
         sb.append("invokestatic ").append(packageName).append("/")
                     .append(className).append("/").append(name)
                     .append("(").append(paramDesc).append(")").append(retDesc).append("\n");
@@ -1381,8 +1415,16 @@ public class CodeGenerator extends AlgolBaseListener {
                 return "ldc2_w " + Double.MIN_NORMAL + "\n";
             }
 
-            // Check if this is the current procedure's return value
+            // Check if this is the current procedure's return value OR a procedure self-reference variable
             if (name.equals(currentProcName)) {
+                // If the procedure name has a local slot as a procedure variable, load from that slot
+                Integer selfSlot = currentLocalIndex.get(name);
+                String selfType = currentSymbolTable.get(name);
+                if (selfSlot != null && selfType != null && selfType.startsWith("procedure:")) {
+                    // Procedure variable used in expression context: call through the variable
+                    return generateProcedureVariableCall(name, selfType, List.of());
+                }
+                // Otherwise it's a return-value reference
                 if ("real".equals(currentProcReturnType)) {
                     return "dload " + procRetvalSlot + "\n";
                 } else if ("string".equals(currentProcReturnType)) {
@@ -1392,7 +1434,17 @@ public class CodeGenerator extends AlgolBaseListener {
                 }
             }
 
-            // Check if this is a procedure reference (procedure used as a value)
+            // Check if it's a procedure variable slot (local) - load the reference
+            Integer localIdx = currentLocalIndex.get(name);
+            if (localIdx != null) {
+                String localType = currentSymbolTable.get(name);
+                if (localType != null && localType.startsWith("procedure:")) {
+                    // Load the ProcRef object from the slot
+                    return "aload " + localIdx + "\n";
+                }
+            }
+
+            // Check if this is a procedure reference (procedure used as a value - generate a ProcRef wrapper)
             SymbolTableBuilder.ProcInfo procInfo = procedures.get(name);
             if (procInfo != null) {
                 return generateProcedureReference(name, procInfo);
@@ -1428,7 +1480,7 @@ public class CodeGenerator extends AlgolBaseListener {
             } else if ("string".equals(type)) {
                 return "aload " + idx + "\n";
             } else if (type != null && type.startsWith("procedure:")) {
-                // Procedure variable used in expression context - generate a call with no arguments
+                // Procedure variable: call through the stored reference
                 return generateProcedureVariableCall(name, type, List.of());
             } else {
                 return "; ERROR: unknown variable type " + type + "\n";
@@ -1706,17 +1758,16 @@ public class CodeGenerator extends AlgolBaseListener {
         
         // Load the procedure reference object
         Integer idx = currentLocalIndex.get(varName);
+        if (idx == null && mainLocalIndex != null) idx = mainLocalIndex.get(varName);
+        if (idx == null) idx = procVarSlots.get(varName);
         if (idx == null) {
             return "; ERROR: undeclared procedure variable " + varName + "\n";
         }
+        // Load procedure reference, cast to interface, then push argument array
         sb.append("aload ").append(idx).append("\n");
-        
-        // Create Object array for arguments (empty for now since test has no args)
+        sb.append("checkcast gnb/jalgol/compiler/").append(interfaceName).append("\n");
         sb.append("iconst_0\n");
         sb.append("anewarray java/lang/Object\n");
-        
-        // Cast to interface and invoke
-        sb.append("checkcast gnb/jalgol/compiler/").append(interfaceName).append("\n");
         sb.append("invokeinterface gnb/jalgol/compiler/").append(interfaceName)
           .append("/invoke([Ljava/lang/Object;)").append(getReturnTypeDescriptor(returnType)).append(" 2\n");
         

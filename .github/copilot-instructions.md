@@ -24,6 +24,15 @@ JAlgol is a modular, multi-pass compiler that translates Algol 60 (and extension
 
 ---
 
+## Agent Tool Usage Rules
+- **NEVER use shell text-editing tools** (`sed -i`, `awk`, `perl -i`, `cat > file`, etc.) to modify source files. These tools can corrupt files with invisible characters, wrong indentation, or incorrect whitespace that is difficult to debug.
+- **ALWAYS use VS Code editor tools** (`replace_string_in_file`, `multi_replace_string_in_file`, `create_file`, `read_file`) for all source file edits.
+- Shell tools (`grep`, `cat -n`, terminal output) are acceptable for **read-only inspection only**.
+- If `replace_string_in_file` fails to match, re-read the target section with `read_file` to get the exact text, then retry. Do not fall back to `sed`.
+- Never create temporary `.py`, `.txt`, or other scratch files to work around editing limitations. Fix the issue directly using the editor tools.
+
+---
+
 ## Coding Guidelines
 - Use Java 21 idioms and features where appropriate
 - Prefer modular, delegation-based architecture (see docs/Architecture.md)

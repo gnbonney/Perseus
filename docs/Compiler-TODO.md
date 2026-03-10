@@ -379,55 +379,56 @@ integer and string arguments.
 
 **Goal:** Simple program that declares a procedure variable and assigns/calls it.
 
-**Features Implemented:**
+**Status: PASSING** (`proc_var_test` green as of March 9, 2026).
+
+**Features implemented:**
 - [x] Grammar: procedure variable declarations (`procedure P;`)
 - [x] Grammar: procedure references as expressions (allow procedure names in assignments)
-- [x] SymbolTableBuilder: track procedure variables with "procedure:void" type
+- [x] SymbolTableBuilder: track procedure variables with "procedure:void" type — uses `Deque<ProcInfo>` stack for nested procedure support
 - [x] TypeInferencer: handle procedure types in VarExpr
-- [x] Codegen: `ProcRef` synthetic class generation for procedures (lift into objects)
-- [x] Codegen: `generateProcedureReference` and `generateProcedureVariableCall` (logic present)
-- [x] **Fixed:** `StatementGenerator.generateAssignment` emits `astore` instead of `istore` for procedure variables.
-- [x] **Fixed:** `ExpressionGenerator.generateExpr` handles loading procedure references via `procGen.generateProcedureReference`.
-- [x] **Fixed:** `StatementGenerator.exitProcedureCall` now routes calls through procedure variables to `generateProcedureVariableCall`.
-
-**Current Status:** **Core logic fixed but facing JVM verification issues.**
-- [x] Bug: `StatementGenerator.generateAssignment` emits `istore -1` for procedure assignments — **FIXED**.
-- [x] Bug: `ExpressionGenerator.generateExpr` doesn't handle loading procedure references correctly — **FIXED**.
-- [x] Bug: `StatementGenerator.exitProcedureCall` doesn't route variable-based calls to `generateProcedureVariableCall` — **FIXED**.
-- [ ] **Regression:** `proc_var_test` failing with `VerifyError: Illegal local variable number` due to `istore -1`.
-    - **Finding:** Procedure variables (like `P`, `hello`) are identified in pre-scan but their JVM slot assignments are not propagating to the `CodeGenerator`'s internal map.
-    - **Next Step:** Refactor `CodeGenerator` constructor to accept pre-computed `procVarSlots` and merge into `localIndex` to ensure valid slot indices during second pass.
+- [x] Codegen: `ProcRef` synthetic class generation via `generateProcedureReference`
+- [x] Codegen: `generateProcedureVariableCall` routes calls through the interface slot
+- [x] Codegen: `procVarSlots` field stored and used in `CodeGenerator`
+- [x] Codegen: self-reference slot allocated in `enterProcedureDecl` for procedure variables
+- [x] Codegen: `exitAssignment` routes `P := hello` to `astore` slot (not retval store)
+- [x] Codegen: `exitProcedureCall` routes `P;` through slot when inside a procedure body
+- [x] Runtime: `VoidProcedure`/`RealProcedure`/`IntegerProcedure`/`StringProcedure` Java interfaces created
+- [x] Build: Gradle `test.doFirst` copies interface `.class` files to `build/test-algol`
+- [x] `ExpressionGenerator`: fallback to `procedures` map when symbol table type lookup returns null
+- [x] `AntlrAlgolListener`: pre-scan correctly detects procedure variables without over-adding
 
 ### 13B — Procedure Parameters (`proc_param.alg`) ⚠️
 
 **Goal:** Simple program that passes a procedure as a parameter.
 
-**Features Implemented:**
-- [x] Grammar: procedure parameters in paramSpec (`procedure P;`)
-- [x] SymbolTableBuilder: track procedure parameters with "procedure:void" type
-- [ ] Codegen: procedure parameters (pass method references)
-- [ ] Codegen: calling procedure parameters
-- [ ] Test: pass procedure as argument and call it (Currently failing)
+**Status: FAILING** — `proc_param_test` produces empty output. `callIt()` contains `; unknown procedure: P` in generated Jasmin because the procedure param `P` is not visible in `callIt`'s symbol table during codegen.
+
+**Root cause:** `SymbolTableBuilder` correctly records `P` with type `procedure:void` in `callIt`'s `ProcInfo.paramTypes`. `CodeGenerator.enterProcedureDecl` should assign `P` a JVM slot in `callIt`'s frame. But `exitProcedureCall` for the `P;` statement inside `callIt` falls through to `; unknown procedure: P` instead of routing through the slot. The `isInProc` guard condition is correct but there may be a scope lookup issue (checking `currentSymbolTable` which is `callIt`'s own symbol table, vs. `mainSymbolTable`).
+
+**Features needed:**
+- [ ] Codegen: procedure params get correct JVM slots in their declaring procedure's frame
+- [ ] Codegen: `exitProcedureCall` resolves procedure params from `currentSymbolTable` inside the procedure body
+- [ ] Codegen: `generateUserProcedureInvocation` pushes a ProcRef for procedure-type value arguments
+- [ ] Test: `callIt(hello)` invokes `hello` correctly, printing `"Hello"`
 
 ### 13C — Typed Procedure References (`proc_typed_simple.alg`) ⚠️
 
 **Goal:** Program with typed procedure variables/parameters (real/integer procedures).
 
-**Features implemented:**
-- [x] Grammar: typed procedure declarations (`real procedure P(...)`)
-- [x] Grammar: typed procedure variables (`real procedure P;`)
+**Status: FAILING** — `proc_typed_simple_test` compiles and runs but produces wrong output: `3.1415901184082030.0` instead of `3.141590.0`.
+
+**Root cause:** Jasmin 2.4 parses `ldc2_w 3.14159` using `Float.parseFloat` rather than `Double.parseDouble`, widening `3.14159f` (= `3.1415901184082031`) to double instead of storing the exact double `3.14159`. The fix is to emit real literals in a format that forces Jasmin to use double precision (e.g. append a `d` suffix or use sufficient decimal places).
+
+**Features implemented (all correct, regression from Jasmin literal format):**
 - [x] SymbolTableBuilder: track typed procedures ("procedure:real", "procedure:integer")
 - [x] TypeInferencer: handle typed procedure types
-- [x] Codegen: procedure references as values (store method references as objects)
-- [x] Codegen: calling procedure references that return values
-- [x] Test: real procedure variables and parameters
+- [x] Codegen: `generateProcedureReference` generates `RealProcedure`/`IntegerProcedure` ProcRef classes
+- [x] Codegen: `generateProcedureVariableCall` calls through the correct interface with correct return type
+- [x] Codegen: `exitAssignment` for typed procedure vars routes to `astore` slot
+- [x] `proc_typed_simple.alg`: explicit `; P` call added before outer `end`
 
-**Implementation Summary:**
-- Synthetic classes generated for procedure references implementing RealProcedure/IntegerProcedure interfaces
-- Procedure variables stored as Object references in local slots
-- Procedure calls on variables use interface invocation with proper casting
-- Separate .j files generated for each procedure reference class
-- Test validates assignment of procedures to variables and calling through variables
+**Fix needed:**
+- [ ] Codegen: emit real literals in `ldc2_w` with double-precision format (e.g. `ldc2_w 3.14159D` or sufficient decimal places) to avoid Jasmin float-widening
 
 ### 13D — Deep Recursion (`deep_recursion.alg`)
 
@@ -437,13 +438,20 @@ integer and string arguments.
 - [ ] Codegen: deep recursion stack handling
 - [ ] Test: recursive calls with sufficient depth
 
-### 13E — Man or Boy (`manboy.alg`)
+### 13E — Man or Boy (`manboy.alg`) ⚠️
 
 **Goal:** Full Man or Boy test with all features integrated.
 
-**New features needed:**
-- [ ] Integration of all procedure reference features
-- [ ] Test: assert correct "Man or Boy" result (-67)
+**Status: FAILING** — `manboy_test` crashes with `NullPointerException` in `exitProcedureDecl`. Manboy has procedure B nested inside procedure A.
+
+**Root cause:** `CodeGenerator` uses a single `procBuffer` field. When A enters, `procBuffer = new StringBuilder()`. When B enters (nested inside A), `procBuffer` is overwritten with a new `StringBuilder`, discarding A's in-progress buffer. When B exits, `procBuffer` is saved and cleared to `null`. When A then exits, `procBuffer` is `null` → NPE.
+
+**Dependencies:** Fix A (13B) and Fix B (13C) should be completed first, as they are prerequisites.
+
+**Features needed:**
+- [ ] Codegen: replace single `procBuffer` with a `Deque<StringBuilder>` stack — push on `enterProcedureDecl`, pop on `exitProcedureDecl`; `activeOutput` always points to top of stack or `mainCode`
+- [ ] Codegen: non-local variable access — procedure B inside A must access A's parameters (k, x1–x5); requires display/frame pointer approach or closure-based capture (complex; may be scoped to a Future Milestone)
+- [ ] Test: `manboy_test` compiles without exception; full runtime result (-67) contingent on non-local access support
 
 ---
 

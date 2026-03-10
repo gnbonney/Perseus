@@ -214,83 +214,45 @@ public class AntlrAlgolListener {
 				for (AlgolParser.LvalueContext lv : ctx.lvalue()) {
 					String name = lv.identifier().getText();
 					String type = symbolTable.get(name);
-					// If a procedure name is used as an L-value, it's a procedure variable.
+					// If a procedure name is used as an L-value, it may be a procedure variable.
 					if (type != null && type.startsWith("procedure:")) {
-						// But NOT if it's the current procedure being assigned to (return value for typed procs)
-						// For 13A, we simplify: if it's assigned to at all, it's a variable UNLESS it's typed.
-						if (!name.equals(currentProcedure.peek())) {
-							procedureVariables.add(name);
-						}
-					}
-				}
-			}
-
-			@Override
-			public void enterVarExpr(AlgolParser.VarExprContext ctx) {
-				String name = ctx.identifier().getText();
-				String type = symbolTable.get(name);
-				// If a procedure name is used in an expression but NOT as a call, it's a variable reference.
-				if (type != null && type.startsWith("procedure:")) {
-					// Check if it's actually a call.
-					boolean isCall = false;
-					org.antlr.v4.runtime.tree.ParseTree p = ctx.getParent();
-					while (p != null) {
-						if (p instanceof AlgolParser.ProcedureCallContext call) {
-							if (call.identifier().getText().equals(name)) {
-								isCall = true;
-								break;
+						if (name.equals(currentProcedure.peek())) {
+							// Assigning to the current procedure from inside its own body.
+							// Distinguish return-value assignment (e.g. P := 3.14) from
+							// procedure-variable assignment (e.g. P := getPi).
+							SymbolTableBuilder.ProcInfo info = procedures.get(name);
+							if (info == null || "void".equals(info.returnType)) {
+								// Void procedure: P := hello is always a procedure variable assignment.
+								procedureVariables.add(name);
+							} else {
+								// Typed procedure: it's a variable assignment only if the RHS is
+								// itself a procedure name (i.e. a procedure reference, not a value).
+								AlgolParser.ExprContext rhs = ctx.expr();
+								if (rhs instanceof AlgolParser.VarExprContext varRhs) {
+									String rhsName = varRhs.identifier().getText();
+									if (procedures.containsKey(rhsName)) {
+										procedureVariables.add(name);
+									}
+								}
 							}
-						}
-						p = p.getParent();
-					}
-					if (!isCall) {
-						procedureVariables.add(name);
-					}
-				}
-			}
-
-			@Override
-			public void enterProcedureCall(AlgolParser.ProcedureCallContext ctx) {
-				String name = ctx.identifier().getText();
-				String type = symbolTable.get(name);
-				// If something is called that looks like a variable...
-				// For Milestone 13A, if it's a known procedure variable, it's a variable call.
-				if (type != null && type.startsWith("procedure:")) {
-					SymbolTableBuilder.ProcInfo info = procedures.get(name);
-					// For 13A: any procedure name called at the top level or from another procedure 
-					// that has no parameters is potentially a variable.
-					if (info != null && info.paramNames.isEmpty()) {
-						if (!name.equals(currentProcedure.peek())) {
+						} else {
 							procedureVariables.add(name);
 						}
 					}
 				}
 			}
+
 		}, programContext);
 
-		// Now add the detected procedure variables to mainSymbolTable so they get slots.
+		// Add detected procedure variables to mainSymbolTable so they get JVM slots.
+		// Only add names that were actually observed as variable references (assignments or VarExpr),
+		// NOT all no-param procedures (which would cause outer calls to route through a variable slot).
 		for (String pv : procedureVariables) {
 			String type = symbolTable.get(pv);
-			// For 13A, everything in procedureVariables gets a slot.
 			if (type != null && type.startsWith("procedure:")) {
 				if (!mainSymbolTable.containsKey(pv)) {
+					System.out.println("DEBUG: Adding procedure variable to mainSymbolTable: " + pv);
 					mainSymbolTable.put(pv, type);
-				}
-			}
-		}
-
-		// Also find ALL procedure names and ensure they are in mainSymbolTable if they are variables
-		// This is a safety pass for Milestone 13A specifically.
-		for (Map.Entry<String, SymbolTableBuilder.ProcInfo> entry : procedures.entrySet()) {
-			String name = entry.getKey();
-			SymbolTableBuilder.ProcInfo info = entry.getValue();
-			String type = symbolTable.get(name);
-			if (type != null && type.startsWith("procedure:")) {
-				if (info != null && info.paramNames.isEmpty() && !"oneton".equals(name)) {
-					System.out.println("DEBUG: Explicitly adding procedure variable to mainSymbolTable: " + name);
-					if (!mainSymbolTable.containsKey(name)) {
-						mainSymbolTable.put(name, type);
-					}
 				}
 			}
 		}

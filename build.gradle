@@ -30,6 +30,21 @@ generateGrammarSource {
 
 test {
     useJUnitPlatform()
+    // Copy runtime interface classes (Thunk, *Procedure) to build/test-algol so
+    // assembled programs can find them on their classpath.
+    doFirst {
+        def destDir = file('build/test-algol/gnb/jalgol/compiler')
+        destDir.mkdirs()
+        def srcDir = file("${buildDir}/classes/java/main/gnb/jalgol/compiler")
+        if (srcDir.exists()) {
+            copy {
+                from srcDir
+                into destDir
+                include 'Thunk.class', 'VoidProcedure.class', 'IntegerProcedure.class',
+                        'RealProcedure.class', 'StringProcedure.class'
+            }
+        }
+    }
 }
 
 // Add a Gradle task to compile Algol to Jasmin and then to class files
