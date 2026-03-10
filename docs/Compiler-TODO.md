@@ -440,16 +440,24 @@ integer and string arguments.
 
 ## Milestone 14 — Procedure Parameters and Real Arrays (`recursion_euler.alg`)
 
-**Goal:** `recursion_euler.alg` compiles and runs, demonstrating procedure parameters (call-by-name), real arrays with nonzero bounds, and complex expressions.
+**Goal:** `recursion_euler.alg` compiles and runs, demonstrating typed procedure parameters, real arrays, and complex expression forms.
+
+**Already implemented (from prior milestones):**
+- [x] Grammar: procedure declarations with real/integer parameters and return types
+- [x] Grammar: nested blocks, for loops (step/until, while forms), and arithmetic expressions
+- [x] Grammar: procedure calls as expressions (typed procedure return values)
+- [x] Codegen: recursive procedure calls (`invokestatic` to same class)
+- [x] Codegen: integer/real type handling in expressions and assignments
+- [x] Codegen: real arrays with non-zero lower bound offset (`bounds[0]` subtracted on array access/store in CodeGenerator)
 
 **New features needed:**
-- [ ] Grammar: procedure declarations with real/integer parameters and return types
-- [ ] Grammar: nested blocks, for loops, and arithmetic expressions
-- [ ] Grammar: procedure calls as expressions
-- [ ] Codegen: recursive procedure calls
-- [ ] Codegen: real arrays with nonzero lower bounds
-- [ ] Codegen: correct handling of real/integer types in expressions and assignments
-- [ ] Test: assert output matches expected result for a sample input
+- [ ] Grammar: bare `array` declaration without type prefix (`array m[0:15]`; Algol 60 default is `real`; current grammar requires a type keyword before `ARRAY`)
+- [ ] Grammar: comma-separated for-list (`for i := 1, i + 1 while t < tim do`; current grammar supports only one for-element: `expr (STEP expr UNTIL expr | WHILE expr)`)
+- [ ] Grammar/Codegen: if-then-else as an **expression** (`t := if abs(ds) < eps then t + 1 else 0`; currently `ifStatement` is a statement rule, not usable inside an expression)
+- [ ] Grammar: named `end` (`end euler`; current grammar accepts only bare `end`)
+- [ ] Codegen: typed procedure parameter called with arguments (`fct(0)`, `fct(i)` — no-arg procedure variable calls work, but procedure params carrying typed arguments do not)
+- [ ] Fix: `t` is used in `recursion_euler.alg` but absent from the local declarations (`integer i, k, n, r;`) — add `integer t` to the declaration list in the `.alg` file
+- [ ] Test: assert output matches expected result for a sample Euler summation input
 
 ---
 
