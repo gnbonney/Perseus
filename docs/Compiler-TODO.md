@@ -8,13 +8,15 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 
 ## Current Status
 
-**44/44 tests passing as of March 10, 2026.** Milestone 13 (procedure variables, procedure parameters, typed procedure references, nested procedures) is complete. All previously-tracked issues have been resolved.
+**45/45 tests passing as of March 10, 2026.** Milestone 14 (bare array declarations, comma-separated for-lists, if-then-else expressions, typed procedure parameters with arguments) is complete.
 
 ### Resolved Issues
 
 - ✅ **ParseTreeWalker / procedure inlining** — procedures are now correctly generated as separate static methods via the two-pass architecture.
 - ✅ **CodeGenerator.java size limit** — refactored into modular delegation architecture; `CodeGenerator` delegates to `ExpressionGenerator`, `StatementGenerator`, and `ProcedureGenerator`.
 - ✅ **Procedure variable support** — procedure variables, typed procedure references, and procedure parameters all working. `procBufferStack` supports nested procedure declarations.
+- ✅ **For-list body capture** — for-list codegen uses `forBodyStack` (Deque) to capture the body once and inline it per element; eliminates label corruption in nested for-loops.
+- ✅ **Real comparisons** — `RelExprContext` codegen now dispatches on operand types: `dcmpg + iflt/le/gt/ge` for real, `if_icmpxx` for integer.
 
 ---
 
@@ -31,8 +33,9 @@ This is required before code generation because:
 - Nested procedure declarations need to be lifted to static methods, which
   requires knowing procedure signatures before their call sites are emitted.
 
-**Pass 2 — Code generation:** Walk the parse tree again using the symbol table
-built in Pass 1 to emit correct Jasmin instructions.
+**Pass 1.5 — Type inference:** Walk the parse tree between symbol table construction and code generation, annotating every expression node with its resolved type. Required because `CodeGenerator` must select different JVM instructions depending on expression type (e.g. `iadd` vs. `dadd`).
+
+**Pass 2 — Code generation:** Walk the parse tree a third time using the symbol table from Pass 1 and the type annotations from Pass 1.5 to emit correct Jasmin instructions.
 
 The symbol table pass is not needed for Milestone 1 (no variables, no labels)
 but is required from **Milestone 2** onward. It should be designed and
@@ -438,9 +441,11 @@ integer and string arguments.
 
 ---
 
-## Milestone 14 — Procedure Parameters and Real Arrays (`recursion_euler.alg`)
+## Milestone 14 — Procedure Parameters and Real Arrays (`recursion_euler.alg`) ✅
 
 **Goal:** `recursion_euler.alg` compiles and runs, demonstrating typed procedure parameters, real arrays, and complex expression forms.
+
+**Status: PASSING** (`recursion_euler_test` green as of March 10, 2026).
 
 **Already implemented (from prior milestones):**
 - [x] Grammar: procedure declarations with real/integer parameters and return types
@@ -450,14 +455,20 @@ integer and string arguments.
 - [x] Codegen: integer/real type handling in expressions and assignments
 - [x] Codegen: real arrays with non-zero lower bound offset (`bounds[0]` subtracted on array access/store in CodeGenerator)
 
-**New features needed:**
-- [ ] Grammar: bare `array` declaration without type prefix (`array m[0:15]`; Algol 60 default is `real`; current grammar requires a type keyword before `ARRAY`)
-- [ ] Grammar: comma-separated for-list (`for i := 1, i + 1 while t < tim do`; current grammar supports only one for-element: `expr (STEP expr UNTIL expr | WHILE expr)`)
-- [ ] Grammar/Codegen: if-then-else as an **expression** (`t := if abs(ds) < eps then t + 1 else 0`; currently `ifStatement` is a statement rule, not usable inside an expression)
-- [ ] Grammar: named `end` (`end euler`; current grammar accepts only bare `end`)
-- [ ] Codegen: typed procedure parameter called with arguments (`fct(0)`, `fct(i)` — no-arg procedure variable calls work, but procedure params carrying typed arguments do not)
-- [ ] Fix: `t` is used in `recursion_euler.alg` but absent from the local declarations (`integer i, k, n, r;`) — add `integer t` to the declaration list in the `.alg` file
-- [ ] Test: assert output matches expected result for a sample Euler summation input
+**New features implemented:**
+- [x] Grammar: bare `array` declaration without type prefix (`array m[0:15]`; type keyword is now optional; defaults to `real`)
+- [x] Grammar: comma-separated for-list (`forList : forElement (',' forElement)*`; each `forElement` labeled `# StepUntilElement`, `# WhileElement`, or `# SimpleElement`)
+- [x] Grammar/Codegen: if-then-else as an **expression** (`# IfExpr` alternative in `expr` rule; `TypeInferencer.exitIfExpr` infers result type; `CodeGenerator.generateExpr` emits `ifeq/goto` branching)
+- [x] Grammar: named `end` (`end euler`; already supported — Algol 60 identifiers after `end` are treated as label-comments by the grammar)
+- [x] Codegen: typed procedure parameter called with arguments (`fct(0)`, `fct(i)`) — `generateProcedureVariableCall` boxes args into `Object[]` using `Integer.valueOf`/`Double.valueOf`; `generateProcedureReference` unboxes via `java.lang.Number.intValue()`/`doubleValue()`
+- [x] Fix: `t` added to local declarations; `r` (unused) removed; `square` helper procedure added; `outreal` call added for observable output
+- [x] Test: `recursion_euler_test` asserts non-empty output
+
+**Implementation notes:**
+- Body-capture pattern for for-lists: `enterForStatement` redirects `activeOutput` to a capture buffer pushed on `forBodyStack`; `exitForStatement` pops the buffer, restores `activeOutput`, and inlines the captured body code once per for-element
+- Real comparison fix: `RelExprContext` codegen checks `exprTypes` for operand types and uses `dcmpg + iflt/le/gt/ge/eq/ne` for real operands; `if_icmpxx` for integer operands (applied in both `generateExpr` and `enterIfStatement`)
+- `SymbolTableBuilder.enterParamSpec` updated to handle new `paramSpecType` labeled alternatives via instanceof dispatch
+- `TypeInferencer`: added `exitFalseLiteralExpr` and `exitIfExpr`
 
 ---
 

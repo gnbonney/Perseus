@@ -145,6 +145,18 @@ public class TypeInferencer extends AlgolBaseListener {
         }
     }
     
+    @Override
+    public void exitFalseLiteralExpr(AlgolParser.FalseLiteralExprContext ctx) {
+        exprTypes.put(ctx, "boolean");
+    }
+
+    @Override
+    public void exitIfExpr(AlgolParser.IfExprContext ctx) {
+        // Result type is determined by the then-branch
+        String thenType = exprTypes.get(ctx.expr(1));
+        exprTypes.put(ctx, thenType != null ? thenType : "integer");
+    }
+
     /**
      * Returns the return type of a built-in math function, or null if not recognized.
      */

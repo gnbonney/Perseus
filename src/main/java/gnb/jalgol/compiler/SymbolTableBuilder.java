@@ -130,20 +130,38 @@ public class SymbolTableBuilder extends AlgolBaseListener {
     public void enterParamSpec(AlgolParser.ParamSpecContext ctx) {
         ProcInfo proc = currentProc();
         if (proc != null) {
-            String type = ctx.getStart().getText(); // "integer", "real", "string", or "procedure"
+            // Determine the type from the paramSpecType alternative
+            AlgolParser.ParamSpecTypeContext typeCtx = ctx.paramSpecType();
+            String actualBaseType;
+            boolean isProcType = false;
+            if (typeCtx instanceof AlgolParser.RealProcedureParamTypeContext) {
+                actualBaseType = "procedure:real"; isProcType = true;
+            } else if (typeCtx instanceof AlgolParser.IntegerProcedureParamTypeContext) {
+                actualBaseType = "procedure:integer"; isProcType = true;
+            } else if (typeCtx instanceof AlgolParser.StringProcedureParamTypeContext) {
+                actualBaseType = "procedure:string"; isProcType = true;
+            } else if (typeCtx instanceof AlgolParser.VoidProcedureParamTypeContext) {
+                actualBaseType = "procedure:void"; isProcType = true;
+            } else if (typeCtx instanceof AlgolParser.RealParamTypeContext) {
+                actualBaseType = "real";
+            } else if (typeCtx instanceof AlgolParser.IntegerParamTypeContext) {
+                actualBaseType = "integer";
+            } else if (typeCtx instanceof AlgolParser.StringParamTypeContext) {
+                actualBaseType = "string";
+            } else if (typeCtx instanceof AlgolParser.BooleanParamTypeContext) {
+                actualBaseType = "boolean";
+            } else {
+                actualBaseType = "integer"; // fallback
+            }
             for (AlgolParser.IdentifierContext id : ctx.paramList().identifier()) {
                 String paramName = id.getText();
-                String actualType;
-                if ("procedure".equals(type)) {
-                    actualType = "procedure:void"; // default for untyped procedure params
+                proc.paramTypes.put(paramName, actualBaseType);
+                if (isProcType) {
                     // Procedure parameters are passed as ProcRef objects (by value), not as thunks
                     proc.valueParams.add(paramName);
-                } else {
-                    actualType = type;
                 }
-                proc.paramTypes.put(paramName, actualType);
                 // Add to global symbol table so TypeInferencer can resolve types of param uses
-                symbolTable.put(paramName, actualType);
+                symbolTable.put(paramName, actualBaseType);
             }
         }
     }
@@ -187,7 +205,8 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         if (ctx.INTEGER() != null) elemType = "integer";
         else if (ctx.REAL() != null) elemType = "real";
         else if (ctx.STRING() != null) elemType = "string";
-        else elemType = "boolean";
+        else if (ctx.BOOLEAN() != null) elemType = "boolean";
+        else elemType = "real"; // bare 'array' defaults to real per Algol 60
         String arrType = elemType + "[]";
         String name = ctx.identifier().getText();
         int lower = Integer.parseInt(ctx.unsignedInt(0).getText());

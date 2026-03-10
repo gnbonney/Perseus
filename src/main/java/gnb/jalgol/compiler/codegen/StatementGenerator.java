@@ -177,26 +177,33 @@ public class StatementGenerator implements GeneratorDelegate {
         currentForLoopLabel = CodeGenUtils.generateUniqueLabel("loop");
         currentForEndLabel = CodeGenUtils.generateUniqueLabel("endfor");
 
-        if (ctx.STEP() != null) {
-            activeOutput.append(exprGen.generateExpr(ctx.expr(0)));
-            activeOutput.append("istore ").append(varIndex).append("\n");
-            activeOutput.append(currentForLoopLabel).append(":\n");
-            activeOutput.append("iload ").append(varIndex).append("\n");
-            activeOutput.append(exprGen.generateExpr(ctx.expr(2)));
-            activeOutput.append("if_icmpgt ").append(currentForEndLabel).append("\n");
+        // Only handle the first for-element for simple step/until support in this delegate
+        if (!ctx.forList().forElement().isEmpty()) {
+            AlgolParser.ForElementContext elem = ctx.forList().forElement().get(0);
+            if (elem instanceof AlgolParser.StepUntilElementContext e) {
+                activeOutput.append(exprGen.generateExpr(e.expr(0)));
+                activeOutput.append("istore ").append(varIndex).append("\n");
+                activeOutput.append(currentForLoopLabel).append(":\n");
+                activeOutput.append("iload ").append(varIndex).append("\n");
+                activeOutput.append(exprGen.generateExpr(e.expr(2)));
+                activeOutput.append("if_icmpgt ").append(currentForEndLabel).append("\n");
+            }
         }
     }
 
     public void exitForStatement(AlgolParser.ForStatementContext ctx, StringBuilder activeOutput) {
         if (isInProcedureDecl && !inProcedureWalk) return;
-        if (ctx.STEP() != null) {
-            String varName = ctx.identifier().getText();
-            Integer varIndex = context.getLocalIndex().get(varName);
-            if (varIndex == null) return;
-            activeOutput.append("iload ").append(varIndex).append("\n");
-            activeOutput.append(exprGen.generateExpr(ctx.expr(1)));
-            activeOutput.append("iadd\nistore ").append(varIndex).append("\n");
-            activeOutput.append("goto ").append(currentForLoopLabel).append("\n");
+        if (!ctx.forList().forElement().isEmpty()) {
+            AlgolParser.ForElementContext elem = ctx.forList().forElement().get(0);
+            if (elem instanceof AlgolParser.StepUntilElementContext e) {
+                String varName = ctx.identifier().getText();
+                Integer varIndex = context.getLocalIndex().get(varName);
+                if (varIndex == null) return;
+                activeOutput.append("iload ").append(varIndex).append("\n");
+                activeOutput.append(exprGen.generateExpr(e.expr(1)));
+                activeOutput.append("iadd\nistore ").append(varIndex).append("\n");
+                activeOutput.append("goto ").append(currentForLoopLabel).append("\n");
+            }
         }
         activeOutput.append(currentForEndLabel).append(":\n");
     }

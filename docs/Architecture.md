@@ -7,7 +7,8 @@ This document describes the high-level architecture of the Algol-to-JVM compiler
 The project consists of several main components:
 - **Frontend (Parser & Lexer):** Parses Algol source code using ANTLR grammar.
 - **Pass 1 — Symbol Table Construction:** Walks the parse tree to collect variable names, types, and block scope nesting. Required before code generation because Jasmin needs `.limit locals N` declared before method body instructions, and forward `goto` labels must be known before jumps are emitted.
-- **Pass 2 — Code Generation:** Walks the parse tree a second time, using the symbol table from Pass 1, to emit Jasmin assembly instructions.
+- **Pass 1.5 — Type Inference:** Walks the parse tree after symbol table construction to annotate every expression node with its resolved type (`integer`, `real`, `boolean`, `string`, or `procedure:T`). Required because `CodeGenerator` must select different JVM instructions depending on expression type (e.g. `iadd` vs `dadd`), and those types must be fully resolved before any code is emitted.
+- **Pass 2 — Code Generation:** Walks the parse tree a third time, using both the symbol table from Pass 1 and the type annotations from Pass 1.5, to emit Jasmin assembly instructions.
 - **Assembly:** Jasmin assembles the `.j` output into JVM `.class` files.
 - **Testing & Samples:** Includes sample Algol programs and JUnit tests for validation.
 - **Supporting Tools:** Soot can be used standalone for bytecode analysis/disassembly but is not a build dependency (see [Development.md](Development.md)).
@@ -20,12 +21,16 @@ flowchart TD
     B --> C[Parse Tree]
     C --> D[Pass 1: Symbol Table Builder]
     D --> E[Symbol Table]
-    C --> F[Pass 2: Code Generator]
+    C --> F[Pass 1.5: Type Inferencer]
     E --> F
-    F --> G[Jasmin Source]
-    G --> H[Jasmin Assembler]
-    H --> I[JVM Bytecode]
-    I --> J[Run on JVM]
+    F --> G[Type Annotations]
+    C --> H[Pass 2: Code Generator]
+    E --> H
+    G --> H
+    H --> I[Jasmin Source]
+    I --> J[Jasmin Assembler]
+    J --> K[JVM Bytecode]
+    K --> L[Run on JVM]
 ```
 
 ## Data Flow
@@ -35,11 +40,15 @@ sequenceDiagram
     participant User
     participant Parser
     participant SymbolTableBuilder
+    participant TypeInferencer
     participant CodeGenerator
     participant Jasmin
     participant JVM
     User->>Parser: Provide Algol source
     Parser->>SymbolTableBuilder: Parse tree (Pass 1)
+    SymbolTableBuilder->>TypeInferencer: Symbol table
+    Parser->>TypeInferencer: Parse tree (Pass 1.5)
+    TypeInferencer->>CodeGenerator: Type annotations
     SymbolTableBuilder->>CodeGenerator: Symbol table
     Parser->>CodeGenerator: Parse tree (Pass 2)
     CodeGenerator->>Jasmin: Emit Jasmin source
@@ -53,6 +62,12 @@ The compiler produces one or more `.class` files per Algol source file:
 
 - **`Hello.class`** — the main compiled class (always produced)
 - **`Hello$Thunk0.class`, `Hello$Thunk1.class`, …** — synthetic thunk classes, one per call-by-name argument at each call site that uses a procedure with name-parameters
+- **`Hello$ProcRef0.class`, `Hello$ProcRef1.class`, …** — synthetic procedure reference classes that lift a static method to an object implementing the appropriate procedure interface (`VoidProcedure`, `RealProcedure`, `IntegerProcedure`, or `StringProcedure`). One is generated per distinct procedure variable assignment or procedure-typed argument.
+
+In addition, the following pre-compiled runtime support files are copied into the output directory alongside the program's `.class` files:
+
+- **`VoidProcedure.class`**, **`RealProcedure.class`**, **`IntegerProcedure.class`**, **`StringProcedure.class`** — Java interfaces used as the type of procedure variables and procedure parameters. All `$ProcRef` classes implement one of these interfaces.
+- **`Thunk.class`** — the interface used by call-by-name thunk objects (`get()` / `set()`).
 
 This follows the same convention as `javac`, which emits `Foo$Inner.class` for inner classes and `Foo$1.class` for anonymous classes. Users run the program the same way regardless: `java -cp . Hello`. No JAR packaging is required.
 
@@ -200,4 +215,4 @@ This command compiles `hello.alg` into `Hello.j` and `Hello.class` in the `build
 
 ---
 
-_Last updated: March 1, 2026_
+_Last updated: March 10, 2026_

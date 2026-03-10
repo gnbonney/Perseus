@@ -888,5 +888,25 @@ end
         assertTrue(output.trim().length() > 0, "Should produce some output");
     }
 
+    @Test
+    public void recursion_euler_test() throws Exception {
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/recursion_euler.alg", "gnb/jalgol/programs", "RecursionEuler", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== RECURSION_EULER JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END RECURSION_EULER ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.RecursionEuler");
+        System.out.println("RecursionEuler output: [" + output + "]");
+        assertTrue(output.trim().length() > 0, "Should produce some output");
+    }
+
 
 } 

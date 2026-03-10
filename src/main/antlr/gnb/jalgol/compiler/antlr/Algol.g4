@@ -62,7 +62,18 @@ valueSpec
   ;
 
 paramSpec
-  : (INTEGER | REAL | STRING | PROCEDURE) paramList ';'
+  : paramSpecType paramList ';'
+  ;
+
+paramSpecType
+  : REAL PROCEDURE    # RealProcedureParamType
+  | INTEGER PROCEDURE # IntegerProcedureParamType
+  | STRING PROCEDURE  # StringProcedureParamType
+  | REAL              # RealParamType
+  | INTEGER           # IntegerParamType
+  | STRING            # StringParamType
+  | BOOLEAN           # BooleanParamType
+  | PROCEDURE         # VoidProcedureParamType
   ;
 
 paramList
@@ -74,7 +85,7 @@ varDecl
   ;
 
 arrayDecl
-  : (INTEGER | REAL | BOOLEAN | STRING | PROCEDURE) ARRAY identifier '[' unsignedInt ':' unsignedInt ']'
+  : (INTEGER | REAL | BOOLEAN | STRING | PROCEDURE)? ARRAY identifier '[' unsignedInt ':' unsignedInt ']'
   ;
 
 varList
@@ -98,7 +109,17 @@ ifStatement
   ;
 
 forStatement
-  : FOR identifier (':=' | '=') expr (STEP expr UNTIL expr | WHILE expr) DO statement
+  : FOR identifier (':=' | '=') forList DO statement
+  ;
+
+forList
+  : forElement (',' forElement)*
+  ;
+
+forElement
+  : expr STEP expr UNTIL expr   # StepUntilElement
+  | expr WHILE expr             # WhileElement
+  | expr                        # SimpleElement
   ;
 
 label
@@ -111,6 +132,7 @@ expr
   | expr op=('+'|'-') expr   # AddSubExpr
   | expr op='&' expr         # AndExpr
   | '-' expr                 # UnaryMinusExpr
+  | IF expr THEN expr ELSE expr # IfExpr
   | identifier '[' expr ']'  # ArrayAccessExpr
   | identifier '(' argList ')' # ProcCallExpr
   | realLiteral              # RealLiteralExpr
