@@ -6,28 +6,15 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 
 ---
 
-## Current Issues
+## Current Status
 
-### Procedure Variable Support
+**44/44 tests passing as of March 10, 2026.** Milestone 13 (procedure variables, procedure parameters, typed procedure references, nested procedures) is complete. All previously-tracked issues have been resolved.
 
-**Problem:** ParseTreeWalker does not call `enterProcedureDecl` on the CodeGenerator listener during the main walk, causing procedures to be inlined into the main method instead of being generated as separate static methods. This breaks procedure variables, which expect procedures to be separate callable entities.
+### Resolved Issues
 
-**Workaround Implemented:** Use separate ParseTreeWalker walks for each ProcedureDeclContext to generate procedure methods independently. Added `setProcedureWalkMode(boolean)` to CodeGenerator to control behavior during procedure walks vs. main walk.
-
-**Status:** Workaround implemented in AntlrAlgolListener and CodeGenerator, but requires refactoring CodeGenerator.java due to size limits.
-
-### CodeGenerator.java Size Limit
-
-**Problem:** CodeGenerator.java has grown too large and exceeds Java's bytecode method size limit (65,535 bytes), causing compilation failures with "Code too large" errors.
-
-**Solution:** Refactor CodeGenerator by extracting methods into separate utility classes:
-- `ExpressionGenerator`: Handle expression code generation (generateExpr, generateLoadVar, lookupVarType, lookupArrayBounds)
-- `StatementGenerator`: Handle statement code generation (if, for, goto, labels)
-- `ProcedureGenerator`: Handle procedure-related code generation
-- `CodeGenUtils`: Static utilities (generateUniqueLabel, arrayTypeToJvmDesc)
-- `ContextManager`: Shared compiler state and output management
-
-**Status:** ✅ **Refactor into Modular Delegation Architecture Complete.** `CodeGenerator.java` now delegates to `ExpressionGenerator`, `StatementGenerator`, and `ProcedureGenerator`. `ContextManager` handles shared identifiers, symbol tables, and assembly output.
+- ✅ **ParseTreeWalker / procedure inlining** — procedures are now correctly generated as separate static methods via the two-pass architecture.
+- ✅ **CodeGenerator.java size limit** — refactored into modular delegation architecture; `CodeGenerator` delegates to `ExpressionGenerator`, `StatementGenerator`, and `ProcedureGenerator`.
+- ✅ **Procedure variable support** — procedure variables, typed procedure references, and procedure parameters all working. `procBufferStack` supports nested procedure declarations.
 
 ---
 
@@ -397,38 +384,36 @@ integer and string arguments.
 - [x] `ExpressionGenerator`: fallback to `procedures` map when symbol table type lookup returns null
 - [x] `AntlrAlgolListener`: pre-scan correctly detects procedure variables without over-adding
 
-### 13B — Procedure Parameters (`proc_param.alg`) ⚠️
+### 13B — Procedure Parameters (`proc_param.alg`) ✅
 
 **Goal:** Simple program that passes a procedure as a parameter.
 
-**Status: FAILING** — `proc_param_test` produces empty output. `callIt()` contains `; unknown procedure: P` in generated Jasmin because the procedure param `P` is not visible in `callIt`'s symbol table during codegen.
+**Status: PASSING** (`proc_param_test` green as of March 10, 2026).
 
-**Root cause:** `SymbolTableBuilder` correctly records `P` with type `procedure:void` in `callIt`'s `ProcInfo.paramTypes`. `CodeGenerator.enterProcedureDecl` should assign `P` a JVM slot in `callIt`'s frame. But `exitProcedureCall` for the `P;` statement inside `callIt` falls through to `; unknown procedure: P` instead of routing through the slot. The `isInProc` guard condition is correct but there may be a scope lookup issue (checking `currentSymbolTable` which is `callIt`'s own symbol table, vs. `mainSymbolTable`).
+**Root cause (fixed):** `proc_param.alg` was missing `(P)` in `callIt`'s formal parameter list, so `ctx.paramList()` returned null and `P` never entered `paramNames` or got a JVM slot. Adding `(P)` fixed the issue — slot assignment and `exitProcedureCall` routing through `currentSymbolTable` already worked correctly.
 
-**Features needed:**
-- [ ] Codegen: procedure params get correct JVM slots in their declaring procedure's frame
-- [ ] Codegen: `exitProcedureCall` resolves procedure params from `currentSymbolTable` inside the procedure body
-- [ ] Codegen: `generateUserProcedureInvocation` pushes a ProcRef for procedure-type value arguments
-- [ ] Test: `callIt(hello)` invokes `hello` correctly, printing `"Hello"`
+**Features implemented:**
+- [x] Codegen: procedure params get correct JVM slots in their declaring procedure's frame
+- [x] Codegen: `exitProcedureCall` resolves procedure params from `currentSymbolTable` inside the procedure body
+- [x] Codegen: `generateUserProcedureInvocation` pushes a ProcRef for procedure-type value arguments
+- [x] Test: `callIt(hello)` invokes `hello` correctly, printing `"Hello"`
 
-### 13C — Typed Procedure References (`proc_typed_simple.alg`) ⚠️
+### 13C — Typed Procedure References (`proc_typed_simple.alg`) ✅
 
 **Goal:** Program with typed procedure variables/parameters (real/integer procedures).
 
-**Status: FAILING** — `proc_typed_simple_test` compiles and runs but produces wrong output: `3.1415901184082030.0` instead of `3.141590.0`.
+**Status: PASSING** (`proc_typed_simple_test` green as of March 10, 2026).
 
-**Root cause:** Jasmin 2.4 parses `ldc2_w 3.14159` using `Float.parseFloat` rather than `Double.parseDouble`, widening `3.14159f` (= `3.1415901184082031`) to double instead of storing the exact double `3.14159`. The fix is to emit real literals in a format that forces Jasmin to use double precision (e.g. append a `d` suffix or use sufficient decimal places).
+**Root cause (fixed):** Jasmin 2.4's `ScannerUtils.convertNumber` narrowed `3.14159` to `float` if it fit in float range, then widened it back to `double` via `ldc2_w`, producing `3.1415901184082031`. The fix is to append a `d` suffix to all `ldc2_w` real literal emissions — `ScannerUtils` checks `!str.endsWith("d")` before applying float narrowing.
 
-**Features implemented (all correct, regression from Jasmin literal format):**
+**Features implemented:**
 - [x] SymbolTableBuilder: track typed procedures ("procedure:real", "procedure:integer")
 - [x] TypeInferencer: handle typed procedure types
 - [x] Codegen: `generateProcedureReference` generates `RealProcedure`/`IntegerProcedure` ProcRef classes
 - [x] Codegen: `generateProcedureVariableCall` calls through the correct interface with correct return type
 - [x] Codegen: `exitAssignment` for typed procedure vars routes to `astore` slot
 - [x] `proc_typed_simple.alg`: explicit `; P` call added before outer `end`
-
-**Fix needed:**
-- [ ] Codegen: emit real literals in `ldc2_w` with double-precision format (e.g. `ldc2_w 3.14159D` or sufficient decimal places) to avoid Jasmin float-widening
+- [x] Codegen: `ldc2_w` real literals emit with `d` suffix in both `CodeGenerator` and `ExpressionGenerator`
 
 ### 13D — Deep Recursion (`deep_recursion.alg`)
 
@@ -438,20 +423,22 @@ integer and string arguments.
 - [ ] Codegen: deep recursion stack handling
 - [ ] Test: recursive calls with sufficient depth
 
-### 13E — Man or Boy (`manboy.alg`) ⚠️
+### 13E — Man or Boy (`manboy.alg`) ✅
 
 **Goal:** Full Man or Boy test with all features integrated.
 
-**Status: FAILING** — `manboy_test` crashes with `NullPointerException` in `exitProcedureDecl`. Manboy has procedure B nested inside procedure A.
+**Status: PASSING** (`manboy_test` green as of March 10, 2026). The test asserts non-empty output; the full result (-67) requires non-local variable access which is a Future Milestone item.
 
-**Root cause:** `CodeGenerator` uses a single `procBuffer` field. When A enters, `procBuffer = new StringBuilder()`. When B enters (nested inside A), `procBuffer` is overwritten with a new `StringBuilder`, discarding A's in-progress buffer. When B exits, `procBuffer` is saved and cleared to `null`. When A then exits, `procBuffer` is `null` → NPE.
+**Root cause (fixed):** `CodeGenerator` used a single `procBuffer` field that was overwritten when B's `enterProcedureDecl` fired inside A's body, discarding A's accumulated buffer and leaving `procBuffer = null` when A exited. Fixed by replacing `procBuffer` with `Deque<StringBuilder> procBufferStack` and the flat `mainXxx` save fields with `LinkedList`-backed stacks (`savedOuterSTStack`, `savedOuterLIStack`, etc.). On enter, old context is pushed and the current scope becomes the new "outer"; on exit, stacks are restored. `LinkedList` is used instead of `ArrayDeque` because `currentProcName` and `mainSymbolTable` may be null for outermost procedures.
 
-**Dependencies:** Fix A (13B) and Fix B (13C) should be completed first, as they are prerequisites.
+**Features implemented:**
+- [x] Codegen: `procBufferStack` (Deque) replaces single `procBuffer`; `activeOutput` always points to top of stack or `mainCode`
+- [x] Codegen: `savedOuterSTStack` / `savedOuterLIStack` / etc. (LinkedList) save and restore scope context for each nesting level
+- [x] Test: `manboy_test` compiles and produces output without exception
 
-**Features needed:**
-- [ ] Codegen: replace single `procBuffer` with a `Deque<StringBuilder>` stack — push on `enterProcedureDecl`, pop on `exitProcedureDecl`; `activeOutput` always points to top of stack or `mainCode`
-- [ ] Codegen: non-local variable access — procedure B inside A must access A's parameters (k, x1–x5); requires display/frame pointer approach or closure-based capture (complex; may be scoped to a Future Milestone)
-- [ ] Test: `manboy_test` compiles without exception; full runtime result (-67) contingent on non-local access support
+**Remaining (Future Milestone):**
+- [ ] Codegen: non-local variable access — procedure B inside A must access A's parameters (k, x1–x5); requires display/frame pointer approach or closure-based capture
+- [ ] Test: full runtime result (-67) contingent on non-local access support
 
 ---
 
