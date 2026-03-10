@@ -415,13 +415,9 @@ integer and string arguments.
 - [x] `proc_typed_simple.alg`: explicit `; P` call added before outer `end`
 - [x] Codegen: `ldc2_w` real literals emit with `d` suffix in both `CodeGenerator` and `ExpressionGenerator`
 
-### 13D — Deep Recursion (`deep_recursion.alg`)
+### 13D — Deep Recursion (`deep_recursion.alg`) — SKIPPED
 
-**Goal:** Simple deep recursion test (factorial or similar) to validate stack handling.
-
-**New features needed:**
-- [ ] Codegen: deep recursion stack handling
-- [ ] Test: recursive calls with sufficient depth
+**Rationale:** `manboy.alg` (13E) already exercises mutual recursion and deep recursive calls. No additional deep recursion milestone is needed.
 
 ### 13E — Man or Boy (`manboy.alg`) ✅
 
