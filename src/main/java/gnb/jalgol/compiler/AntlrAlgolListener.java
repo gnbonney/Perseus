@@ -271,6 +271,7 @@ public class AntlrAlgolListener {
 			String name = entry.getKey();
 			String type = entry.getValue();
 			if (type.endsWith("[]")) continue;
+			if (!type.startsWith("procedure:")) continue; // Skip scalars - they become static fields
 
 			localIndex.put(name, nextLocal);
 			if (type.startsWith("procedure:")) {

@@ -8,7 +8,7 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 
 ## Current Status
 
-**45/45 tests passing as of March 10, 2026.** Milestone 14 (bare array declarations, comma-separated for-lists, if-then-else expressions, typed procedure parameters with arguments) is complete.
+**45/45 tests passing as of March 10, 2026.** Milestone 15 (non-local scalar variable access, procedures accessing outer-scope variables) is complete.
 
 ### Resolved Issues
 
@@ -472,14 +472,14 @@ integer and string arguments.
 
 ---
 
-## Milestone 15 — Call-by-Name Procedures (`pi2.alg`)
+## Milestone 15 — Non-Local Scalar Variable Access (`pi2.alg`)
 
-**Goal:** `pi2.alg` compiles and runs, demonstrating call-by-name parameters in a real-procedure context.
+**Goal:** `pi2.alg` compiles and runs, demonstrating procedures accessing outer-scope scalar variables.
 
 **New features needed:**
-- [ ] Grammar: parameterless procedure declarations (zero-arg procedure syntax)
-- [ ] Codegen: call-by-name for real variable parameters (builds on Milestone 12 thunk support)
-- [ ] Test: assert correct π approximation output
+- [x] Promote outer-scope scalars to static class fields (consistent with arrays)
+- [x] Update all codegen sites to use `getstatic`/`putstatic` for static scalars
+- [x] Test: assert correct π approximation output
 
 ---
 
@@ -560,7 +560,7 @@ integer and string arguments.
 # - `jen.alg` (call-by-name) — Milestone 12
 # - `manboy.alg` (deep recursion + procedure refs) — Milestone 13
 # - `recursion_euler.alg` (procedure parameters + real arrays) — Milestone 14
-# - `pi2.alg` (call-by-name procedures) — Milestone 15
+# - `pi2.alg` (non-local scalar access) — Milestone 15
 # - `boolean_operators.alg` — Milestone 16
 # - `real_array.alg` — Milestone 17
 # - `string_output.alg` — Milestone 18

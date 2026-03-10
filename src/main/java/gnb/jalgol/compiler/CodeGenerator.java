@@ -161,6 +161,16 @@ public class CodeGenerator extends AlgolBaseListener {
             }
         }
 
+        // Emit static field declarations for scalars (must appear BEFORE methods in Jasmin)
+        for (Map.Entry<String, String> symEntry : currentSymbolTable.entrySet()) {
+            String varName = symEntry.getKey();
+            String varType = symEntry.getValue();
+            if (!varType.endsWith("[]") && !varType.startsWith("procedure:")) {
+                classHeader.append(".field public static ").append(varName)
+                           .append(" ").append(scalarTypeToJvmDesc(varType)).append("\n");
+            }
+        }
+
         // Add static Scanner field for input procedures (used for System.in reading)
         classHeader.append(".field public static __scanner Ljava/util/Scanner;\n");
 
@@ -178,18 +188,30 @@ public class CodeGenerator extends AlgolBaseListener {
                 .append(".limit stack 16\n")
                 .append(".limit locals ").append(currentNumLocals).append("\n");
 
-        // Initialize scalars from localIndex
+        // Initialize scalars as static fields (putstatic)
+        for (Map.Entry<String, String> symEntry : currentSymbolTable.entrySet()) {
+            String varName = symEntry.getKey();
+            String type = symEntry.getValue();
+            if (!type.endsWith("[]") && !type.startsWith("procedure:")) {
+                // Scalar variable: initialize via putstatic
+                if ("integer".equals(type) || "boolean".equals(type)) {
+                    mainCode.append("iconst_0\n");
+                } else if ("real".equals(type)) {
+                    mainCode.append("dconst_0\n");
+                } else if ("string".equals(type)) {
+                    mainCode.append("ldc \"\"\n");
+                }
+                mainCode.append("putstatic ").append(packageName).append("/").append(className)
+                        .append("/").append(varName).append(" ").append(scalarTypeToJvmDesc(type)).append("\n");
+            }
+        }
+
+        // Initialize procedure variables from localIndex (they stay as locals)
         for (Map.Entry<String, Integer> entry : currentLocalIndex.entrySet()) {
             String varName = entry.getKey();
             int index = entry.getValue();
             String type = currentSymbolTable.get(varName);
-            if ("integer".equals(type) || "boolean".equals(type)) {
-                mainCode.append("iconst_0\n").append("istore ").append(index).append("\n");
-            } else if ("real".equals(type)) {
-                mainCode.append("dconst_0\n").append("dstore ").append(index).append("\n");
-            } else if ("string".equals(type)) {
-                mainCode.append("ldc \"\"\n").append("astore ").append(index).append("\n");
-            } else if (type != null && type.startsWith("procedure:")) {
+            if (type != null && type.startsWith("procedure:")) {
                 mainCode.append("aconst_null\n").append("astore ").append(index).append("\n");
             }
         }
@@ -491,6 +513,33 @@ public class CodeGenerator extends AlgolBaseListener {
             boolean isThunk = varType != null && varType.startsWith("thunk:");
             boolean isProcVar = varType != null && varType.startsWith("procedure:");
             if (idx == null && !isThunk && !isProcVar) {
+                // Check if this is a static scalar
+                if (varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
+                    // Dup before each putstatic except the last
+                    if (i < lvalues.size() - 1) {
+                        activeOutput.append("real".equals(storeType) ? "dup2\n" : "dup\n");
+                    }
+                    // Static scalar: emit putstatic
+                    String jvmDesc = scalarTypeToJvmDesc(varType);
+                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                .append("/").append(name).append(" ").append(jvmDesc).append("\n");
+                    continue;
+                }
+                // Check main symbol table for outer scope static scalars
+                if (mainSymbolTable != null) {
+                    String mainType = mainSymbolTable.get(name);
+                    if (mainType != null && !mainType.endsWith("[]") && !mainType.startsWith("procedure:") && !mainType.startsWith("thunk:")) {
+                        // Dup before each putstatic except the last
+                        if (i < lvalues.size() - 1) {
+                            activeOutput.append("real".equals(storeType) ? "dup2\n" : "dup\n");
+                        }
+                        // Static scalar from outer scope: emit putstatic
+                        String jvmDesc = scalarTypeToJvmDesc(mainType);
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(name).append(" ").append(jvmDesc).append("\n");
+                        continue;
+                    }
+                }
                 activeOutput.append("; ERROR: undeclared variable ").append(name).append("\n");
                 continue;
             }
@@ -613,7 +662,15 @@ public class CodeGenerator extends AlgolBaseListener {
             if (varExpr instanceof AlgolParser.VarExprContext) {
                 String varName = ((AlgolParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
-                if (varSlot == null) {
+                String varType = currentSymbolTable.get(varName);
+                if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
+                    // Static scalar
+                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                                .append("/__scanner Ljava/util/Scanner;\n")
+                                .append("invokevirtual java/util/Scanner/nextInt()I\n")
+                                .append("putstatic ").append(packageName).append("/").append(className)
+                                .append("/").append(varName).append(" I\n");
+                } else if (varSlot == null) {
                     activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
                 } else {
                     activeOutput.append("getstatic ").append(packageName).append("/").append(className)
@@ -630,7 +687,15 @@ public class CodeGenerator extends AlgolBaseListener {
             if (varExpr instanceof AlgolParser.VarExprContext) {
                 String varName = ((AlgolParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
-                if (varSlot == null) {
+                String varType = currentSymbolTable.get(varName);
+                if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
+                    // Static scalar
+                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                                .append("/__scanner Ljava/util/Scanner;\n")
+                                .append("invokevirtual java/util/Scanner/nextDouble()D\n")
+                                .append("putstatic ").append(packageName).append("/").append(className)
+                                .append("/").append(varName).append(" D\n");
+                } else if (varSlot == null) {
                     activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
                 } else {
                     activeOutput.append("getstatic ").append(packageName).append("/").append(className)
@@ -648,7 +713,20 @@ public class CodeGenerator extends AlgolBaseListener {
             if (varExpr instanceof AlgolParser.VarExprContext) {
                 String varName = ((AlgolParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
-                if (varSlot == null) {
+                String varType = currentSymbolTable.get(varName);
+                if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
+                    // Static scalar
+                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                                .append("/__scanner Ljava/util/Scanner;\n")
+                                .append("invokevirtual java/util/Scanner/next()Ljava/lang/String;\n")
+                                .append("iconst_0\n")
+                                .append("invokevirtual java/lang/String/charAt(I)C\n")
+                                .append("ldc ").append(str).append("\n")
+                                .append("swap\n")
+                                .append("invokevirtual java/lang/String/indexOf(I)I\n")
+                                .append("putstatic ").append(packageName).append("/").append(className)
+                                .append("/").append(varName).append(" I\n");
+                } else if (varSlot == null) {
                     activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
                 } else {
                     // Read next token from scanner
@@ -671,7 +749,15 @@ public class CodeGenerator extends AlgolBaseListener {
             if (varExpr instanceof AlgolParser.VarExprContext) {
                 String varName = ((AlgolParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
-                if (varSlot == null) {
+                String varType = currentSymbolTable.get(varName);
+                if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
+                    // Static scalar
+                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                                .append("/__scanner Ljava/util/Scanner;\n")
+                                .append("invokevirtual java/util/Scanner/nextLine()Ljava/lang/String;\n")
+                                .append("putstatic ").append(packageName).append("/").append(className)
+                                .append("/").append(varName).append(" Ljava/lang/String;\n");
+                } else if (varSlot == null) {
                     activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
                 } else {
                     activeOutput.append("getstatic ").append(packageName).append("/").append(className)
@@ -848,14 +934,23 @@ public class CodeGenerator extends AlgolBaseListener {
 
         String varName = ctx.identifier().getText();
         Integer varIndex = currentLocalIndex.get(varName);
-        if (varIndex == null) {
+        String varType = currentSymbolTable.get(varName);
+        if (varType == null && mainSymbolTable != null) varType = mainSymbolTable.get(varName);
+        boolean isStaticScalar = varIndex == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:");
+        if (varIndex == null && !isStaticScalar) {
             activeOutput.append("; ERROR: for-loop variable ").append(varName).append(" undeclared\n");
             return;
         }
-        String varType = currentSymbolTable.get(varName);
-        if (varType == null && mainSymbolTable != null) varType = mainSymbolTable.get(varName);
         boolean varIsThunk = varType != null && varType.startsWith("thunk:");
         String baseVarType = varIsThunk ? varType.substring("thunk:".length()) : varType;
+
+        // Helper for variable store/load in for-loops
+        String varStoreInstr = isStaticScalar ? 
+            ("real".equals(varType) ? "putstatic " + packageName + "/" + className + "/" + varName + " D\n" : "putstatic " + packageName + "/" + className + "/" + varName + " I\n") :
+            ("real".equals(varType) ? "dstore " + varIndex + "\n" : "istore " + varIndex + "\n");
+        String varLoadInstr = isStaticScalar ?
+            ("real".equals(varType) ? "getstatic " + packageName + "/" + className + "/" + varName + " D\n" : "getstatic " + packageName + "/" + className + "/" + varName + " I\n") :
+            ("real".equals(varType) ? "dload " + varIndex + "\n" : "iload " + varIndex + "\n");
 
         String afterAllLabel = generateUniqueLabel("endfor");
 
@@ -866,10 +961,8 @@ public class CodeGenerator extends AlgolBaseListener {
                 activeOutput.append(generateExpr(e.expr(0)));
                 if (varIsThunk) {
                     appendBoxAndSetThunk(varIndex, baseVarType);
-                } else if ("real".equals(varType)) {
-                    activeOutput.append("dstore ").append(varIndex).append("\n");
                 } else {
-                    activeOutput.append("istore ").append(varIndex).append("\n");
+                    activeOutput.append(varStoreInstr);
                 }
                 activeOutput.append(loopLabel).append(":\n");
                 // check condition: var > limit → exit
@@ -881,14 +974,14 @@ public class CodeGenerator extends AlgolBaseListener {
                     } else {
                         activeOutput.append("if_icmpgt ").append(afterAllLabel).append("\n");
                     }
-                } else if ("real".equals(varType)) {
-                    activeOutput.append("dload ").append(varIndex).append("\n");
-                    activeOutput.append(generateExpr(e.expr(2)));
-                    activeOutput.append("dcmpg\nifgt ").append(afterAllLabel).append("\n");
                 } else {
-                    activeOutput.append("iload ").append(varIndex).append("\n");
+                    activeOutput.append(varLoadInstr);
                     activeOutput.append(generateExpr(e.expr(2)));
-                    activeOutput.append("if_icmpgt ").append(afterAllLabel).append("\n");
+                    if ("real".equals(varType)) {
+                        activeOutput.append("dcmpg\nifgt ").append(afterAllLabel).append("\n");
+                    } else {
+                        activeOutput.append("if_icmpgt ").append(afterAllLabel).append("\n");
+                    }
                 }
                 // body
                 activeOutput.append(bodyCode);
@@ -907,14 +1000,15 @@ public class CodeGenerator extends AlgolBaseListener {
                     }
                     activeOutput.append("aload ").append(varIndex).append("\nswap\n");
                     activeOutput.append("invokeinterface gnb/jalgol/compiler/Thunk/set(Ljava/lang/Object;)V 2\n");
-                } else if ("real".equals(varType)) {
-                    activeOutput.append("dload ").append(varIndex).append("\n");
-                    activeOutput.append(generateExpr(e.expr(1)));
-                    activeOutput.append("dadd\ndstore ").append(varIndex).append("\n");
                 } else {
-                    activeOutput.append("iload ").append(varIndex).append("\n");
+                    activeOutput.append(varLoadInstr);
                     activeOutput.append(generateExpr(e.expr(1)));
-                    activeOutput.append("iadd\nistore ").append(varIndex).append("\n");
+                    if ("real".equals(varType)) {
+                        activeOutput.append("dadd\n");
+                    } else {
+                        activeOutput.append("iadd\n");
+                    }
+                    activeOutput.append(varStoreInstr);
                 }
                 activeOutput.append("goto ").append(loopLabel).append("\n");
 
@@ -925,10 +1019,8 @@ public class CodeGenerator extends AlgolBaseListener {
                 activeOutput.append(generateExpr(e.expr(0)));
                 if (varIsThunk) {
                     appendBoxAndSetThunk(varIndex, baseVarType);
-                } else if ("real".equals(varType)) {
-                    activeOutput.append("dstore ").append(varIndex).append("\n");
                 } else {
-                    activeOutput.append("istore ").append(varIndex).append("\n");
+                    activeOutput.append(varStoreInstr);
                 }
                 activeOutput.append(generateExpr(e.expr(1))); // while condition → 0 or 1
                 activeOutput.append("ifeq ").append(afterAllLabel).append("\n");
@@ -941,10 +1033,8 @@ public class CodeGenerator extends AlgolBaseListener {
                 activeOutput.append(generateExpr(e.expr()));
                 if (varIsThunk) {
                     appendBoxAndSetThunk(varIndex, baseVarType);
-                } else if ("real".equals(varType)) {
-                    activeOutput.append("dstore ").append(varIndex).append("\n");
                 } else {
-                    activeOutput.append("istore ").append(varIndex).append("\n");
+                    activeOutput.append(varStoreInstr);
                 }
                 activeOutput.append(bodyCode);
             }
@@ -1059,8 +1149,23 @@ public class CodeGenerator extends AlgolBaseListener {
      */
     private String generateLoadVar(String name) {
         Integer idx = currentLocalIndex.get(name);
-        if (idx == null) return "; ERROR: undeclared variable " + name + "\n";
         String type = currentSymbolTable.get(name);
+        if (idx == null) {
+            // Check if this is a static scalar
+            if (type != null && !type.endsWith("[]") && !type.startsWith("procedure:") && !type.startsWith("thunk:")) {
+                String jvmDesc = scalarTypeToJvmDesc(type);
+                return "getstatic " + packageName + "/" + className + "/" + name + " " + jvmDesc + "\n";
+            }
+            // Check main symbol table for outer scope static scalars
+            if (mainSymbolTable != null) {
+                String mainType = mainSymbolTable.get(name);
+                if (mainType != null && !mainType.endsWith("[]") && !mainType.startsWith("procedure:") && !mainType.startsWith("thunk:")) {
+                    String jvmDesc = scalarTypeToJvmDesc(mainType);
+                    return "getstatic " + packageName + "/" + className + "/" + name + " " + jvmDesc + "\n";
+                }
+            }
+            return "; ERROR: undeclared variable " + name + "\n";
+        }
         if (type != null && type.startsWith("thunk:")) {
             // thunk formal inside caller? not expected here
             type = type.substring("thunk:".length());
@@ -1319,14 +1424,32 @@ public class CodeGenerator extends AlgolBaseListener {
             if ("real".equals(varType)) {
                 sb.append("checkcast java/lang/Double\n");
                 sb.append("invokevirtual java/lang/Double/doubleValue()D\n");
-                sb.append("dstore ").append(varSlot).append("\n");
+                if (varSlot != null) {
+                    sb.append("dstore ").append(varSlot).append("\n");
+                } else {
+                    // Static scalar
+                    sb.append("putstatic ").append(packageName).append("/").append(className)
+                       .append("/").append(vn).append(" D\n");
+                }
             } else if ("string".equals(varType)) {
                 sb.append("checkcast java/lang/String\n");
-                sb.append("astore ").append(varSlot).append("\n");
+                if (varSlot != null) {
+                    sb.append("astore ").append(varSlot).append("\n");
+                } else {
+                    // Static scalar
+                    sb.append("putstatic ").append(packageName).append("/").append(className)
+                       .append("/").append(vn).append(" Ljava/lang/String;\n");
+                }
             } else {
                 sb.append("checkcast java/lang/Integer\n");
                 sb.append("invokevirtual java/lang/Integer/intValue()I\n");
-                sb.append("istore ").append(varSlot).append("\n");
+                if (varSlot != null) {
+                    sb.append("istore ").append(varSlot).append("\n");
+                } else {
+                    // Static scalar
+                    sb.append("putstatic ").append(packageName).append("/").append(className)
+                       .append("/").append(vn).append(" I\n");
+                }
             }
         }
 
@@ -1339,6 +1462,15 @@ public class CodeGenerator extends AlgolBaseListener {
             case "real[]"    -> "[D";
             case "string[]"  -> "[Ljava/lang/String;";
             default -> "[I";
+        };
+    }
+
+    private static String scalarTypeToJvmDesc(String scalarType) {
+        return switch (scalarType) {
+            case "boolean", "integer" -> "I";
+            case "real" -> "D";
+            case "string" -> "Ljava/lang/String;";
+            default -> "I";
         };
     }
 
@@ -1549,8 +1681,25 @@ public class CodeGenerator extends AlgolBaseListener {
 
             // Regular variable lookup
             Integer idx = currentLocalIndex.get(name);
-            if (idx == null) return "; ERROR: undeclared variable " + name + "\n";
             String type = currentSymbolTable.get(name);
+            if (idx == null) {
+                // Check if this is a static scalar (no local slot, but exists in symbol table)
+                if (type != null && !type.endsWith("[]") && !type.startsWith("procedure:") && !type.startsWith("thunk:")) {
+                    // Static scalar: emit getstatic
+                    String jvmDesc = scalarTypeToJvmDesc(type);
+                    return "getstatic " + packageName + "/" + className + "/" + name + " " + jvmDesc + "\n";
+                }
+                // Check main symbol table for outer scope static scalars
+                if (mainSymbolTable != null) {
+                    String mainType = mainSymbolTable.get(name);
+                    if (mainType != null && !mainType.endsWith("[]") && !mainType.startsWith("procedure:") && !mainType.startsWith("thunk:")) {
+                        // Static scalar from outer scope: emit getstatic
+                        String jvmDesc = scalarTypeToJvmDesc(mainType);
+                        return "getstatic " + packageName + "/" + className + "/" + name + " " + jvmDesc + "\n";
+                    }
+                }
+                return "; ERROR: undeclared variable " + name + "\n";
+            }
             // support call-by-name thunk parameters
             if (type != null && type.startsWith("thunk:")) {
                 String baseType = type.substring("thunk:".length());

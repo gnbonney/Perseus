@@ -60,8 +60,8 @@ public class AntlrAlgolListenerTest {
 				"Output should declare the correct class");
 		assertTrue(jasminSource.contains(".method public static main([Ljava/lang/String;)V"),
 				"Output should declare a main method");
-		assertTrue(jasminSource.contains("dstore"),
-				"Output should contain dstore instructions for real variable assignment");
+		assertTrue(jasminSource.contains("putstatic"),
+				"Output should contain putstatic instructions for scalar variable assignment");
 		assertTrue(jasminSource.contains("ddiv"),
 				"Output should contain ddiv for real division");
 
@@ -121,8 +121,8 @@ public class AntlrAlgolListenerTest {
 				"Output should contain the label AA");
 		assertTrue(jasminSource.contains("if_icmplt"),
 				"Output should contain integer comparison");
-		assertTrue(jasminSource.contains("istore"),
-				"Output should contain istore for integer variable");
+		assertTrue(jasminSource.contains("putstatic"),
+				"Output should contain putstatic for variable assignment");
 
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
@@ -461,6 +461,30 @@ end
 		assertTrue(output.contains("3.14"), "Should approximate pi starting with 3.14");
 	}
 
+	@Test
+	public void pi2_test() throws Exception {
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				"test/algol/pi2.alg", "gnb/jalgol/programs", "Pi2Test", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+				"Compilation should not produce an error: " + jasminSource);
+		assertTrue(jasminSource.contains("invokestatic java/lang/Math/sqrt"),
+				"Should call Math.sqrt");
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run — pi2.alg uses Archimedes method with procedures accessing outer variables
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.Pi2Test");
+		System.out.println("pi2 output: [" + output + "]");
+		
+		// Check that output contains approximations of pi improving over iterations
+		assertTrue(output.contains("> pi >"), "Should contain pi approximation format");
+		// Final approximation should be close to pi (3.14159...)
+		assertTrue(output.contains("3.14"), "Should approximate pi starting with 3.14");
+	}
+
 	private static String runClass(Path classDir, String className) throws Exception {
 		List<String> cmd = java.util.Arrays.asList("java", "-cp", classDir.toString(), className);
 		System.out.println("runClass: " + cmd);
@@ -604,20 +628,20 @@ end
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
         // Verify string variable initialization
-        assertTrue(jasminSource.contains("ldc \"\"\nastore"),
-                "Should initialize string variables to empty string");
+        assertTrue(jasminSource.contains("ldc \"\"") && jasminSource.contains("putstatic"),
+                "Should initialize string variables to empty string with putstatic");
 
         // Verify string literal loading
         assertTrue(jasminSource.contains("ldc \"Hello, World!\""),
                 "Should load string literals");
 
         // Verify string variable storage
-        assertTrue(jasminSource.contains("astore"),
-                "Should generate astore for string variable assignment");
+        assertTrue(jasminSource.contains("putstatic"),
+                "Should generate putstatic for string variable assignment");
 
         // Verify string variable loading
-        assertTrue(jasminSource.contains("aload"),
-                "Should generate aload for string variable access");
+        assertTrue(jasminSource.contains("getstatic"),
+                "Should generate getstatic for string variable access");
 
         // Assemble to .class
         AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
@@ -647,8 +671,8 @@ end
         // Verify instring call generation
         assertTrue(jasminSource.contains("invokevirtual java/util/Scanner/nextLine()Ljava/lang/String;"),
                 "Should call Scanner.nextLine() for instring");
-        assertTrue(jasminSource.contains("astore"),
-                "Should store result in string variable");
+        assertTrue(jasminSource.contains("putstatic"),
+                "Should store result in string variable with putstatic");
 
         // Assemble to .class
         AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
