@@ -85,7 +85,7 @@ varDecl
   ;
 
 arrayDecl
-  : (INTEGER | REAL | BOOLEAN | STRING | PROCEDURE)? ARRAY identifier '[' unsignedInt ':' unsignedInt ']'
+  : (INTEGER | REAL | BOOLEAN | STRING | PROCEDURE)? ARRAY identifier '[' signedInt ':' signedInt ']'
   ;
 
 varList
@@ -155,6 +155,8 @@ argList : arg (',' arg)*;
 arg : expr | string;
 
 unsignedInt : INT_NUM;
+
+signedInt : '-'? unsignedInt;
 
 realLiteral : INT_NUM '.' INT_NUM;
 

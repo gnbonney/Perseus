@@ -8,7 +8,7 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 
 ## Current Status
 
-**29/29 tests passing as of March 10, 2026.** Milestone 16 (boolean OR/NOT operators) is complete.
+**30/30 tests passing as of March 11, 2026.** Milestone 17 (real arrays with negative lower bounds) is complete.
 
 **Note on M15 test quality:** `manboy_test` and `recursion_euler_test` appeared to pass at M15 but were actually broken — both relied on `redirectErrorStream(true)` capturing exception/error messages as non-empty output, satisfying a weak `output.length() > 0` assertion. M16 exposed the real failures: (1) `and` became a proper keyword, making `recursion_euler.alg`'s `abs(mn) < abs(m[n]) and n < 15` guard work correctly — which revealed that `square(x) = x*x` is a divergent series incompatible with Euler acceleration; (2) the ManBoy VerifyError was pre-existing. Both are now genuinely fixed and tested for real output.
 
@@ -501,15 +501,23 @@ integer and string arguments.
 
 ---
 
-## Milestone 17 — Real Arrays (`real_array.alg`)
+## Milestone 17 — Real Arrays (`real_array.alg`) ✅
 
 **Goal:** `real_array.alg` compiles and prints correct real array values.
 
-**New features needed:**
-- [ ] Grammar: real array declarations with arbitrary bounds
-- [ ] Grammar: array subscript assignment and access
-- [ ] Codegen: real array allocation and access (`daload`/`dastore` with lower bound offset)
-- [ ] Test: assert output matches expected real values
+**Status: PASSING** (`real_array_test` green as of March 11, 2026).
+
+**New features implemented:**
+- [x] Grammar: `signedInt` rule added (`'-'? unsignedInt`); `arrayDecl` bounds updated to use `signedInt` — supports negative lower bounds (e.g. `[-7:2]`)
+- [x] SymbolTableBuilder: `enterArrayDecl` updated to call `ctx.signedInt(0/1)` instead of `ctx.unsignedInt(0/1)`; `Integer.parseInt` handles `"-7"` correctly
+- [x] Codegen: real array allocation (`newarray double`), element store (`dastore`), element load (`daload`) with lower-bound offset — all pre-existing; no changes required
+- [x] Test: `real_array_test()` — asserts Jasmin contains `newarray double` and `daload`; runtime output contains `1.23` and `4.56`
+
+**Implementation notes:**
+- Size computation `upper - lower + 1 = 2 - (-7) + 1 = 10` is correct for the full index range
+- Lower-bound offset: `ldc lower; isub` (where lower = -7) correctly remaps subscript -7 → JVM index 0 and subscript 2 → JVM index 9
+- Subscript `-7` in `q[-7]` is parsed as a unary minus expression and generates `ldc 7; ineg` on the JVM stack
+- `outreal` with a channel argument is used (`outreal(1, q[-7])`) — already supported by codegen
 
 ---
 

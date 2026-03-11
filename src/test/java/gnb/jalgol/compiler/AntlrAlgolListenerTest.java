@@ -198,6 +198,30 @@ public class AntlrAlgolListenerTest {
 	}
 
 	@Test
+	public void real_array_test() throws Exception {
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				"test/algol/real_array.alg", "gnb/jalgol/programs", "RealArrayTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== REAL ARRAY JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END REAL ARRAY ===");
+
+		assertNotEquals("NO OUTPUT", jasminSource, "Compilation should succeed");
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("newarray double"), "Should allocate a double array");
+		assertTrue(jasminSource.contains("daload"), "Should use daload for real array element access");
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run — q[-7]=1.23, q[2]=4.56
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.RealArrayTest");
+		System.out.println("real_array output: [" + output + "]");
+		assertTrue(output.contains("1.23"), "Output should contain 1.23");
+		assertTrue(output.contains("4.56"), "Output should contain 4.56");
+	}
+
+	@Test
 	public void primer4() throws Exception {
 		// Compile Algol source to Jasmin (for loop with 1000 iterations)
 		Path jasminFile = AntlrAlgolListener.compileToFile(

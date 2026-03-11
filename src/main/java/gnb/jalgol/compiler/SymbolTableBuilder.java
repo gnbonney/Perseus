@@ -209,8 +209,8 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         else elemType = "real"; // bare 'array' defaults to real per Algol 60
         String arrType = elemType + "[]";
         String name = ctx.identifier().getText();
-        int lower = Integer.parseInt(ctx.unsignedInt(0).getText());
-        int upper = Integer.parseInt(ctx.unsignedInt(1).getText());
+        int lower = Integer.parseInt(ctx.signedInt(0).getText());
+        int upper = Integer.parseInt(ctx.signedInt(1).getText());
         symbolTable.put(name, arrType);
         mainSymbolTable.put(name, arrType);
         arrayBounds.put(name, new int[]{lower, upper});
