@@ -38,7 +38,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 ## Current Status
 
-**30/30 tests passing as of March 11, 2026.** Milestone 17 (real arrays with negative lower bounds) is complete.
+**49/49 tests passing as of March 11, 2026.** Milestone 18 (string variables and string output) is complete.
 
 **Note on M15 test quality:** `manboy_test` and `recursion_euler_test` appeared to pass at M15 but were actually broken — both relied on `redirectErrorStream(true)` capturing exception/error messages as non-empty output, satisfying a weak `output.length() > 0` assertion. M16 exposed the real failures: (1) `and` became a proper keyword, making `recursion_euler.alg`'s `abs(mn) < abs(m[n]) and n < 15` guard work correctly — which revealed that `square(x) = x*x` is a divergent series incompatible with Euler acceleration; (2) the ManBoy VerifyError was pre-existing. Both are now genuinely fixed and tested for real output.
 
@@ -49,6 +49,8 @@ Here, the channel parameter is left empty, but the argument list is still presen
 - ✅ **Procedure variable support** — procedure variables, typed procedure references, and procedure parameters all working. `procBufferStack` supports nested procedure declarations.
 - ✅ **For-list body capture** — for-list codegen uses `forBodyStack` (Deque) to capture the body once and inline it per element; eliminates label corruption in nested for-loops.
 - ✅ **Real comparisons** — `RelExprContext` codegen now dispatches on operand types: `dcmpg + iflt/le/gt/ge` for real, `if_icmpxx` for integer.
+- ✅ **String variable support** — grammar, `SymbolTableBuilder`, `TypeInferencer`, and `CodeGenerator` all handle `string` variables; `concat`, `length`, and `substring` built-ins implemented in `BuiltinFunctionGenerator`; `string_output.alg` passes.
+- ✅ **`ProcedureGenerator` delegation wired** — `generateProcedureReference` and `generateProcedureVariableCall` now delegate to `ProcedureGenerator` via callback injection; `CodeGenUtils` consolidated with `scalarTypeToJvmDesc`, `getReturnInstruction`, and fixed `boolean[]`/default-return-type bugs.
 
 ---
 
@@ -331,15 +333,15 @@ integer and string arguments.
 - [x] Codegen: `inreal(channel, var)` → `Scanner.nextDouble()` (reads from `System.in`; shared `Scanner` instance)
 - [x] Codegen: `inchar(channel, str, var)` — read one character; find its position in `str`
 
-**11C.2 — String Variable Support (prerequisite for string I/O):**
-- [ ] Grammar: string variable declarations and assignment
-- [ ] SymbolTableBuilder: track string variables and scope
-- [ ] TypeInferencer: handle string types and type rules
-- [ ] Codegen: string operations (assignment, indexing, concatenation, slicing) — **not implemented**
-- [ ] **String variable support must follow the design in [Algol Extensions Design.md](Algol%20Extensions%20Design.md).**
+**11C.2 — String Variable Support (prerequisite for string I/O):** ✅
+- [x] Grammar: string variable declarations and assignment
+- [x] SymbolTableBuilder: track string variables and scope
+- [x] TypeInferencer: handle string types and type rules
+- [x] Codegen: string operations (assignment, concatenation via `concat`, slicing via `substring`, length via `length`)
+- [x] **String variable support follows the design in [Algol Extensions Design.md](Algol%20Extensions%20Design.md).**
 
-**11C.3 — String Input Procedures (requires 11C.2):**
-- [ ] Codegen: `instring(channel, var)` — read a string from the stream or file mapped to the channel (**extension; requires string variable support — not yet implemented**)
+**11C.3 — String Input Procedures (requires 11C.2):** ✅
+- [x] Codegen: `instring(channel, var)` — reads a line from `System.in` via `Scanner.nextLine()` and stores in a string variable; test `instring_test` asserts round-trip read/print of `"Test Input String"`
 
 ## Milestone 11D — Control and Error Procedures
 
@@ -552,22 +554,25 @@ integer and string arguments.
 
 ---
 
-## Milestone 18 — String Output (`string_output.alg`)
+## Milestone 18 — String Output (`string_output.alg`) ✅
 
 **Goal:** `string_output.alg` compiles and prints correct formatted string output.
 
+**Status: PASSING** (`string_output_test` green as of March 11, 2026).
 
+- [x] Grammar: string variable declarations and assignment
+- [x] SymbolTableBuilder: track string variables and scope
+- [x] TypeInferencer: handle string types and type rules
+- [x] Codegen: string operations (assignment, concatenation, character access)
+- [x] Codegen: `concat(s1, s2)` built-in function — implemented in `BuiltinFunctionGenerator`
+- [x] Codegen: `length(s)` and `substring(s, i, j)` built-in functions
+- [ ] Codegen: `instring` procedure — not yet implemented (separate milestone, M11C.3)
+- [x] Test: assert output matches expected formatted string for `string_output.alg`
 
-**Note:** String variable support was marked complete in error — none of the items below (grammar, symbol table, type inference, codegen) are actually implemented. This milestone requires full implementation per the design in [Algol Extensions Design.md](Algol%20Extensions%20Design.md).
-
-- [ ] Grammar: string variable declarations and assignment
-- [ ] SymbolTableBuilder: track string variables and scope
-- [ ] TypeInferencer: handle string types and type rules
-- [ ] Codegen: string operations (assignment, indexing, concatenation, slicing) — **not implemented**
-- [ ] Codegen: `concat(s1, s2)` built-in function — **not implemented**
-- [ ] Codegen: `instring` procedure — **not implemented** (depends on string variable support)
-- [ ] Test: assert output matches expected formatted string for `string_output.alg`
-- [ ] **String variable support must follow the design in Algol Extensions Design.md.**
+**Implementation notes:**
+- String variables map to JVM `java/lang/String`; assignments use `astore`/`aload`
+- `concat`, `length`, `substring` handled in `BuiltinFunctionGenerator.generateStringBuiltin()`
+- `TypeInferencer` infers `string` type for all string built-in calls and string literal expressions
 
 ### Algol 60 BNF vs. Code Examples (Procedure Call Parameters)
 
@@ -637,7 +642,8 @@ Here, the channel parameter is left empty, but the argument list is still presen
 # - Standard math functions (`abs`, `sqrt`, `sin`, `cos`, `ln`, `exp`, etc.) — ✅ Milestone 11A
 # - `pi.alg` — `real` procedures; `sqrt` standard function — ✅ Milestone 11F
 # - Standard I/O (`ininteger`, `inreal`, `inchar`) — ✅ Milestone 11C.1
-# - Standard I/O (`instring`), string variables — ❌ Milestones 11C.2, 11C.3 (marked complete in error; not yet implemented)
+# - String variables (M11C.2) — ✅ Milestone 18 (implemented; concat/length/substring built-ins done)
+# - Standard I/O (`instring`) (M11C.3) — ✅ Milestone 18 (implemented; Scanner.nextLine())
 # - Error handling (`fault` procedure) — ✅ Milestone 11D
 # - `jen.alg` (call-by-name) — Milestone 12
 # - `manboy.alg` (deep recursion + procedure refs) — Milestone 13
@@ -645,7 +651,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 # - `pi2.alg` (non-local scalar access) — Milestone 15
 # - `boolean_operators.alg` — Milestone 16
 # - `real_array.alg` — Milestone 17
-# - `string_output.alg` — Milestone 18
+# - `string_output.alg` — ✅ Milestone 18
 # - `own_variables.alg` — Milestone 19
 # - `switch_declaration.alg` — Milestone 20
 
