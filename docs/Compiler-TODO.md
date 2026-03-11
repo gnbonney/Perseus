@@ -4,7 +4,37 @@ This list follows an iterative, depth-first approach: get each sample program
 fully compiling and running before expanding to the next. Each milestone produces
 a real, executable class file — not just a parse tree or a Jasmin text skeleton.
 
----
+ ---
+
+## Note: Algol 60 BNF vs. Code Examples (Procedure Call Parameters)
+**Relevant BNF from the Modified Report:**
+```
+<procedure identifier> ::= <identifier>
+
+<actual parameter> ::= <string> | <expression> |
+  <array identifier> | <switch identifier> | <procedure identifier>
+
+<parameter delimiter> ::= , | ) <letter string> : (
+
+<actual parameter list> ::= <actual parameter> |
+  <actual parameter list> <parameter delimiter> <actual parameter>
+
+<actual parameter part> ::= <empty> | ( <actual parameter list> )
+
+<function designator> ::= <procedure identifier> <actual parameter part>
+```
+These lines show that while an empty parameter part is allowed (for parameterless procedures), every procedure call with parameters must supply all required arguments. The BNF does not permit empty slots in the parameter list (e.g., `outstring(, str)` is not valid according to the BNF).
+
+
+The Algol 60 Modified Report BNF does **not** allow empty parameter lists in procedure calls (e.g., `outstring()` or `foo()`). Every procedure call must supply the required number of arguments, as specified in the procedure's declaration. However, some code examples in the Report (e.g., `outstring(, str);`) show the channel parameter left empty, not omitted. This is a syntactic quirk, but the BNF does not formally allow empty parameters—every procedure call must supply all required arguments.
+
+**Example from the Modified Report:**
+```
+outstring(, str);
+```
+Here, the channel parameter is left empty, but the argument list is still present. The BNF does not permit this form, and the compiler enforces the stricter rule: all required parameters (such as the channel in `outstring`) must be present and non-empty in every call.
+
+**Design decision:** The compiler will require all parameters in procedure calls, matching the BNF, even if some examples leave them empty. This ensures deterministic parsing and code generation.
 
 ## Current Status
 
@@ -302,13 +332,14 @@ integer and string arguments.
 - [x] Codegen: `inchar(channel, str, var)` — read one character; find its position in `str`
 
 **11C.2 — String Variable Support (prerequisite for string I/O):**
-- [x] Grammar: string variable declarations and assignment
-- [x] SymbolTableBuilder: track string variables and scope
-- [x] TypeInferencer: handle string types and type rules
-- [x] Codegen: emit JVM code for string operations (assignment, indexing, concatenation, slicing) using Java String/StringBuilder and static helpers
+- [ ] Grammar: string variable declarations and assignment
+- [ ] SymbolTableBuilder: track string variables and scope
+- [ ] TypeInferencer: handle string types and type rules
+- [ ] Codegen: string operations (assignment, indexing, concatenation, slicing) — **not implemented**
+- [ ] **String variable support must follow the design in [Algol Extensions Design.md](Algol%20Extensions%20Design.md).**
 
 **11C.3 — String Input Procedures (requires 11C.2):**
-- [x] Codegen: `instring(channel, var)` — read a string from the stream or file mapped to the channel (**extension; requires string variable support**)
+- [ ] Codegen: `instring(channel, var)` — read a string from the stream or file mapped to the channel (**extension; requires string variable support — not yet implemented**)
 
 ## Milestone 11D — Control and Error Procedures
 
@@ -525,12 +556,48 @@ integer and string arguments.
 
 **Goal:** `string_output.alg` compiles and prints correct formatted string output.
 
-**Note:** String variable support (grammar, symbol table, type inference, codegen) completed in Milestone 11C.2. `instring` completed in Milestone 11C.3. Remaining work is validating `outstring` with string variable arguments against the sample.
 
-- [x] Grammar: string variable declarations and assignment
-- [x] Codegen: string operations (assignment, indexing, concatenation, slicing)
-- [x] Codegen: `instring` procedure
+
+**Note:** String variable support was marked complete in error — none of the items below (grammar, symbol table, type inference, codegen) are actually implemented. This milestone requires full implementation per the design in [Algol Extensions Design.md](Algol%20Extensions%20Design.md).
+
+- [ ] Grammar: string variable declarations and assignment
+- [ ] SymbolTableBuilder: track string variables and scope
+- [ ] TypeInferencer: handle string types and type rules
+- [ ] Codegen: string operations (assignment, indexing, concatenation, slicing) — **not implemented**
+- [ ] Codegen: `concat(s1, s2)` built-in function — **not implemented**
+- [ ] Codegen: `instring` procedure — **not implemented** (depends on string variable support)
 - [ ] Test: assert output matches expected formatted string for `string_output.alg`
+- [ ] **String variable support must follow the design in Algol Extensions Design.md.**
+
+### Algol 60 BNF vs. Code Examples (Procedure Call Parameters)
+
+The Algol 60 Modified Report BNF does **not** allow empty parameter lists in procedure calls (e.g., `outstring()` or `foo()`). Every procedure call must supply the required number of arguments, as specified in the procedure's declaration. However, some code examples in the Report (e.g., `outstring(, str);`) show the channel parameter left empty, not omitted. This is a syntactic quirk, but the BNF does not formally allow empty parameters—every procedure call must supply all required arguments.
+
+**Relevant BNF from the Modified Report:**
+```
+<procedure identifier> ::= <identifier>
+
+<actual parameter> ::= <string> | <expression> |
+  <array identifier> | <switch identifier> | <procedure identifier>
+
+<parameter delimiter> ::= , | ) <letter string> : (
+
+<actual parameter list> ::= <actual parameter> |
+  <actual parameter list> <parameter delimiter> <actual parameter>
+
+<actual parameter part> ::= <empty> | ( <actual parameter list> )
+
+<function designator> ::= <procedure identifier> <actual parameter part>
+```
+These lines show that while an empty parameter part is allowed (for parameterless procedures), every procedure call with parameters must supply all required arguments. The BNF does not permit empty slots in the parameter list (e.g., `outstring(, str)` is not valid according to the BNF).
+
+**Example from the Modified Report:**
+```
+outstring(, str);
+```
+Here, the channel parameter is left empty, but the argument list is still present. The BNF does not permit this form, and the compiler enforces the stricter rule: all required parameters (such as the channel in `outstring`) must be present and non-empty in every call.
+
+**Design decision:** The compiler will require all parameters in procedure calls, matching the BNF, even if some examples leave them empty. This ensures deterministic parsing and code generation.
 
 ---
 
@@ -570,7 +637,7 @@ integer and string arguments.
 # - Standard math functions (`abs`, `sqrt`, `sin`, `cos`, `ln`, `exp`, etc.) — ✅ Milestone 11A
 # - `pi.alg` — `real` procedures; `sqrt` standard function — ✅ Milestone 11F
 # - Standard I/O (`ininteger`, `inreal`, `inchar`) — ✅ Milestone 11C.1
-# - Standard I/O (`instring`), string variables — ✅ Milestones 11C.2, 11C.3
+# - Standard I/O (`instring`), string variables — ❌ Milestones 11C.2, 11C.3 (marked complete in error; not yet implemented)
 # - Error handling (`fault` procedure) — ✅ Milestone 11D
 # - `jen.alg` (call-by-name) — Milestone 12
 # - `manboy.alg` (deep recursion + procedure refs) — Milestone 13
