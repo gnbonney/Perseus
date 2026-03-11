@@ -183,6 +183,8 @@ public class TypeInferencer extends AlgolBaseListener {
         return switch (name) {
             case "sqrt", "abs", "sin", "cos", "arctan", "ln", "exp" -> "real";
             case "iabs", "sign", "entier" -> "integer";
+            case "length" -> "integer";
+            case "substring", "concat" -> "string";
             default -> null;
         };
     }

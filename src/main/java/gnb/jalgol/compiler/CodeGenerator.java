@@ -5,6 +5,7 @@ package gnb.jalgol.compiler;
 import gnb.jalgol.compiler.antlr.AlgolBaseListener;
 import gnb.jalgol.compiler.antlr.AlgolParser;
 import gnb.jalgol.compiler.antlr.AlgolParser.ExprContext;
+import gnb.jalgol.compiler.codegen.BuiltinFunctionGenerator;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -95,6 +96,9 @@ public class CodeGenerator extends AlgolBaseListener {
     // Map of procedure variable names to their main-method JVM slot indices
     private final Map<String, Integer> procVarSlots;
 
+    // Delegate for generating built-in math and string function calls
+    private final BuiltinFunctionGenerator builtinGen;
+
     public CodeGenerator(String source, String packageName, String className,
                          Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
                          Map<AlgolParser.ExprContext, String> exprTypes, Map<String, int[]> arrayBounds,
@@ -109,6 +113,8 @@ public class CodeGenerator extends AlgolBaseListener {
         this.currentLocalIndex  = localIndex;
         this.currentNumLocals   = numLocals;
         this.currentArrayBounds = arrayBounds;
+        this.builtinGen = new BuiltinFunctionGenerator(exprTypes);
+        this.builtinGen.setExprCodeGen(e -> generateExpr(e));
     }
 
     public String getOutput() {
@@ -441,6 +447,47 @@ public class CodeGenerator extends AlgolBaseListener {
                 activeOutput.append("; ERROR: undeclared array ").append(arrName).append("\n");
                 return;
             }
+
+            // String scalar character mutation: s[i] := replacement
+            // Rebuilds the string using StringBuilder: prefix + replacement + suffix
+            if ("string".equals(elemType)) {
+                activeOutput
+                    .append("new java/lang/StringBuilder\n")
+                    .append("dup\n")
+                    .append("invokespecial java/lang/StringBuilder/<init>()V\n")
+                    // prefix: s.substring(0, i-1)
+                    .append(generateLoadVar(arrName))
+                    .append("iconst_0\n")
+                    .append(generateExpr(lv.expr()))
+                    .append("iconst_1\n").append("isub\n")
+                    .append("invokevirtual java/lang/String/substring(II)Ljava/lang/String;\n")
+                    .append("invokevirtual java/lang/StringBuilder/append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n")
+                    // replacement (RHS expression must be a string)
+                    .append(generateExpr(ctx.expr()))
+                    .append("invokevirtual java/lang/StringBuilder/append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n")
+                    // suffix: s.substring(i)
+                    .append(generateLoadVar(arrName))
+                    .append(generateExpr(lv.expr()))
+                    .append("invokevirtual java/lang/String/substring(I)Ljava/lang/String;\n")
+                    .append("invokevirtual java/lang/StringBuilder/append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n")
+                    .append("invokevirtual java/lang/StringBuilder/toString()Ljava/lang/String;\n");
+                // store result back to s (local or static)
+                Integer strIdx = currentLocalIndex.get(arrName);
+                if (strIdx != null) {
+                    activeOutput.append("astore ").append(strIdx).append("\n");
+                } else {
+                    String sType = currentSymbolTable.getOrDefault(arrName,
+                            mainSymbolTable != null ? mainSymbolTable.get(arrName) : null);
+                    if (sType != null) {
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(arrName).append(" Ljava/lang/String;\n");
+                    } else {
+                        activeOutput.append("; ERROR: undefined variable ").append(arrName).append("\n");
+                    }
+                }
+                return;
+            }
+
             int[] bounds = lookupArrayBounds(arrName);
             int lower = bounds != null ? bounds[0] : 0;
             String jvmDesc = arrayTypeToJvmDesc(elemType);
@@ -1744,6 +1791,19 @@ public class CodeGenerator extends AlgolBaseListener {
             String arrName = e.identifier().getText();
             String elemType = lookupVarType(arrName);
             if (elemType == null) return "; ERROR: undeclared array " + arrName + "\n";
+
+            // String scalar character access: s[i] -> s.substring(i-1, i)
+            if ("string".equals(elemType)) {
+                StringBuilder sb = new StringBuilder();
+                sb.append(generateLoadVar(arrName));                         // load s
+                sb.append(generateExpr(e.expr(), varToFieldIndex));          // load i
+                sb.append("dup\n");                                          // i, i
+                sb.append("iconst_1\n").append("isub\n");                    // i-1, i  (beginIndex)
+                sb.append("swap\n");                                         // i-1, i  → correct order for (II)
+                sb.append("invokevirtual java/lang/String/substring(II)Ljava/lang/String;\n");
+                return sb.toString();
+            }
+
             int[] bounds = lookupArrayBounds(arrName);
             int lower = bounds != null ? bounds[0] : 0;
             String jvmDesc = arrayTypeToJvmDesc(elemType);
@@ -1799,91 +1859,12 @@ public class CodeGenerator extends AlgolBaseListener {
     }
 
     /**
-     * Generates code for built-in math functions from the environmental block.
+     * Delegates to {@link BuiltinFunctionGenerator} which handles math builtins
+     * (sqrt, abs, sin, …) and string builtins (length, concat, substring) separately.
      * Returns null if the function name is not a recognized built-in.
      */
     private String generateBuiltinMathFunction(String funcName, AlgolParser.ProcCallExprContext ctx) {
-        if (ctx.argList() == null || ctx.argList().arg().isEmpty()) {
-            return "; ERROR: " + funcName + " requires an argument\n";
-        }
-        
-        AlgolParser.ExprContext argExpr = ctx.argList().arg().get(0).expr();
-        if (argExpr == null) {
-            return "; ERROR: " + funcName + " requires an expression argument\n";
-        }
-        
-        StringBuilder sb = new StringBuilder();
-        String argType = exprTypes.getOrDefault(argExpr, "integer");
-        
-        switch (funcName) {
-            case "sqrt":
-                sb.append(generateExpr(argExpr));
-                if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/sqrt(D)D\n");
-                return sb.toString();
-                
-            case "abs":
-                sb.append(generateExpr(argExpr));
-                if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/abs(D)D\n");
-                return sb.toString();
-                
-            case "iabs":
-                sb.append(generateExpr(argExpr));
-                if ("real".equals(argType)) sb.append("d2i\n");
-                sb.append("invokestatic java/lang/Math/abs(I)I\n");
-                return sb.toString();
-                
-            case "sign":
-                // sign(E) = E > 0 ? 1 : E < 0 ? -1 : 0
-                // Generate inline code for efficiency
-                sb.append(generateExpr(argExpr));
-                if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/signum(D)D\n");
-                sb.append("d2i\n");
-                return sb.toString();
-                
-            case "entier":
-                // entier(E) = (int)Math.floor(E)
-                sb.append(generateExpr(argExpr));
-                if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/floor(D)D\n");
-                sb.append("d2i\n");
-                return sb.toString();
-                
-            case "sin":
-                sb.append(generateExpr(argExpr));
-                if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/sin(D)D\n");
-                return sb.toString();
-                
-            case "cos":
-                sb.append(generateExpr(argExpr));
-                if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/cos(D)D\n");
-                return sb.toString();
-                
-            case "arctan":
-                sb.append(generateExpr(argExpr));
-                if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/atan(D)D\n");
-                return sb.toString();
-                
-            case "ln":
-                sb.append(generateExpr(argExpr));
-                if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/log(D)D\n");
-                return sb.toString();
-                
-            case "exp":
-                sb.append(generateExpr(argExpr));
-                if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/exp(D)D\n");
-                return sb.toString();
-                
-            default:
-                return null; // Not a built-in function
-        }
+        return builtinGen.generate(funcName, ctx);
     }
 
     /**

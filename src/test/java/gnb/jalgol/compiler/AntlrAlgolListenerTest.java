@@ -980,4 +980,45 @@ end
     }
 
 
-} 
+    @Test
+    public void string_output_test() throws Exception {
+	// Milestone 18: string variable declaration, assignment, length, substring, concat, s[i] access, s[i] := mutation
+	Path jasminFile = AntlrAlgolListener.compileToFile(
+		"test/algol/string_output.alg", "gnb/jalgol/programs", "StringOutput", BUILD_DIR);
+	String jasminSource = Files.readString(jasminFile);
+
+	System.out.println("=== STRING OUTPUT JASMIN ===");
+	System.out.println(jasminSource);
+	System.out.println("=== END STRING OUTPUT ===");
+
+	// Check compilation succeeded
+	assertFalse(jasminSource.startsWith("ERROR"),
+		"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+	// Should use String.length() for length(s)
+	assertTrue(jasminSource.contains("invokevirtual java/lang/String/length()I"),
+		"Should use String.length() for length(s)");
+
+	// Should use String.substring for s[i] access and substring()
+	assertTrue(jasminSource.contains("invokevirtual java/lang/String/substring(II)Ljava/lang/String;"),
+		"Should use String.substring(II) for character access and substring()");
+
+	// Should use StringBuilder for s[i] := mutation
+	assertTrue(jasminSource.contains("invokevirtual java/lang/StringBuilder/toString()Ljava/lang/String;"),
+		"Should use StringBuilder.toString() for character mutation");
+
+	// Should use String.concat for concat()
+	assertTrue(jasminSource.contains("invokevirtual java/lang/String/concat(Ljava/lang/String;)Ljava/lang/String;"),
+		"Should use String.concat() for concat()");
+
+	// Assemble to .class
+	AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+	// Run and check output
+	String output = runClass(BUILD_DIR, "gnb.jalgol.programs.StringOutput");
+	System.out.println("string_output output: [" + output + "]");
+	assertEquals("Hello, world! 13 H world Hello, World! Hello, World!!!!", output.trim(),
+		"Should output all string operations correctly");
+    }
+
+}
