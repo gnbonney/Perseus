@@ -93,7 +93,7 @@ public class ExpressionGeneratorTest {
         
         // Should generate a new ProcRef object
         assertTrue(code.contains("new gnb/jalgol/test/TestClass$ProcRef0"), "Should instantiate a ProcRef class for the procedure");
-        assertTrue(code.contains("invokespecial gnb/jalgol/test/TestClass$ProcRef0/<init>()V"), "Should call ProcRef constructor");
+        assertTrue(code.contains("invokenonvirtual gnb/jalgol/test/TestClass$ProcRef0/<init>()V"), "Should call ProcRef constructor");
     }
 
     private AlgolParser.ExprContext parseExpr(String input) {

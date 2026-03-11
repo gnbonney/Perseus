@@ -6,6 +6,7 @@ import gnb.jalgol.compiler.antlr.AlgolBaseListener;
 import gnb.jalgol.compiler.antlr.AlgolParser;
 import gnb.jalgol.compiler.antlr.AlgolParser.ExprContext;
 import gnb.jalgol.compiler.codegen.BuiltinFunctionGenerator;
+import gnb.jalgol.compiler.codegen.ProcedureGenerator;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -98,6 +99,8 @@ public class CodeGenerator extends AlgolBaseListener {
 
     // Delegate for generating built-in math and string function calls
     private final BuiltinFunctionGenerator builtinGen;
+    // Delegate for generating procedure reference and procedure-variable call code
+    private final ProcedureGenerator procGen;
 
     public CodeGenerator(String source, String packageName, String className,
                          Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
@@ -115,6 +118,22 @@ public class CodeGenerator extends AlgolBaseListener {
         this.currentArrayBounds = arrayBounds;
         this.builtinGen = new BuiltinFunctionGenerator(exprTypes);
         this.builtinGen.setExprCodeGen(e -> generateExpr(e));
+        this.procGen = new ProcedureGenerator(
+            packageName, className,
+            this::nextProcRefId,
+            (name, content) -> procRefClassDefinitions.add(Map.entry(name, content)),
+            this::lookupProcVarSlot,
+            exprTypes,
+            e -> generateExpr(e));
+    }
+
+    private int nextProcRefId() { return procRefCounter++; }
+
+    private Integer lookupProcVarSlot(String name) {
+        Integer idx = currentLocalIndex.get(name);
+        if (idx == null && mainLocalIndex != null) idx = mainLocalIndex.get(name);
+        if (idx == null) idx = procVarSlots.get(name);
+        return idx;
     }
 
     public String getOutput() {
@@ -1508,22 +1527,11 @@ public class CodeGenerator extends AlgolBaseListener {
         return sb.toString();
     }
     private static String arrayTypeToJvmDesc(String arrayType) {
-        return switch (arrayType) {
-            case "boolean[]" -> "[Z";
-            case "integer[]" -> "[I";
-            case "real[]"    -> "[D";
-            case "string[]"  -> "[Ljava/lang/String;";
-            default -> "[I";
-        };
+        return CodeGenUtils.arrayTypeToJvmDesc(arrayType);
     }
 
     private static String scalarTypeToJvmDesc(String scalarType) {
-        return switch (scalarType) {
-            case "boolean", "integer" -> "I";
-            case "real" -> "D";
-            case "string" -> "Ljava/lang/String;";
-            default -> "I";
-        };
+        return CodeGenUtils.scalarTypeToJvmDesc(scalarType);
     }
 
     /** Looks up variable type in the current scope, falling back to main-scope if inside a procedure. */
@@ -1872,175 +1880,28 @@ public class CodeGenerator extends AlgolBaseListener {
      * Creates a synthetic class that implements the appropriate procedure interface
      * and delegates calls to the actual procedure method.
      */
+    /**
+     * Creates a synthetic ProcRef class and returns JVM instantiation bytecode.
+     * Delegates to ProcedureGenerator.
+     */
     private String generateProcedureReference(String procName, SymbolTableBuilder.ProcInfo procInfo) {
-        String returnType = procInfo.returnType;
-        
-        // Determine the interface to implement
-        String interfaceName;
-        switch (returnType) {
-            case "void": interfaceName = "VoidProcedure"; break;
-            case "real": interfaceName = "RealProcedure"; break;
-            case "integer": interfaceName = "IntegerProcedure"; break;
-            case "string": interfaceName = "StringProcedure"; break;
-            default: throw new RuntimeException("Unknown procedure return type: " + returnType);
-        }
-        
-        // Generate unique class name for this procedure reference
-        String procRefClassName = className + "$ProcRef" + procRefCounter++;
-        String fullClassName = packageName + "/" + procRefClassName;
-        
-        // Build the Jasmin source for the procedure reference class
-        StringBuilder jasmin = new StringBuilder();
-        jasmin.append(".source ").append(procRefClassName).append(".j\n");
-        jasmin.append(".class public ").append(fullClassName).append("\n");
-        jasmin.append(".super java/lang/Object\n");
-        jasmin.append(".implements gnb/jalgol/compiler/").append(interfaceName).append("\n\n");
-        
-        // Constructor
-        jasmin.append(".method public <init>()V\n");
-        jasmin.append("    .limit stack 1\n");
-        jasmin.append("    .limit locals 1\n");
-        jasmin.append("    aload_0\n");
-        jasmin.append("    invokenonvirtual java/lang/Object/<init>()V\n");
-        jasmin.append("    return\n");
-        jasmin.append(".end method\n\n");
-        
-        // Implement the interface method — unbox args from Object[] and call the static procedure
-        jasmin.append(".method public invoke([").append("Ljava/lang/Object;").append(")").append(getReturnTypeDescriptor(returnType)).append("\n");
-        jasmin.append("    .limit stack 20\n");
-        jasmin.append("    .limit locals 20\n");
-
-        // Unbox each argument from the Object[] (slot 1) and push onto JVM stack
-        List<String> paramNames = procInfo.paramNames;
-        for (int i = 0; i < paramNames.size(); i++) {
-            String paramName = paramNames.get(i);
-            String paramType = procInfo.paramTypes.getOrDefault(paramName, "integer");
-            jasmin.append("    aload_1\n");          // load Object[] args
-            jasmin.append("    ldc ").append(i).append("\n");
-            jasmin.append("    aaload\n");             // load Object from array
-            // Use java.lang.Number to handle both Integer and Double boxing
-            jasmin.append("    checkcast java/lang/Number\n");
-            if ("real".equals(paramType)) {
-                jasmin.append("    invokevirtual java/lang/Number/doubleValue()D\n");
-            } else {
-                jasmin.append("    invokevirtual java/lang/Number/intValue()I\n");
-            }
-        }
-
-        // Call the actual procedure
-        String paramDesc = procInfo.paramNames.stream()
-            .map(p -> {
-                if (procInfo.valueParams.contains(p)) {
-                    String type = procInfo.paramTypes.getOrDefault(p, "integer");
-                    return switch (type) {
-                        case "real" -> "D";
-                        case "string" -> "Ljava/lang/String;";
-                        default -> "I";
-                    };
-                } else {
-                    return "Lgnb/jalgol/compiler/Thunk;";
-                }
-            })
-            .collect(Collectors.joining());
-        String retDesc = switch (returnType) {
-            case "void" -> "V";
-            case "real" -> "D";
-            case "string" -> "Ljava/lang/String;";
-            default -> "I";
-        };
-        jasmin.append("    invokestatic ").append(packageName).append("/").append(className)
-              .append("/").append(procName).append("(").append(paramDesc).append(")").append(retDesc).append("\n");
-        
-        if (!"void".equals(returnType)) {
-            jasmin.append("    ").append(getReturnInstruction(returnType)).append("\n");
-        } else {
-            jasmin.append("    return\n");
-        }
-        
-        jasmin.append(".end method\n");
-        
-        // Store the generated class
-        procRefClassDefinitions.add(Map.entry(procRefClassName, jasmin.toString()));
-        
-        // Generate instantiation code
-        StringBuilder instantiation = new StringBuilder();
-        instantiation.append("new ").append(fullClassName).append("\n");
-        instantiation.append("dup\n");
-        instantiation.append("invokenonvirtual ").append(fullClassName).append("/<init>()V\n");
-        
-        return instantiation.toString();
+        return procGen.generateProcedureReference(procName, procInfo);
     }
     
     private String getReturnTypeDescriptor(String returnType) {
-        switch (returnType) {
-            case "void": return "V";
-            case "real": return "D";
-            case "string": return "Ljava/lang/String;";
-            default: return "I";
-        }
+        return CodeGenUtils.getReturnTypeDescriptor(returnType);
     }
-    
+
     private String getReturnInstruction(String returnType) {
-        switch (returnType) {
-            case "real": return "dreturn";
-            case "string": return "areturn";
-            default: return "ireturn";
-        }
+        return CodeGenUtils.getReturnInstruction(returnType);
     }
 
     /**
      * Generates code to call a procedure through a procedure variable.
-     * Arguments are boxed into an Object[] and passed via the ProcRef interface.
+     * Delegates to ProcedureGenerator.
      */
     private String generateProcedureVariableCall(String varName, String varType, List<AlgolParser.ArgContext> args) {
-        String returnType = varType.substring("procedure:".length());
-        String interfaceName;
-        switch (returnType) {
-            case "void": interfaceName = "VoidProcedure"; break;
-            case "real": interfaceName = "RealProcedure"; break;
-            case "integer": interfaceName = "IntegerProcedure"; break;
-            case "string": interfaceName = "StringProcedure"; break;
-            default: throw new RuntimeException("Unknown procedure return type: " + returnType);
-        }
-
-        StringBuilder sb = new StringBuilder();
-
-        // Load the procedure reference object
-        Integer idx = currentLocalIndex.get(varName);
-        if (idx == null && mainLocalIndex != null) idx = mainLocalIndex.get(varName);
-        if (idx == null) idx = procVarSlots.get(varName);
-        if (idx == null) {
-            return "; ERROR: undeclared procedure variable " + varName + "\n";
-        }
-        sb.append("aload ").append(idx).append("\n");
-        sb.append("checkcast gnb/jalgol/compiler/").append(interfaceName).append("\n");
-
-        // Build Object[] with actual arguments (boxed)
-        int argCount = args.size();
-        if (argCount == 0) {
-            sb.append("iconst_0\nanewarray java/lang/Object\n");
-        } else {
-            sb.append("ldc ").append(argCount).append("\n");
-            sb.append("anewarray java/lang/Object\n");
-            for (int i = 0; i < argCount; i++) {
-                AlgolParser.ExprContext argExpr = args.get(i).expr();
-                String argType = exprTypes.getOrDefault(argExpr, "integer");
-                sb.append("dup\n");
-                sb.append("ldc ").append(i).append("\n");
-                sb.append(generateExpr(argExpr));
-                if ("real".equals(argType)) {
-                    sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
-                } else {
-                    sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
-                }
-                sb.append("aastore\n");
-            }
-        }
-
-        sb.append("invokeinterface gnb/jalgol/compiler/").append(interfaceName)
-          .append("/invoke([Ljava/lang/Object;)").append(getReturnTypeDescriptor(returnType)).append(" 2\n");
-
-        return sb.toString();
+        return procGen.generateProcedureVariableCall(varName, varType, args);
     }
 }
 
