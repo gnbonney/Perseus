@@ -127,21 +127,23 @@ label
   ;
 
 expr
-  : expr op=('<'|'<='|'>'|'>='|'='|'<>') expr   # RelExpr
-  | expr op=('*'|'/') expr   # MulDivExpr
-  | expr op=('+'|'-') expr   # AddSubExpr
-  | expr op='&' expr         # AndExpr
-  | '-' expr                 # UnaryMinusExpr
-  | IF expr THEN expr ELSE expr # IfExpr
-  | identifier '[' expr ']'  # ArrayAccessExpr
-  | identifier '(' argList ')' # ProcCallExpr
-  | realLiteral              # RealLiteralExpr
-  | unsignedInt              # IntLiteralExpr
-  | string                   # StringLiteralExpr
-  | identifier               # VarExpr
-  | '(' expr ')'             # ParenExpr
-  | TRUE                     # TrueLiteralExpr
-  | FALSE                    # FalseLiteralExpr
+  : expr op=('*'|'/') expr               # MulDivExpr
+  | expr op=('+'|'-') expr               # AddSubExpr
+  | expr op=('<'|'<='|'>'|'>='|'='|'<>') expr   # RelExpr
+  | expr ('&' | AND_KW) expr             # AndExpr
+  | expr ('|' | OR) expr                 # OrExpr
+  | '-' expr                             # UnaryMinusExpr
+  | ('~' | NOT) expr                     # NotExpr
+  | IF expr THEN expr ELSE expr          # IfExpr
+  | identifier '[' expr ']'              # ArrayAccessExpr
+  | identifier '(' argList ')'           # ProcCallExpr
+  | realLiteral                          # RealLiteralExpr
+  | unsignedInt                          # IntLiteralExpr
+  | string                               # StringLiteralExpr
+  | identifier                           # VarExpr
+  | '(' expr ')'                         # ParenExpr
+  | TRUE                                 # TrueLiteralExpr
+  | FALSE                                # FalseLiteralExpr
   ;
 
 procedureCall: identifier ('(' argList ')')?;
@@ -182,6 +184,9 @@ GOTO : 'goto';
 TRUE : 'true';
 FALSE : 'false';
 
+NOT : 'not';
+AND_KW : 'and';
+OR : 'or';
 /* IDENT should be defined after your other keywords */
 IDENT : ('a'..'z' | 'A'..'Z')  ('a'..'z'|'A'..'Z' | '0'..'9'| '_')*;
 

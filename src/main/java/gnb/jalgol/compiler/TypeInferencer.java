@@ -60,6 +60,25 @@ public class TypeInferencer extends AlgolBaseListener {
     }
 
     @Override
+    public void exitOrExpr(AlgolParser.OrExprContext ctx) {
+        String leftType = exprTypes.get(ctx.expr(0));
+        String rightType = exprTypes.get(ctx.expr(1));
+        if (!"boolean".equals(leftType) || !"boolean".equals(rightType)) {
+            throw new RuntimeException("or operator requires boolean operands");
+        }
+        exprTypes.put(ctx, "boolean");
+    }
+
+    @Override
+    public void exitNotExpr(AlgolParser.NotExprContext ctx) {
+        String operandType = exprTypes.get(ctx.expr());
+        if (!"boolean".equals(operandType)) {
+            throw new RuntimeException("not operator requires boolean operand");
+        }
+        exprTypes.put(ctx, "boolean");
+    }
+
+    @Override
     public void exitVarExpr(AlgolParser.VarExprContext ctx) {
         String varName = ctx.identifier().getText();
         

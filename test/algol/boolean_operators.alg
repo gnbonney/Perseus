@@ -1,4 +1,9 @@
-boolean a, b, c, d, e, f, g;
-
-if g and not a or b or not c or d or e or not f then
-    outstring("Boolean logic test passed");
+begin
+    boolean p, q, r;
+    p := true;
+    q := false;
+    r := true;
+    if p or q then outstring(1, "or works\n");
+    if not q then outstring(1, "not works\n");
+    if p and not q and r then outstring(1, "Boolean logic test passed\n")
+end

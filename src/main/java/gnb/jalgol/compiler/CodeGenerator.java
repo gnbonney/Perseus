@@ -1134,6 +1134,11 @@ public class CodeGenerator extends AlgolBaseListener {
         } else if (ctx instanceof AlgolParser.AndExprContext ae) {
             names.addAll(collectVarNames(ae.expr(0)));
             names.addAll(collectVarNames(ae.expr(1)));
+        } else if (ctx instanceof AlgolParser.OrExprContext oe) {
+            names.addAll(collectVarNames(oe.expr(0)));
+            names.addAll(collectVarNames(oe.expr(1)));
+        } else if (ctx instanceof AlgolParser.NotExprContext ne) {
+            names.addAll(collectVarNames(ne.expr()));
         } else if (ctx instanceof AlgolParser.UnaryMinusExprContext ue) {
             names.addAll(collectVarNames(ue.expr()));
         } else if (ctx instanceof AlgolParser.ParenExprContext pe) {
@@ -1590,6 +1595,10 @@ public class CodeGenerator extends AlgolBaseListener {
             return left + right + instr + "\n";
         } else if (ctx instanceof AlgolParser.AndExprContext e) {
             return generateExpr(e.expr(0), varToFieldIndex) + generateExpr(e.expr(1), varToFieldIndex) + "iand\n";
+        } else if (ctx instanceof AlgolParser.OrExprContext e) {
+            return generateExpr(e.expr(0), varToFieldIndex) + generateExpr(e.expr(1), varToFieldIndex) + "ior\n";
+        } else if (ctx instanceof AlgolParser.NotExprContext e) {
+            return generateExpr(e.expr(), varToFieldIndex) + "iconst_1\nixor\n";
         } else if (ctx instanceof AlgolParser.VarExprContext e) {
             String name = e.identifier().getText();
 

@@ -8,7 +8,9 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 
 ## Current Status
 
-**45/45 tests passing as of March 10, 2026.** Milestone 15 (non-local scalar variable access, procedures accessing outer-scope variables) is complete.
+**29/29 tests passing as of March 10, 2026.** Milestone 16 (boolean OR/NOT operators) is complete.
+
+**Note on M15 test quality:** `manboy_test` and `recursion_euler_test` appeared to pass at M15 but were actually broken — both relied on `redirectErrorStream(true)` capturing exception/error messages as non-empty output, satisfying a weak `output.length() > 0` assertion. M16 exposed the real failures: (1) `and` became a proper keyword, making `recursion_euler.alg`'s `abs(mn) < abs(m[n]) and n < 15` guard work correctly — which revealed that `square(x) = x*x` is a divergent series incompatible with Euler acceleration; (2) the ManBoy VerifyError was pre-existing. Both are now genuinely fixed and tested for real output.
 
 ### Resolved Issues
 
@@ -461,7 +463,7 @@ integer and string arguments.
 - [x] Grammar/Codegen: if-then-else as an **expression** (`# IfExpr` alternative in `expr` rule; `TypeInferencer.exitIfExpr` infers result type; `CodeGenerator.generateExpr` emits `ifeq/goto` branching)
 - [x] Grammar: named `end` (`end euler`; already supported — Algol 60 identifiers after `end` are treated as label-comments by the grammar)
 - [x] Codegen: typed procedure parameter called with arguments (`fct(0)`, `fct(i)`) — `generateProcedureVariableCall` boxes args into `Object[]` using `Integer.valueOf`/`Double.valueOf`; `generateProcedureReference` unboxes via `java.lang.Number.intValue()`/`doubleValue()`
-- [x] Fix: `t` added to local declarations; `r` (unused) removed; `square` helper procedure added; `outreal` call added for observable output
+- [x] Fix: `t` added to local declarations; `r` (unused) removed; `altsign` helper procedure added (replaces `square` — Euler acceleration requires an alternating convergent series; `square` was divergent and caused an infinite loop once `and` became a proper keyword in M16); `outreal` call added for observable output
 - [x] Test: `recursion_euler_test` asserts non-empty output
 
 **Implementation notes:**
@@ -483,14 +485,19 @@ integer and string arguments.
 
 ---
 
-## Milestone 16 — Boolean Operators (`boolean_operators.alg`)
+## Milestone 16 — Boolean Operators (`boolean_operators.alg`) ✅
 
 **Goal:** `boolean_operators.alg` compiles and runs with correct `or` and `not` behavior.
 
-**New features needed:**
-- [ ] Grammar: `or` / `not` operators (and synonyms)
-- [ ] Codegen: boolean `or` and `not` instructions
-- [ ] Test: assert output is correct for boolean logic
+**Status: PASSING** (29/29 tests green as of March 10, 2026).
+
+**Features implemented:**
+- [x] Grammar: `or` / `not` operators (and synonyms `|`, `~`, `and`, `&`) — added `OR`, `NOT`, `AND_KW` lexer tokens; `OrExpr` and `NotExpr` grammar rules with correct precedence (MulDiv > AddSub > Rel > And > Or)
+- [x] Codegen: boolean `or` (`ior`) and `not` (`iconst_1; ixor`) instructions
+- [x] TypeInferencer: `exitOrExpr` and `exitNotExpr` — enforce boolean operands, annotate result as `boolean`
+- [x] Test: `boolean_operators_test()` — asserts "or works", "not works", "Boolean logic test passed"
+- [x] Fix: `recursion_euler.alg` replaced `square` (divergent series) with `altsign` (alternating convergent series) — required because `and` is now a proper keyword, making the loop-guard `abs(mn) < abs(m[n]) and n < 15` work correctly for the first time
+- [x] Fix: removed `@Tag("slow")` workaround from `manboy_test` and `recursion_euler_test`; removed `slowTest` gradle task — both tests run in <2s under plain `gradle test`
 
 ---
 

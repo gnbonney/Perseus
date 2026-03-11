@@ -1,9 +1,15 @@
 begin comment Milestone 14: Euler summation test;
-    real procedure square(x);
-        value x;
-        real x;
+    comment altsign(n) = (-1)^n. Provides an alternating convergent series
+            for the Euler acceleration method. The sum 1-1+1-1+... converges to 0.5.;
+    real procedure altsign(n);
+        value n; integer n;
         begin
-            square := x * x
+            real s;
+            integer i;
+            s := 1;
+            for i := 1 step 1 until n do
+                s := -s;
+            altsign := s
         end;
     real procedure euler(fct, eps, tim);
         value eps, tim;
@@ -34,5 +40,5 @@ begin comment Milestone 14: Euler summation test;
             end;
         euler := sum
         end euler;
-    outreal(1, euler(square, 0.001, 5))
+    outreal(1, euler(altsign, 0.001, 5))
 end

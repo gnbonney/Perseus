@@ -932,5 +932,28 @@ end
         assertTrue(output.trim().length() > 0, "Should produce some output");
     }
 
+    @Test
+    public void boolean_operators_test() throws Exception {
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/boolean_operators.alg", "gnb/jalgol/programs",
+                "BooleanOperators", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== BOOLEAN OPERATORS JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END BOOLEAN OPERATORS ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.BooleanOperators");
+        System.out.println("boolean operators output: [" + output + "]");
+        assertTrue(output.contains("or works"), "or operator should work");
+        assertTrue(output.contains("not works"), "not operator should work");
+        assertTrue(output.contains("Boolean logic test passed"), "combined boolean logic should pass");
+    }
+
 
 } 
