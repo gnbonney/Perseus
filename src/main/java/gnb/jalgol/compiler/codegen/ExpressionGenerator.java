@@ -106,34 +106,72 @@ public class ExpressionGenerator implements GeneratorDelegate {
     public String generateLoadVar(String name) {
         Integer idx = context.getLocalIndex().get(name);
         String type = context.getSymbolTable().get(name);
-        if (idx == null) {
-            // Check if it's a static field (main variable) if it's not a local in a proc
-            if (context.getMainSymbolTable() != null && context.getMainSymbolTable().containsKey(name)) {
-                String mainType = context.getMainSymbolTable().get(name);
-                String desc = CodeGenUtils.arrayTypeToJvmDesc(mainType);
-                if (mainType.endsWith("[]")) {
-                    return "getstatic " + context.getPackageName() + "/" + context.getClassName() + "/" + name + " " + desc + "\n";
-                }
-            }
-            return "; ERROR: unknown variable " + name + "\n";
+        if (idx == null && context.getMainLocalIndex() != null) {
+            idx = context.getMainLocalIndex().get(name);
         }
-        if ("real".equals(type)) return "dload " + idx + "\n";
+        if (type == null && context.getMainSymbolTable() != null) {
+            type = context.getMainSymbolTable().get(name);
+        }
+        // If this is a thunk (call-by-name) parameter, load the thunk and eval it
         if (type != null && type.startsWith("thunk:")) {
             String baseType = type.substring("thunk:".length());
-            String retDesc = baseType.equals("real") ? "D" : (baseType.equals("string") ? "Ljava/lang/String;" : "I");
             String cast = baseType.equals("real") ? "java/lang/Double" : (baseType.equals("string") ? "java/lang/String" : "java/lang/Integer");
             String valMethod = baseType.equals("real") ? "doubleValue()D" : (baseType.equals("string") ? "" : "intValue()I");
-            
             StringBuilder sb = new StringBuilder();
             sb.append("aload ").append(idx).append("\n")
               .append("invokeinterface gnb/jalgol/runtime/Thunk/eval()Ljava/lang/Object; 1\n")
               .append("checkcast ").append(cast).append("\n");
-            if (!valMethod.isEmpty()) {
-                sb.append("invokevirtual ").append(cast).append("/").append(valMethod).append("\n");
-            }
+            if (!valMethod.isEmpty()) sb.append("invokevirtual ").append(cast).append("/").append(valMethod).append("\n");
             return sb.toString();
         }
-        return "iload " + idx + "\n";
+        if (idx == null) {
+            // Check if this is a static scalar or array in main
+            if (type != null && !type.endsWith("[]") && !type.startsWith("procedure:") && !type.startsWith("thunk:")) {
+                String jvmDesc = CodeGenUtils.scalarTypeToJvmDesc(type);
+                return "getstatic " + context.getPackageName() + "/" + context.getClassName() + "/" + name + " " + jvmDesc + "\n";
+            }
+            if (context.getMainSymbolTable() != null) {
+                String mainType = context.getMainSymbolTable().get(name);
+                if (mainType != null && !mainType.endsWith("[]") && !mainType.startsWith("procedure:") && !mainType.startsWith("thunk:")) {
+                    String jvmDesc = CodeGenUtils.scalarTypeToJvmDesc(mainType);
+                    return "getstatic " + context.getPackageName() + "/" + context.getClassName() + "/" + name + " " + jvmDesc + "\n";
+                }
+            }
+            return "; ERROR: unknown variable " + name + "\n";
+        }
+        // If idx came from outer scope (mainLocalIndex) and current local map doesn't contain it,
+        // access via static field instead of local slot.
+        if (!context.getLocalIndex().containsKey(name)) {
+            if (type != null && type.startsWith("procedure:")) {
+                String desc = switch (type.substring("procedure:".length())) {
+                    case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
+                    case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
+                    case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
+                    default -> "Lgnb/jalgol/compiler/VoidProcedure;";
+                };
+                return "getstatic " + context.getPackageName() + "/" + context.getClassName() + "/" + name + " " + desc + "\n";
+            }
+            if (type != null && !type.endsWith("[]") && !type.startsWith("thunk:")) {
+                String jvmDesc = CodeGenUtils.scalarTypeToJvmDesc(type);
+                return "getstatic " + context.getPackageName() + "/" + context.getClassName() + "/" + name + " " + jvmDesc + "\n";
+            }
+            if (type != null && type.endsWith("[]")) {
+                String jvmDesc = CodeGenUtils.arrayTypeToJvmDesc(type);
+                return "getstatic " + context.getPackageName() + "/" + context.getClassName() + "/" + name + " " + jvmDesc + "\n";
+            }
+        }
+        if (type != null && type.startsWith("thunk:")) {
+            type = type.substring("thunk:".length());
+        }
+        if ("integer".equals(type) || "boolean".equals(type)) {
+            return "iload " + idx + "\n";
+        } else if ("real".equals(type)) {
+            return "dload " + idx + "\n";
+        } else if ("string".equals(type)) {
+            return "aload " + idx + "\n";
+        } else {
+            return "; ERROR: unknown var type " + type + "\n";
+        }
     }
 
     public String generateStoreVar(String name) {
