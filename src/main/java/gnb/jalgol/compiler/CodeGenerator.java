@@ -312,7 +312,10 @@ public class CodeGenerator extends AlgolBaseListener {
 
         // Parameters occupy the first slots
         for (String paramName : info.paramNames) {
-            String baseType = info.paramTypes.getOrDefault(paramName, "integer");
+            String baseType = info.paramTypes.get(paramName);
+            if (baseType == null) {
+                baseType = "void".equals(info.returnType) ? "real" : info.returnType;
+            }
             String paramType;
             if (info.valueParams.contains(paramName)) {
                 paramType = baseType;
@@ -363,7 +366,10 @@ public class CodeGenerator extends AlgolBaseListener {
                     // call-by-name parameter passed as Thunk
                     return "Lgnb/jalgol/compiler/Thunk;";
                 }
-                String type = info.paramTypes.getOrDefault(p, "integer");
+                String type = info.paramTypes.get(p);
+                if (type == null) {
+                    type = "void".equals(info.returnType) ? "real" : info.returnType;
+                }
                 if ("real".equals(type)) return "D";
                 if ("string".equals(type)) return "Ljava/lang/String;";
                 if (type.startsWith("procedure:")) {
@@ -524,6 +530,7 @@ public class CodeGenerator extends AlgolBaseListener {
 
         // Scalar (possibly chained) assignment
         String exprType = exprTypes.getOrDefault(ctx.expr(), "integer");
+        boolean rhsIsProcedureRef = isProcedureReferenceExpr(ctx.expr());
 
         // Determine storage type: real if any destination is real, string if any destination is string
         boolean anyReal = lvalues.stream().anyMatch(lv -> {
@@ -540,9 +547,12 @@ public class CodeGenerator extends AlgolBaseListener {
             if (lvName.equals(currentProcName)) return "string".equals(currentProcReturnType);
             return "string".equals(vt);
         });
-        boolean anyProcedure = lvalues.stream().anyMatch(lv -> {
+        boolean anyProcedure = rhsIsProcedureRef && lvalues.stream().anyMatch(lv -> {
             String lvName = lv.identifier().getText();
             String vt = currentSymbolTable.get(lvName);
+            if (vt == null && mainSymbolTable != null) {
+                vt = mainSymbolTable.get(lvName);
+            }
             return vt != null && vt.startsWith("procedure:");
         });
         String storeType = anyProcedure ? "procedure" : anyReal ? "real" : anyString ? "string" : "integer";
@@ -576,6 +586,9 @@ public class CodeGenerator extends AlgolBaseListener {
 
             Integer idx = currentLocalIndex.get(name);
             String varType = currentSymbolTable.get(name);
+            if (varType == null && mainSymbolTable != null) {
+                varType = mainSymbolTable.get(name);
+            }
             boolean isThunk = varType != null && varType.startsWith("thunk:");
             boolean isProcVar = varType != null && varType.startsWith("procedure:");
             if (idx == null && !isThunk && !isProcVar) {
@@ -1221,6 +1234,9 @@ public class CodeGenerator extends AlgolBaseListener {
     private String generateLoadVar(String name) {
         Integer idx = currentLocalIndex.get(name);
         String type = currentSymbolTable.get(name);
+        if (type == null && mainSymbolTable != null) {
+            type = mainSymbolTable.get(name);
+        }
         if (idx == null) {
             // Check if this is a static scalar
             if (type != null && !type.endsWith("[]") && !type.startsWith("procedure:") && !type.startsWith("thunk:")) {
@@ -1382,13 +1398,23 @@ public class CodeGenerator extends AlgolBaseListener {
                 if (arg.expr() != null) {
                     Set<String> names = collectVarNames(arg.expr());
                     for (String vn : names) {
+                        if (procedures.containsKey(vn)) {
+                            continue;
+                        }
+                        String vnType = lookupVarType(vn);
+                        if (vnType == null) {
+                            continue;
+                        }
                         if (!varToBoxSlot.containsKey(vn)) {
                             int slot = allocateNewLocal("__box_" + vn);
                             varToBoxSlot.put(vn, slot);
                         }
                     }
                     if (arg.expr() instanceof AlgolParser.VarExprContext) {
-                        varsToRestore.add(((AlgolParser.VarExprContext)arg.expr()).identifier().getText());
+                        String vName = ((AlgolParser.VarExprContext)arg.expr()).identifier().getText();
+                        if (!procedures.containsKey(vName) && lookupVarType(vName) != null) {
+                            varsToRestore.add(vName);
+                        }
                     }
                 }
             }
@@ -1437,7 +1463,9 @@ public class CodeGenerator extends AlgolBaseListener {
                 Map<String,Integer> varToField = new LinkedHashMap<>();
                 int fi = 0;
                 for (String vn : names) {
-                    varToField.put(vn, fi++);
+                    if (varToBoxSlot.containsKey(vn)) {
+                        varToField.put(vn, fi++);
+                    }
                 }
                 String baseType = info.paramTypes.getOrDefault(paramName, "integer");
                 String thunkClass = createThunkClass(varToField, actual, baseType);
@@ -1526,6 +1554,19 @@ public class CodeGenerator extends AlgolBaseListener {
 
         return sb.toString();
     }
+
+    private boolean isProcedureReferenceExpr(ExprContext expr) {
+        if (!(expr instanceof AlgolParser.VarExprContext ve)) {
+            return false;
+        }
+        String name = ve.identifier().getText();
+        if (procedures.containsKey(name)) {
+            return true;
+        }
+        String type = lookupVarType(name);
+        return type != null && type.startsWith("procedure:");
+    }
+
     private static String arrayTypeToJvmDesc(String arrayType) {
         return CodeGenUtils.arrayTypeToJvmDesc(arrayType);
     }
@@ -1625,9 +1666,15 @@ public class CodeGenerator extends AlgolBaseListener {
         } else if (ctx instanceof AlgolParser.MulDivExprContext e) {
             String left  = generateExpr(e.expr(0), varToFieldIndex);
             String right = generateExpr(e.expr(1), varToFieldIndex);
-            String leftType  = exprTypes.get(e.expr(0));
-            String rightType = exprTypes.get(e.expr(1));
-            String type = exprTypes.get(ctx);
+            String leftType  = exprTypes.getOrDefault(e.expr(0), "integer");
+            String rightType = exprTypes.getOrDefault(e.expr(1), "integer");
+            String type = exprTypes.getOrDefault(ctx, "integer");
+            if (leftType.startsWith("thunk:")) {
+                leftType = leftType.substring("thunk:".length());
+            }
+            if (rightType.startsWith("thunk:")) {
+                rightType = rightType.substring("thunk:".length());
+            }
             if ("real".equals(type) && "integer".equals(leftType))  left  += "i2d\n";
             if ("real".equals(type) && "integer".equals(rightType)) right += "i2d\n";
             String op = e.op.getText();
@@ -1638,9 +1685,15 @@ public class CodeGenerator extends AlgolBaseListener {
         } else if (ctx instanceof AlgolParser.AddSubExprContext e) {
             String left  = generateExpr(e.expr(0), varToFieldIndex);
             String right = generateExpr(e.expr(1), varToFieldIndex);
-            String leftType  = exprTypes.get(e.expr(0));
-            String rightType = exprTypes.get(e.expr(1));
-            String type = exprTypes.get(ctx);
+            String leftType  = exprTypes.getOrDefault(e.expr(0), "integer");
+            String rightType = exprTypes.getOrDefault(e.expr(1), "integer");
+            String type = exprTypes.getOrDefault(ctx, "integer");
+            if (leftType.startsWith("thunk:")) {
+                leftType = leftType.substring("thunk:".length());
+            }
+            if (rightType.startsWith("thunk:")) {
+                rightType = rightType.substring("thunk:".length());
+            }
             if ("real".equals(type) && "integer".equals(leftType))  left  += "i2d\n";
             if ("real".equals(type) && "integer".equals(rightType)) right += "i2d\n";
             String op = e.op.getText();
@@ -1746,6 +1799,9 @@ public class CodeGenerator extends AlgolBaseListener {
             // Regular variable lookup
             Integer idx = currentLocalIndex.get(name);
             String type = currentSymbolTable.get(name);
+            if (type == null && mainSymbolTable != null) {
+                type = mainSymbolTable.get(name);
+            }
             if (idx == null) {
                 // Check if this is a static scalar (no local slot, but exists in symbol table)
                 if (type != null && !type.endsWith("[]") && !type.startsWith("procedure:") && !type.startsWith("thunk:")) {
@@ -1832,6 +1888,11 @@ public class CodeGenerator extends AlgolBaseListener {
             String builtinCode = generateBuiltinMathFunction(procName, e);
             if (builtinCode != null) {
                 return builtinCode;
+            }
+
+            // User-defined procedures take priority over procedure variables.
+            if (procedures.containsKey(procName)) {
+                return generateUserProcedureInvocation(procName, e.argList().arg(), false);
             }
             
             // Check if this is a procedure variable call

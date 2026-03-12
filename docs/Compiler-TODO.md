@@ -38,9 +38,9 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 ## Current Status
 
-**49/49 tests passing as of March 11, 2026.** Milestone 18 (string variables and string output) is complete.
+**48/49 tests passing as of March 12, 2026.** Milestone 18 (string variables and string output) remains complete. Current failing test: `manboy_test`.
 
-**Note on M15 test quality:** `manboy_test` and `recursion_euler_test` appeared to pass at M15 but were actually broken — both relied on `redirectErrorStream(true)` capturing exception/error messages as non-empty output, satisfying a weak `output.length() > 0` assertion. M16 exposed the real failures: (1) `and` became a proper keyword, making `recursion_euler.alg`'s `abs(mn) < abs(m[n]) and n < 15` guard work correctly — which revealed that `square(x) = x*x` is a divergent series incompatible with Euler acceleration; (2) the ManBoy VerifyError was pre-existing. Both are now genuinely fixed and tested for real output.
+**Note on M15 test quality:** `manboy_test` and `recursion_euler_test` appeared to pass at M15 but were actually broken — both relied on `redirectErrorStream(true)` capturing exception/error messages as non-empty output, satisfying a weak `output.length() > 0` assertion. M16 exposed the real failures: (1) `and` became a proper keyword, making `recursion_euler.alg`'s `abs(mn) < abs(m[n]) and n < 15` guard work correctly — which revealed that `square(x) = x*x` is a divergent series incompatible with Euler acceleration; (2) the ManBoy VerifyError was pre-existing. `recursion_euler_test` is now genuinely fixed; ManBoy remains under active repair.
 
 ### Resolved Issues
 
@@ -457,22 +457,28 @@ integer and string arguments.
 
 **Rationale:** `manboy.alg` (13E) already exercises mutual recursion and deep recursive calls. No additional deep recursion milestone is needed.
 
-### 13E — Man or Boy (`manboy.alg`) ✅
+### 13E — Man or Boy (`manboy.alg`) ⚠️ IN PROGRESS
 
 **Goal:** Full Man or Boy test with all features integrated.
 
-**Status: PASSING** (`manboy_test` green as of March 10, 2026). The test asserts non-empty output; the full result (-67) requires non-local variable access which is a Future Milestone item.
+**Status: FAILING (currently under repair).** `manboy_test` asserts the full runtime result (`-67.0`) and is currently red as of March 12, 2026.
 
 **Root cause (fixed):** `CodeGenerator` used a single `procBuffer` field that was overwritten when B's `enterProcedureDecl` fired inside A's body, discarding A's accumulated buffer and leaving `procBuffer = null` when A exited. Fixed by replacing `procBuffer` with `Deque<StringBuilder> procBufferStack` and the flat `mainXxx` save fields with `LinkedList`-backed stacks (`savedOuterSTStack`, `savedOuterLIStack`, etc.). On enter, old context is pushed and the current scope becomes the new "outer"; on exit, stacks are restored. `LinkedList` is used instead of `ArrayDeque` because `currentProcName` and `mainSymbolTable` may be null for outermost procedures.
 
 **Features implemented:**
 - [x] Codegen: `procBufferStack` (Deque) replaces single `procBuffer`; `activeOutput` always points to top of stack or `mainCode`
 - [x] Codegen: `savedOuterSTStack` / `savedOuterLIStack` / etc. (LinkedList) save and restore scope context for each nesting level
-- [x] Test: `manboy_test` compiles and produces output without exception
+- [x] Codegen: procedure-call dispatch prioritizes declared procedures over procedure variables in expression calls
+- [x] Codegen: arithmetic coercion emits `i2d` reliably for integer operands in real expressions (fixes ManBoy `dadd` VerifyError path)
+- [x] Test: `manboy_test` now asserts exact output `-67.0` (strong assertion; currently failing until non-local access is completed)
 
-**Remaining (Future Milestone):**
-- [ ] Codegen: non-local variable access — procedure B inside A must access A's parameters (k, x1–x5); requires display/frame pointer approach or closure-based capture
-- [ ] Test: full runtime result (-67) contingent on non-local access support
+**Remaining (Current Work):**
+- [ ] Implement correct non-local variable access for nested procedures in ManBoy (closure/display semantics rather than cross-method local-slot fallback)
+- [ ] Make `manboy_test` pass with exact expected output `-67.0`
+
+**Recent progress (March 12, 2026):**
+- [x] Repaired regressions in `proc_var_test` and `proc_typed_simple_test`
+- [ ] ManBoy still failing; currently the only red test
 
 ---
 
@@ -646,7 +652,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 # - Standard I/O (`instring`) (M11C.3) — ✅ Milestone 18 (implemented; Scanner.nextLine())
 # - Error handling (`fault` procedure) — ✅ Milestone 11D
 # - `jen.alg` (call-by-name) — Milestone 12
-# - `manboy.alg` (deep recursion + procedure refs) — Milestone 13
+# - `manboy.alg` (deep recursion + procedure refs) — Milestone 13 (in progress; currently one failing test)
 # - `recursion_euler.alg` (procedure parameters + real arrays) — Milestone 14
 # - `pi2.alg` (non-local scalar access) — Milestone 15
 # - `boolean_operators.alg` — Milestone 16

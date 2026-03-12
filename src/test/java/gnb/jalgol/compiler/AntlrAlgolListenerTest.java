@@ -932,8 +932,7 @@ end
         // Run and capture output
         String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ManBoy");
         System.out.println("Man or Boy output: [" + output + "]");
-        // TODO: assertEquals("-67", output.trim(), "Man or Boy test should return -67");
-        assertTrue(output.trim().length() > 0, "Should produce some output");
+		assertEquals("-67.0", output.trim(), "Man or Boy test should return -67.0");
     }
 
     @Test
