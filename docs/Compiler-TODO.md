@@ -398,6 +398,18 @@ integer and string arguments.
 
 ## Milestone 13 — Procedure References and Parameters
 
+---
+
+## Deferred-Typing (Optional Formal Types)
+
+Algol allows formals without an explicit base type (deferred-typing). To handle this correctly and avoid brittle global defaults, add explicit tasks to design and implement call-site deferred-typing.
+
+- [ ] Design call-site deferred-typing resolution: choose base type at each call site from (1) declared formal (if present), (2) inferred type of the actual, else (3) conservative fallback `integer`.
+- [ ] Implement thunk/descriptor generation using call-site-resolved base types (update `CodeGenerator` and `SymbolTableBuilder` integration).
+- [ ] Add unit tests covering mixed-type name-parameters (integer ↔ real) and missing formal types (ManBoy reproduction cases).
+- [ ] Update documentation: explain deferred-typing behavior in `docs/Algol.md` and `docs/Compiler-TODO.md`.
+
+
 **Goal:** Build up to `manboy.alg` through incremental steps, each with simpler test programs.
 
 ### 13A — Procedure Variables (`proc_var.alg`) ✅

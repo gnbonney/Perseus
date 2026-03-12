@@ -314,7 +314,7 @@ public class CodeGenerator extends AlgolBaseListener {
         for (String paramName : info.paramNames) {
             String baseType = info.paramTypes.get(paramName);
             if (baseType == null) {
-                baseType = "void".equals(info.returnType) ? "real" : info.returnType;
+                baseType = "integer"; // default unspecified numeric params to integer
             }
             String paramType;
             if (info.valueParams.contains(paramName)) {
@@ -368,7 +368,7 @@ public class CodeGenerator extends AlgolBaseListener {
                 }
                 String type = info.paramTypes.get(p);
                 if (type == null) {
-                    type = "void".equals(info.returnType) ? "real" : info.returnType;
+                    type = "integer"; // default unspecified numeric params to integer
                 }
                 if ("real".equals(type)) return "D";
                 if ("string".equals(type)) return "Ljava/lang/String;";
@@ -585,6 +585,7 @@ public class CodeGenerator extends AlgolBaseListener {
             }
 
             Integer idx = currentLocalIndex.get(name);
+            if (idx == null && mainLocalIndex != null) idx = mainLocalIndex.get(name);
             String varType = currentSymbolTable.get(name);
             if (varType == null && mainSymbolTable != null) {
                 varType = mainSymbolTable.get(name);
@@ -1234,6 +1235,9 @@ public class CodeGenerator extends AlgolBaseListener {
     private String generateLoadVar(String name) {
         Integer idx = currentLocalIndex.get(name);
         String type = currentSymbolTable.get(name);
+        if (idx == null && mainLocalIndex != null) {
+            idx = mainLocalIndex.get(name);
+        }
         if (type == null && mainSymbolTable != null) {
             type = mainSymbolTable.get(name);
         }
@@ -1424,7 +1428,7 @@ public class CodeGenerator extends AlgolBaseListener {
         for (Map.Entry<String,Integer> e : varToBoxSlot.entrySet()) {
             String vn = e.getKey();
             int slot = e.getValue();
-            String varType = currentSymbolTable.get(vn);
+            String varType = lookupVarType(vn);
             sb.append("iconst_1\n");
             sb.append("anewarray java/lang/Object\n");
             sb.append("astore ").append(slot).append("\n");
@@ -1516,7 +1520,8 @@ public class CodeGenerator extends AlgolBaseListener {
         for (String vn : varsToRestore) {
             int boxSlot = varToBoxSlot.get(vn);
             Integer varSlot = currentLocalIndex.get(vn);
-            String varType = currentSymbolTable.get(vn);
+            if (varSlot == null && mainLocalIndex != null) varSlot = mainLocalIndex.get(vn);
+            String varType = lookupVarType(vn);
             sb.append("aload ").append(boxSlot).append("\n");
             sb.append("iconst_0\n");
             sb.append("aaload\n");
