@@ -1,0 +1,61 @@
+Compiled from "ManOrBoy.java"
+class ManOrBoy$1 implements ManOrBoy$Arg {
+  int m;
+
+  final int val$k;
+
+  final ManOrBoy$Arg val$x1;
+
+  final ManOrBoy$Arg val$x2;
+
+  final ManOrBoy$Arg val$x3;
+
+  final ManOrBoy$Arg val$x4;
+
+  ManOrBoy$1();
+    Code:
+       0: aload_0
+       1: iload_1
+       2: putfield      #1                  // Field val$k:I
+       5: aload_0
+       6: aload_2
+       7: putfield      #7                  // Field val$x1:LManOrBoy$Arg;
+      10: aload_0
+      11: aload_3
+      12: putfield      #11                 // Field val$x2:LManOrBoy$Arg;
+      15: aload_0
+      16: aload         4
+      18: putfield      #14                 // Field val$x3:LManOrBoy$Arg;
+      21: aload_0
+      22: aload         5
+      24: putfield      #17                 // Field val$x4:LManOrBoy$Arg;
+      27: aload_0
+      28: invokespecial #20                 // Method java/lang/Object."<init>":()V
+      31: aload_0
+      32: aload_0
+      33: getfield      #1                  // Field val$k:I
+      36: putfield      #26                 // Field m:I
+      39: return
+
+  public int run();
+    Code:
+       0: aload_0
+       1: dup
+       2: getfield      #26                 // Field m:I
+       5: iconst_1
+       6: isub
+       7: putfield      #26                 // Field m:I
+      10: aload_0
+      11: getfield      #26                 // Field m:I
+      14: aload_0
+      15: aload_0
+      16: getfield      #7                  // Field val$x1:LManOrBoy$Arg;
+      19: aload_0
+      20: getfield      #11                 // Field val$x2:LManOrBoy$Arg;
+      23: aload_0
+      24: getfield      #14                 // Field val$x3:LManOrBoy$Arg;
+      27: aload_0
+      28: getfield      #17                 // Field val$x4:LManOrBoy$Arg;
+      31: invokestatic  #29                 // Method ManOrBoy.A:(ILManOrBoy$Arg;LManOrBoy$Arg;LManOrBoy$Arg;LManOrBoy$Arg;LManOrBoy$Arg;)I
+      34: ireturn
+}

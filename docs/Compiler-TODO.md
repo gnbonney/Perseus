@@ -40,7 +40,11 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **48/49 tests passing as of March 13, 2026.** Milestone 18 (string variables and string output) remains complete. Current failing test: `manboy_test`.
 
-Current ManBoy failure mode: runtime `StackOverflowError` caused by recursive `A`/`B` re-entry through `ManBoy$ManBoyBThunk.get`, so the expected final output `-67.0` is not reached.
+Current ManBoy failure mode: runtime `StackOverflowError` caused by recursive `A`/`B` re-entry through `ManBoy$Thunk0.get`, so the expected final output `-67.0` is not reached.
+
+**Root cause (confirmed via Java reference model):** The `k` counter is modelled as a shared global static field (`__env_A_k`) rather than a per-thunk-instance field. In the correct Man-or-Boy semantics (see `tmp/manorboy-analysis/ManOrBoy.java`), each anonymous thunk owns its own mutable copy `int m`, initialized from the captured `k` at construction time. `m` is decremented on `this` inside `run()`, and `this` is passed as `x1` to the recursive call — so each activation has independent counter state. The current codegen instead mutates the single global `__env_A_k` on every re-entry, so no activation ever sees a decremented-per-instance counter and the recursion diverges.
+
+**Fix required (general, not ManBoy-specific):** When a procedure-identifier is passed by name as an argument, the generated thunk class must store each mutable outer variable it closes over as an **instance field**, not read/write from a shared static env field. The thunk's `get()` method must operate exclusively on those instance fields, using `this` as the re-entry identity for recursive self-passing.
 
 **Note on M15 test quality:** `manboy_test` and `recursion_euler_test` appeared to pass at M15 but were actually broken — both relied on `redirectErrorStream(true)` capturing exception/error messages as non-empty output, satisfying a weak `output.length() > 0` assertion. M16 exposed the real failures: (1) `and` became a proper keyword, making `recursion_euler.alg`'s `abs(mn) < abs(m[n]) and n < 15` guard work correctly — which revealed that `square(x) = x*x` is a divergent series incompatible with Euler acceleration; (2) the ManBoy VerifyError was pre-existing. `recursion_euler_test` is now genuinely fixed; ManBoy remains under active repair.
 
