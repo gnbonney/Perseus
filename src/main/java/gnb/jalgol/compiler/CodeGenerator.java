@@ -220,23 +220,23 @@ public class CodeGenerator extends AlgolBaseListener {
             if (!useEnvBridge(pName)) continue;
             SymbolTableBuilder.ProcInfo pInfo = pe.getValue();
             for (String p : pInfo.paramNames) {
-                String pDesc;
                 if (!pInfo.valueParams.contains(p)) {
-                    pDesc = "Lgnb/jalgol/compiler/Thunk;";
-                } else {
-                    String pType = getFormalBaseType(pInfo, p);
-                    if ("real".equals(pType)) pDesc = "D";
-                    else if ("string".equals(pType)) pDesc = "Ljava/lang/String;";
-                    else if (pType.startsWith("procedure:")) {
-                        pDesc = switch (pType.substring("procedure:".length())) {
-                            case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
-                            case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
-                            case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
-                            default -> "Lgnb/jalgol/compiler/VoidProcedure;";
-                        };
-                    }
-                    else pDesc = "I";
+                    // Do NOT emit static env field for call-by-name (thunk) parameters
+                    continue;
                 }
+                String pDesc;
+                String pType = getFormalBaseType(pInfo, p);
+                if ("real".equals(pType)) pDesc = "D";
+                else if ("string".equals(pType)) pDesc = "Ljava/lang/String;";
+                else if (pType.startsWith("procedure:")) {
+                    pDesc = switch (pType.substring("procedure:".length())) {
+                        case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
+                        case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
+                        case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
+                        default -> "Lgnb/jalgol/compiler/VoidProcedure;";
+                    };
+                }
+                else pDesc = "I";
                 classHeader.append(".field public static ")
                            .append(envThunkFieldName(pName, p))
                            .append(" ").append(pDesc).append("\n");
@@ -448,64 +448,55 @@ public class CodeGenerator extends AlgolBaseListener {
             Integer pSlot = procLI.get(p);
             if (pSlot != null) {
                 String pType = getFormalBaseType(info, p);
-                if (!info.valueParams.contains(p)) {
-                    int saveSlot = currentNumLocals;
-                    currentNumLocals += 1;
-                    currentEnvParamSlots.put(p, saveSlot);
-                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p))
-                                .append(" Lgnb/jalgol/compiler/Thunk;\n");
-                    emitStore("astore", saveSlot);
-                    activeOutput.append("aload ").append(pSlot).append("\n");
-                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p))
-                                .append(" Lgnb/jalgol/compiler/Thunk;\n");
-                } else if ("real".equals(pType)) {
-                    int saveSlot = currentNumLocals;
-                    currentNumLocals += 2;
-                    currentEnvParamSlots.put(p, saveSlot);
-                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p)).append(" D\n");
-                    emitStore("dstore", saveSlot);
-                    activeOutput.append("dload ").append(pSlot).append("\n");
-                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p)).append(" D\n");
-                } else if ("string".equals(pType)) {
-                    int saveSlot = currentNumLocals;
-                    currentNumLocals += 1;
-                    currentEnvParamSlots.put(p, saveSlot);
-                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p)).append(" Ljava/lang/String;\n");
-                    emitStore("astore", saveSlot);
-                    activeOutput.append("aload ").append(pSlot).append("\n");
-                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p)).append(" Ljava/lang/String;\n");
-                } else if (pType.startsWith("procedure:")) {
-                    String pDesc = switch (pType.substring("procedure:".length())) {
-                        case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
-                        case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
-                        case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
-                        default -> "Lgnb/jalgol/compiler/VoidProcedure;";
-                    };
-                    int saveSlot = currentNumLocals;
-                    currentNumLocals += 1;
-                    currentEnvParamSlots.put(p, saveSlot);
-                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p)).append(" ").append(pDesc).append("\n");
-                    emitStore("astore", saveSlot);
-                    activeOutput.append("aload ").append(pSlot).append("\n");
-                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p)).append(" ").append(pDesc).append("\n");
-                } else {
-                    int saveSlot = currentNumLocals;
-                    currentNumLocals += 1;
-                    currentEnvParamSlots.put(p, saveSlot);
-                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p)).append(" I\n");
-                    emitStore("istore", saveSlot);
-                    activeOutput.append("iload ").append(pSlot).append("\n");
-                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p)).append(" I\n");
+                if (info.valueParams.contains(p)) {
+                    // Only value parameters use static env fields
+                    if ("real".equals(pType)) {
+                        int saveSlot = currentNumLocals;
+                        currentNumLocals += 2;
+                        currentEnvParamSlots.put(p, saveSlot);
+                        activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(procName, p)).append(" D\n");
+                        emitStore("dstore", saveSlot);
+                        activeOutput.append("dload ").append(pSlot).append("\n");
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(procName, p)).append(" D\n");
+                    } else if ("string".equals(pType)) {
+                        int saveSlot = currentNumLocals;
+                        currentNumLocals += 1;
+                        currentEnvParamSlots.put(p, saveSlot);
+                        activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(procName, p)).append(" Ljava/lang/String;\n");
+                        emitStore("astore", saveSlot);
+                        activeOutput.append("aload ").append(pSlot).append("\n");
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(procName, p)).append(" Ljava/lang/String;\n");
+                    } else if (pType.startsWith("procedure:")) {
+                        String pDesc = switch (pType.substring("procedure:".length())) {
+                            case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
+                            case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
+                            case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
+                            default -> "Lgnb/jalgol/compiler/VoidProcedure;";
+                        };
+                        int saveSlot = currentNumLocals;
+                        currentNumLocals += 1;
+                        currentEnvParamSlots.put(p, saveSlot);
+                        activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(procName, p)).append(" ").append(pDesc).append("\n");
+                        emitStore("astore", saveSlot);
+                        activeOutput.append("aload ").append(pSlot).append("\n");
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(procName, p)).append(" ").append(pDesc).append("\n");
+                    } else {
+                        int saveSlot = currentNumLocals;
+                        currentNumLocals += 1;
+                        currentEnvParamSlots.put(p, saveSlot);
+                        activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(procName, p)).append(" I\n");
+                        emitStore("istore", saveSlot);
+                        activeOutput.append("iload ").append(pSlot).append("\n");
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(procName, p)).append(" I\n");
+                    }
                 }
             }
         }
@@ -568,39 +559,36 @@ public class CodeGenerator extends AlgolBaseListener {
         String procName = ctx.identifier().getText();
         SymbolTableBuilder.ProcInfo info = procedures.get(procName);
 
-        // Restore env fields for this activation before returning.
+        // Restore env fields for this activation before returning (only for value parameters)
         if (useEnvBridge(procName) && info != null) {
             for (String p : info.paramNames) {
                 Integer saveSlot = currentEnvParamSlots.get(p);
                 if (saveSlot == null) continue;
                 String pType = getFormalBaseType(info, p);
-                if (!info.valueParams.contains(p)) {
-                    activeOutput.append("aload ").append(saveSlot).append("\n");
-                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p))
-                                .append(" Lgnb/jalgol/compiler/Thunk;\n");
-                } else if ("real".equals(pType)) {
-                    activeOutput.append("dload ").append(saveSlot).append("\n");
-                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p)).append(" D\n");
-                } else if ("string".equals(pType)) {
-                    activeOutput.append("aload ").append(saveSlot).append("\n");
-                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p)).append(" Ljava/lang/String;\n");
-                } else if (pType.startsWith("procedure:")) {
-                    String pDesc = switch (pType.substring("procedure:".length())) {
-                        case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
-                        case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
-                        case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
-                        default -> "Lgnb/jalgol/compiler/VoidProcedure;";
-                    };
-                    activeOutput.append("aload ").append(saveSlot).append("\n");
-                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p)).append(" ").append(pDesc).append("\n");
-                } else {
-                    activeOutput.append("iload ").append(saveSlot).append("\n");
-                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(envThunkFieldName(procName, p)).append(" I\n");
+                if (info.valueParams.contains(p)) {
+                    if ("real".equals(pType)) {
+                        activeOutput.append("dload ").append(saveSlot).append("\n");
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(procName, p)).append(" D\n");
+                    } else if ("string".equals(pType)) {
+                        activeOutput.append("aload ").append(saveSlot).append("\n");
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(procName, p)).append(" Ljava/lang/String;\n");
+                    } else if (pType.startsWith("procedure:")) {
+                        String pDesc = switch (pType.substring("procedure:".length())) {
+                            case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
+                            case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
+                            case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
+                            default -> "Lgnb/jalgol/compiler/VoidProcedure;";
+                        };
+                        activeOutput.append("aload ").append(saveSlot).append("\n");
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(procName, p)).append(" ").append(pDesc).append("\n");
+                    } else {
+                        activeOutput.append("iload ").append(saveSlot).append("\n");
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(procName, p)).append(" I\n");
+                    }
                 }
             }
         }
@@ -1658,6 +1646,8 @@ public class CodeGenerator extends AlgolBaseListener {
         } else {
             return "; ERROR: unknown var type " + type + "\n";
         }
+
+
     }
 
     /**
@@ -2115,63 +2105,39 @@ public class CodeGenerator extends AlgolBaseListener {
         for (int ai = 0; ai < argList.size() && ai < info.paramNames.size(); ai++) {
             String paramName = info.paramNames.get(ai);
             boolean isValue = info.valueParams.contains(paramName);
+            AlgolParser.ArgContext arg = argList.get(ai);
             if (!isValue) {
-                AlgolParser.ArgContext arg = argList.get(ai);
                 if (arg.expr() != null) {
                     Set<String> names = collectVarNames(arg.expr());
                     for (String vn : names) {
-                        if (procedures.containsKey(vn)) {
-                            continue;
+                        if (varToBoxSlot.containsKey(vn)) continue;
+                        int boxSlot = allocateNewLocal("box");
+                        varToBoxSlot.put(vn, boxSlot);
+                        // initialize box array [Ljava/lang/Object; and store current value at index 0
+                        sb.append("iconst_1\n");
+                        sb.append("anewarray java/lang/Object\n");
+                        emitStore(sb, "astore", boxSlot);
+
+                        sb.append("aload ").append(boxSlot).append("\n");
+                        sb.append("iconst_0\n");
+                        String vType = lookupVarType(vn);
+                        if (vType != null && vType.startsWith("thunk:")) {
+                            sb.append(generateLoadThunkRef(vn));
+                            sb.append("invokeinterface gnb/jalgol/compiler/Thunk/get()Ljava/lang/Object; 1\n");
+                        } else if ("real".equals(vType)) {
+                            sb.append(generateLoadVar(vn));
+                            sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+                        } else if ("string".equals(vType)) {
+                            sb.append(generateLoadVar(vn));
+                        } else {
+                            sb.append(generateLoadVar(vn));
+                            sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
                         }
-                        String vnType = lookupVarType(vn);
-                        if (vnType == null) {
-                            continue;
-                        }
-                        if (vnType.startsWith("thunk:")) {
-                            continue;
-                        }
-                        if (!varToBoxSlot.containsKey(vn)) {
-                            int slot = allocateNewLocal("__box_" + vn);
-                            varToBoxSlot.put(vn, slot);
-                        }
-                    }
-                    if (arg.expr() instanceof AlgolParser.VarExprContext) {
-                        String vName = ((AlgolParser.VarExprContext)arg.expr()).identifier().getText();
-                        String vType = lookupVarType(vName);
-                        if (!procedures.containsKey(vName) && vType != null && !vType.startsWith("thunk:")) {
-                            varsToRestore.add(vName);
-                        }
+                        sb.append("aastore\n");
+                        varsToRestore.add(vn);
                     }
                 }
             }
-        }
-
-        // allocate and initialize boxes in caller
-        for (Map.Entry<String,Integer> e : varToBoxSlot.entrySet()) {
-            String vn = e.getKey();
-            int slot = e.getValue();
-            String varType = lookupVarType(vn);
-            sb.append("iconst_1\n");
-            sb.append("anewarray java/lang/Object\n");
-            emitStore(sb, "astore", slot);
-            sb.append(generateLoadVar(vn));
-            if ("real".equals(varType)) {
-                sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
-            } else if ("integer".equals(varType) || "boolean".equals(varType)) {
-                sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
-            }
-            sb.append("aload ").append(slot).append("\n");
-            sb.append("swap\n");
-            sb.append("iconst_0\n");
-            sb.append("swap\n");
-            sb.append("aastore\n");
-        }
-
-        // second pass: push arguments, creating thunks as needed
-        for (int ai = 0; ai < argList.size() && ai < info.paramNames.size(); ai++) {
-            String paramName = info.paramNames.get(ai);
-            boolean isValue = info.valueParams.contains(paramName);
-            AlgolParser.ArgContext arg = argList.get(ai);
             if (isValue) {
                 if (arg.expr() != null) {
                     sb.append(generateExpr(arg.expr()));
@@ -2342,8 +2308,10 @@ public class CodeGenerator extends AlgolBaseListener {
         }
 
         return sb.toString();
+
     }
 
+    // Clean retyped: Checks if the given expression is a procedure reference
     private boolean isProcedureReferenceExpr(ExprContext expr) {
         if (!(expr instanceof AlgolParser.VarExprContext ve)) {
             return false;

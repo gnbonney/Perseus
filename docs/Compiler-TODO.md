@@ -46,6 +46,13 @@ Current ManBoy failure mode: runtime `StackOverflowError` caused by recursive `A
 
 **Fix required (general, not ManBoy-specific):** When a procedure-identifier is passed by name as an argument, the generated thunk class must store each mutable outer variable it closes over as an **instance field**, not read/write from a shared static env field. The thunk's `get()` method must operate exclusively on those instance fields, using `this` as the re-entry identity for recursive self-passing.
 
+**Recent build observation:** A runtime verification failure was observed when running the Man-or-Boy sample: `java.lang.VerifyError` in `gnb.jalgol.programs.ManBoy` (method `B`) due to mismatched stack types and references to undeclared fields in the generated Jasmin. The produced Jasmin artifacts to inspect are `build/test-algol/ManBoy.j` and the thunk classes such as `build/test-algol/ManBoy$Thunk0.j`.
+
+**Next debugging steps:**
+- Trace the code emission path that produced the faulty `B()` sequence (likely in `ProcedureGenerator.generateProcedureCall` / `createThunkClass` or caller-side restore logic).
+- Fix the inconsistent instruction descriptors and stack handling (ensure ctor descriptors, getfield/putfield types, and boxing/unboxing sequences match the emitted types).
+- Rebuild and run the focused Man-or-Boy program until `-67.0` is produced, then run full regressions.
+
 **Note on M15 test quality:** `manboy_test` and `recursion_euler_test` appeared to pass at M15 but were actually broken — both relied on `redirectErrorStream(true)` capturing exception/error messages as non-empty output, satisfying a weak `output.length() > 0` assertion. M16 exposed the real failures: (1) `and` became a proper keyword, making `recursion_euler.alg`'s `abs(mn) < abs(m[n]) and n < 15` guard work correctly — which revealed that `square(x) = x*x` is a divergent series incompatible with Euler acceleration; (2) the ManBoy VerifyError was pre-existing. `recursion_euler_test` is now genuinely fixed; ManBoy remains under active repair.
 
 ### Resolved Issues

@@ -87,22 +87,31 @@ public class ProcedureGenerator implements GeneratorDelegate {
         sb.append(".super java/lang/Object\n");
         sb.append(".implements gnb/jalgol/runtime/Thunk\n\n");
 
+        // Emit per-instance fields for each closed-over variable (mutable one-element boxes)
+        Map<String, String> varTypes = new LinkedHashMap<>();
         for (String vn : varToField.keySet()) {
-            sb.append(".field public ").append(vn).append(" [Ljava/lang/Object;\n");
+            String type = context.getMainSymbolTable() != null ? context.getMainSymbolTable().get(vn) : null;
+            varTypes.put(vn, type);
+            sb.append(".field private ").append(vn).append(" [Ljava/lang/Object;\n");
         }
 
+        // Constructor: accept each closed-over variable as parameter (Object[] box per var)
         sb.append("\n.method public <init>(");
-        for (int i = 0; i < varToField.size(); i++) sb.append("[Ljava/lang/Object;");
+        for (String vn : varToField.keySet()) {
+            sb.append("[Ljava/lang/Object;");
+        }
         sb.append(")V\n");
         sb.append("aload_0\ninvokespecial java/lang/Object/<init>()V\n");
-        int fi = 0;
+        int fi = 1;
         for (String vn : varToField.keySet()) {
-            sb.append("aload_0\naload ").append(fi + 1).append("\nputfield ")
-              .append(thunkClassName).append("/").append(vn).append(" [Ljava/lang/Object;\n");
+            sb.append("aload_0\n");
+            sb.append("aload ").append(fi).append("\n");
             fi++;
+            sb.append("putfield ").append(thunkClassName).append("/").append(vn).append(" [Ljava/lang/Object;\n");
         }
         sb.append("return\n.end method\n\n");
 
+        // eval() method: use instance fields
         sb.append(".method public eval()Ljava/lang/Object;\n");
         sb.append(".limit stack 10\n.limit locals 10\n");
 
@@ -114,14 +123,27 @@ public class ProcedureGenerator implements GeneratorDelegate {
         context.setSymbolTable(thunkSym);
         context.setLocalIndex(thunkIdx);
 
+        // Load each closed-over variable from instance field (box) into local
+        int localSlot = 1;
         for (String vn : varToField.keySet()) {
-            String type = context.getMainSymbolTable() != null ? context.getMainSymbolTable().get(vn) : null;
+            String type = varTypes.get(vn);
             sb.append("aload_0\ngetfield ").append(thunkClassName).append("/").append(vn).append(" [Ljava/lang/Object;\n");
             sb.append("iconst_0\naaload\n");
             if ("real".equals(type)) {
                 sb.append("checkcast java/lang/Double\ninvokevirtual java/lang/Double/doubleValue()D\n");
-            } else if ("integer".equals(type) || "boolean".equals(type)) {
+                sb.append("dstore ").append(localSlot).append("\n");
+                thunkIdx.put(vn, localSlot);
+                localSlot += 2;
+            } else if ("string".equals(type)) {
+                sb.append("checkcast java/lang/String\n");
+                sb.append("astore ").append(localSlot).append("\n");
+                thunkIdx.put(vn, localSlot);
+                localSlot++;
+            } else {
                 sb.append("checkcast java/lang/Integer\ninvokevirtual java/lang/Integer/intValue()I\n");
+                sb.append("istore ").append(localSlot).append("\n");
+                thunkIdx.put(vn, localSlot);
+                localSlot++;
             }
         }
 
@@ -164,19 +186,28 @@ public class ProcedureGenerator implements GeneratorDelegate {
             }
         }
 
+        // For each closed-over variable, load its value directly for thunk constructor
         for (Map.Entry<String, Integer> e : varToBoxSlot.entrySet()) {
             String vn = e.getKey();
             int slot = e.getValue();
             String varType = context.getSymbolTable().get(vn);
             if (varType == null && context.getMainSymbolTable() != null) varType = context.getMainSymbolTable().get(vn);
-            sb.append("iconst_1\nanewarray java/lang/Object\nastore ").append(slot).append("\n");
-            sb.append(exprGen.generateLoadVar(vn));
+            // create one-element Object[] and store boxed value at index 0
+            sb.append("iconst_1\n");
+            sb.append("anewarray java/lang/Object\n");
+            sb.append("astore ").append(slot).append("\n");
+            sb.append("aload ").append(slot).append("\n");
+            sb.append("iconst_0\n");
             if ("real".equals(varType)) {
+                sb.append(exprGen.generateLoadVar(vn));
                 sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
-            } else if ("integer".equals(varType) || "boolean".equals(varType)) {
+            } else if ("string".equals(varType)) {
+                sb.append(exprGen.generateLoadVar(vn));
+            } else {
+                sb.append(exprGen.generateLoadVar(vn));
                 sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
             }
-            sb.append("aload ").append(slot).append("\nswap\niconst_0\nswap\naastore\n");
+            sb.append("aastore\n");
         }
 
         for (int ai = 0; ai < args.size() && ai < info.paramNames.size(); ai++) {
@@ -200,9 +231,12 @@ public class ProcedureGenerator implements GeneratorDelegate {
                 String thunkClass = createThunkClass(varToField, actual, baseType);
                 sb.append("new ").append(thunkClass).append("\ndup\n");
                 for (String vn : varToField.keySet()) {
-                    sb.append("aload ").append(varToBoxSlot.get(vn)).append("\n");
+                    int slot = varToBoxSlot.get(vn);
+                    sb.append("aload ").append(slot).append("\n");
                 }
-                String ctorDesc = varToField.keySet().stream().map(vn -> "[Ljava/lang/Object;").collect(Collectors.joining("", "(", ")V"));
+                String ctorDesc = varToField.keySet().stream()
+                    .map(vn -> "[Ljava/lang/Object;")
+                    .collect(Collectors.joining("", "(", ")V"));
                 sb.append("invokespecial ").append(thunkClass).append("/<init>").append(ctorDesc).append("\n");
             }
         }
