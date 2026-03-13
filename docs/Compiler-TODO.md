@@ -38,7 +38,9 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 ## Current Status
 
-**48/49 tests passing as of March 12, 2026.** Milestone 18 (string variables and string output) remains complete. Current failing test: `manboy_test`.
+**48/49 tests passing as of March 13, 2026.** Milestone 18 (string variables and string output) remains complete. Current failing test: `manboy_test`.
+
+Current ManBoy failure mode: runtime `StackOverflowError` caused by recursive `A`/`B` re-entry through `ManBoy$ManBoyBThunk.get`, so the expected final output `-67.0` is not reached.
 
 **Note on M15 test quality:** `manboy_test` and `recursion_euler_test` appeared to pass at M15 but were actually broken — both relied on `redirectErrorStream(true)` capturing exception/error messages as non-empty output, satisfying a weak `output.length() > 0` assertion. M16 exposed the real failures: (1) `and` became a proper keyword, making `recursion_euler.alg`'s `abs(mn) < abs(m[n]) and n < 15` guard work correctly — which revealed that `square(x) = x*x` is a divergent series incompatible with Euler acceleration; (2) the ManBoy VerifyError was pre-existing. `recursion_euler_test` is now genuinely fixed; ManBoy remains under active repair.
 
@@ -463,7 +465,7 @@ integer and string arguments.
 
 **Goal:** Full Man or Boy test with all features integrated.
 
-**Status: FAILING (currently under repair).** `manboy_test` asserts the full runtime result (`-67.0`) and is currently red as of March 12, 2026.
+**Status: FAILING (currently under repair).** `manboy_test` asserts the full runtime result (`-67.0`) and is currently red as of March 13, 2026 (latest failure: `StackOverflowError` in recursive `A`/`B` path through `ManBoy$ManBoyBThunk`).
 
 **Root cause (fixed):** `CodeGenerator` used a single `procBuffer` field that was overwritten when B's `enterProcedureDecl` fired inside A's body, discarding A's accumulated buffer and leaving `procBuffer = null` when A exited. Fixed by replacing `procBuffer` with `Deque<StringBuilder> procBufferStack` and the flat `mainXxx` save fields with `LinkedList`-backed stacks (`savedOuterSTStack`, `savedOuterLIStack`, etc.). On enter, old context is pushed and the current scope becomes the new "outer"; on exit, stacks are restored. `LinkedList` is used instead of `ArrayDeque` because `currentProcName` and `mainSymbolTable` may be null for outermost procedures.
 
@@ -476,11 +478,19 @@ integer and string arguments.
 
 **Remaining (Current Work):**
 - [ ] Implement correct non-local variable access for nested procedures in ManBoy (closure/display semantics rather than cross-method local-slot fallback)
+- [ ] Stabilize B-thunk closure identity/reuse semantics to prevent self-referential recursive re-entry loops
 - [ ] Make `manboy_test` pass with exact expected output `-67.0`
 
-**Recent progress (March 12, 2026):**
+**Recent progress (March 13, 2026):**
 - [x] Repaired regressions in `proc_var_test` and `proc_typed_simple_test`
+- [x] Added deferred-typing support for unspecified non-value formals in `SymbolTableBuilder` and call-site/runtime unboxing paths in `CodeGenerator`
 - [ ] ManBoy still failing; currently the only red test
+
+**Reference pattern from Java Man-or-Boy closure model (March 13, 2026):**
+- Use per-activation thunk objects with captured fields (closure style), not class-name/procedure-name special cases.
+- Keep recursive state as mutable thunk instance state (e.g., `m`) rather than shared static environment fields.
+- In recursive re-entry, pass the thunk object itself (`this`) as the next name parameter while shifting the remaining arguments (`x1..x4`).
+- Preferred codegen direction for ManBoy and general call-by-name recursion: object-identity-preserving thunk instances + captured environment fields, minimizing global static env overwrite/restore during thunk `get()`.
 
 ---
 
@@ -488,8 +498,10 @@ integer and string arguments.
 
 Algol allows formals without an explicit base type (deferred-typing). To handle this correctly and avoid brittle global defaults, implement call-site deferred-typing as a focused milestone between ManBoy and Milestone 14.
 
-- [ ] Design call-site deferred-typing resolution: choose base type at each call site from (1) declared formal (if present), (2) inferred type of the actual, else (3) conservative fallback `integer`.
-- [ ] Implement thunk/descriptor generation using call-site-resolved base types (update `CodeGenerator` and `SymbolTableBuilder` integration).
+**Status: PARTIALLY IMPLEMENTED (in support of ManBoy repair).**
+
+- [x] Design call-site deferred-typing resolution: choose base type at each call site from (1) declared formal (if present), (2) inferred type of the actual, else (3) conservative fallback `integer`.
+- [x] Implement initial thunk/descriptor generation using call-site-resolved/deferred base types (updated `CodeGenerator` and `SymbolTableBuilder` integration).
 - [ ] Add unit tests covering mixed-type name-parameters (integer ↔ real) and missing formal types (small focused sample and ManBoy reproduction cases).
 - [ ] Update documentation: explain deferred-typing behavior in `docs/Algol.md` and `docs/Compiler-TODO.md`.
 

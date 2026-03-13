@@ -103,7 +103,7 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         if (proc != null) {
             for (String param : proc.paramNames) {
                 String baseType = proc.paramTypes.get(param);
-                if (baseType == null) baseType = "integer"; // default for unspecified numeric params
+                if (baseType == null) baseType = proc.valueParams.contains(param) ? "integer" : "deferred";
                 // procedure-type params are value params (passed as ProcRef); others depend on valueParams set
                 if (baseType.startsWith("procedure:")) {
                     symbolTable.put(param, baseType);
