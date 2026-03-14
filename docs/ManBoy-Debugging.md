@@ -1,0 +1,81 @@
+# Man-or-Boy (manboy.alg) Debugging Notes
+
+This document captures the current state of the `manboy_test` failure, the root cause analysis, and concrete next steps for getting the test passing.
+
+The Man-or-Boy program is a classic call-by-name/closure semantics stress-test invented by Donald Knuth to distinguish correct implementations of name-parameter passing (Jensen's device) from incorrect ones. The goal of this note is to keep the diagnosis and progress focused on the core thunk/closure state issues that prevent the correct output (`-67.0`).
+
+## Current status (as of March 13, 2026)
+
+- **Test failing:** `manboy_test`.
+- **Failure mode:** Runtime `StackOverflowError` caused by recursive `A`/`B` re-entry through `ManBoy$Thunk0.get`, so the expected final output `-67.0` is not reached.
+
+## Root cause (confirmed via Java reference model)
+
+The `k` counter is modelled as a shared global static field (`__env_A_k`) rather than a per-thunk-instance field. In the correct Man-or-Boy semantics (see `tmp/manorboy-analysis/ManOrBoy.java`), each anonymous thunk owns its own mutable copy `int m`, initialized from the captured `k` at construction time.
+
+In the correct behavior:
+- `m` is decremented on `this` inside `run()`.
+- `this` is passed as `x1` to the recursive call — so each activation has independent counter state.
+
+In the current codegen:
+- The shared static `__env_A_k` is mutated on every re-entry.
+- No activation ever sees a decremented-per-instance counter, causing the recursion to diverge.
+
+## Fix required (general, not ManBoy-specific)
+
+The compiler already generates a **per-call-site thunk class** (e.g., `ManBoy$Thunk0`) whose constructor takes the closed-over variables as parameters and stores them in **instance fields**. That part is correct: each thunk object is supposed to have its own mutable state (one-element boxes) so re-entrant calls see their own counter.
+
+### Why this still fails
+
+Despite the thunk mechanics, nested procedures and non-local access are currently implemented via an “environment bridge” that emits **static `__env_*` fields** (one per outer parameter/return) and uses `getstatic/putstatic` to access them. That means the value for `k` is stored in a shared global field rather than per-thunk, so **all thunk instances end up sharing the same mutable state**.
+
+The correct approach is to ensure that call-by-name parameters:
+- are represented by **distinct thunk objects** per call site,
+- capture their own variable boxes as **instance fields**, and
+- never read/write the shared `__env_*` fields when accessing those captured variables.
+
+That means the compiler must implement **correct interaction between thunks, recursion, and mutation**: each recursive re-entry should see the thunk’s own mutable state, not a shared global state.
+
+When a procedure identifier is passed by name as an argument, the generated thunk class must store each mutable outer variable it closes over as an **instance field**, not read/write from a shared static env field.
+
+The thunk's `get()` method must operate exclusively on those instance fields, using `this` as the re-entry identity for recursive self-passing.
+
+## Recent build observation
+
+A runtime verification failure was observed when running the Man-or-Boy sample: `java.lang.VerifyError` in `gnb.jalgol.programs.ManBoy` (method `B`) due to mismatched stack types and references to undeclared fields in the generated Jasmin. The produced Jasmin artifacts to inspect are:
+
+- `build/test-algol/ManBoy.j`
+- `build/test-algol/ManBoy$Thunk0.j`
+
+## Next debugging steps
+
+1. **Validate thunk isolation** (use `test/algol/thunk_isolation.alg`)
+   - Confirm whether two call-by-name args referencing the same variable end up sharing state.
+   - If this fails, the issue is in thunk construction / box sharing.
+
+2. **Validate env bridge behavior** (use `test/algol/env_bridge.alg`)
+   - Confirm whether nested-procedure access is using shared static env fields.
+   - If this fails, focus on removing/static env bridging for name parameters and ensuring non-local access is thunk-driven.
+
+3. **Validate recursive thunk behavior** (use `test/algol/thunk_recursion.alg`)
+   - Confirm whether recursion through thunks can maintain per-thunk mutable state.
+   - If this fails, the failure mode matches the ManBoy divergence/StackOverflow.
+
+4. **Target full ManBoy** (use `test/algol/manboy.alg`)
+   - Once the three predecessor tests are passing, re-run ManBoy and verify it produces `-67.0`.
+
+### Implementation focus areas
+- Trace the code emission path that produced the faulty `B()` sequence (likely in `ProcedureGenerator.generateProcedureCall` / `createThunkClass` or caller-side restore logic).
+- Fix the inconsistent instruction descriptors and stack handling (ensure ctor descriptors, `getfield`/`putfield` types, and boxing/unboxing sequences match the emitted types).
+- Ensure the compiler no longer uses shared static `__env_*` fields for call-by-name captures; instead, thunk instance fields must carry all mutable closure state.
+
+## Historical note: why this wasn't caught earlier
+
+`manboy_test` and `recursion_euler_test` appeared to pass in earlier milestones but were actually broken — both relied on `redirectErrorStream(true)` capturing exception/error messages as non-empty output, satisfying a weak `output.length() > 0` assertion.
+
+Later milestones (see the Milestone 15/16 entries in `docs/Compiler-TODO.md`) exposed the real failures:
+
+1. `and` became a proper keyword, making `recursion_euler.alg`'s `abs(mn) < abs(m[n]) and n < 15` guard work correctly — which revealed that `square(x) = x*x` is a divergent series incompatible with Euler acceleration.
+2. The ManBoy `VerifyError` was pre-existing.
+
+`recursion_euler_test` is now genuinely fixed; ManBoy remains under active repair.

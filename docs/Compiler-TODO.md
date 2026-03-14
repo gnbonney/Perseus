@@ -6,54 +6,11 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 
  ---
 
-## Note: Algol 60 BNF vs. Code Examples (Procedure Call Parameters)
-**Relevant BNF from the Modified Report:**
-```
-<procedure identifier> ::= <identifier>
-
-<actual parameter> ::= <string> | <expression> |
-  <array identifier> | <switch identifier> | <procedure identifier>
-
-<parameter delimiter> ::= , | ) <letter string> : (
-
-<actual parameter list> ::= <actual parameter> |
-  <actual parameter list> <parameter delimiter> <actual parameter>
-
-<actual parameter part> ::= <empty> | ( <actual parameter list> )
-
-<function designator> ::= <procedure identifier> <actual parameter part>
-```
-These lines show that while an empty parameter part is allowed (for parameterless procedures), every procedure call with parameters must supply all required arguments. The BNF does not permit empty slots in the parameter list (e.g., `outstring(, str)` is not valid according to the BNF).
-
-
-The Algol 60 Modified Report BNF does **not** allow empty parameter lists in procedure calls (e.g., `outstring()` or `foo()`). Every procedure call must supply the required number of arguments, as specified in the procedure's declaration. However, some code examples in the Report (e.g., `outstring(, str);`) show the channel parameter left empty, not omitted. This is a syntactic quirk, but the BNF does not formally allow empty parameters—every procedure call must supply all required arguments.
-
-**Example from the Modified Report:**
-```
-outstring(, str);
-```
-Here, the channel parameter is left empty, but the argument list is still present. The BNF does not permit this form, and the compiler enforces the stricter rule: all required parameters (such as the channel in `outstring`) must be present and non-empty in every call.
-
-**Design decision:** The compiler will require all parameters in procedure calls, matching the BNF, even if some examples leave them empty. This ensures deterministic parsing and code generation.
-
 ## Current Status
 
 **48/49 tests passing as of March 13, 2026.** Milestone 18 (string variables and string output) remains complete. Current failing test: `manboy_test`.
 
-Current ManBoy failure mode: runtime `StackOverflowError` caused by recursive `A`/`B` re-entry through `ManBoy$Thunk0.get`, so the expected final output `-67.0` is not reached.
-
-**Root cause (confirmed via Java reference model):** The `k` counter is modelled as a shared global static field (`__env_A_k`) rather than a per-thunk-instance field. In the correct Man-or-Boy semantics (see `tmp/manorboy-analysis/ManOrBoy.java`), each anonymous thunk owns its own mutable copy `int m`, initialized from the captured `k` at construction time. `m` is decremented on `this` inside `run()`, and `this` is passed as `x1` to the recursive call — so each activation has independent counter state. The current codegen instead mutates the single global `__env_A_k` on every re-entry, so no activation ever sees a decremented-per-instance counter and the recursion diverges.
-
-**Fix required (general, not ManBoy-specific):** When a procedure-identifier is passed by name as an argument, the generated thunk class must store each mutable outer variable it closes over as an **instance field**, not read/write from a shared static env field. The thunk's `get()` method must operate exclusively on those instance fields, using `this` as the re-entry identity for recursive self-passing.
-
-**Recent build observation:** A runtime verification failure was observed when running the Man-or-Boy sample: `java.lang.VerifyError` in `gnb.jalgol.programs.ManBoy` (method `B`) due to mismatched stack types and references to undeclared fields in the generated Jasmin. The produced Jasmin artifacts to inspect are `build/test-algol/ManBoy.j` and the thunk classes such as `build/test-algol/ManBoy$Thunk0.j`.
-
-**Next debugging steps:**
-- Trace the code emission path that produced the faulty `B()` sequence (likely in `ProcedureGenerator.generateProcedureCall` / `createThunkClass` or caller-side restore logic).
-- Fix the inconsistent instruction descriptors and stack handling (ensure ctor descriptors, getfield/putfield types, and boxing/unboxing sequences match the emitted types).
-- Rebuild and run the focused Man-or-Boy program until `-67.0` is produced, then run full regressions.
-
-**Note on M15 test quality:** `manboy_test` and `recursion_euler_test` appeared to pass at M15 but were actually broken — both relied on `redirectErrorStream(true)` capturing exception/error messages as non-empty output, satisfying a weak `output.length() > 0` assertion. M16 exposed the real failures: (1) `and` became a proper keyword, making `recursion_euler.alg`'s `abs(mn) < abs(m[n]) and n < 15` guard work correctly — which revealed that `square(x) = x*x` is a divergent series incompatible with Euler acceleration; (2) the ManBoy VerifyError was pre-existing. `recursion_euler_test` is now genuinely fixed; ManBoy remains under active repair.
+For the full failure analysis and next steps, see `docs/ManBoy-Debugging.md`.
 
 ### Resolved Issues
 
