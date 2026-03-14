@@ -976,6 +976,26 @@ end
     }
 
     @Test
+    public void env_bridge_test() throws Exception {
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/env_bridge.alg", "gnb/jalgol/programs", "EnvBridge", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== ENV_BRIDGE JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END ENV_BRIDGE ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.EnvBridge");
+        System.out.println("Env bridge output: [" + output + "]");
+        assertEquals("2", output.trim(), "Env bridge test should output 2");
+    }
+
+    @Test
     public void boolean_operators_test() throws Exception {
         Path jasminFile = AntlrAlgolListener.compileToFile(
                 "test/algol/boolean_operators.alg", "gnb/jalgol/programs",

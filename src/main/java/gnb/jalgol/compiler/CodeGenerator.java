@@ -207,7 +207,8 @@ public class CodeGenerator extends AlgolBaseListener {
                     case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
                     default -> "Lgnb/jalgol/compiler/VoidProcedure;";
                 };
-                classHeader.append(".field public static ").append(varName).append(" ").append(desc).append("\n");
+                classHeader.append(".field public static ")
+                           .append(staticFieldName(varName, varType)).append(" ").append(desc).append("\n");
             }
         }
 
@@ -843,6 +844,9 @@ public class CodeGenerator extends AlgolBaseListener {
                             };
                             String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
                             String targetName = (useEnvBridge(outerProc) && outerProc != null) ? envThunkFieldName(outerProc, name) : name;
+                            if (targetName.equals(name) && varType != null && varType.startsWith("procedure:")) {
+                                targetName = staticFieldName(name, varType);
+                            }
                             activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                         .append("/").append(targetName).append(" ").append(pdesc).append("\n");
                         } else if (useEnvBridge() && savedProcNameStack.peek() != null && savedProcNameStack.peek().equals(name)) {
@@ -2459,6 +2463,16 @@ public class CodeGenerator extends AlgolBaseListener {
         return "__selfThunk_" + procName;
     }
 
+    private String staticFieldName(String name, String varType) {
+        // Jasmin treats some identifiers (e.g. "outer") as reserved tokens, so we
+        // avoid emitting fields with those names by using a stable prefix for
+        // procedure-valued variables.
+        if (varType != null && varType.startsWith("procedure:")) {
+            return "__proc_" + name;
+        }
+        return name;
+    }
+
     private String getFormalBaseType(SymbolTableBuilder.ProcInfo info, String paramName) {
         if (info == null) {
             return "integer";
@@ -2549,7 +2563,7 @@ public class CodeGenerator extends AlgolBaseListener {
                 case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
                 default -> "Lgnb/jalgol/compiler/VoidProcedure;";
             };
-            return "getstatic " + packageName + "/" + className + "/" + name + " "
+            return "getstatic " + packageName + "/" + className + "/" + staticFieldName(name, type) + " "
                 + pDesc + "\n";
         }
         if (mainSymbolTable != null && mainSymbolTable.containsKey(name)) {
