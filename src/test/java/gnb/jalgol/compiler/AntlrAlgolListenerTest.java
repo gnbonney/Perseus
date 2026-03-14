@@ -177,6 +177,26 @@ public class AntlrAlgolListenerTest {
 	}
 
 	@Test
+	public void thunkIsolation_test() throws Exception {
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+				"test/algol/thunk_isolation.alg", "gnb/jalgol/programs", "ThunkIsolation", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== THUNK ISOLATION JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END THUNK ISOLATION ===");
+
+		assertNotEquals("NO OUTPUT", jasminSource, "Compilation should succeed");
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run — should print "2"
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ThunkIsolation");
+		System.out.println("thunk isolation output: [" + output + "]");
+		assertEquals("2", output.trim());
+	}
+
+	@Test
 	public void array_test() throws Exception {
 		Path jasminFile = AntlrAlgolListener.compileToFile(
 				"test/algol/array.alg", "gnb/jalgol/programs", "ArrayTest", BUILD_DIR);

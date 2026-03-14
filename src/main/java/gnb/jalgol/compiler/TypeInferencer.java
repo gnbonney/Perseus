@@ -101,6 +101,12 @@ public class TypeInferencer extends AlgolBaseListener {
         if (type.startsWith("thunk:")) {
             type = type.substring("thunk:".length());
         }
+        // Algol allows parameters without an explicit type (deferred typing).
+        // For now, treat deferred parameters as integers for type inference so
+        // arithmetic expressions resolve consistently (prevents unexpected real coercion).
+        if ("deferred".equals(type)) {
+            type = "integer";
+        }
         exprTypes.put(ctx, type);
     }
 

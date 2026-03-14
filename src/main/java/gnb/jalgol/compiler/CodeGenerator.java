@@ -220,23 +220,25 @@ public class CodeGenerator extends AlgolBaseListener {
             if (!useEnvBridge(pName)) continue;
             SymbolTableBuilder.ProcInfo pInfo = pe.getValue();
             for (String p : pInfo.paramNames) {
-                if (!pInfo.valueParams.contains(p)) {
-                    // Do NOT emit static env field for call-by-name (thunk) parameters
-                    continue;
-                }
                 String pDesc;
-                String pType = getFormalBaseType(pInfo, p);
-                if ("real".equals(pType)) pDesc = "D";
-                else if ("string".equals(pType)) pDesc = "Ljava/lang/String;";
-                else if (pType.startsWith("procedure:")) {
-                    pDesc = switch (pType.substring("procedure:".length())) {
-                        case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
-                        case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
-                        case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
-                        default -> "Lgnb/jalgol/compiler/VoidProcedure;";
-                    };
+                if (!pInfo.valueParams.contains(p)) {
+                    // Call-by-name parameters are represented as Thunk instances.
+                    pDesc = "Lgnb/jalgol/compiler/Thunk;";
+                } else {
+                    String pType = getFormalBaseType(pInfo, p);
+                    if ("real".equals(pType)) pDesc = "D";
+                    else if ("string".equals(pType)) pDesc = "Ljava/lang/String;";
+                    else if (pType.startsWith("procedure:")) {
+                        pDesc = switch (pType.substring("procedure:".length())) {
+                            case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
+                            case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
+                            case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
+                            default -> "Lgnb/jalgol/compiler/VoidProcedure;";
+                        };
+                    } else {
+                        pDesc = "I";
+                    }
                 }
-                else pDesc = "I";
                 classHeader.append(".field public static ")
                            .append(envThunkFieldName(pName, p))
                            .append(" ").append(pDesc).append("\n");
@@ -497,6 +499,17 @@ public class CodeGenerator extends AlgolBaseListener {
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(envThunkFieldName(procName, p)).append(" I\n");
                     }
+                } else {
+                    // Call-by-name parameters are passed as Thunk objects; publish them for nested procs as well.
+                    int saveSlot = currentNumLocals;
+                    currentNumLocals += 1;
+                    currentEnvParamSlots.put(p, saveSlot);
+                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                                .append("/").append(envThunkFieldName(procName, p)).append(" Lgnb/jalgol/compiler/Thunk;\n");
+                    emitStore("astore", saveSlot);
+                    activeOutput.append("aload ").append(pSlot).append("\n");
+                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                .append("/").append(envThunkFieldName(procName, p)).append(" Lgnb/jalgol/compiler/Thunk;\n");
                 }
             }
         }
@@ -559,7 +572,7 @@ public class CodeGenerator extends AlgolBaseListener {
         String procName = ctx.identifier().getText();
         SymbolTableBuilder.ProcInfo info = procedures.get(procName);
 
-        // Restore env fields for this activation before returning (only for value parameters)
+        // Restore env fields for this activation before returning.
         if (useEnvBridge(procName) && info != null) {
             for (String p : info.paramNames) {
                 Integer saveSlot = currentEnvParamSlots.get(p);
@@ -589,6 +602,11 @@ public class CodeGenerator extends AlgolBaseListener {
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(envThunkFieldName(procName, p)).append(" I\n");
                     }
+                } else {
+                    // Restore call-by-name thunk parameter env field
+                    activeOutput.append("aload ").append(saveSlot).append("\n");
+                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                .append("/").append(envThunkFieldName(procName, p)).append(" Lgnb/jalgol/compiler/Thunk;\n");
                 }
             }
         }
@@ -799,7 +817,14 @@ public class CodeGenerator extends AlgolBaseListener {
             if (varType == null && mainSymbolTable != null) {
                 varType = mainSymbolTable.get(name);
             }
-            boolean isThunk = varType != null && varType.startsWith("thunk:");
+            boolean isCallByNameParam = false;
+            if (currentProcName != null) {
+                SymbolTableBuilder.ProcInfo currInfo = procedures.get(currentProcName);
+                if (currInfo != null && currInfo.paramNames.contains(name) && !currInfo.valueParams.contains(name)) {
+                    isCallByNameParam = true;
+                }
+            }
+            boolean isThunk = (varType != null && varType.startsWith("thunk:")) || isCallByNameParam;
             boolean isProcVar = varType != null && varType.startsWith("procedure:");
                 // If this variable resolves to an outer-scope local (present in mainLocalIndex
                 // but not in currentLocalIndex), access it via class static field instead.
@@ -857,10 +882,12 @@ public class CodeGenerator extends AlgolBaseListener {
                     if (i < lvalues.size() - 1) {
                         activeOutput.append("real".equals(storeType) ? "dup2\n" : "dup\n");
                     }
-                    // Static scalar: emit putstatic
+                    // Static scalar: emit putstatic (use env bridge name when available)
                     String jvmDesc = scalarTypeToJvmDesc(varType);
+                    String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
+                    String targetName = (useEnvBridge(outerProc) && outerProc != null) ? envThunkFieldName(outerProc, name) : name;
                     activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(name).append(" ").append(jvmDesc).append("\n");
+                                .append("/").append(targetName).append(" ").append(jvmDesc).append("\n");
                     continue;
                 }
                 // Check main symbol table for outer scope static scalars
@@ -871,10 +898,12 @@ public class CodeGenerator extends AlgolBaseListener {
                         if (i < lvalues.size() - 1) {
                             activeOutput.append("real".equals(storeType) ? "dup2\n" : "dup\n");
                         }
-                        // Static scalar from outer scope: emit putstatic
+                        // Static scalar from outer scope: emit putstatic (use env bridge name when available)
                         String jvmDesc = scalarTypeToJvmDesc(mainType);
+                        String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
+                        String targetName = (useEnvBridge(outerProc) && outerProc != null) ? envThunkFieldName(outerProc, name) : name;
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                    .append("/").append(name).append(" ").append(jvmDesc).append("\n");
+                                    .append("/").append(targetName).append(" ").append(jvmDesc).append("\n");
                         continue;
                     }
                 }
@@ -894,8 +923,12 @@ public class CodeGenerator extends AlgolBaseListener {
                 } else if (!"string".equals(storeType)) {
                     activeOutput.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
                 }
-                // push thunk ref, swap so order is: thunk, boxed_value
-                activeOutput.append("aload ").append(idx).append("\n");
+                // push thunk ref (local if available, otherwise via env bridge), swap so order is: thunk, boxed_value
+                if (idx != null) {
+                    activeOutput.append("aload ").append(idx).append("\n");
+                } else {
+                    activeOutput.append(generateLoadThunkRef(name));
+                }
                 activeOutput.append("swap\n");
                 activeOutput.append("invokeinterface ")
                             .append("gnb/jalgol/compiler/Thunk/set(Ljava/lang/Object;)V 2\n");
@@ -1507,7 +1540,13 @@ public class CodeGenerator extends AlgolBaseListener {
     private Set<String> collectVarNames(ExprContext ctx) {
         Set<String> names = new LinkedHashSet<>();
         if (ctx instanceof AlgolParser.VarExprContext ve) {
-            names.add(ve.identifier().getText());
+            String varName = ve.identifier().getText();
+            // If the expression refers to the current procedure (recursive call), it should
+            // be treated as a call rather than a captured variable.
+            if (varName.equals(currentProcName) && procedures.containsKey(varName)) {
+                return names;
+            }
+            names.add(varName);
         } else if (ctx instanceof AlgolParser.ArrayAccessExprContext ae) {
             names.add(ae.identifier().getText());
             names.addAll(collectVarNames(ae.expr()));
@@ -1727,10 +1766,25 @@ public class CodeGenerator extends AlgolBaseListener {
                                 };
                             } else pDesc = "I";
                         }
+
                         cls.append("aload_0\n");
                         cls.append("getstatic ").append(packageName).append("/").append(className)
                            .append("/").append(envThunkFieldName(outerProc, p)).append(" ").append(pDesc).append("\n");
-                        cls.append("putfield ").append(internalName).append("/cap_").append(p).append(" ").append(pDesc).append("\n");
+
+                        // For primitive env fields (int/double) we can simply capture the value.
+                        // For reference env fields we keep existing null-safe default thunk logic.
+                        if ("I".equals(pDesc) || "D".equals(pDesc)) {
+                            cls.append("putfield ").append(internalName).append("/cap_").append(p).append(" ").append(pDesc).append("\n");
+                        } else {
+                            cls.append("dup\n");
+                            cls.append("ifnonnull cap_nonnull_").append(p).append("\n");
+                            cls.append("pop\n");
+                            cls.append("new gnb/jalgol/compiler/DefaultThunk\n");
+                            cls.append("dup\n");
+                            cls.append("invokespecial gnb/jalgol/compiler/DefaultThunk/<init>()V\n");
+                            cls.append("cap_nonnull_").append(p).append(":\n");
+                            cls.append("putfield ").append(internalName).append("/cap_").append(p).append(" ").append(pDesc).append("\n");
+                        }
                     }
                     if (!"void".equals(outerInfo.returnType)) {
                         String rDesc = "real".equals(outerInfo.returnType) ? "D"
@@ -2110,6 +2164,19 @@ public class CodeGenerator extends AlgolBaseListener {
                 if (arg.expr() != null) {
                     Set<String> names = collectVarNames(arg.expr());
                     for (String vn : names) {
+                        // If the variable is already a thunk (call-by-name), we don't need to box and restore it.
+                        String vType = lookupVarType(vn);
+                        String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
+                        boolean outerIsCallByNameParam = false;
+                        if (outerProc != null) {
+                            SymbolTableBuilder.ProcInfo outerInfo = procedures.get(outerProc);
+                            if (outerInfo != null && outerInfo.paramNames.contains(vn) && !outerInfo.valueParams.contains(vn)) {
+                                outerIsCallByNameParam = true;
+                            }
+                        }
+                        boolean isThunkVar = (vType != null && vType.startsWith("thunk:")) || outerIsCallByNameParam;
+                        if (isThunkVar) continue;
+
                         if (varToBoxSlot.containsKey(vn)) continue;
                         int boxSlot = allocateNewLocal("box");
                         varToBoxSlot.put(vn, boxSlot);
@@ -2120,11 +2187,7 @@ public class CodeGenerator extends AlgolBaseListener {
 
                         sb.append("aload ").append(boxSlot).append("\n");
                         sb.append("iconst_0\n");
-                        String vType = lookupVarType(vn);
-                        if (vType != null && vType.startsWith("thunk:")) {
-                            sb.append(generateLoadThunkRef(vn));
-                            sb.append("invokeinterface gnb/jalgol/compiler/Thunk/get()Ljava/lang/Object; 1\n");
-                        } else if ("real".equals(vType)) {
+                        if ("real".equals(vType)) {
                             sb.append(generateLoadVar(vn));
                             sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
                         } else if ("string".equals(vType)) {
@@ -2154,15 +2217,37 @@ public class CodeGenerator extends AlgolBaseListener {
                 if (actual instanceof AlgolParser.VarExprContext ve) {
                     String vn = ve.identifier().getText();
                     String vType = lookupVarType(vn);
-                    if (vType != null && vType.startsWith("thunk:")) {
+                    String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
+                    boolean outerIsCallByNameParam = false;
+                    if (outerProc != null) {
+                        SymbolTableBuilder.ProcInfo outerInfo = procedures.get(outerProc);
+                        if (outerInfo != null && outerInfo.paramNames.contains(vn) && !outerInfo.valueParams.contains(vn)) {
+                            outerIsCallByNameParam = true;
+                        }
+                    }
+                    if (outerProc != null && (vn.startsWith("x") || vn.equals("k"))) {
+                        System.out.println("DEBUG: call-by-name arg var=\"" + vn + "\" outerProc=" + outerProc + " outerIsCallByNameParam=" + outerIsCallByNameParam + " vType=" + vType);
+                    }
+                    if ((vType != null && vType.startsWith("thunk:")) || outerIsCallByNameParam) {
                         sb.append(generateLoadThunkRef(vn));
                         continue;
                     }
                     if (procedures.containsKey(vn) && currentProcName != null && currentProcName.equals(vn)) {
+                        // Recursive call to this procedure: cache the thunk in a local variable
+                        // so each activation has its own captured environment.
+                        String selfThunkLocal = "__selfThunk_" + vn;
+                        Integer selfThunkSlot = currentLocalIndex.get(selfThunkLocal);
+                        if (selfThunkSlot == null) {
+                            selfThunkSlot = allocateNewLocal(selfThunkLocal);
+                            currentLocalIndex.put(selfThunkLocal, selfThunkSlot);
+                            // initialize the local slot (null) so the verifier is satisfied
+                            sb.append("aconst_null\n");
+                            sb.append("astore ").append(selfThunkSlot).append("\n");
+                        }
                         String useExisting = "selfthunk_use_" + thunkCounter + "_" + ai;
                         String done = "selfthunk_done_" + thunkCounter + "_" + ai;
-                        sb.append("getstatic ").append(packageName).append("/").append(className)
-                          .append("/").append(selfThunkFieldName(vn)).append(" Lgnb/jalgol/compiler/Thunk;\n");
+
+                        sb.append("aload ").append(selfThunkSlot).append("\n");
                         sb.append("dup\n");
                         sb.append("ifnonnull ").append(useExisting).append("\n");
                         sb.append("pop\n");
@@ -2188,12 +2273,11 @@ public class CodeGenerator extends AlgolBaseListener {
                                             .collect(Collectors.joining("", "(", ")V"));
                         sb.append("invokespecial ").append(thunkClass)
                           .append("/<init>").append(ctorDesc).append("\n");
+                        sb.append("dup\n");
+                        sb.append("astore ").append(selfThunkSlot).append("\n");
                         sb.append("goto ").append(done).append("\n");
                         sb.append(useExisting).append(":\n");
                         sb.append(done).append(":\n");
-                        sb.append("dup\n");
-                        sb.append("putstatic ").append(packageName).append("/").append(className)
-                          .append("/").append(selfThunkFieldName(vn)).append(" Lgnb/jalgol/compiler/Thunk;\n");
                         continue;
                     }
                 }
@@ -2259,50 +2343,74 @@ public class CodeGenerator extends AlgolBaseListener {
             sb.append("aload ").append(boxSlot).append("\n");
             sb.append("iconst_0\n");
             sb.append("aaload\n");
+            if (varType != null && varType.startsWith("thunk:")) {
+                sb.append("checkcast gnb/jalgol/compiler/Thunk\n");
+                String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
+                String targetField = (useEnvBridge(outerProc) && outerProc != null) ? envThunkFieldName(outerProc, vn) : vn;
+                if (varSlot != null) {
+                    if (!currentLocalIndex.containsKey(vn)) {
+                        sb.append("putstatic ").append(packageName).append("/").append(className)
+                          .append("/").append(targetField).append(" Lgnb/jalgol/compiler/Thunk;\n");
+                    } else {
+                        emitStore(sb, "astore", varSlot);
+                    }
+                } else {
+                    // Static thunk
+                    sb.append("putstatic ").append(packageName).append("/").append(className)
+                       .append("/").append(targetField).append(" Lgnb/jalgol/compiler/Thunk;\n");
+                }
+                continue;
+            }
             if ("real".equals(varType)) {
                 sb.append("checkcast java/lang/Double\n");
                 sb.append("invokevirtual java/lang/Double/doubleValue()D\n");
+                String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
+                String targetField = (useEnvBridge(outerProc) && outerProc != null) ? envThunkFieldName(outerProc, vn) : vn;
                     if (varSlot != null) {
                         if (!currentLocalIndex.containsKey(vn)) {
-                            // Outer-scope scalar: write to static field
+                            // Outer-scope scalar: write to env bridge
                             sb.append("putstatic ").append(packageName).append("/").append(className)
-                              .append("/").append(vn).append(" D\n");
+                              .append("/").append(targetField).append(" D\n");
                         } else {
                             emitStore(sb, "dstore", varSlot);
                         }
                     } else {
                         // Static scalar
                         sb.append("putstatic ").append(packageName).append("/").append(className)
-                           .append("/").append(vn).append(" D\n");
+                           .append("/").append(targetField).append(" D\n");
                     }
             } else if ("string".equals(varType)) {
                 sb.append("checkcast java/lang/String\n");
+                String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
+                String targetField = (useEnvBridge(outerProc) && outerProc != null) ? envThunkFieldName(outerProc, vn) : vn;
                     if (varSlot != null) {
                         if (!currentLocalIndex.containsKey(vn)) {
                             sb.append("putstatic ").append(packageName).append("/").append(className)
-                              .append("/").append(vn).append(" Ljava/lang/String;\n");
+                              .append("/").append(targetField).append(" Ljava/lang/String;\n");
                         } else {
                             emitStore(sb, "astore", varSlot);
                         }
                     } else {
                         // Static scalar
                         sb.append("putstatic ").append(packageName).append("/").append(className)
-                           .append("/").append(vn).append(" Ljava/lang/String;\n");
+                           .append("/").append(targetField).append(" Ljava/lang/String;\n");
                     }
             } else {
                 sb.append("checkcast java/lang/Integer\n");
                 sb.append("invokevirtual java/lang/Integer/intValue()I\n");
+                String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
+                String targetField = (useEnvBridge(outerProc) && outerProc != null) ? envThunkFieldName(outerProc, vn) : vn;
                     if (varSlot != null) {
                         if (!currentLocalIndex.containsKey(vn)) {
                             sb.append("putstatic ").append(packageName).append("/").append(className)
-                              .append("/").append(vn).append(" I\n");
+                              .append("/").append(targetField).append(" I\n");
                         } else {
                             emitStore(sb, "istore", varSlot);
                         }
                     } else {
                         // Static scalar
                         sb.append("putstatic ").append(packageName).append("/").append(className)
-                           .append("/").append(vn).append(" I\n");
+                           .append("/").append(targetField).append(" I\n");
                     }
             }
         }

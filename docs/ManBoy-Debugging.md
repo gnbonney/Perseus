@@ -4,10 +4,12 @@ This document captures the current state of the `manboy_test` failure, the root 
 
 The Man-or-Boy program is a classic call-by-name/closure semantics stress-test invented by Donald Knuth to distinguish correct implementations of name-parameter passing (Jensen's device) from incorrect ones. The goal of this note is to keep the diagnosis and progress focused on the core thunk/closure state issues that prevent the correct output (`-67.0`).
 
-## Current status (as of March 13, 2026)
+## Current status (as of March 14, 2026)
 
-- **Test failing:** `manboy_test`.
-- **Failure mode:** Runtime `StackOverflowError` caused by recursive `A`/`B` re-entry through `ManBoy$Thunk0.get`, so the expected final output `-67.0` is not reached.
+- **Thunk isolation test:** passing (`thunk_isolation_test` confirms separate thunk instances do not share mutable state).
+- **ManBoy test:** still failing (`manboy_test`).
+- **Failure mode:** the program now runs to completion but produces the wrong numeric result (`-53.0` instead of `-67.0`).
+- **Behavior observed:** Thunks are being created and invoked, but captured call-by-name variables are not behaving as true per-instance mutable boxes (the runtime semantics still resemble shared/global state).
 
 ## Root cause (confirmed via Java reference model)
 
