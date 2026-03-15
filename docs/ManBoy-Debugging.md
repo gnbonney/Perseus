@@ -15,15 +15,19 @@ The Man-or-Boy program is a classic call-by-name/closure semantics stress-test i
 
 ## Root cause (confirmed via Java reference model)
 
-The `k` counter is modelled as a shared global static field (`__env_A_k`) rather than a per-thunk-instance field. In the correct Man-or-Boy semantics (see `tmp/manorboy-analysis/ManOrBoy.java`), each anonymous thunk owns its own mutable copy `int m`, initialized from the captured `k` at construction time.
+The compiler is treating a captured outer variable as a shared global static field rather than as a per-activation mutable cell.
 
-In the correct behavior:
-- `m` is decremented on `this` inside `run()`.
-- `this` is passed as `x1` to the recursive call — so each activation has independent counter state.
+In correct call-by-name / nested-procedure semantics, each activation that captures an outer variable must get its own *mutable box* for that variable (a per-instance field inside the closure/thunk object). When the runtime evaluates a call-by-name parameter or enters a nested procedure, it should access the *box belonging to that activation*, not a shared global.
+
+In correct behavior:
+- Each activation of the outer procedure creates a new closure object containing its own copy of the captured variables.
+- Nested procedures (and thunks) access the captured variables through that closure object.
+- Recursive re-entry therefore operates on an independent set of captured boxes (not on the same shared global state).
 
 In the current codegen:
-- The shared static `__env_A_k` is mutated on every re-entry.
-- No activation ever sees a decremented-per-instance counter, causing the recursion to diverge.
+- The captured variable is stored in a shared static `__env_*` field and updated via `getstatic/putstatic`.
+- All activations end up sharing the same mutable state, so recursion and nested calls interfere with each other.
+- The result is incorrect numeric output (and, in earlier versions, verifier failures) even though the generated code appears to create distinct thunk objects.
 
 ## Fix required (general, not ManBoy-specific)
 

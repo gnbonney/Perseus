@@ -976,23 +976,23 @@ end
     }
 
     @Test
-    public void env_bridge_test() throws Exception {
+    public void nested_scope_access_test() throws Exception {
         Path jasminFile = AntlrAlgolListener.compileToFile(
-                "test/algol/env_bridge.alg", "gnb/jalgol/programs", "EnvBridge", BUILD_DIR);
+                "test/algol/nested_scope_access.alg", "gnb/jalgol/programs", "NestedScopeAccess", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
-        System.out.println("=== ENV_BRIDGE JASMIN ===");
+        System.out.println("=== NESTED_SCOPE_ACCESS JASMIN ===");
         System.out.println(jasminSource);
-        System.out.println("=== END ENV_BRIDGE ===");
+        System.out.println("=== END NESTED_SCOPE_ACCESS ===");
 
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
         AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.EnvBridge");
-        System.out.println("Env bridge output: [" + output + "]");
-        assertEquals("2", output.trim(), "Env bridge test should output 2");
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.NestedScopeAccess");
+        System.out.println("Nested scope access output: [" + output + "]");
+        assertEquals("2", output.trim(), "Nested scope access test should output 2");
     }
 
     @Test
