@@ -996,6 +996,26 @@ end
     }
 
     @Test
+    public void thunk_closure_isolation_test() throws Exception {
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/thunk_closure_isolation.alg", "gnb/jalgol/programs", "ThunkClosureIsolation", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== THUNK_CLOSURE_ISOLATION JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END THUNK_CLOSURE_ISOLATION ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ThunkClosureIsolation");
+        System.out.println("Thunk closure isolation output: [" + output + "]");
+        assertEquals("1\n2", output.trim(), "Thunk closure isolation should output two independent values");
+    }
+
+    @Test
     public void boolean_operators_test() throws Exception {
         Path jasminFile = AntlrAlgolListener.compileToFile(
                 "test/algol/boolean_operators.alg", "gnb/jalgol/programs",
