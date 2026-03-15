@@ -1,12 +1,13 @@
 begin
     procedure make(x);
         value x; integer x;
+    begin
         procedure thunk;
         begin
             outinteger(1, x);
             outstring(1, "\n");
         end;
-    begin
+
         make := thunk;
     end;
 

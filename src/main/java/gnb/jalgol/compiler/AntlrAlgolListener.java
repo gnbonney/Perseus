@@ -19,6 +19,7 @@ import java.util.Set;
 
 import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
 import gnb.jalgol.compiler.antlr.AlgolBaseListener;
@@ -194,57 +195,75 @@ public class AntlrAlgolListener {
 		Map<String, int[]> arrayBounds = symBuilder.getArrayBounds();
 		Map<String, SymbolTableBuilder.ProcInfo> procedures = symBuilder.getProcedures();
 
-		// Check for procedure variables (procedure names that are used in assignments or expressions)
-		Set<String> procedureVariables = new LinkedHashSet<>();
-		walker.walk(new AlgolBaseListener() {
-			private final Deque<String> currentProcedure = new ArrayDeque<>();
+        // Check for procedure variables (procedure names that are used in assignments or expressions)
+        Set<String> procedureVariables = new LinkedHashSet<>();
+        walker.walk(new AlgolBaseListener() {
+            private final Deque<String> currentProcedure = new ArrayDeque<>();
 
-			@Override
-			public void enterProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
-				currentProcedure.push(ctx.identifier().getText());
-			}
+            @Override
+            public void enterProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
+                currentProcedure.push(ctx.identifier().getText());
+            }
 
-			@Override
-			public void exitProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
-				currentProcedure.pop();
-			}
+            @Override
+            public void exitProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
+                currentProcedure.pop();
+            }
 
-			@Override
-			public void enterAssignment(AlgolParser.AssignmentContext ctx) {
-				for (AlgolParser.LvalueContext lv : ctx.lvalue()) {
-					String name = lv.identifier().getText();
-					String type = symbolTable.get(name);
-					// If a procedure name is used as an L-value, it may be a procedure variable.
-					if (type != null && type.startsWith("procedure:")) {
-						if (name.equals(currentProcedure.peek())) {
-							// Assigning to the current procedure from inside its own body.
-							// Distinguish return-value assignment (e.g. P := 3.14) from
-							// procedure-variable assignment (e.g. P := getPi).
-							SymbolTableBuilder.ProcInfo info = procedures.get(name);
-							if (info == null || "void".equals(info.returnType)) {
-								// Void procedure: P := hello is always a procedure variable assignment.
-								procedureVariables.add(name);
-							} else {
-								// Typed procedure: it's a variable assignment only if the RHS is
-								// itself a procedure name (i.e. a procedure reference, not a value).
-								AlgolParser.ExprContext rhs = ctx.expr();
-								if (rhs instanceof AlgolParser.VarExprContext varRhs) {
-									String rhsName = varRhs.identifier().getText();
-									if (procedures.containsKey(rhsName)) {
-										procedureVariables.add(name);
-									}
-								}
-							}
-						} else {
-							procedureVariables.add(name);
-						}
-					}
-				}
-			}
+            private Set<String> collectVarNames(ParseTree tree) {
+                Set<String> names = new LinkedHashSet<>();
+                if (tree instanceof AlgolParser.VarExprContext ve) {
+                    names.add(ve.identifier().getText());
+                } else {
+                    for (int i = 0; i < tree.getChildCount(); i++) {
+                        names.addAll(collectVarNames(tree.getChild(i)));
+                    }
+                }
+                return names;
+            }
 
-		}, programContext);
+            @Override
+            public void enterAssignment(AlgolParser.AssignmentContext ctx) {
+                for (AlgolParser.LvalueContext lv : ctx.lvalue()) {
+                    String name = lv.identifier().getText();
+                    String type = symbolTable.get(name);
+                    // If a procedure name is used as an L-value, it may be a procedure variable.
+                    if (type != null && type.startsWith("procedure:")) {
+                        if (name.equals(currentProcedure.peek())) {
+                            // Assigning to the current procedure from inside its own body.
+                            // If there are multiple targets (e.g. B := A := ...), treat this as a
+                            // procedure-variable assignment. Otherwise, treat it as a return value
+                            // assignment (unless the RHS is a procedure reference).
+                            if (ctx.lvalue().size() > 1) {
+                                procedureVariables.add(name);
+                            } else {
+                                SymbolTableBuilder.ProcInfo info = procedures.get(name);
+                                if (info == null || "void".equals(info.returnType)) {
+                                    // Void procedure: P := hello is always a procedure variable assignment.
+                                    procedureVariables.add(name);
+                                } else {
+                                    // Typed procedure: treat as a procedure-variable assignment if the RHS
+                                    // is a direct procedure reference or returns a procedure.
+                                    AlgolParser.ExprContext rhs = ctx.expr();
+                                    for (String rhsName : collectVarNames(rhs)) {
+                                        if (procedures.containsKey(rhsName)) {
+                                            procedureVariables.add(name);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            // Assignment to an outer procedure name is always a procedure-variable binding update.
+                            procedureVariables.add(name);
+                        }
+                    }
+                }
+            }
 
-		// Add detected procedure variables to mainSymbolTable so they get JVM slots.
+        }, programContext);
+
+        // Add detected procedure variables to mainSymbolTable so they get JVM slots.
 		// Only add names that were actually observed as variable references (assignments or VarExpr),
 		// NOT all no-param procedures (which would cause outer calls to route through a variable slot).
 		for (String pv : procedureVariables) {
@@ -261,8 +280,14 @@ public class AntlrAlgolListener {
 		Map<String, Integer> localIndex = new LinkedHashMap<>();
 		int nextLocal = 1;
 		
-		// Map for procedure variables specifically for Milestone 13A
+		// Map for procedure variables (marker map; value -1 indicates no local slot)
 		Map<String, Integer> procVarSlotsMap = new LinkedHashMap<>();
+		for (String pv : procedureVariables) {
+			String type = symbolTable.get(pv);
+			if (type != null && type.startsWith("procedure:")) {
+				procVarSlotsMap.put(pv, -1);
+			}
+		}
 		
 		// Sort mainSymbolTable entries by name or maintain order to ensure stability?
 		// SymbolTableBuilder uses LinkedHashMap so order is preserved.
@@ -271,14 +296,9 @@ public class AntlrAlgolListener {
 			String name = entry.getKey();
 			String type = entry.getValue();
 			if (type.endsWith("[]")) continue;
-			if (!type.startsWith("procedure:")) continue; // Skip scalars - they become static fields
-
-			localIndex.put(name, nextLocal);
-			if (type.startsWith("procedure:")) {
-				procVarSlotsMap.put(name, nextLocal);
-			}
-			System.out.println("DEBUG: Assigned slot " + nextLocal + " to " + name + " (type " + type + ")");
-			nextLocal += "real".equals(type) ? 2 : 1;
+			// Procedure variables are stored in static fields, not local slots.
+			// This ensures calls/assignments always use the shared binding and avoids
+			// uninitialized local slots (e.g. ProcVar, ProcTypedSimple).
 		}
 		int numLocals = Math.max(nextLocal, 1);
 

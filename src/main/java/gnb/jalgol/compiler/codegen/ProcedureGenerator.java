@@ -9,6 +9,7 @@ import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class ProcedureGenerator implements GeneratorDelegate {
@@ -23,6 +24,10 @@ public class ProcedureGenerator implements GeneratorDelegate {
     private Function<String, Integer> lookupLocalSlot;
     private Map<AlgolParser.ExprContext, String> exprTypes;
     private Function<AlgolParser.ExprContext, String> generateExprFn;
+
+    // Suppliers for closure capture (set by CodeGenerator)
+    private Supplier<String> currentProcNameSupplier;
+    private Supplier<Map<String, SymbolTableBuilder.ProcInfo>> proceduresSupplier;
 
     public ProcedureGenerator(ContextManager context, ExpressionGenerator exprGen) {
         this.context = context;
@@ -435,6 +440,48 @@ public class ProcedureGenerator implements GeneratorDelegate {
             default: throw new RuntimeException("Unknown procedure return type: " + returnType);
         }
 
+        // Capture surrounding procedure environment when creating a ProcRef inside another procedure.
+        // This ensures closures capture the correct values instead of sharing global env fields.
+        String outerProc = currentProcNameSupplier != null ? currentProcNameSupplier.get() : null;
+        Map<String, SymbolTableBuilder.ProcInfo> procedures = proceduresSupplier != null ? proceduresSupplier.get() : null;
+        System.out.println("DEBUG: generateProcedureReference proc=" + procName + " outerProc=" + outerProc + " procs=" + (procedures != null ? procedures.keySet() : "null"));
+        List<EnvField> envFields = new ArrayList<>();
+        if (outerProc != null && procedures != null && procedures.containsKey(outerProc)) {
+            SymbolTableBuilder.ProcInfo outerInfo = procedures.get(outerProc);
+            // Capture all value parameters and return value
+            for (String p : outerInfo.paramNames) {
+                String desc;
+                if (!outerInfo.valueParams.contains(p)) {
+                    desc = "Lgnb/jalgol/compiler/Thunk;";
+                } else {
+                    String pType = outerInfo.paramTypes.getOrDefault(p, "integer");
+                    if ("real".equals(pType)) desc = "D";
+                    else if ("string".equals(pType)) desc = "Ljava/lang/String;";
+                    else if (pType.startsWith("procedure:")) {
+                        String procRet = pType.substring("procedure:".length());
+                        desc = switch (procRet) {
+                            case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
+                            case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
+                            case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
+                            default -> "Lgnb/jalgol/compiler/VoidProcedure;";
+                        };
+                    } else {
+                        desc = "I";
+                    }
+                }
+                envFields.add(new EnvField(p, envThunkFieldName(outerProc, p), desc));
+            }
+            if (!"void".equals(outerInfo.returnType)) {
+                String retDesc = switch (outerInfo.returnType) {
+                    case "real" -> "D";
+                    case "string" -> "Ljava/lang/String;";
+                    default -> "I";
+                };
+                envFields.add(new EnvField("ret", envReturnFieldName(outerProc), retDesc));
+            }
+        }
+        System.out.println("DEBUG: envFields=" + envFields.stream().map(f -> f.name).toList());
+
         int refId = nextProcRefId.getAsInt();
         String procRefClassName = className + "$ProcRef" + refId;
         String fullClassName = packageName + "/" + procRefClassName;
@@ -445,19 +492,73 @@ public class ProcedureGenerator implements GeneratorDelegate {
         jasmin.append(".super java/lang/Object\n");
         jasmin.append(".implements gnb/jalgol/compiler/").append(interfaceName).append("\n\n");
 
-        // Constructor
-        jasmin.append(".method public <init>()V\n");
-        jasmin.append("    .limit stack 1\n");
-        jasmin.append("    .limit locals 1\n");
+        // ProcRef fields to capture outer environment values (boxed as Objects)
+        for (EnvField env : envFields) {
+            jasmin.append(".field private cap_").append(env.name).append(" Ljava/lang/Object;\n");
+        }
+        if (!envFields.isEmpty()) jasmin.append("\n");
+
+        // Constructor: takes boxed env values and stores them in fields
+        jasmin.append(".method public <init>(");
+        for (int i = 0; i < envFields.size(); i++) {
+            jasmin.append("Ljava/lang/Object;");
+        }
+        jasmin.append(")V\n");
+        jasmin.append("    .limit stack 2\n");
+        jasmin.append("    .limit locals ").append(1 + envFields.size()).append("\n");
         jasmin.append("    aload_0\n");
         jasmin.append("    invokenonvirtual java/lang/Object/<init>()V\n");
+        for (int i = 0; i < envFields.size(); i++) {
+            EnvField env = envFields.get(i);
+            jasmin.append("    aload_0\n");
+            jasmin.append("    aload ").append(1 + i).append("\n");
+            jasmin.append("    putfield ").append(fullClassName).append("/cap_").append(env.name).append(" Ljava/lang/Object;\n");
+        }
         jasmin.append("    return\n");
         jasmin.append(".end method\n\n");
 
         // invoke() method — unbox args from Object[] and call the static procedure
         jasmin.append(".method public invoke([Ljava/lang/Object;)").append(CodeGenUtils.getReturnTypeDescriptor(returnType)).append("\n");
         jasmin.append("    .limit stack 20\n");
-        jasmin.append("    .limit locals 20\n");
+        // Reserve locals for saved env values (this + args + saved envs)
+        jasmin.append("    .limit locals ").append(2 + envFields.size()).append("\n");
+
+        // Save current outer env field values (boxed)
+        if (!envFields.isEmpty()) {
+            int saveSlot = 2;
+            for (EnvField env : envFields) {
+                jasmin.append("    getstatic ").append(packageName).append("/").append(className)
+                     .append("/").append(env.fieldName).append(" ").append(env.desc).append("\n");
+                // Box primitives if needed
+                if ("I".equals(env.desc)) {
+                    jasmin.append("    invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+                } else if ("D".equals(env.desc)) {
+                    jasmin.append("    invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+                }
+                jasmin.append("    astore ").append(saveSlot).append("\n");
+                saveSlot++;
+            }
+
+            // Set env fields to captured values
+            for (EnvField env : envFields) {
+                jasmin.append("    aload_0\n");
+                jasmin.append("    getfield ").append(fullClassName).append("/cap_").append(env.name).append(" Ljava/lang/Object;\n");
+                // Unbox to correct type for static field
+                if ("I".equals(env.desc)) {
+                    jasmin.append("    checkcast java/lang/Integer\n");
+                    jasmin.append("    invokevirtual java/lang/Integer/intValue()I\n");
+                } else if ("D".equals(env.desc)) {
+                    jasmin.append("    checkcast java/lang/Double\n");
+                    jasmin.append("    invokevirtual java/lang/Double/doubleValue()D\n");
+                } else if (env.desc.startsWith("L")) {
+                    // object type - cast to correct type
+                    String castType = env.desc.substring(1, env.desc.length() - 1);
+                    jasmin.append("    checkcast ").append(castType).append("\n");
+                }
+                jasmin.append("    putstatic ").append(packageName).append("/").append(className)
+                     .append("/").append(env.fieldName).append(" ").append(env.desc).append("\n");
+            }
+        }
 
         List<String> paramNames = procInfo.paramNames;
         for (int i = 0; i < paramNames.size(); i++) {
@@ -497,6 +598,28 @@ public class ProcedureGenerator implements GeneratorDelegate {
         jasmin.append("    invokestatic ").append(packageName).append("/").append(className)
               .append("/").append(procName).append("(").append(paramDesc).append(")").append(retDesc).append("\n");
 
+        // Restore outer env fields
+        if (!envFields.isEmpty()) {
+            int restoreSlot = 2;
+            for (EnvField env : envFields) {
+                jasmin.append("    aload ").append(restoreSlot).append("\n");
+                // Unbox/cast back to correct type for static field
+                if ("I".equals(env.desc)) {
+                    jasmin.append("    checkcast java/lang/Integer\n");
+                    jasmin.append("    invokevirtual java/lang/Integer/intValue()I\n");
+                } else if ("D".equals(env.desc)) {
+                    jasmin.append("    checkcast java/lang/Double\n");
+                    jasmin.append("    invokevirtual java/lang/Double/doubleValue()D\n");
+                } else if (env.desc.startsWith("L")) {
+                    String castType = env.desc.substring(1, env.desc.length() - 1);
+                    jasmin.append("    checkcast ").append(castType).append("\n");
+                }
+                jasmin.append("    putstatic ").append(packageName).append("/").append(className)
+                     .append("/").append(env.fieldName).append(" ").append(env.desc).append("\n");
+                restoreSlot++;
+            }
+        }
+
         if (!"void".equals(returnType)) {
             jasmin.append("    ").append(CodeGenUtils.getReturnInstruction(returnType)).append("\n");
         } else {
@@ -510,8 +633,53 @@ public class ProcedureGenerator implements GeneratorDelegate {
         StringBuilder instantiation = new StringBuilder();
         instantiation.append("new ").append(fullClassName).append("\n");
         instantiation.append("dup\n");
-        instantiation.append("invokenonvirtual ").append(fullClassName).append("/<init>()V\n");
-        return instantiation.toString();
+        // Load captured env values from static fields
+        for (EnvField env : envFields) {
+            instantiation.append("    getstatic ").append(packageName).append("/").append(className)
+                 .append("/").append(env.fieldName).append(" ").append(env.desc).append("\n");
+            // Box primitives so constructor accepts Object
+            if ("I".equals(env.desc)) {
+                instantiation.append("    invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+            } else if ("D".equals(env.desc)) {
+                instantiation.append("    invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+            }
+        }
+        instantiation.append("invokenonvirtual ").append(fullClassName).append("/<init>(");
+        for (int i = 0; i < envFields.size(); i++) {
+            instantiation.append("Ljava/lang/Object;");
+        }
+        instantiation.append(")V\n");
+        String inst = instantiation.toString();
+        System.out.println("DEBUG: procRef instantiation for " + procName + " =\n" + inst);
+        return inst;
+    }
+
+    private static class EnvField {
+        final String name;
+        final String fieldName;
+        final String desc;
+
+        EnvField(String name, String fieldName, String desc) {
+            this.name = name;
+            this.fieldName = fieldName;
+            this.desc = desc;
+        }
+    }
+
+    private String envThunkFieldName(String procName, String paramName) {
+        return "__env_" + procName + "_" + paramName;
+    }
+
+    private String envReturnFieldName(String procName) {
+        return "__env_ret_" + procName;
+    }
+
+    public void setCurrentProcNameSupplier(Supplier<String> supplier) {
+        this.currentProcNameSupplier = supplier;
+    }
+
+    public void setProceduresSupplier(Supplier<Map<String, SymbolTableBuilder.ProcInfo>> supplier) {
+        this.proceduresSupplier = supplier;
     }
 
     @Override
