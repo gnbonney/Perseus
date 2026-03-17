@@ -137,6 +137,55 @@ The overall data flow and output conventions remain as described above, but the 
 
 ---
 
+## CodeGenerator Modular Flow
+
+The following diagram illustrates the modular delegation and output flow within the `CodeGenerator`:
+
+```mermaid
+flowchart TD
+   Start[Start: enterProgram]
+   Start -->|Setup class header, fields| ClassHeader
+   ClassHeader -->|Setup static fields, arrays, procs| ContextSetup
+   ContextSetup -->|Main method header| MainMethod
+   MainMethod -->|Walk parse tree| Listener
+   Listener -->|Delegates| StatementGen[StatementGenerator]
+   Listener -->|Delegates| ExprGen[ExpressionGenerator]
+   Listener -->|Delegates| ProcGen[ProcedureGenerator]
+   StatementGen -->|Assignments, control flow| MainCode
+   ExprGen -->|Literals, variables, math| MainCode
+   ProcGen -->|Proc decls, refs, thunks| ProcMethods
+   MainCode -->|Appended to| Output[Final Jasmin Output]
+   ProcMethods -->|Appended to| Output
+   Output --> End[End: getOutput]
+   subgraph ContextManager
+      ContextSetup
+      MainMethod
+      Listener
+   end
+```
+
+---
+
+## Architectural Issues and Test-Driven Debugging
+
+Recent development has focused on fixing deep architectural issues exposed by advanced test cases, especially those involving call-by-name, closure isolation, and nested procedure semantics (see `docs/ManBoy-Debugging.md` and `docs/Compiler-TODO.md`).
+
+- **Closure/Thunk Isolation:** The compiler must ensure that each call-by-name argument and nested procedure activation receives its own mutable closure state (not a shared static field). This is critical for correct execution of programs like Man-or-Boy, which stress closure semantics and re-entrancy.
+- **Environment Bridge Refactor:** The use of static `__env_*` fields for environment bridging is being replaced by per-instance fields in generated thunks and procedure references, to avoid shared mutable state across activations.
+- **Test-Driven Refactoring:** Failing tests such as `manboy_test`, `thunk_closure_isolation_test`, and `proc_param_test` have driven architectural changes, especially in how the code generator emits and manages environment bridges, thunk construction, and variable capture.
+- **Verifier Failures:** Many failures (e.g., JVM `VerifyError` or stack discipline errors) have been traced to incorrect slot assignment, improper field access, or shared state. Fixes are ongoing and tracked in the test and debugging documentation.
+
+The architecture is evolving to guarantee that:
+
+- All closure-captured variables are stored in per-activation fields (never shared statics).
+- Thunk and procedure reference classes are generated with correct constructor signatures and field layouts.
+- The code generator delegates all code emission to the appropriate modular generator, with shared state managed only via the `ContextManager`.
+
+For details on current failures and the debugging process, see:
+- [docs/ManBoy-Debugging.md](ManBoy-Debugging.md)
+- [docs/Compiler-TODO.md](Compiler-TODO.md)
+
+
 ## Compiling Algol to Jasmin
 
 To compile an Algol source file to Jasmin assembly, the following steps are performed:
