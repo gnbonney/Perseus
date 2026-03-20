@@ -533,20 +533,26 @@ end
 		List<String> cmd = java.util.Arrays.asList("java", "-cp", classDir.toString(), className);
 		System.out.println("runClass: " + cmd);
 		ProcessBuilder pb = new ProcessBuilder(cmd);
-		pb.redirectErrorStream(true);
+		pb.redirectErrorStream(false);
 		Process p = pb.start();
 		p.getOutputStream().close(); // close subprocess stdin
-		String output = new String(p.getInputStream().readAllBytes());
+		String stdout;
+		String stderr;
+		try (var out = p.getInputStream(); var err = p.getErrorStream()) {
+			stdout = new String(out.readAllBytes());
+			stderr = new String(err.readAllBytes());
+		}
 		int exitCode = p.waitFor();
-		System.out.println("runClass: exit=" + exitCode + " output=[" + output + "]");
-		return output;
+		System.out.println("runClass: exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
+		assertEquals(0, exitCode, "Process failed for " + className + ": exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
+		return stdout;
 	}
 
 	private static String runClassWithTimeout(Path classDir, String className, long timeoutMs) throws Exception {
 		List<String> cmd = java.util.Arrays.asList("java", "-cp", classDir.toString(), className);
 		System.out.println("runClassWithTimeout: " + cmd + " timeout=" + timeoutMs + "ms");
 		ProcessBuilder pb = new ProcessBuilder(cmd);
-		pb.redirectErrorStream(true);
+		pb.redirectErrorStream(false);
 		Process p = pb.start();
 		p.getOutputStream().close(); // close subprocess stdin
 		// Wait with timeout BEFORE reading output — readAllBytes() blocks until the process exits,
@@ -556,11 +562,17 @@ end
 			p.destroyForcibly();
 			p.waitFor(); // ensure the process is fully dead before we read its output stream
 			System.out.println("runClassWithTimeout: process killed after timeout");
-		} else {
-			System.out.println("runClassWithTimeout: process finished early, exit=" + p.exitValue());
 		}
-		String output = new String(p.getInputStream().readAllBytes());
-		return output;
+		String stdout;
+		String stderr;
+		try (var out = p.getInputStream(); var err = p.getErrorStream()) {
+			stdout = new String(out.readAllBytes());
+			stderr = new String(err.readAllBytes());
+		}
+		int exitCode = p.exitValue();
+		System.out.println("runClassWithTimeout: exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
+		assertEquals(0, exitCode, "Process failed for " + className + " with timeout: exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
+		return stdout;
 	}
 
 	private static String runClassWithInput(Path classDir, String className, String input) throws Exception {
