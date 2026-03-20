@@ -118,7 +118,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
 
         // eval() method: use instance fields
         sb.append(".method public eval()Ljava/lang/Object;\n");
-        sb.append(".limit stack 10\n.limit locals 10\n");
+        sb.append(".limit stack 64\n.limit locals 64\n"); // TODO: calculate required stack size
 
         context.pushOutput(new StringBuilder());
         Map<String, String> oldSym = context.getSymbolTable();
@@ -321,7 +321,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
         String retDesc = "void".equals(info.returnType) ? "V" : (info.returnType.equals("real") ? "D" : (info.returnType.equals("string") ? "Ljava/lang/String;" : "I"));
 
         sb.append("\n.method public static ").append(procName).append("(").append(paramDesc).append(")").append(retDesc).append("\n");
-        sb.append(".limit stack 16\n.limit locals ").append(nextSlot).append("\n");
+        sb.append(".limit stack 64\n.limit locals 64\n"); // TODO: calculate required stack and locals
 
         for (Map.Entry<String, Integer> e : procLI.entrySet()) {
             if (info.paramNames.contains(e.getKey())) continue;
@@ -504,8 +504,8 @@ public class ProcedureGenerator implements GeneratorDelegate {
             jasmin.append("Ljava/lang/Object;");
         }
         jasmin.append(")V\n");
-        jasmin.append("    .limit stack 2\n");
-        jasmin.append("    .limit locals ").append(1 + envFields.size()).append("\n");
+        jasmin.append("    .limit stack 64\n"); // TODO: calculate required stack size
+        jasmin.append("    .limit locals 64\n"); // TODO: calculate required locals
         jasmin.append("    aload_0\n");
         jasmin.append("    invokenonvirtual java/lang/Object/<init>()V\n");
         for (int i = 0; i < envFields.size(); i++) {
@@ -519,9 +519,9 @@ public class ProcedureGenerator implements GeneratorDelegate {
 
         // invoke() method — unbox args from Object[] and call the static procedure
         jasmin.append(".method public invoke([Ljava/lang/Object;)").append(CodeGenUtils.getReturnTypeDescriptor(returnType)).append("\n");
-        jasmin.append("    .limit stack 20\n");
+        jasmin.append("    .limit stack 64\n"); // TODO: calculate required stack size
         // Reserve locals for saved env values (this + args + saved envs)
-        jasmin.append("    .limit locals ").append(2 + envFields.size()).append("\n");
+        jasmin.append("    .limit locals 64\n"); // TODO: calculate required locals
 
         // Save current outer env field values (boxed)
         if (!envFields.isEmpty()) {

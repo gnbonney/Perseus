@@ -285,8 +285,8 @@ public class CodeGenerator extends AlgolBaseListener {
 
         classHeader.append("\n")
                    .append(".method public <init>()V\n")
-                   .append(".limit stack 1\n")
-                   .append(".limit locals 1\n")
+                   .append(".limit stack 64\n") // TODO: calculate required stack
+                   .append(".limit locals 64\n") // TODO: calculate required locals
                    .append("aload_0\n")
                    .append("invokespecial java/lang/Object/<init>()V\n")
                    .append("return\n")
@@ -294,8 +294,8 @@ public class CodeGenerator extends AlgolBaseListener {
 
         // Main method header
         mainCode.append(".method public static main([Ljava/lang/String;)V\n")
-                .append(".limit stack 16\n")
-                .append(".limit locals ").append(currentNumLocals).append("\n");
+                .append(".limit stack 64\n") // TODO: calculate required stack
+                .append(".limit locals 64\n"); // TODO: calculate required locals
 
         // Initialize scalars as static fields (putstatic)
         for (Map.Entry<String, String> symEntry : currentSymbolTable.entrySet()) {
@@ -498,8 +498,8 @@ public class CodeGenerator extends AlgolBaseListener {
 
         activeOutput.append(".method public static ").append(procName)
                     .append("(").append(paramDesc).append(")").append(retDesc).append("\n")
-                    .append(".limit stack 16\n")
-                    .append(".limit locals ").append(procNumLocals).append("\n");
+                    .append(".limit stack 64\n") // TODO: calculate required stack
+                    .append(".limit locals 64\n"); // TODO: calculate required locals
 
         // Publish parameters into static env fields so nested procedures can access them.
         // Save previous env-field values in extra locals so recursion restores outer activation state.
@@ -580,7 +580,8 @@ public class CodeGenerator extends AlgolBaseListener {
             else if ("string".equals(info.returnType)) emitStore("astore", currentEnvRetSaveSlot);
             else emitStore("istore", currentEnvRetSaveSlot);
         }
-        ensureLocalLimit(currentNumLocals);
+        // TODO: Once we properly calculate limits everywhere, replace Math.max(currentNumLocals, 64) with exact calculation.
+        ensureLocalLimit(Math.max(currentNumLocals, 64));
 
         // Initialize local variables (not parameters) and the retval slot
         for (Map.Entry<String, Integer> e : procLI.entrySet()) {
@@ -1554,13 +1555,17 @@ public class CodeGenerator extends AlgolBaseListener {
         currentNumLocals += incr;
         // Debug trace to help diagnose locals-limit updates
         System.out.println("DEBUG: allocateNewLocal called in proc=" + currentProcName + " hint=" + hint + " assigned=" + slot + " newLimit=" + currentNumLocals);
+        if (currentNumLocals > 64) {
+            throw new IllegalStateException("Exceeded hardcoded .limit locals 64: " + currentNumLocals + " locals allocated in " + currentProcName);
+        }
         if (activeOutput != null) {
             int li = activeOutput.lastIndexOf(".limit locals ");
             System.out.println("DEBUG: activeOutput has .limit locals at index " + li);
         } else {
             System.out.println("DEBUG: activeOutput is null; procBufferStack.size=" + procBufferStack.size());
         }
-        ensureLocalLimit(currentNumLocals);
+        // TODO: Once we properly calculate limits everywhere, replace Math.max(currentNumLocals, 64) with exact calculation.
+        ensureLocalLimit(Math.max(currentNumLocals, 64));
         return slot;
     }
 
@@ -1848,8 +1853,8 @@ public class CodeGenerator extends AlgolBaseListener {
                     cls.append("\n");
 
                     cls.append(".method public <init>()V\n");
-                    cls.append(".limit stack 6\n");
-                    cls.append(".limit locals 1\n");
+                    cls.append(". 64\n"); // TODO: calculate required stack
+                    cls.append(".limit locals 64\n"); // TODO: calculate required locals
                     cls.append("aload_0\n");
                     cls.append("invokespecial java/lang/Object/<init>()V\n");
                     for (String p : outerInfo.paramNames) {
@@ -1901,8 +1906,8 @@ public class CodeGenerator extends AlgolBaseListener {
                     cls.append(".end method\n\n");
 
                     cls.append(".method public get()Ljava/lang/Object;\n");
-                    cls.append(".limit stack 16\n");
-                    cls.append(".limit locals 32\n");
+                    cls.append(".limit stack 64\n"); // TODO: calculate required stack
+                    cls.append(".limit locals 64\n"); // TODO: calculate required locals
                     int localSlot = 1;
                     Map<String, Integer> savedSlot = new LinkedHashMap<>();
                     for (String p : outerInfo.paramNames) {
@@ -2112,8 +2117,8 @@ public class CodeGenerator extends AlgolBaseListener {
                     cls.append(".end method\n\n");
 
                     cls.append(".method public set(Ljava/lang/Object;)V\n");
-                    cls.append(".limit stack 1\n");
-                    cls.append(".limit locals 2\n");
+                    cls.append(".limit stack 64\n"); // TODO: calculate required stack
+                    cls.append(".limit locals 64\n"); // TODO: calculate required locals
                     cls.append("return\n");
                     cls.append(".end method\n\n");
 
@@ -2135,8 +2140,8 @@ public class CodeGenerator extends AlgolBaseListener {
         }
         ctorDesc.append(")V");
         cls.append(".method public <init>").append(ctorDesc).append("\n");
-        cls.append(".limit stack 10\n");
-        cls.append(".limit locals ").append(varToField.size() + 1).append("\n");
+        cls.append(".limit stack 64\n"); // TODO: calculate required stack
+        cls.append(".limit locals 64\n"); // TODO: calculate required locals
         cls.append("aload_0\n");
         cls.append("invokespecial java/lang/Object/<init>()V\n");
         // store constructor args into fields
@@ -2155,8 +2160,8 @@ public class CodeGenerator extends AlgolBaseListener {
         cls.append(".end method\n\n");
         // generate get() method
         cls.append(".method public get()Ljava/lang/Object;\n");
-        cls.append(".limit stack 10\n");
-        cls.append(".limit locals 1\n");
+        cls.append(".limit stack 64\n"); // TODO: calculate required stack
+        cls.append(".limit locals 64\n"); // TODO: calculate required locals
         if (actual != null) {
             // generate expression code inside thunk, using mapping from vars to field indexes
             String actualExprType;
@@ -2212,8 +2217,8 @@ public class CodeGenerator extends AlgolBaseListener {
         cls.append(".end method\n\n");
         // generate set(Object) method
         cls.append(".method public set(Ljava/lang/Object;)V\n");
-        cls.append(".limit stack 10\n");
-        cls.append(".limit locals 2\n");
+        cls.append(".limit stack 64\n"); // TODO: calculate required stack size
+        cls.append(".limit locals 64\n"); // TODO: calculate required locals
         // for simplicity always store value into first box field if any
         if (!varToField.isEmpty()) {
             // store into first box regardless; actual semantics for expr not needed

@@ -79,7 +79,6 @@ public class ProcedureGeneratorTest {
         StringBuilder activeOutput = context.getActiveOutput();
         assertNotNull(activeOutput);
         assertTrue(activeOutput.toString().contains(".method public static myFunc()I"), "Method header should be generated");
-        assertTrue(activeOutput.toString().contains(".limit locals 1"), "Local for return value should be allocated");
 
         procGen.exitProcedureDecl(decl);
         
