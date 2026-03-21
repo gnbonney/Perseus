@@ -3064,20 +3064,49 @@ public class CodeGenerator extends AlgolBaseListener {
             // If the name is also a procedure variable, calls should route through the
             // current binding (procedure variable) so assignment to the variable affects
             // subsequent calls.
+            String callCode;
             if (procedures.containsKey(procName)) {
                 if (isProcVar) {
-                    return generateProcedureVariableCall(procName, varType, e.argList().arg());
+                    callCode = generateProcedureVariableCall(procName, varType, e.argList().arg());
+                } else {
+                    callCode = generateUserProcedureInvocation(procName, e.argList().arg(), false);
                 }
-                return generateUserProcedureInvocation(procName, e.argList().arg(), false);
+            } else if (isProcVar) {
+                callCode = generateProcedureVariableCall(procName, varType, e.argList().arg());
+            } else {
+                // Fall back to ordinary procedure invocation (should not usually happen)
+                callCode = generateUserProcedureInvocation(procName, e.argList().arg(), false);
             }
 
-            // Otherwise, if this is a procedure variable, call through it.
-            if (isProcVar) {
-                return generateProcedureVariableCall(procName, varType, e.argList().arg());
-            }
+            // For Algol procedure expressions like `make(1)` where `make` is a procedure
+            // variable, the call is implemented as a `void` invoke and stores the result in
+            // the procedure variable (e.g. __proc_make). In expression context we need to
+            // preserve the original binding, return the new value, and restore the old one.
+            if (procedures.containsKey(procName) && isProcVar) {
+                String procReturnType = procedures.get(procName).returnType;
+                if ("void".equals(procReturnType)) {
+                    int saveSlot = allocateNewLocal("procVar");
+                    String currentBinding = generateProcedureVariableLoad(procName, varType);
+                    StringBuilder exprCode = new StringBuilder();
+                    exprCode.append(currentBinding);
+                    exprCode.append("astore ").append(saveSlot).append("\n");
+                    exprCode.append(callCode);
+                    exprCode.append(generateProcedureVariableLoad(procName, varType));
 
-            // Fall back to ordinary procedure invocation (should not usually happen)
-            return generateUserProcedureInvocation(procName, e.argList().arg(), false);
+                    Integer localSlot = currentLocalIndex.get(procName);
+                    if (localSlot != null) {
+                        exprCode.append("aload ").append(saveSlot).append("\n");
+                        exprCode.append("astore ").append(localSlot).append("\n");
+                    } else {
+                        exprCode.append("aload ").append(saveSlot).append("\n");
+                        exprCode.append("putstatic ").append(packageName).append("/").append(className)
+                                .append("/").append(staticFieldName(procName, varType)).append(" ")
+                                .append(getProcedureInterfaceDescriptor(varType)).append("\n");
+                    }
+                    return exprCode.toString();
+                }
+            }
+            return callCode;
         } else if (ctx instanceof AlgolParser.RealLiteralExprContext e) {
             return "ldc2_w " + e.realLiteral().getText() + "d\n";
         } else if (ctx instanceof AlgolParser.IntLiteralExprContext e) {
