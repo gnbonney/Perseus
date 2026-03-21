@@ -89,7 +89,7 @@ This is the critical fault line for the full `manboy_test` (current failing case
 ## Next steps
 
 - Apply the immediate syntax fix to `else_2` in generator path
-- Add a regression test that asserts `manboy_alg` can compile and run to `-67.0`
+- Validate with existing regression test `AntlrAlgolListenerTest.manboy_test` (expects `-67.0` output)
 - Refactor environment management to per-activation closures in `CodeGenerator`/`ProcedureGenerator`
 
 ---
