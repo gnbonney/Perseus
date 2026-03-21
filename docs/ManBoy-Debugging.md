@@ -12,6 +12,17 @@ The Man-or-Boy program is a classic call-by-name/closure semantics stress-test i
 - **proc_param_test:** passing (`proc_param_test` now produces `Hello` as expected; proc-parameter call generation is now correct for void procedures).
 - **primer5:** failing (output isn’t close to `e ≈ 2.718…`, suggesting arithmetic/loop codegen or numeric stability issues).
 - **ManBoy test:** failing (`manboy_test`).
+
+## Recent Grok confirmation (March 20, 2026)
+
+A detailed verifier analysis reconfirms the existing root cause with additional specifics:
+
+- `A(...)` method in `ManBoy.j` has an incorrect `else_2` branch that calls `B` and then executes `pop2`, dropping the returned `double` result.
+- The method then proceeds to a common epilogue that expects a `double` for `dreturn`, so this path is an operand stack mismatch that manifests as `VerifyError`.
+- `then_1` branch also has incorrect value flow: `x4 + x5` is computed and held in `astore 8`, but not returned; the branch stores to a procedure field (`__proc_A`) rather than making the result the method return value.
+- The underlying semantic issue is unchanged: per-activation environment is not implemented; static `__env_*` fields are shared across recursive calls.
+
+This matches previous notes but adds a concrete path to unblock verification (remove `pop2`, keep `B` result) and explicit `A`/`B` return-flow correctness.
 - **ManBoy failure mode:** code generation emits invalid Jasmin with `; ERROR: undeclared variable x1..x4` in the argument list for the call to `A` from `B`. The generated output does not assemble/verify.
 - **Verifier state:** ManBoy still fails with a `VerifyError` (expecting object/array on stack for the call to `A`), which is now the primary observable failure.
 - **Behavior observed:** The generated class includes `__env_A_x1..x4` fields (the env bridge exists), but the code that builds the argument array for the proc-to-proc call fails to resolve those captured variables into loads.
