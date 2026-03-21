@@ -25,6 +25,13 @@ public class ProcedureGenerator implements GeneratorDelegate {
     private Map<AlgolParser.ExprContext, String> exprTypes;
     private Function<AlgolParser.ExprContext, String> generateExprFn;
 
+    // Label counter for generated thunk helper methods
+    private int labelCounter = 0;
+
+    private String generateUniqueLabel(String prefix) {
+        return prefix + "_" + (labelCounter++);
+    }
+
     // Suppliers for closure capture (set by CodeGenerator)
     private Supplier<String> currentProcNameSupplier;
     private Supplier<Map<String, SymbolTableBuilder.ProcInfo>> proceduresSupplier;
@@ -157,6 +164,18 @@ public class ProcedureGenerator implements GeneratorDelegate {
             sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
         } else if ("integer".equals(baseType) || "boolean".equals(baseType)) {
             sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+        } else if ("deferred".equals(baseType)) {
+            sb.append("dup\n");
+            sb.append("instanceof java/lang/Double\n");
+            String deferredDouble = generateUniqueLabel("deferred_double");
+            String deferredEnd = generateUniqueLabel("deferred_end");
+            sb.append("ifne ").append(deferredDouble).append("\n");
+            sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+            sb.append("goto ").append(deferredEnd).append("\n");
+            sb.append(deferredDouble).append(":\n");
+            sb.append("checkcast java/lang/Double\n");
+            sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+            sb.append(deferredEnd).append(":\n");
         }
         sb.append("areturn\n.end method\n");
 

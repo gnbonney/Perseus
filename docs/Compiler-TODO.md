@@ -9,21 +9,22 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 ## Current Status
 
 
-**46/49 tests passing as of March 21, 2026.** Milestone 18 (string variables and string output) remains complete. Current failing tests:
+**51/53 tests passing as of March 21, 2026.** Current failing tests:
 
-- `AntlrAlgolListenerTest.manboy_test()`
-- `AntlrAlgolListenerTest.primer2()`
+- `AntlrAlgolListenerTest.manboy_test()` (ASM verification fails due deferred/boxed primitives path)
+- `AntlrAlgolListenerTest.primer2()` (existing goto/label handling regression)
 
 The `thunk_closure_isolation_test` issue has been fixed with procedure variable call stack balance corrections and no more `VerifyError` for void procedure variable call paths.
 
 **Empirical bytecode verification (ASM) is now integrated for `manboy_test`.**
 
-**Root cause:** ASM CheckClassAdapter reports a JVM type error: primitive doubles are being stored directly in `Object[]` arrays for procedure argument passing. The JVM requires all primitives to be boxed (e.g., `Double.valueOf`) before storing in `Object[]`.
+**Root cause:** ASM CheckClassAdapter reports a JVM type error: primitive doubles are being stored directly in `Object[]` arrays for procedure argument passing, and call-by-name deferred typing path may currently emit unboxed `Integer`/`Double` mixing that triggers runtime `ClassCastException` in thunk wrappers.
 
 **Next steps:**
-1. Update codegen to box all primitives before storing in `Object[]` for procedure calls (see `ExpressionGenerator`/`StatementGenerator`).
-2. Re-run ASM verification and confirm `manboy_test` passes.
-3. See `docs/ManBoy-Debugging.md` for full analysis and findings.
+1. Ensure codegen boxes all primitives before storing in `Object[]` for procedure calls (see `ExpressionGenerator`/`StatementGenerator`).
+2. Fix deferred-typing thunk dispatch in `ProcedureGenerator`/`CodeGenerator` so `BaseType.REAL`/`INTEGER` handling is consistent from thunk creation to `eval()/set()` extraction.
+3. Re-run ASM verification and confirm `manboy_test` and `deferred_typing_test` pass.
+4. See `docs/ManBoy-Debugging.md` for full analysis and findings.
 
 ### Resolved Issues
 

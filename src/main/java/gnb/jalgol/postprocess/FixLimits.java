@@ -10,18 +10,21 @@ public class FixLimits {
         String inputClass = args.length > 0 ? args[0] : "gnb/jalgol/programs/YourClass.class";
         String outputClass = args.length > 1 ? args[1] : "fixed/YourClass.class";
 
-        ClassReader cr = new ClassReader(new FileInputStream(inputClass));
+        byte[] fixedBytes;
+        try (FileInputStream fis = new FileInputStream(inputClass)) {
+            ClassReader cr = new ClassReader(fis);
 
-        ClassWriter cw = new ClassWriter(cr, ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
+            ClassWriter cw = new ClassWriter(cr, ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
 
-        // Optional: wrap in CheckClassAdapter for detailed verification
-        CheckClassAdapter verifier = new CheckClassAdapter(cw, true);  // true = print errors to stderr
+            // Optional: wrap in CheckClassAdapter for detailed verification
+            CheckClassAdapter verifier = new CheckClassAdapter(cw, true);  // true = print errors to stderr
 
-        ClassVisitor cv = verifier;  // or just cw if no check needed
+            ClassVisitor cv = verifier;  // or just cw if no check needed
 
-        cr.accept(cv, 0);
+            cr.accept(cv, 0);
 
-        byte[] fixedBytes = cw.toByteArray();
+            fixedBytes = cw.toByteArray();
+        }
 
         try (FileOutputStream fos = new FileOutputStream(outputClass)) {
             fos.write(fixedBytes);

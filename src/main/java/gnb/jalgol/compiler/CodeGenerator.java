@@ -2398,6 +2398,9 @@ public class CodeGenerator extends AlgolBaseListener {
                     }
                 }
                 String baseType = getFormalBaseType(info, paramName);
+                if ("deferred".equals(baseType)) {
+                    baseType = getExprBaseType(actual);
+                }
                 String thunkClass = createThunkClass(varToField, actual, baseType);
                 sb.append("new ").append(thunkClass).append("\n");
                 sb.append("dup\n");

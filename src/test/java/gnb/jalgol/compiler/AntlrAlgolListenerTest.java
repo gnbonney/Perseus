@@ -952,6 +952,47 @@ end
         assertEquals("3.141590.0", output.trim());
     }
 
+	@Test
+	public void deferred_typing_test() throws Exception {
+		// Compile Algol source to Jasmin
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+			"test/algol/deferred_typing_test.alg", "gnb/jalgol/programs", "DeferredTypingTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		System.out.println("=== DEFERRED TYPING JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END DEFERRED TYPING ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+		// Run FixLimits to verify and fix the generated class
+		String inputClass = BUILD_DIR.resolve("gnb/jalgol/programs/DeferredTypingTest.class").toString();
+		String outputClass = BUILD_DIR.resolve("gnb/jalgol/programs/DeferredTypingTest_fixed.class").toString();
+		String[] fixArgs = { inputClass, outputClass };
+		try {
+			FixLimits.main(fixArgs);
+		} catch (Exception e) {
+			throw new AssertionError("ASM CheckClassAdapter verification failed: " + e.getMessage(), e);
+		}
+
+		// Optionally, replace the original class with the fixed one for execution
+		Files.move(
+			BUILD_DIR.resolve("gnb/jalgol/programs/DeferredTypingTest_fixed.class"),
+			BUILD_DIR.resolve("gnb/jalgol/programs/DeferredTypingTest.class"),
+			java.nio.file.StandardCopyOption.REPLACE_EXISTING
+		);
+
+		// Run and capture output
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.DeferredTypingTest");
+		System.out.println("Deferred typing output: [" + output + "]");
+		assertTrue(output.contains("43"), "Expected output to contain 43");
+		assertTrue(output.contains("4.14"), "Expected output to contain 4.14");
+	}
+
     @Test
     public void manboy_test() throws Exception {
 		// Compile Algol source to Jasmin
