@@ -4,111 +4,55 @@ This document captures the current state of the `manboy_test` failure, the root 
 
 The Man-or-Boy program is a classic call-by-name/closure semantics stress-test invented by Donald Knuth to distinguish correct implementations of name-parameter passing (Jensen's device) from incorrect ones. The goal of this note is to keep the diagnosis and progress focused on the core thunk/closure state issues that prevent the correct output (`-67.0`).
 
-## Current status (as of March 15, 2026)
 
-- **Thunk isolation test:** failing (`thunk_closure_isolation_test`): compilation produces a `VerifyError: Unable to pop operand off an empty stack` in `p1`, indicating a stack-discipline bug in thunk/closure invocation.
-- **Nested-scope access test:** passing (`nested_scope_access_test` now assembles and executes successfully; the previous Jasmin syntax problem with `outer`/procedure field naming is fixed).
-- **proc_typed_simple_test:** passing (procedure-variable assignment handling now correctly stores `ProcRef` objects rather than trying to store them in a double slot).
-- **proc_param_test:** passing (`proc_param_test` now produces `Hello` as expected; proc-parameter call generation is now correct for void procedures).
-- **primer5:** failing (output isn’t close to `e ≈ 2.718…`, suggesting arithmetic/loop codegen or numeric stability issues).
-- **ManBoy test:** failing (`manboy_test`).
+## Summary of Approaches Tried (2026)
 
-## Recent Grok confirmation (March 20, 2026)
+- Refactored thunk/closure codegen to use per-call-site thunk classes and instance fields for captured variables.
+- Attempted to fix stack discipline bugs in thunk/closure invocation (e.g., pop2 usage, dreturn mismatches).
+- Validated nested-scope access and procedure-variable assignment (some tests now pass).
+- Investigated and partially fixed proc-parameter call generation for void and string procedures.
+- Explored and debugged static environment bridge fields (`__env_*`), but found they cause shared mutable state across activations.
+- Confirmed that global static fields for captured variables break recursion and closure isolation.
+- Used Grok and manual verifier analysis to trace operand stack mismatches and return value flow bugs.
+- Repeatedly regenerated and inspected Jasmin output for ManBoy and related tests.
 
-A detailed verifier analysis reconfirms the existing root cause with additional specifics:
+Despite these efforts, the core issue persisted: the code generator was still emitting invalid bytecode for certain closure/recursion patterns, and the JVM verifier continued to report operand stack or type errors.
 
-- `A(...)` method in `ManBoy.j` has an incorrect `else_2` branch that calls `B` and then executes `pop2`, dropping the returned `double` result.
-- The method then proceeds to a common epilogue that expects a `double` for `dreturn`, so this path is an operand stack mismatch that manifests as `VerifyError`.
-- `then_1` branch also has incorrect value flow: `x4 + x5` is computed and held in `astore 8`, but not returned; the branch stores to a procedure field (`__proc_A`) rather than making the result the method return value.
-- The underlying semantic issue is unchanged: per-activation environment is not implemented; static `__env_*` fields are shared across recursive calls.
+---
 
-This matches previous notes but adds a concrete path to unblock verification (remove `pop2`, keep `B` result) and explicit `A`/`B` return-flow correctness.
-- **ManBoy failure mode:** code generation emits invalid Jasmin with `; ERROR: undeclared variable x1..x4` in the argument list for the call to `A` from `B`. The generated output does not assemble/verify.
-- **Verifier state:** ManBoy still fails with a `VerifyError` (expecting object/array on stack for the call to `A`), which is now the primary observable failure.
-- **Behavior observed:** The generated class includes `__env_A_x1..x4` fields (the env bridge exists), but the code that builds the argument array for the proc-to-proc call fails to resolve those captured variables into loads.
+## March 21, 2026: ASM Verifier Integration and New Findings
 
-## Root cause (confirmed via Java reference model)
+We have now integrated ASM's CheckClassAdapter into the test pipeline for `manboy_test`. This provides detailed bytecode verification and exposes concrete JVM type errors in the generated class files.
 
-The compiler is treating a captured outer variable as a shared global static field rather than as a per-activation mutable cell.
+### Key ASM Verifier Output
 
-In correct call-by-name / nested-procedure semantics, each activation that captures an outer variable must get its own *mutable box* for that variable (a per-instance field inside the closure/thunk object). When the runtime evaluates a call-by-name parameter or enters a nested procedure, it should access the *box belonging to that activation*, not a shared global.
+The verifier reports:
 
-In correct behavior:
-- Each activation of the outer procedure creates a new closure object containing its own copy of the captured variables.
-- Nested procedures (and thunks) access the captured variables through that closure object.
-- Recursive re-entry therefore operates on an independent set of captured boxes (not on the same shared global state).
+   Error at instruction 28: Third argument: expected R, but found D B()D
 
-In the current codegen:
-- The captured variable is stored in a shared static `__env_*` field and updated via `getstatic/putstatic`.
-- All activations end up sharing the same mutable state, so recursion and nested calls interfere with each other.
-- The result is incorrect numeric output (and, in earlier versions, verifier failures) even though the generated code appears to create distinct thunk objects.
+This means the generated code is pushing a double (D) onto an Object[] array, but the JVM expects a reference (R). The problematic sequence is:
 
-## Fix required (general, not ManBoy-specific)
+   ...
+   27 INVOKEINTERFACE gnb/jalgol/compiler/RealProcedure.invoke ([Ljava/lang/Object;)D (itf)
+   28 AASTORE
+   ...
 
-The compiler already generates a **per-call-site thunk class** (e.g., `ManBoy$Thunk0`) whose constructor takes the closed-over variables as parameters and stores them in **instance fields**. That part is correct: each thunk object is supposed to have its own mutable state (one-element boxes) so re-entrant calls see their own counter.
+The code generator is emitting a primitive double where a boxed Double (reference) is required for storage in an Object array. This is a JVM type safety violation and will cause verification or runtime errors.
 
-### Why this still fails
+### Immediate Action Items
 
-Despite the thunk mechanics, nested procedures and non-local access are currently implemented via an “environment bridge” that emits **static `__env_*` fields** (one per outer parameter/return) and uses `getstatic/putstatic` to access them. That means the value for `k` is stored in a shared global field rather than per-thunk, so **all thunk instances end up sharing the same mutable state**.
+1. **Boxing required:** All primitive values (e.g., double) must be boxed (e.g., via `Double.valueOf`) before being stored in Object arrays for procedure argument passing.
+2. **Locate codegen site:** Identify and update the codegen logic (likely in `ExpressionGenerator` or `StatementGenerator`) responsible for building argument arrays for procedure calls, ensuring correct boxing.
+3. **Re-run ASM verification:** After fixing, regenerate Jasmin, reassemble, and re-run the ASM verifier to confirm the fix.
 
-The correct approach is to ensure that call-by-name parameters:
-- are represented by **distinct thunk objects** per call site,
-- capture their own variable boxes as **instance fields**, and
-- never read/write the shared `__env_*` fields when accessing those captured variables.
+### Broader Implication
 
-That means the compiler must implement **correct interaction between thunks, recursion, and mutation**: each recursive re-entry should see the thunk’s own mutable state, not a shared global state.
 
-When a procedure identifier is passed by name as an argument, the generated thunk class must store each mutable outer variable it closes over as an **instance field**, not read/write from a shared static env field.
+This finding confirms that the code generator must always box primitives when passing them as Object arguments to procedures. This is a general JVM requirement and applies to all call-by-name and procedure-variable invocations.
 
-The thunk's `get()` method must operate exclusively on those instance fields, using `this` as the re-entry identity for recursive self-passing.
+### Connection to Deferred-Typing (Milestone 13.1)
 
-## Recent build observation
+The ASM-reported boxing issue is a direct consequence of deferred-typing (see milestone 13.1 in Compiler-TODO.md). When the type of a procedure or call-by-name parameter is not known until the call site, the code generator must dynamically determine whether to box a primitive (int, double) or pass a reference. Failing to do so results in unboxed primitives being stored in Object[], causing JVM type errors. Correct boxing at call sites is essential for both JVM type safety and proper deferred-typing semantics.
 
-Running `manboy_test` now produces generated Jasmin that contains `; ERROR: undeclared variable x1..x4` in the argument list for the call to `A` from `B`. The compiler emits the expected `__env_A_x1..x4` fields, but fails to generate the correct loads to populate the argument array, leaving unresolved placeholders in the output.
+---
 
-The relevant generated artifacts are:
-
-- `build/test-algol/ManBoy.j` (main class and proc invocation)
-- `build/test-algol/ManBoy$Thunk0.j` (thunk class)
-
-## Next debugging steps
-
-1. **Fix proc_param_test** (use `test/algol/proc_param.alg`)
-   - This failure is currently the easiest to address: the compiler emits output that is empty instead of `Hello`, indicating proc-parameter codegen for string procedures is broken.
-   - Fixing this will validate the proc-param argument-passing path without needing full thunk/closure recursion.
-
-0. **Fix section: statement vs expression proc call pop behavior**
-   - `pop2` is only correct for statement calls that discard a `double` result, not for expression calls whose result is needed by surrounding code.
-   - In JAlgol, `ProcedureGenerator.generateProcedureCall(..., isStatement)` and `generateUserProcedureInvocation(..., isStatement)` must pass `isStatement=false` for expression contexts (e.g., `A := ... else B`) and `true` for statement contexts (`B` as standalone stmt).
-   - This ensures `A` else branch keeps `B`'s real return value on stack for the `dreturn` epilogue, matching the `ManBoy-VerifyError-Analysis` immediate fix.
-
-2. **Validate thunk isolation** (use `test/algol/thunk_isolation.alg`)
-   - Confirm whether two call-by-name args referencing the same variable end up sharing state.
-   - If this fails, the issue is in thunk construction / box sharing.
-
-3. **Validate nested-scope access** (use `test/algol/nested_scope_access.alg`)
-   - Confirm whether nested procedure access works at all (i.e., a nested proc can read/write an outer variable).
-   - If this fails, focus on making nested‑scope access reliable before tackling thunk isolation.
-
-4. **Validate per-activation thunk isolation (still pending)**
-   - The intended test would create two distinct thunks that escape their creation scopes and should each carry independent captured state.
-   - **Current blocker:** the compiler emits invalid bytecode when generating procedure-variable returns/assignments (invalid local slot indices, `istore -1`, and `VerifyError`). This must be fixed before the isolation test can be written and relied on.
-
-5. **Target full ManBoy** (use `test/algol/manboy.alg`)
-   - Once the above tests pass and thunk capture isolation is confirmed, re-run ManBoy and verify it produces `-67.0`.
-
-### Implementation focus areas
-- Trace the code emission path that produced the faulty `B()` sequence (likely in `ProcedureGenerator.generateProcedureCall` / `createThunkClass` or caller-side restore logic).
-- Fix the inconsistent instruction descriptors and stack handling (ensure ctor descriptors, `getfield`/`putfield` types, and boxing/unboxing sequences match the emitted types).
-- Ensure the compiler no longer uses shared static `__env_*` fields for call-by-name captures; instead, thunk instance fields must carry all mutable closure state.
-
-## Historical note: why this wasn't caught earlier
-
-`manboy_test` and `recursion_euler_test` appeared to pass in earlier milestones but were actually broken — both relied on `redirectErrorStream(true)` capturing exception/error messages as non-empty output, satisfying a weak `output.length() > 0` assertion.
-
-Later milestones (see the Milestone 15/16 entries in `docs/Compiler-TODO.md`) exposed the real failures:
-
-1. `and` became a proper keyword, making `recursion_euler.alg`'s `abs(mn) < abs(m[n]) and n < 15` guard work correctly — which revealed that `square(x) = x*x` is a divergent series incompatible with Euler acceleration.
-2. The ManBoy `VerifyError` was pre-existing.
-
-`recursion_euler_test` is now genuinely fixed; ManBoy remains under active repair.

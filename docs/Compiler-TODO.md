@@ -8,14 +8,22 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 
 ## Current Status
 
-**46/49 tests passing as of March 20, 2026.** Milestone 18 (string variables and string output) remains complete. Current failing tests:
+
+**46/49 tests passing as of March 21, 2026.** Milestone 18 (string variables and string output) remains complete. Current failing tests:
 
 - `AntlrAlgolListenerTest.manboy_test()`
 - `AntlrAlgolListenerTest.primer2()`
 
 The `thunk_closure_isolation_test` issue has been fixed with procedure variable call stack balance corrections and no more `VerifyError` for void procedure variable call paths.
 
-For the full failure analysis and next steps, see `docs/ManBoy-Debugging.md`.
+**Empirical bytecode verification (ASM) is now integrated for `manboy_test`.**
+
+**Root cause:** ASM CheckClassAdapter reports a JVM type error: primitive doubles are being stored directly in `Object[]` arrays for procedure argument passing. The JVM requires all primitives to be boxed (e.g., `Double.valueOf`) before storing in `Object[]`.
+
+**Next steps:**
+1. Update codegen to box all primitives before storing in `Object[]` for procedure calls (see `ExpressionGenerator`/`StatementGenerator`).
+2. Re-run ASM verification and confirm `manboy_test` passes.
+3. See `docs/ManBoy-Debugging.md` for full analysis and findings.
 
 ### Resolved Issues
 
@@ -434,36 +442,20 @@ integer and string arguments.
 
 **Rationale:** `manboy.alg` (13E) already exercises mutual recursion and deep recursive calls. No additional deep recursion milestone is needed.
 
+
 ### 13E — Man or Boy (`manboy.alg`) ⚠️ IN PROGRESS
 
 **Goal:** Full Man or Boy test with all features integrated.
 
-**Status: FAILING (currently under repair).** `manboy_test` asserts the full runtime result (`-67.0`) and is currently red as of March 13, 2026 (latest failure: `StackOverflowError` in recursive `A`/`B` path through `ManBoy$ManBoyBThunk`).
+**Status: FAILING (bytecode verification error; fix in progress).** `manboy_test` asserts the full runtime result (`-67.0`) and is currently red as of March 21, 2026. ASM CheckClassAdapter reports a JVM type error: a primitive double is being stored in an `Object[]` array, but the JVM requires a reference (boxed Double).
 
-**Root cause (fixed):** `CodeGenerator` used a single `procBuffer` field that was overwritten when B's `enterProcedureDecl` fired inside A's body, discarding A's accumulated buffer and leaving `procBuffer = null` when A exited. Fixed by replacing `procBuffer` with `Deque<StringBuilder> procBufferStack` and the flat `mainXxx` save fields with `LinkedList`-backed stacks (`savedOuterSTStack`, `savedOuterLIStack`, etc.). On enter, old context is pushed and the current scope becomes the new "outer"; on exit, stacks are restored. `LinkedList` is used instead of `ArrayDeque` because `currentProcName` and `mainSymbolTable` may be null for outermost procedures.
+**Root cause:** Codegen emits primitives directly into `Object[]` for procedure argument passing. All primitives must be boxed (e.g., `Double.valueOf`) before storing in `Object[]`.
 
-**Features implemented:**
-- [x] Codegen: `procBufferStack` (Deque) replaces single `procBuffer`; `activeOutput` always points to top of stack or `mainCode`
-- [x] Codegen: `savedOuterSTStack` / `savedOuterLIStack` / etc. (LinkedList) save and restore scope context for each nesting level
-- [x] Codegen: procedure-call dispatch prioritizes declared procedures over procedure variables in expression calls
-- [x] Codegen: arithmetic coercion emits `i2d` reliably for integer operands in real expressions (fixes ManBoy `dadd` VerifyError path)
-- [x] Test: `manboy_test` now asserts exact output `-67.0` (strong assertion; currently failing until non-local access is completed)
+**Immediate TODO:**
+- [ ] Update codegen to box all primitives before storing in `Object[]` for procedure calls (see `ExpressionGenerator`/`StatementGenerator`).
+- [ ] Re-run ASM verification and confirm `manboy_test` passes.
 
-**Remaining (Current Work):**
-- [ ] Implement correct non-local variable access for nested procedures in ManBoy (closure/display semantics rather than cross-method local-slot fallback)
-- [ ] Stabilize B-thunk closure identity/reuse semantics to prevent self-referential recursive re-entry loops
-- [ ] Make `manboy_test` pass with exact expected output `-67.0`
-
-**Recent progress (March 13, 2026):**
-- [x] Repaired regressions in `proc_var_test` and `proc_typed_simple_test`
-- [x] Added deferred-typing support for unspecified non-value formals in `SymbolTableBuilder` and call-site/runtime unboxing paths in `CodeGenerator`
-- [ ] ManBoy still failing; currently the only red test
-
-**Reference pattern from Java Man-or-Boy closure model (March 13, 2026):**
-- Use per-activation thunk objects with captured fields (closure style), not class-name/procedure-name special cases.
-- Keep recursive state as mutable thunk instance state (e.g., `m`) rather than shared static environment fields.
-- In recursive re-entry, pass the thunk object itself (`this`) as the next name parameter while shifting the remaining arguments (`x1..x4`).
-- Preferred codegen direction for ManBoy and general call-by-name recursion: object-identity-preserving thunk instances + captured environment fields, minimizing global static env overwrite/restore during thunk `get()`.
+**Reference:** See `docs/ManBoy-Debugging.md` for ASM output and detailed analysis.
 
 ---
 
