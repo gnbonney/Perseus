@@ -79,6 +79,13 @@ public class ProcedureGenerator implements GeneratorDelegate {
         return slot;
     }
 
+    private String getFormalBaseType(SymbolTableBuilder.ProcInfo info, String paramName) {
+        if (info == null) return "integer";
+        String baseType = info.paramTypes.get(paramName);
+        if (baseType != null) return baseType;
+        return info.valueParams.contains(paramName) ? "integer" : "deferred";
+    }
+
     private Set<String> collectVarNames(ParseTree tree) {
         Set<String> names = new LinkedHashSet<>();
         if (tree instanceof AlgolParser.VarExprContext) {
@@ -251,7 +258,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
                 Map<String, Integer> varToField = new LinkedHashMap<>();
                 int fi = 0;
                 for (String vn : names) varToField.put(vn, fi++);
-                String baseType = info.paramTypes.getOrDefault(paramName, "integer");
+                String baseType = getFormalBaseType(info, paramName);
                 String thunkClass = createThunkClass(varToField, actual, baseType);
                 sb.append("new ").append(thunkClass).append("\ndup\n");
                 for (String vn : varToField.keySet()) {

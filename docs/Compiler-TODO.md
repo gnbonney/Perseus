@@ -14,6 +14,8 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 - `AntlrAlgolListenerTest.manboy_test()` (ASM verification fails due deferred/boxed primitives path)
 - `AntlrAlgolListenerTest.primer2()` (existing goto/label handling regression)
 
+`AntlrAlgolListenerTest.deferred_typing_test()` is now passing after fixing its thunk dispatch path.
+
 The `thunk_closure_isolation_test` issue has been fixed with procedure variable call stack balance corrections and no more `VerifyError` for void procedure variable call paths.
 
 **Empirical bytecode verification (ASM) is now integrated for `manboy_test`.**
@@ -464,10 +466,12 @@ integer and string arguments.
 
 Algol allows formals without an explicit base type (deferred-typing). To handle this correctly and avoid brittle global defaults, implement call-site deferred-typing as a focused milestone between ManBoy and Milestone 14.
 
-**Status: PARTIALLY IMPLEMENTED (in support of ManBoy repair).**
+**Status: NEARLY COMPLETE.**
 
 - [x] Design call-site deferred-typing resolution: choose base type at each call site from (1) declared formal (if present), (2) inferred type of the actual, else (3) conservative fallback `integer`.
 - [x] Implement initial thunk/descriptor generation using call-site-resolved/deferred base types (updated `CodeGenerator` and `SymbolTableBuilder` integration).
+- [x] Fix runtime dispatch in deferred `Thunk.set/get` so integer vs real value conversions are handled without `ClassCastException`.
+- [x] Confirm `deferred_typing_test` passes after implementation.
 - [ ] Add unit tests covering mixed-type name-parameters (integer ↔ real) and missing formal types (small focused sample and ManBoy reproduction cases).
 - [ ] Update documentation: explain deferred-typing behavior in `docs/Algol.md` and `docs/Compiler-TODO.md`.
 

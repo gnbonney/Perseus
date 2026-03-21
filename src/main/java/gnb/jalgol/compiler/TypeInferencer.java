@@ -35,8 +35,13 @@ public class TypeInferencer extends AlgolBaseListener {
         String resultType;
         if ("/".equals(op)) {
             resultType = "real"; // / always real
-        } else { // *
-            resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
+        } else {
+            // deferred type means runtime-dispatch numeric type, so treat as real in arithmetic
+            if ("deferred".equals(leftType) || "deferred".equals(rightType)) {
+                resultType = "real";
+            } else {
+                resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
+            }
         }
         exprTypes.put(ctx, resultType);
     }
@@ -45,7 +50,12 @@ public class TypeInferencer extends AlgolBaseListener {
     public void exitAddSubExpr(AlgolParser.AddSubExprContext ctx) {
         String leftType = exprTypes.get(ctx.expr(0));
         String rightType = exprTypes.get(ctx.expr(1));
-        String resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
+        String resultType;
+        if ("deferred".equals(leftType) || "deferred".equals(rightType)) {
+            resultType = "real";
+        } else {
+            resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
+        }
         exprTypes.put(ctx, resultType);
     }
 
@@ -102,11 +112,8 @@ public class TypeInferencer extends AlgolBaseListener {
             type = type.substring("thunk:".length());
         }
         // Algol allows parameters without an explicit type (deferred typing).
-        // For now, treat deferred parameters as integers for type inference so
-        // arithmetic expressions resolve consistently (prevents unexpected real coercion).
-        if ("deferred".equals(type)) {
-            type = "integer";
-        }
+        // Keep deferred as 'deferred' in expression typing so codegen can do
+        // runtime dispatch instead of hard-casting to integer.
         exprTypes.put(ctx, type);
     }
 

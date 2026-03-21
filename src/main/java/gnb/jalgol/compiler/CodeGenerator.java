@@ -982,6 +982,39 @@ public class CodeGenerator extends AlgolBaseListener {
 
 
             if (isThunk) {
+                if ("thunk:deferred".equals(varType)) {
+                    // Preserve original actual type (integer vs real) when setting deferred call-by-name args.
+                    int deferredTempSlot = currentNumLocals;
+                    currentNumLocals += 2;
+                    activeOutput.append("dstore ").append(deferredTempSlot).append("\n");
+
+                    if (idx != null) {
+                        activeOutput.append("aload ").append(idx).append("\n");
+                    } else {
+                        activeOutput.append(generateLoadThunkRef(name));
+                    }
+                    activeOutput.append("dup\n");
+                    activeOutput.append("invokeinterface gnb/jalgol/compiler/Thunk/get()Ljava/lang/Object; 1\n");
+                    activeOutput.append("dup\n");
+                    activeOutput.append("instanceof java/lang/Double\n");
+                    String realLabel = generateUniqueLabel("deferred_real");
+                    String endLabel = generateUniqueLabel("deferred_end");
+                    activeOutput.append("ifeq ").append(realLabel).append("\n");
+                    // real path
+                    activeOutput.append("pop\n");
+                    activeOutput.append("dload ").append(deferredTempSlot).append("\n");
+                    activeOutput.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+                    activeOutput.append("goto ").append(endLabel).append("\n");
+                    activeOutput.append(realLabel).append(":\n");
+                    activeOutput.append("pop\n");
+                    activeOutput.append("dload ").append(deferredTempSlot).append("\n");
+                    activeOutput.append("d2i\n");
+                    activeOutput.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+                    activeOutput.append(endLabel).append(":\n");
+                    activeOutput.append("invokeinterface gnb/jalgol/compiler/Thunk/set(Ljava/lang/Object;)V 2\n");
+                    continue;
+                }
+
                 // assignment to a name parameter: call thunk.set(boxedValue)
                 // stack has the primitive/reference value; box it, then swap the thunk ref in
                 if ("real".equals(storeType)) {
