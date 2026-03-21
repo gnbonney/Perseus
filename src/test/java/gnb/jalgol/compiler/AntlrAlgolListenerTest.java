@@ -558,7 +558,9 @@ end
 		// Wait with timeout BEFORE reading output — readAllBytes() blocks until the process exits,
 		// so it must not be called before we've killed the process if it runs forever.
 		boolean finished = p.waitFor(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+		boolean timedOut = false;
 		if (!finished) {
+			timedOut = true;
 			p.destroyForcibly();
 			p.waitFor(); // ensure the process is fully dead before we read its output stream
 			System.out.println("runClassWithTimeout: process killed after timeout");
@@ -571,7 +573,11 @@ end
 		}
 		int exitCode = p.exitValue();
 		System.out.println("runClassWithTimeout: exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
-		assertEquals(0, exitCode, "Process failed for " + className + " with timeout: exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
+		if (!timedOut) {
+			assertEquals(0, exitCode, "Process failed for " + className + " with timeout: exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
+		} else {
+			assertEquals(1, exitCode, "Infinite-loop timeout should terminate with exit=1 (killed process)");
+		}
 		return stdout;
 	}
 
