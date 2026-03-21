@@ -22,6 +22,12 @@ dependencies {
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
     // Jasmin 2.4 (local jar bundled with project)
     implementation files('jasmin-2.4/jasmin.jar')
+
+    // ASM for bytecode verification and manipulation
+    implementation 'org.ow2.asm:asm:9.7'
+    implementation 'org.ow2.asm:asm-util:9.7'
+    testImplementation 'org.ow2.asm:asm:9.7'
+    testImplementation 'org.ow2.asm:asm-util:9.7'
 }
 
 generateGrammarSource {

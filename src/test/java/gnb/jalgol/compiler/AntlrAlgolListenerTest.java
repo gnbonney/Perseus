@@ -10,6 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+
+import gnb.jalgol.postprocess.FixLimits;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -952,24 +954,41 @@ end
 
     @Test
     public void manboy_test() throws Exception {
-        // Compile Algol source to Jasmin
-        Path jasminFile = AntlrAlgolListener.compileToFile(
-                "test/algol/manboy.alg", "gnb/jalgol/programs", "ManBoy", BUILD_DIR);
-        String jasminSource = Files.readString(jasminFile);
+		// Compile Algol source to Jasmin
+		Path jasminFile = AntlrAlgolListener.compileToFile(
+			"test/algol/manboy.alg", "gnb/jalgol/programs", "ManBoy", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
 
-        System.out.println("=== MANBOY JASMIN ===");
-        System.out.println(jasminSource);
-        System.out.println("=== END MANBOY ===");
+		System.out.println("=== MANBOY JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END MANBOY ===");
 
-        assertFalse(jasminSource.startsWith("ERROR"),
-                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
-        // Assemble to .class
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		// Assemble to .class
+		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-        // Run and capture output
-        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ManBoy");
-        System.out.println("Man or Boy output: [" + output + "]");
+		// Run FixLimits to verify and fix the generated class
+		String inputClass = BUILD_DIR.resolve("gnb/jalgol/programs/ManBoy.class").toString();
+		String outputClass = BUILD_DIR.resolve("gnb/jalgol/programs/ManBoy_fixed.class").toString();
+		String[] fixArgs = { inputClass, outputClass };
+		try {
+		    FixLimits.main(fixArgs);
+		} catch (Exception e) {
+		    throw new AssertionError("ASM CheckClassAdapter verification failed: " + e.getMessage(), e);
+		}
+
+		// Optionally, replace the original class with the fixed one for execution
+		Files.move(
+		    BUILD_DIR.resolve("gnb/jalgol/programs/ManBoy_fixed.class"),
+		    BUILD_DIR.resolve("gnb/jalgol/programs/ManBoy.class"),
+		    java.nio.file.StandardCopyOption.REPLACE_EXISTING
+		);
+
+		// Run and capture output
+		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ManBoy");
+		System.out.println("Man or Boy output: [" + output + "]");
 		assertEquals("-67.0", output.trim(), "Man or Boy test should return -67.0");
     }
 

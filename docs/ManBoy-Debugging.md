@@ -77,6 +77,11 @@ The relevant generated artifacts are:
    - This failure is currently the easiest to address: the compiler emits output that is empty instead of `Hello`, indicating proc-parameter codegen for string procedures is broken.
    - Fixing this will validate the proc-param argument-passing path without needing full thunk/closure recursion.
 
+0. **Fix section: statement vs expression proc call pop behavior**
+   - `pop2` is only correct for statement calls that discard a `double` result, not for expression calls whose result is needed by surrounding code.
+   - In JAlgol, `ProcedureGenerator.generateProcedureCall(..., isStatement)` and `generateUserProcedureInvocation(..., isStatement)` must pass `isStatement=false` for expression contexts (e.g., `A := ... else B`) and `true` for statement contexts (`B` as standalone stmt).
+   - This ensures `A` else branch keeps `B`'s real return value on stack for the `dreturn` epilogue, matching the `ManBoy-VerifyError-Analysis` immediate fix.
+
 2. **Validate thunk isolation** (use `test/algol/thunk_isolation.alg`)
    - Confirm whether two call-by-name args referencing the same variable end up sharing state.
    - If this fails, the issue is in thunk construction / box sharing.
