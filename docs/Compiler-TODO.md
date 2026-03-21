@@ -8,7 +8,12 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 
 ## Current Status
 
-**48/49 tests passing as of March 13, 2026.** Milestone 18 (string variables and string output) remains complete. Current failing test: `manboy_test`.
+**46/49 tests passing as of March 20, 2026.** Milestone 18 (string variables and string output) remains complete. Current failing tests:
+
+- `AntlrAlgolListenerTest.manboy_test()`
+- `AntlrAlgolListenerTest.primer2()`
+
+The `thunk_closure_isolation_test` issue has been fixed with procedure variable call stack balance corrections and no more `VerifyError` for void procedure variable call paths.
 
 For the full failure analysis and next steps, see `docs/ManBoy-Debugging.md`.
 

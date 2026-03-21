@@ -174,6 +174,8 @@ Recent development has focused on fixing deep architectural issues exposed by ad
 - **Environment Bridge Refactor:** The use of static `__env_*` fields for environment bridging is being replaced by per-instance fields in generated thunks and procedure references, to avoid shared mutable state across activations.
 - **Test-Driven Refactoring:** Failing tests such as `manboy_test`, `thunk_closure_isolation_test`, and `proc_param_test` have driven architectural changes, especially in how the code generator emits and manages environment bridges, thunk construction, and variable capture.
 - **Verifier Failures:** Many failures (e.g., JVM `VerifyError` or stack discipline errors) have been traced to incorrect slot assignment, improper field access, or shared state. Fixes are ongoing and tracked in the test and debugging documentation.
+- **Safe Limit Strategy:** During this development phase, the compiler emits conservative fixed limits (e.g., `.limit stack 64`, `.limit locals 64`) to avoid early verifier failures while deep stack/local analysis is being implemented. This is intentional short-term policy for stability in complex features like nested procedures, thunks, and call-by-name.
+- **Future Limit Improvement:** Plan for precise limits is captured in `docs/StackAndLocalLimitCalculation.md`, with eventual stack simulation/local slot tracking and optional ASM-based recomputation.
 
 The architecture is evolving to guarantee that:
 

@@ -409,6 +409,13 @@ public class ProcedureGenerator implements GeneratorDelegate {
         sb.append("invokeinterface gnb/jalgol/compiler/").append(interfaceName)
           .append("/invoke([Ljava/lang/Object;)").append(CodeGenUtils.getReturnTypeDescriptor(returnType)).append(" 2\n");
 
+        // Do NOT emit astore or pop for void-returning calls
+        // Only emit pop/store if the call returns a value and the result is not used
+        // (In this generator, we do not emit astore at all for statement-level calls)
+        // If you need to store the result, do so in the assignment/expr context, not here
+        // If you need to discard the result (statement context), emit pop/pop2 for non-void only
+        // (Handled by StatementGenerator or caller)
+
         return sb.toString();
     }
 

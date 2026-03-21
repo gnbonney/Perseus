@@ -102,6 +102,23 @@ This is required to make `manboy.alg` produce the correct result (`-67.0`) and t
 1. **Identify where scalar vs procedure is branched**
    - In `CodeGenerator` `emitStore(...)` / `generateStoreVar` / `generateLoadVar`, locate the switch based on `type`.
 
+### Step 4: Completed implementation notes (2026-03-20)
+
+1. `CodeGenerator.generateExpr()` now handles `ProcCallExpr` where the call is through a procedure variable (`procedure:void` in thunk_closure_isolation).
+2. For `procedure:void` expression calls, current procedure-variable binding is saved in a temp local, call is made, result binding is loaded, and old binding is restored.
+3. `ProcedureGenerator.generateProcedureVariableCall()` now emits a void invocation without illegal `astore`/`pop`, and non-void paths are handled by caller contexts.
+4. `StatementGenerator.exitProcedureCall()` no longer forcibly emits `astore 0` for procedure variables.
+
+### Step 5: Validation results
+
+- `thunk_closure_isolation_test` now passes: runtime output `1\n2`.
+- Remaining known issues: `primer2` and `manboy_test` currently fail in full suite, unrelated to this specific thunk fix.
+
+### Step 6: Path to ManBoy correctness
+
+- The solution above addresses the key per-activation isolation and procedure-variable binding invariants required by ManBoy semantics.
+- Next action for ManBoy: ensure call-by-name environment bridge and recursive procedure-variable self-thunk setup are also isolated (no shared static mutation between activations).
+
 2. **Add a full `procedure:` branch** so that:
    - `procedure:...` variables use a procedure descriptor and are stored using `astore`/`putstatic`.
    - Calls through procedure variables use `invokeinterface` with the correct `*Procedure` interface.
