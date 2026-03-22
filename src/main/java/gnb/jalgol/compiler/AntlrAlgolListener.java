@@ -63,14 +63,26 @@ public class AntlrAlgolListener {
 		CodeGenerator codegen;
 		try {
 			codegen = runPipeline(algolFile, packageName, className);
+			if (codegen == null) {
+				throw new IOException("runPipeline returned null");
+			}
 		} catch (Exception e) {
-			throw new IOException("Compilation failed", e);
+			StringWriter sw = new StringWriter();
+			e.printStackTrace(new PrintWriter(sw));
+			String causeText = e.getMessage() != null ? e.getMessage() : e.toString();
+			String message = "Compilation failed: " + causeText + "\n" + sw.toString();
+			throw new IOException(message, e);
 		}
 		Files.createDirectories(outputDir);
 
 		// Write main .j file
 		Path jasminFile = outputDir.resolve(className + ".j");
-		Files.writeString(jasminFile, codegen.getOutput());
+		try {
+			Files.writeString(jasminFile, codegen.getOutput());
+		} catch (Exception e) {
+			e.printStackTrace();
+			throw new IOException("Failed to write main Jasmin output", e);
+		}
 
 		// Write each thunk class as its own .j file (Jasmin can only handle one class per file)
 		Map<String, String> thunkOutputs = codegen.getThunkClassOutputs();

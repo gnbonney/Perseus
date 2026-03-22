@@ -26,18 +26,21 @@ We have now integrated ASM's CheckClassAdapter into the test pipeline for `manbo
 
 ### Key ASM Verifier Output
 
-The verifier reports:
+The verifier originally reported:
 
    Error at instruction 28: Third argument: expected R, but found D B()D
 
-This means the generated code is pushing a double (D) onto an Object[] array, but the JVM expects a reference (R). The problematic sequence is:
+This indicated the generated code pushed a primitive double (D) into an Object[] array slot.
 
-   ...
-   27 INVOKEINTERFACE gnb/jalgol/compiler/RealProcedure.invoke ([Ljava/lang/Object;)D (itf)
-   28 AASTORE
-   ...
+**Update:** This exact type-mismatch path has now been fixed (primitives are boxed via Double.valueOf/Integer.valueOf before aastore in procedure variable arg array construction).
 
-The code generator is emitting a primitive double where a boxed Double (reference) is required for storage in an Object array. This is a JVM type safety violation and will cause verification or runtime errors.
+Current behavior after fix:
+- `manboy_test` now reaches ASM verification with a new error type (AnalyzerException from flow analysis, still in the same call-by-name/procvar invocation region).
+- The code path examined is:
+  - `ProcedureGenerator.createThunkClass` → `CodeGenerator.generateProcedureVariableCallViaStaticField` → `CodeGenerator.generateProcedureVariableCall` → `CodeGenerator.generateExpr` → `exitProcedureCall`.
+
+**Next action:** focus on precise stack/topology around `invokeinterface RealProcedure.invoke([Ljava/lang/Object;)D` / `aastore` to ensure correct boxing semantics and stack width for recursive calls (DUP/DUP2/POP discipline around real values).
+
 
 ### Immediate Action Items
 

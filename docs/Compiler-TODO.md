@@ -450,7 +450,14 @@ integer and string arguments.
 
 **Goal:** Full Man or Boy test with all features integrated.
 
-**Status: FAILING (bytecode verification error; fix in progress).** `manboy_test` asserts the full runtime result (`-67.0`) and is currently red as of March 21, 2026. ASM CheckClassAdapter reports a JVM type error: a primitive double is being stored in an `Object[]` array, but the JVM requires a reference (boxed Double).
+**Status: IN PROGRESS (JVM verifier failure remaining).**
+- Fixes applied for procedure-variable call object argument boxing; the previous `TypeError` path `expected R but found D` is resolved.
+- Current failure now is post-compilation ASM verification (`org.objectweb.asm.tree.analysis.AnalyzerException`) in the generated class mirror of `manboy_test`.
+- Diagnostic improvements are in place in `AntlrAlgolListener.compileToFile()`: immediate exception chain and full stack from underlying compilation context are now propagated.
+- Next concrete step: inspect and adjust the generated `aastore` call site for thunk-driven recursive procedure invocation in `CodeGenerator.generateProcedureVariableCallViaStaticField` to ensure all values are boxed and correct during nested recursive call-by-name procedure reference passing.
+
+**Note:** `testProcedureVariableCallBug` regression is now passing after `proceduresSupplier` null-safe path patch in `ProcedureGenerator`.
+
 
 **Root cause:** Codegen emits primitives directly into `Object[]` for procedure argument passing. All primitives must be boxed (e.g., `Double.valueOf`) before storing in `Object[]`.
 

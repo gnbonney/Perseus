@@ -1849,7 +1849,9 @@ public class CodeGenerator extends AlgolBaseListener {
         // When a call-by-name actual is a procedure identifier, capture the defining
         // outer activation environment in thunk instance fields so recursive re-entry
         // uses closure-like state instead of whichever static env is current at get().
-        if (actual instanceof AlgolParser.VarExprContext ve && procedures.containsKey(ve.identifier().getText())) {
+        if (actual instanceof AlgolParser.VarExprContext ve
+                && procedures.containsKey(ve.identifier().getText())
+                && (currentSymbolTable == null || !currentSymbolTable.containsKey(ve.identifier().getText()))) {
             String pName = ve.identifier().getText();
             String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
             boolean captureOuterEnv = currentProcName != null && currentProcName.equals(pName)
@@ -2977,6 +2979,34 @@ public class CodeGenerator extends AlgolBaseListener {
                 }
             }
 
+            // support call-by-name thunk parameters (local or env bridge) before idx==null early return
+            if (type != null && type.startsWith("thunk:")) {
+                String baseType = type.substring("thunk:".length());
+                StringBuilder sb2 = new StringBuilder();
+                if (idx != null) {
+                    sb2.append("aload ").append(idx).append("\n");
+                } else {
+                    sb2.append(generateLoadThunkRef(name));
+                }
+                sb2.append("invokeinterface gnb/jalgol/compiler/Thunk/get()Ljava/lang/Object; 1\n");
+                switch (baseType) {
+                    case "real" -> {
+                        sb2.append("checkcast java/lang/Double\n");
+                        sb2.append("invokevirtual java/lang/Double/doubleValue()D\n");
+                    }
+                    case "deferred" -> {
+                        String inferredType = exprTypes.getOrDefault(ctx, "real");
+                        sb2.append(dynamicUnboxDeferredValue(inferredType));
+                    }
+                    case "string" -> sb2.append("checkcast java/lang/String\n");
+                    default -> {
+                        sb2.append("checkcast java/lang/Integer\n");
+                        sb2.append("invokevirtual java/lang/Integer/intValue()I\n");
+                    }
+                }
+                return sb2.toString();
+            }
+
             if (idx == null) {
                 // Check if this is a static scalar (no local slot, but exists in symbol table)
                 if (type != null && !type.endsWith("[]") && !type.startsWith("procedure:") && !type.startsWith("thunk:")) {
@@ -2999,29 +3029,6 @@ public class CodeGenerator extends AlgolBaseListener {
                     }
                 }
                 return "; ERROR: undeclared variable " + name + "\n";
-            }
-            // support call-by-name thunk parameters
-            if (type != null && type.startsWith("thunk:")) {
-                String baseType = type.substring("thunk:".length());
-                StringBuilder sb2 = new StringBuilder();
-                sb2.append("aload ").append(idx).append("\n");
-                sb2.append("invokeinterface gnb/jalgol/compiler/Thunk/get()Ljava/lang/Object; 1\n");
-                switch (baseType) {
-                    case "real" -> {
-                        sb2.append("checkcast java/lang/Double\n");
-                        sb2.append("invokevirtual java/lang/Double/doubleValue()D\n");
-                    }
-                    case "deferred" -> {
-                        String inferredType = exprTypes.getOrDefault(ctx, "real");
-                        sb2.append(dynamicUnboxDeferredValue(inferredType));
-                    }
-                    case "string" -> sb2.append("checkcast java/lang/String\n");
-                    default -> {
-                        sb2.append("checkcast java/lang/Integer\n");
-                        sb2.append("invokevirtual java/lang/Integer/intValue()I\n");
-                    }
-                }
-                return sb2.toString();
             }
             if (useEnvBridge(currentProcName) && currentProcName != null) {
                 SymbolTableBuilder.ProcInfo cp = procedures.get(currentProcName);
@@ -3258,24 +3265,59 @@ public class CodeGenerator extends AlgolBaseListener {
         sb.append("checkcast gnb/jalgol/compiler/").append(interfaceName).append("\n");
 
         int argCount = args.size();
+        SymbolTableBuilder.ProcInfo targetInfo = procedures.get(varName);
+
         if (argCount == 0) {
             sb.append("iconst_0\nanewarray java/lang/Object\n");
         } else {
             sb.append("ldc ").append(argCount).append("\nanewarray java/lang/Object\n");
             for (int i = 0; i < argCount; i++) {
                 AlgolParser.ExprContext argExpr = args.get(i).expr();
-                String argType = exprTypes.getOrDefault(argExpr, "integer");
-                // Handle deferred (call-by-name) arguments: they are already boxed as Objects
-                // and should not be wrapped again.
-                String baseType = argType.startsWith("thunk:") ? argType.substring("thunk:".length()) : argType;
+
+                boolean isByName = false;
+                String paramBaseType = "integer";
+                if (targetInfo != null && i < targetInfo.paramNames.size()) {
+                    String paramName = targetInfo.paramNames.get(i);
+                    isByName = !targetInfo.valueParams.contains(paramName);
+                    paramBaseType = getFormalBaseType(targetInfo, paramName);
+                }
+
                 sb.append("dup\n");
                 sb.append("ldc ").append(i).append("\n");
-                sb.append(generateExpr(argExpr));
-                if ("real".equals(baseType)) {
-                    sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
-                } else if ("integer".equals(baseType) || "boolean".equals(baseType)) {
-                    sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+
+                if (isByName) {
+                    // Pass a Thunk for by-name parameters. If the source expression is already
+                    // a thunk variable, use it directly; otherwise create a thunk wrapper.
+                    if (argExpr instanceof AlgolParser.VarExprContext argVar) {
+                        String vn = argVar.identifier().getText();
+                        String vnType = lookupVarType(vn);
+                        if (vnType != null && vnType.startsWith("thunk:")) {
+                            sb.append(generateLoadThunkRef(vn));
+                        } else {
+                            String thunkType = "deferred".equals(paramBaseType) ? getExprBaseType(argExpr) : paramBaseType;
+                            String thunkClass = createThunkClass(new LinkedHashMap<>(), argExpr, thunkType);
+                            sb.append("new ").append(thunkClass).append("\n");
+                            sb.append("dup\n");
+                            sb.append("invokespecial ").append(thunkClass).append("/<init>()V\n");
+                        }
+                    } else {
+                        String thunkType = "deferred".equals(paramBaseType) ? getExprBaseType(argExpr) : paramBaseType;
+                        String thunkClass = createThunkClass(new LinkedHashMap<>(), argExpr, thunkType);
+                        sb.append("new ").append(thunkClass).append("\n");
+                        sb.append("dup\n");
+                        sb.append("invokespecial ").append(thunkClass).append("/<init>()V\n");
+                    }
+                } else {
+                    String argType = exprTypes.getOrDefault(argExpr, "integer");
+                    String baseType = argType.startsWith("thunk:") ? argType.substring("thunk:".length()) : argType;
+                    sb.append(generateExpr(argExpr));
+                    if ("real".equals(baseType)) {
+                        sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+                    } else if ("integer".equals(baseType) || "boolean".equals(baseType)) {
+                        sb.append("invokestatic java/lang/Integer.valueOf(I)Ljava/lang/Integer;\n");
+                    }
                 }
+
                 sb.append("aastore\n");
             }
         }

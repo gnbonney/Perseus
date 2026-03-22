@@ -410,8 +410,16 @@ public class ProcedureGenerator implements GeneratorDelegate {
         sb.append("aload ").append(idx).append("\n");
         sb.append("checkcast gnb/jalgol/compiler/").append(interfaceName).append("\n");
 
-        // Build Object[] with actual arguments (boxed)
+        // Build Object[] with actual arguments (boxed or thunk)
         int argCount = args.size();
+        SymbolTableBuilder.ProcInfo targetInfo = null;
+        if (proceduresSupplier != null) {
+            Map<String, SymbolTableBuilder.ProcInfo> procMap = proceduresSupplier.get();
+            if (procMap != null) {
+                targetInfo = procMap.get(varName);
+            }
+        }
+
         if (argCount == 0) {
             sb.append("iconst_0\nanewarray java/lang/Object\n");
         } else {
@@ -419,15 +427,47 @@ public class ProcedureGenerator implements GeneratorDelegate {
             sb.append("anewarray java/lang/Object\n");
             for (int i = 0; i < argCount; i++) {
                 AlgolParser.ExprContext argExpr = args.get(i).expr();
-                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                boolean isByName = false;
+                String paramBaseType = "integer";
+                if (targetInfo != null && i < targetInfo.paramNames.size()) {
+                    String paramName = targetInfo.paramNames.get(i);
+                    isByName = !targetInfo.valueParams.contains(paramName);
+                    paramBaseType = getFormalBaseType(targetInfo, paramName);
+                }
+
                 sb.append("dup\n");
                 sb.append("ldc ").append(i).append("\n");
-                sb.append(generateExprFn.apply(argExpr));
-                if ("real".equals(argType)) {
-                    sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+
+                if (isByName) {
+                    if (argExpr instanceof AlgolParser.VarExprContext argVar) {
+                        String vn = argVar.identifier().getText();
+                        String vnType = context.getSymbolTable().get(vn);
+                        if (vnType != null && vnType.startsWith("thunk:")) {
+                            sb.append(exprGen.generateLoadVar(vn));
+                        } else {
+                            String thunkType = "deferred".equals(paramBaseType) ? exprTypes.getOrDefault(argExpr, "integer") : paramBaseType;
+                            String thunkClass = createThunkClass(new LinkedHashMap<>(), argExpr, thunkType);
+                            sb.append("new ").append(thunkClass).append("\n");
+                            sb.append("dup\n");
+                            sb.append("invokespecial ").append(thunkClass).append("/<init>()V\n");
+                        }
+                    } else {
+                        String thunkType = "deferred".equals(paramBaseType) ? exprTypes.getOrDefault(argExpr, "integer") : paramBaseType;
+                        String thunkClass = createThunkClass(new LinkedHashMap<>(), argExpr, thunkType);
+                        sb.append("new ").append(thunkClass).append("\n");
+                        sb.append("dup\n");
+                        sb.append("invokespecial ").append(thunkClass).append("/<init>()V\n");
+                    }
                 } else {
-                    sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+                    String argType = exprTypes.getOrDefault(argExpr, "integer");
+                    sb.append(generateExprFn.apply(argExpr));
+                    if ("real".equals(argType)) {
+                        sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+                    } else if ("integer".equals(argType) || "boolean".equals(argType)) {
+                        sb.append("invokestatic java/lang/Integer.valueOf(I)Ljava/lang/Integer;\n");
+                    }
                 }
+
                 sb.append("aastore\n");
             }
         }
@@ -597,14 +637,40 @@ public class ProcedureGenerator implements GeneratorDelegate {
         for (int i = 0; i < paramNames.size(); i++) {
             String paramName = paramNames.get(i);
             String paramType = procInfo.paramTypes.getOrDefault(paramName, "integer");
+            boolean isValueParam = procInfo.valueParams.contains(paramName);
+
+            String notThunkLabel = "procRef_notThunk_" + i;
+            String doneLabel = "procRef_done_" + i;
+
             jasmin.append("    aload_1\n");
             jasmin.append("    ldc ").append(i).append("\n");
             jasmin.append("    aaload\n");
-            jasmin.append("    checkcast java/lang/Number\n");
-            if ("real".equals(paramType)) {
-                jasmin.append("    invokevirtual java/lang/Number/doubleValue()D\n");
+
+            if (isValueParam) {
+                // Accept either Number or Thunk for value parameter to support caller-side thunk forwarding.
+                jasmin.append("    dup\n");
+                jasmin.append("    instanceof gnb/jalgol/compiler/Thunk\n");
+                jasmin.append("    ifeq ").append(notThunkLabel).append("\n");
+                jasmin.append("    checkcast gnb/jalgol/compiler/Thunk\n");
+                jasmin.append("    invokeinterface gnb/jalgol/compiler/Thunk/get()Ljava/lang/Object; 1\n");
+                jasmin.append("    checkcast java/lang/Number\n");
+                if ("real".equals(paramType)) {
+                    jasmin.append("    invokevirtual java/lang/Number/doubleValue()D\n");
+                } else {
+                    jasmin.append("    invokevirtual java/lang/Number/intValue()I\n");
+                }
+                jasmin.append("    goto ").append(doneLabel).append("\n");
+                jasmin.append(notThunkLabel).append(":\n");
+                jasmin.append("    checkcast java/lang/Number\n");
+                if ("real".equals(paramType)) {
+                    jasmin.append("    invokevirtual java/lang/Number/doubleValue()D\n");
+                } else {
+                    jasmin.append("    invokevirtual java/lang/Number/intValue()I\n");
+                }
+                jasmin.append(doneLabel).append(":\n");
             } else {
-                jasmin.append("    invokevirtual java/lang/Number/intValue()I\n");
+                // Non-value: pass thunk object directly (caller must supply Thunk)
+                jasmin.append("    checkcast gnb/jalgol/compiler/Thunk\n");
             }
         }
 
