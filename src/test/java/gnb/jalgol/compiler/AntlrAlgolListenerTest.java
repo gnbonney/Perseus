@@ -994,6 +994,48 @@ end
 	}
 
     @Test
+    public void deferred_name_params_mixed_type_test() throws Exception {
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+            "test/algol/deferred_name_params_mixed_type.alg", "gnb/jalgol/programs", "DeferredNameParamsMixedType", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== DEFERRED NAME PARAMS MIXED TYPE JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END DEFERRED NAME PARAMS MIXED TYPE ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+            "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.DeferredNameParamsMixedType");
+        System.out.println("Deferred name params mixed type output: [" + output + "]");
+        assertTrue(output.contains("11"), "Expected output to include 11");
+        assertTrue(output.contains("3.5"), "Expected output to include 3.5");
+    }
+
+    @Test
+    public void deferred_missing_formal_types_test() throws Exception {
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+            "test/algol/deferred_missing_formal_types.alg", "gnb/jalgol/programs", "DeferredMissingFormalTypes", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== DEFERRED MISSING FORMAL TYPES JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END DEFERRED MISSING FORMAL TYPES ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+            "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.jalgol.programs.DeferredMissingFormalTypes");
+        System.out.println("Deferred missing formal types output: [" + output + "]");
+        assertTrue(output.contains("6"), "Expected output to include 6");
+        assertTrue(output.contains("2.2"), "Expected output to include 2.2");
+    }
+
+    @Test
     public void manboy_test() throws Exception {
 		// Compile Algol source to Jasmin
 		Path jasminFile = AntlrAlgolListener.compileToFile(

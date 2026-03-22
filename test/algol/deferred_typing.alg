@@ -1,3 +1,6 @@
+comment Test: deferred typing with both value and name parameters.  
+value typeless formal should adapt to actual type (integer/real) and print real.  
+name typeless formal should adapt to actual type and preserve assignment semantics.;
 begin
   integer i;
   real r;

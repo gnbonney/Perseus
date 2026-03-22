@@ -49,7 +49,7 @@ digraphs or reserved words where a single ASCII character is unavailable.
 | **string** | `string` | lowercase reserved word |
 | **label** | `label` | lowercase reserved word |
 | **comment** | `comment` | lowercase reserved word |
-| **comment** | `!` | Simula-style comment (synonym; ends at `;`) |
+| **comment** | `%` | line comment extension (to end-of-line, non-standard Algol 60) |
 | **begin** | `{` | BCPL/C-style block open (synonym for `begin`) |
 | **end** | `}` | BCPL/C-style block close (synonym for `end`) |
 | `:=` | `:=` | assignment (unchanged) |
