@@ -81,11 +81,11 @@ paramList
   ;
 
 varDecl
-  : (REAL | INTEGER | BOOLEAN | STRING | PROCEDURE) varList
+  : OWN? (REAL | INTEGER | BOOLEAN | STRING | PROCEDURE) varList
   ;
 
 arrayDecl
-  : (INTEGER | REAL | BOOLEAN | STRING | PROCEDURE)? ARRAY identifier '[' signedInt ':' signedInt ']'
+  : OWN? (INTEGER | REAL | BOOLEAN | STRING | PROCEDURE)? ARRAY identifier '[' signedInt ':' signedInt ']'
   ;
 
 varList
@@ -183,6 +183,7 @@ UNTIL : 'until';
 WHILE : 'while';
 DO : 'do';
 GOTO : 'goto';
+OWN : 'own';
 TRUE : 'true';
 FALSE : 'false';
 

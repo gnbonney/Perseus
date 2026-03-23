@@ -616,14 +616,18 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 ---
 
-## Milestone 19 — Own Variables (`own_variables.alg`)
+## Milestone 19 — Own Variables (`own_variables.alg`) ✅
 
 **Goal:** `own_variables.alg` compiles and demonstrates persistent local variable behavior across block re-entry.
 
-**New features needed:**
-- [ ] Grammar: `own` variable and `own` array declarations
-- [ ] Codegen: static/persistent local variables (retain value across block re-entry)
-- [ ] Test: assert own variables retain values as specified
+**Status: PASSING** (`own_variables_test` green as of March 22, 2026).
+
+**Features implemented:**
+- [x] Grammar: `own` variable and `own` array declarations
+- [x] SymbolTableBuilder: track procedure-local `own` variables separately from ordinary locals
+- [x] Codegen: represent `own` procedure locals via persistent class static fields rather than per-activation JVM locals
+- [x] Sample: `own_variables.alg` demonstrates persistent scalar and array state across repeated procedure calls
+- [x] Test: `own_variables_test()` verifies the generated Jasmin includes persistent static fields and that repeated calls produce the expected `1 3 6`
 
 ---
 
@@ -662,7 +666,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 # - `boolean_operators.alg` — Milestone 16
 # - `real_array.alg` — Milestone 17
 # - `string_output.alg` — ✅ Milestone 18
-# - `own_variables.alg` — Milestone 19
+# - `own_variables.alg` — ✅ Milestone 19
 # - `switch_declaration.alg` — Milestone 20
 
 ---

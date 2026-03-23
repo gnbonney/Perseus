@@ -39,6 +39,8 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         public final Map<String, String> paramTypes = new LinkedHashMap<>();
         public final Set<String> valueParams = new LinkedHashSet<>();
         public final Map<String, String> localVars = new LinkedHashMap<>();
+        public final Set<String> ownVars = new LinkedHashSet<>();
+        public final Set<String> ownArrays = new LinkedHashSet<>();
         public final List<String> nestedProcedures = new ArrayList<>();
 
         public ProcInfo(String returnType) {
@@ -176,6 +178,7 @@ public class SymbolTableBuilder extends AlgolBaseListener {
     public void enterVarDecl(AlgolParser.VarDeclContext ctx) {
         // Check if this is a procedure variable declaration
         boolean isProcedure = ctx.PROCEDURE() != null;
+        boolean isOwn = ctx.OWN() != null;
         String type;
         if (isProcedure) {
             // Check if there's a return type specified
@@ -201,12 +204,17 @@ public class SymbolTableBuilder extends AlgolBaseListener {
                 mainSymbolTable.put(name, type); // main scope only
             } else {
                 proc.localVars.put(name, type);
+                if (isOwn) {
+                    proc.ownVars.add(name);
+                    mainSymbolTable.put(name, type);
+                }
             }
         }
     }
 
     @Override
     public void enterArrayDecl(AlgolParser.ArrayDeclContext ctx) {
+        boolean isOwn = ctx.OWN() != null;
         String elemType;
         if (ctx.INTEGER() != null) elemType = "integer";
         else if (ctx.REAL() != null) elemType = "real";
@@ -220,6 +228,10 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         symbolTable.put(name, arrType);
         mainSymbolTable.put(name, arrType);
         arrayBounds.put(name, new int[]{lower, upper});
+        ProcInfo proc = currentProc();
+        if (proc != null && isOwn) {
+            proc.ownArrays.add(name);
+        }
     }
 
     @Override

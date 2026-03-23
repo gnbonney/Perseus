@@ -71,14 +71,14 @@ public class AntlrAlgolListenerTest {
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run — primer1 has no output, just verify it executes without error
+		// Run � primer1 has no output, just verify it executes without error
 		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.Primer1");
 		assertEquals("", output.trim(), "primer1 should produce no output");
 	}
 
 	@Test
 	public void primer2() throws Exception {
-		// Compile Algol source to Jasmin (infinite loop — run briefly to confirm no crash)
+		// Compile Algol source to Jasmin (infinite loop � run briefly to confirm no crash)
 		Path jasminFile = AntlrAlgolListener.compileToFile(
 				"test/algol/primer2.alg", "gnb/jalgol/programs", "Primer2", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
@@ -99,7 +99,7 @@ public class AntlrAlgolListenerTest {
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run briefly (infinite loop) — should not crash before timeout
+		// Run briefly (infinite loop) � should not crash before timeout
 		// A timeout is the expected outcome for Primer2; an early exit should fail the test.
 		String output = runClassExpectTimeout(BUILD_DIR, "gnb.jalgol.programs.Primer2", 2000);
 		// For infinite loop, output should be empty and process killed by timeout
@@ -131,7 +131,7 @@ public class AntlrAlgolListenerTest {
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run — should terminate after 1000 iterations
+		// Run � should terminate after 1000 iterations
 		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.Primer3");
 		assertEquals("", output.trim(), "primer3 should produce no output");
 	}
@@ -153,10 +153,10 @@ public class AntlrAlgolListenerTest {
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run — should print an approximation of e
+		// Run � should print an approximation of e
 		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.Primer5");
 		System.out.println("primer5 output: [" + output + "]");
-		assertTrue(output.trim().startsWith("2.718"), "primer5 should output an approximation of e (≈ 2.718...)");
+		assertTrue(output.trim().startsWith("2.718"), "primer5 should output an approximation of e (� 2.718...)");
 	}
 
 	@Test
@@ -174,7 +174,7 @@ public class AntlrAlgolListenerTest {
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run — should print "true"
+		// Run � should print "true"
 		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.Boolean");
 		System.out.println("boolean output: [" + output + "]");
 		assertEquals("true", output.trim());
@@ -194,7 +194,7 @@ public class AntlrAlgolListenerTest {
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run — should print "2"
+		// Run � should print "2"
 		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ThunkIsolation");
 		System.out.println("thunk isolation output: [" + output + "]");
 		assertEquals("2", output.trim());
@@ -215,7 +215,7 @@ public class AntlrAlgolListenerTest {
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run — nArr[5]=5, nArr[3]=0 (uninitialized)
+		// Run � nArr[5]=5, nArr[3]=0 (uninitialized)
 		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ArrayTest");
 		System.out.println("array output: [" + output + "]");
 		assertEquals("50", output.trim());
@@ -238,7 +238,7 @@ public class AntlrAlgolListenerTest {
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run — q[-7]=1.23, q[2]=4.56
+		// Run � q[-7]=1.23, q[2]=4.56
 		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.RealArrayTest");
 		System.out.println("real_array output: [" + output + "]");
 		assertTrue(output.contains("1.23"), "Output should contain 1.23");
@@ -268,7 +268,7 @@ public class AntlrAlgolListenerTest {
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run — should terminate after 1000 iterations, output final x and y
+		// Run � should terminate after 1000 iterations, output final x and y
 		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.Primer4");
 		assertFalse(output.trim().isEmpty(), "primer4 should produce output");
 		// TODO: assert correct values, approximately 0.1545 and -0.988
@@ -292,7 +292,7 @@ public class AntlrAlgolListenerTest {
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run — loop prints 1..12 each followed by newline, then M=oneton(12)=24
+		// Run � loop prints 1..12 each followed by newline, then M=oneton(12)=24
 		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.OnetonTest");
 		System.out.println("oneton output: [" + output + "]");
 		String expected = "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n24";
@@ -320,7 +320,7 @@ public class AntlrAlgolListenerTest {
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run — sieve prints primes below 1000, 10 per line
+		// Run � sieve prints primes below 1000, 10 per line
 		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.PrimesTest");
 		System.err.println("primes output: [" + output + "]");
 		// Check first few primes
@@ -499,7 +499,7 @@ end
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run — pi.alg uses Archimedes method to approximate pi
+		// Run � pi.alg uses Archimedes method to approximate pi
 		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.PiTest");
 		System.out.println("pi output: [" + output + "]");
 		
@@ -523,7 +523,7 @@ end
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run — pi2.alg uses Archimedes method with procedures accessing outer variables
+		// Run � pi2.alg uses Archimedes method with procedures accessing outer variables
 		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.Pi2Test");
 		System.out.println("pi2 output: [" + output + "]");
 		
@@ -1200,4 +1200,33 @@ end
 		"Should output all string operations correctly");
     }
 
+    @Test
+    public void own_variables_test() throws Exception {
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/own_variables.alg", "gnb/jalgol/programs", "OwnVariables", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== OWN VARIABLES JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END OWN VARIABLES ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+        assertTrue(jasminSource.contains(".field public static counter I"),
+                "own scalar should be emitted as a persistent static field");
+        assertTrue(jasminSource.contains(".field public static history [I"),
+                "own array should be emitted as a persistent static field");
+
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        try {
+            FixLimits.fixClassFamilyInPlace(BUILD_DIR.resolve("gnb/jalgol/programs/OwnVariables.class"));
+        } catch (Exception e) {
+            throw new AssertionError("ASM CheckClassAdapter verification failed: " + e.getMessage(), e);
+        }
+
+        String output = runClassWithTimeout(BUILD_DIR, "gnb.jalgol.programs.OwnVariables", 10_000);
+        System.out.println("Own variables output: [" + output + "]");
+        assertEquals("1 3 6", output.trim(), "Own variables should retain values across procedure re-entry");
+    }
 }

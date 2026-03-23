@@ -450,6 +450,11 @@ public class CodeGenerator extends AlgolBaseListener {
             String varName = local.getKey();
             String varType = local.getValue();
             procST.put(varName, varType);
+            if (info.ownVars.contains(varName)) {
+                // own locals persist across re-entry, so represent them as class statics
+                // rather than per-activation JVM locals.
+                continue;
+            }
             procLI.put(varName, nextSlot);
             nextSlot += "real".equals(varType) ? 2 : 1;
         }
