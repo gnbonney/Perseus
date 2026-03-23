@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -99,7 +100,8 @@ public class AntlrAlgolListenerTest {
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
 		// Run briefly (infinite loop) — should not crash before timeout
-		String output = runClassWithTimeout(BUILD_DIR, "gnb.jalgol.programs.Primer2", 2000);
+		// A timeout is the expected outcome for Primer2; an early exit should fail the test.
+		String output = runClassExpectTimeout(BUILD_DIR, "gnb.jalgol.programs.Primer2", 2000);
 		// For infinite loop, output should be empty and process killed by timeout
 		assertEquals("", output.trim(), "Infinite loop should produce no output before timeout");
 	}
@@ -550,22 +552,22 @@ end
 		return stdout;
 	}
 
-	private static String runClassWithTimeout(Path classDir, String className, long timeoutMs) throws Exception {
+	private record TimedRunResult(String stdout, String stderr, int exitCode, boolean timedOut) {}
+
+	private static TimedRunResult runClassForAtMost(Path classDir, String className, long timeoutMs) throws Exception {
 		List<String> cmd = java.util.Arrays.asList("java", "-cp", classDir.toString(), className);
-		System.out.println("runClassWithTimeout: " + cmd + " timeout=" + timeoutMs + "ms");
+		System.out.println("runClassForAtMost: " + cmd + " timeout=" + timeoutMs + "ms");
 		ProcessBuilder pb = new ProcessBuilder(cmd);
 		pb.redirectErrorStream(false);
 		Process p = pb.start();
 		p.getOutputStream().close(); // close subprocess stdin
-		// Wait with timeout BEFORE reading output — readAllBytes() blocks until the process exits,
-		// so it must not be called before we've killed the process if it runs forever.
 		boolean finished = p.waitFor(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS);
 		boolean timedOut = false;
 		if (!finished) {
 			timedOut = true;
 			p.destroyForcibly();
-			p.waitFor(); // ensure the process is fully dead before we read its output stream
-			System.out.println("runClassWithTimeout: process killed after timeout");
+			p.waitFor();
+			System.out.println("runClassForAtMost: process killed after timeout");
 		}
 		String stdout;
 		String stderr;
@@ -574,13 +576,30 @@ end
 			stderr = new String(err.readAllBytes());
 		}
 		int exitCode = p.exitValue();
-		System.out.println("runClassWithTimeout: exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
-		if (!timedOut) {
-			assertEquals(0, exitCode, "Process failed for " + className + " with timeout: exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
-		} else {
-			assertEquals(1, exitCode, "Infinite-loop timeout should terminate with exit=1 (killed process)");
+		System.out.println("runClassForAtMost: exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "] timedOut=" + timedOut);
+		return new TimedRunResult(stdout, stderr, exitCode, timedOut);
+	}
+
+	private static String runClassWithTimeout(Path classDir, String className, long timeoutMs) throws Exception {
+		TimedRunResult result = runClassForAtMost(classDir, className, timeoutMs);
+		if (result.timedOut()) {
+			fail("Process timed out for " + className + " after " + timeoutMs + "ms"
+					+ " stdout=[" + result.stdout() + "] stderr=[" + result.stderr() + "]");
 		}
-		return stdout;
+		assertEquals(0, result.exitCode(),
+				"Process failed for " + className + " with timeout: exit=" + result.exitCode()
+						+ " stdout=[" + result.stdout() + "] stderr=[" + result.stderr() + "]");
+		return result.stdout();
+	}
+
+	private static String runClassExpectTimeout(Path classDir, String className, long timeoutMs) throws Exception {
+		TimedRunResult result = runClassForAtMost(classDir, className, timeoutMs);
+		if (!result.timedOut()) {
+			fail("Expected " + className + " to time out after " + timeoutMs + "ms"
+					+ " but exit=" + result.exitCode()
+					+ " stdout=[" + result.stdout() + "] stderr=[" + result.stderr() + "]");
+		}
+		return result.stdout();
 	}
 
 	private static String runClassWithInput(Path classDir, String className, String input) throws Exception {
@@ -1069,8 +1088,9 @@ end
 		    java.nio.file.StandardCopyOption.REPLACE_EXISTING
 		);
 
-		// Run and capture output
-		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.ManBoy");
+		// Run and capture output with a timeout so a bad recursive/codegen path
+		// fails fast instead of hanging the test suite indefinitely.
+		String output = runClassWithTimeout(BUILD_DIR, "gnb.jalgol.programs.ManBoy", 10_000);
 		System.out.println("Man or Boy output: [" + output + "]");
 		assertEquals("-67.0", output.trim(), "Man or Boy test should return -67.0");
     }
