@@ -2626,19 +2626,4 @@ Original publication:
 > Modified Report on the Algorithmic Language ALGOL 60.  
 > The Computer Journal, Vol. 19, No. 4, Nov. 1976, pp. 364—379.
 
-   
-Other AGOL 60 related documents to be found on this site:
-
-*   [Algol 60 References](index.htm)  
-     
-    *   [Revised Report on the Algorithmic Language ALGOL 60](report.htm) (1963)  
-         
-    *   [Algol 60 Versions of Syntax](algol60-syntaxversions.htm) (differences between the Revised Report & the Modified Report)  
-         
-    *   [Algol 60 - Sample Implementation and Examples](algol60-sample.htm)  
-         
-    *   ALGOL 60 syntax (EBNF) as compiled from the Revised Report: [Syntax of ALGOL 60](syntax.txt).  
-         
-    *   A step further - SIMULA 67: [Syntax of SIMULA 67](simula-ebnf.txt).
-
    [^ top](#top)
