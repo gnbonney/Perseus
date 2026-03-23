@@ -12,7 +12,7 @@ grammar Algol;
 /* NOTE:  Lexer rules start with a capital letter; parser rules start with a lower case letter */
 /* More on lexer rules at:  https://github.com/antlr/antlr4/blob/master/doc/lexer-rules.md */
 
-/* Block comments starting with the word "comment" (or '!' from Simula) and ending with a semicolon. */
+/* Block comments starting with the word "comment" and ending with a semicolon. */
 BLOCK_COMMENT
 	: 'comment' ~[;]* ';' -> channel(HIDDEN)
 	;

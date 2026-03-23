@@ -19,7 +19,7 @@ Recent milestone wins:
 - The Jasmin pipeline is cleaner: `compileToFile()` writes the `.j` family, `assemble()` assembles that family, and tests can post-process the resulting class family in place.
 
 **Near-term next steps:**
-1. Continue the remaining post-milestone language work (formal arrays, richer I/O, and other advanced Algol features).
+1. Continue the remaining standard-compliance language work (formal arrays, multidimensional arrays, and remaining Modified Report / hardware-representation syntax).
 2. Keep expanding regression coverage around higher-order call-by-name and procedure-reference edge cases.
 3. Keep improving stack/local limit precision while retaining `FixLimits` as a verification backstop.
 
@@ -664,6 +664,8 @@ Here, the channel parameter is left empty, but the argument list is still presen
 **Goal:** Allow labels and switches to be passed as parameters and used for procedure-mediated exits, matching real Algol 60 designational-expression semantics more closely.
 
 - [ ] Grammar: `label` and `switch` formal parameter specifiers
+- [ ] Grammar: `Boolean procedure` declarations and `Boolean procedure` formal parameter specifiers
+- [ ] Codegen/runtime: Boolean-valued procedure calls and Boolean procedure references/parameters
 - [ ] Procedure calls: pass labels and switches as actual parameters
 - [ ] Codegen: support designational exits through passed labels/switches where legal
 - [ ] Enforce or document the goto-scope restrictions that still apply
@@ -678,7 +680,42 @@ Here, the channel parameter is left empty, but the argument list is still presen
 - [ ] Codegen for array descriptor/bounds passing and indexed access inside callees
 - [ ] Tests with array-processing procedures drawn from classic Algol-style examples
 
-## Milestone 24 — Dynamic Channels and File I/O
+## Milestone 24 — Multidimensional Arrays and Bound-Pair Syntax
+
+**Priority:** Remaining core-language array-completeness milestone needed for report-style numeric code.
+
+**Goal:** Support standard multidimensional array declarations and subscripts so classic matrix-style examples from the Modified Report can compile naturally.
+
+- [ ] Grammar: multiple bound pairs in array declarations
+- [ ] Grammar: comma-separated subscript lists in array access and assignment
+- [ ] Codegen: lowering strategy for multidimensional arrays with non-zero lower bounds
+- [ ] Tests using report-style matrix examples such as `Spur`, `Transpose`, or `Absmax`
+
+## Milestone 25 — Hardware Representation Completion
+
+**Priority:** Standard-syntax compliance milestone based on [Representation.md](Representation.md).
+
+**Goal:** Bring the grammar and expression handling fully in line with JAlgol's documented hardware representation before moving on to non-standard extensions.
+
+- [ ] Grammar / expression support: `div` integer division
+- [ ] Grammar / expression support: `**` and `^` exponentiation
+- [ ] Grammar / expression support: `imp` / `eqv` and synonyms `=>` / `==`
+- [ ] Grammar: allow `{` and `}` everywhere `begin` and `end` are accepted, not only at the top-level program rule
+- [ ] Tests covering the documented symbol mappings in [Representation.md](Representation.md)
+
+## Milestone 26 — Remaining Modified Report Surface Syntax
+
+**Priority:** Final standard source-compatibility cleanup before extensions.
+
+**Goal:** Close the remaining non-extension syntax gaps that affect real Modified Report examples, while still allowing JAlgol's normalized grammar design.
+
+- [ ] Grammar: numeric labels
+- [ ] Grammar: dummy statements (empty statements used as label targets)
+- [ ] Grammar: elaborate parameter delimiters such as `Order:(n)` and `Result:(y)`
+- [ ] Decide and document which rarely used report notations remain normalized rather than accepted verbatim
+- [ ] Add focused report-style parser/integration tests for these forms
+
+## Milestone 27 — Dynamic Channels and File I/O
 
 **Priority:** First post-core runtime milestone.
 
@@ -688,7 +725,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 - [ ] Extend input/output procedures to use dynamic stream dispatch instead of only `System.out` / `System.err`
 - [ ] Cover error-handling paths through `fault`
 
-## Milestone 25 — Formatted I/O
+## Milestone 28 — Formatted I/O
 
 **Goal:** Implement `outformat` and `informat` with Algol-style format strings and channel-backed formatting workflows (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
 
@@ -696,7 +733,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 - [ ] `informat(channel, format, ...)`
 - [ ] String-channel formatting scenarios (`openstring`, `closefile`, sprintf-like usage)
 
-## Milestone 26 — CLI and Compiler UX
+## Milestone 29 — CLI and Compiler UX
 
 **Goal:** Turn the existing CLI into a real compiler front end suitable for everyday use.
 
@@ -704,7 +741,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 - [ ] Optional `-d <outdir>` and sensible output layout
 - [ ] Stable exit codes and clearer user-facing error output
 
-## Milestone 27 — External Procedures
+## Milestone 30 — External Procedures
 
 **Goal:** Allow Algol code to declare and call JVM methods explicitly (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
 
@@ -712,7 +749,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 - [ ] Codegen and type-checking for JVM interop calls
 - [ ] Restrictions documented clearly (for example: no call-by-name label/switch interop)
 
-## Milestone 28 — Lambda Notation
+## Milestone 31 — Lambda Notation
 
 **Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
 
@@ -720,7 +757,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 - [ ] Lowering strategy onto existing procedure-reference infrastructure
 - [ ] Tests for higher-order procedure use cases
 
-## Milestone 29 � Simula-Style Classes and External Classes
+## Milestone 32 — Simula-Style Classes and External Classes
 
 **Goal:** Add a class/object extension inspired by Simula 67, including a more natural model for external JVM classes (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
 
@@ -733,11 +770,11 @@ Here, the channel parameter is left empty, but the argument list is still presen
 ## Notes on Prioritization
 
 The order above is intentional:
-1. Finish the biggest remaining **core Algol 60** semantic gaps first (`21`–`23`).
-2. Then complete the most valuable **runtime/library** work (`24`–`25`).
-3. After that, improve **tooling and extensions** (`26`�`29`).
+1. Finish the biggest remaining **core Algol 60** semantic gaps first (`21`–`24`).
+2. Then close the remaining **standard syntax / hardware-representation** gaps (`25`–`26`).
+3. After that, move on to **runtime/library work and extensions** (`27`–`32`).
 
-This also highlights one milestone we should explicitly add beyond the old future list: **label and switch parameters / designational exits**. That is the main remaining core Algol 60 feature family that was not clearly called out before.
+This keeps the roadmap aligned with the goal of reaching practical Modified Report completeness before moving on to non-standard language extensions.
 # Completed from previous Future Milestones:
 # - Standard math functions (`abs`, `sqrt`, `sin`, `cos`, `ln`, `exp`, etc.) — ✅ Milestone 11A
 # - `pi.alg` — `real` procedures; `sqrt` standard function — ✅ Milestone 11F

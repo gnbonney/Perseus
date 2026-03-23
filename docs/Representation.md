@@ -49,7 +49,7 @@ digraphs or reserved words where a single ASCII character is unavailable.
 | **string** | `string` | lowercase reserved word |
 | **label** | `label` | lowercase reserved word |
 | **comment** | `comment` | lowercase reserved word |
-| **comment** | `%` | line comment extension (to end-of-line, non-standard Algol 60) |
+| **comment** | `%` | line comment / escape remark extension (to end-of-line; non-standard Algol 60, with Burroughs/Unisys precedent) |
 | **begin** | `{` | BCPL/C-style block open (synonym for `begin`) |
 | **end** | `}` | BCPL/C-style block close (synonym for `end`) |
 | `:=` | `:=` | assignment (unchanged) |
@@ -62,6 +62,8 @@ digraphs or reserved words where a single ASCII character is unavailable.
 | ∧ | `and` | logical and (`&` also accepted) |
 | ∨ | `or` | logical or (`|` also accepted) |
 | ¬ | `not` | logical not (`~` also accepted) |
+| ⇒ | `imp` | logical implication (`=>` also accepted) |
+| ≡ | `eqv` | logical equivalence (`==` also accepted) |
 | ÷ | `div` | integer division |
 | ↑ | `**` | exponentiation (`^` also accepted) |
 | string quotes | "..." | double quotes for string literals |
@@ -73,13 +75,22 @@ digraphs or reserved words where a single ASCII character is unavailable.
   natural English and avoid the ambiguity of `&` vs `&&`.
 - `&`, `|`, `~` are accepted as synonyms because they appear in some existing Algol 60
   reference material and in the sample programs inherited by this project (`primes.alg`).
+- `%` line comments are a non-standard extension, but they have clear historical precedent in
+  the Burroughs/Unisys Extended ALGOL family, where `%` introduced an "escape remark" causing
+  the rest of the source record to be ignored. JAlgol adopts the modern text-file analogue of
+  that behavior by treating `%` as a comment introducer to end-of-line, which is convenient and
+  avoids the trailing-semicolon requirement of `comment ... ;`.
+- `imp` and `eqv` follow historical Algol-family hardware representations used by systems such
+  as Burroughs and Univac-family compilers. They keep implication and equivalence in the same
+  Boolean-operator family as `and`, `or`, and `not`, instead of overloading general equality syntax.
+- `=>` and `==` are accepted as convenient alternate spellings, following later Algol-family
+  practice such as Simula and some hosted Algol 60 implementations.
 - `div` for integer division follows Pascal and Ada.
 - `**` for exponentiation follows Fortran, Python, and many other languages.
 - `boolean` is lowercased for consistency with all other keywords; the report's capitalisation
   reflects the name Boole, not any syntactic distinction.
 - `{`/`}` as synonyms for `begin`/`end` follow BCPL and C notation; they are accepted by the
   grammar as a readability convenience for developers familiar with those languages.
-- `!` as a comment introducer follows Simula 67. Like `comment`, it ends at the next `;`.
 - Double quotes ("...") are used for string literals, following Algol 68, C, Java, Python, and most modern languages. This choice improves familiarity and ease of typing for contemporary developers, and aligns with the conventions of most Algol descendants. The original Algol 60 report used backticks and single quotes due to hardware limitations, but double quotes are now the de facto standard for string literals.
 
 ## Relationship to the Modified Report
