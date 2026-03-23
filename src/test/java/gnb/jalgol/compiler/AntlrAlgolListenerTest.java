@@ -1229,4 +1229,33 @@ end
         System.out.println("Own variables output: [" + output + "]");
         assertEquals("1 3 6", output.trim(), "Own variables should retain values across procedure re-entry");
     }
+    @Test
+    public void switch_declaration_test() throws Exception {
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/switch_declaration.alg", "gnb/jalgol/programs", "SwitchDeclaration", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== SWITCH DECLARATION JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END SWITCH DECLARATION ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+        assertTrue(jasminSource.contains("goto seed") || jasminSource.contains("goto squarephase") || jasminSource.contains("goto doublephase") || jasminSource.contains("goto report"),
+                "Switch lowering should emit goto instructions for direct labels, nested switch targets, and inline-if targets");
+        assertTrue(jasminSource.contains("if_icmpne"),
+                "Switch lowering should compare the computed index against switch entries");
+
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        try {
+            FixLimits.fixClassFamilyInPlace(BUILD_DIR.resolve("gnb/jalgol/programs/SwitchDeclaration.class"));
+        } catch (Exception e) {
+            throw new AssertionError("ASM CheckClassAdapter verification failed: " + e.getMessage(), e);
+        }
+
+        String output = runClassWithTimeout(BUILD_DIR, "gnb.jalgol.programs.SwitchDeclaration", 10_000);
+        System.out.println("Switch declaration output: [" + output + "]");
+        assertEquals("25", output.trim(), "Switch declaration should drive the staged score computation to the expected total");
+    }
 }

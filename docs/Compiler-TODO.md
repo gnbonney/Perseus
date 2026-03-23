@@ -19,7 +19,7 @@ Recent milestone wins:
 - The Jasmin pipeline is cleaner: `compileToFile()` writes the `.j` family, `assemble()` assembles that family, and tests can post-process the resulting class family in place.
 
 **Near-term next steps:**
-1. Continue the remaining language milestones (`own` variables and `switch` declarations).
+1. Continue the remaining post-milestone language work (formal arrays, richer I/O, and other advanced Algol features).
 2. Keep expanding regression coverage around higher-order call-by-name and procedure-reference edge cases.
 3. Keep improving stack/local limit precision while retaining `FixLimits` as a verification backstop.
 
@@ -631,14 +631,19 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 ---
 
-## Milestone 20 — Switch Declarations (`switch_declaration.alg`)
+## Milestone 20 — Switch Declarations (`switch_declaration.alg`) ✅
 
 **Goal:** `switch_declaration.alg` compiles and demonstrates correct multi-way goto behavior.
 
-**New features needed:**
-- [ ] Grammar: switch declarations and designational expressions
-- [ ] Codegen: multi-way goto using switch
-- [ ] Test: assert correct label selection and control flow
+**Status: PASSING** (`switch_declaration_test` green as of March 22, 2026).
+
+**Features implemented:**
+- [x] Grammar: switch declarations and designational expressions
+- [x] Grammar: `goto` now accepts a full designational expression rather than only a bare label
+- [x] SymbolTableBuilder: collect switch declarations for second-pass lowering
+- [x] Codegen: lower switch designators into ordinary Jasmin branch chains that evaluate switch entries at jump time
+- [x] Sample: `switch_declaration.alg` now demonstrates a small switch-driven score computation with a nested switch and an inline `if ... then ... else ...` designational expression
+- [x] Test: `switch_declaration_test()` verifies compilation, assembly, ASM verification, and final output `25`
 
 ---
 
@@ -667,7 +672,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 # - `real_array.alg` — Milestone 17
 # - `string_output.alg` — ✅ Milestone 18
 # - `own_variables.alg` — ✅ Milestone 19
-# - `switch_declaration.alg` — Milestone 20
+# - `switch_declaration.alg` — ✅ Milestone 20
 
 ---
 

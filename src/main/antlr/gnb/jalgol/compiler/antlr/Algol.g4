@@ -39,7 +39,7 @@ program: BEGIN compoundStatement END | '{' compoundStatement '}';
 compoundStatement: statement (';' statement)* ';'?;
 
 statement
-  : label? (procedureCall | procedureDecl | varDecl | arrayDecl | assignment | gotoStatement | ifStatement | forStatement | block)
+  : label? (procedureCall | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | block)
   ;
 
 block
@@ -88,6 +88,10 @@ arrayDecl
   : OWN? (INTEGER | REAL | BOOLEAN | STRING | PROCEDURE)? ARRAY identifier '[' signedInt ':' signedInt ']'
   ;
 
+switchDecl
+  : SWITCH identifier ':=' designationalExpr (',' designationalExpr)*
+  ;
+
 varList
   : identifier (',' identifier)*
   ;
@@ -101,7 +105,7 @@ lvalue
   ;
 
 gotoStatement
-  : GOTO identifier
+  : GOTO designationalExpr
   ;
 
 ifStatement
@@ -124,6 +128,17 @@ forElement
 
 label
   : identifier ':'
+  ;
+
+designationalExpr
+  : IF expr THEN simpleDesignationalExpr ELSE designationalExpr   # IfDesignationalExpr
+  | simpleDesignationalExpr                                       # DirectDesignationalExpr
+  ;
+
+simpleDesignationalExpr
+  : identifier '[' expr ']'   # SwitchDesignatorExpr
+  | identifier                # LabelDesignatorExpr
+  | '(' designationalExpr ')' # ParenDesignatorExpr
   ;
 
 expr
@@ -183,6 +198,7 @@ UNTIL : 'until';
 WHILE : 'while';
 DO : 'do';
 GOTO : 'goto';
+SWITCH : 'switch';
 OWN : 'own';
 TRUE : 'true';
 FALSE : 'false';

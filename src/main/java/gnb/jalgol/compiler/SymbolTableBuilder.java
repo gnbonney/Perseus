@@ -26,6 +26,8 @@ public class SymbolTableBuilder extends AlgolBaseListener {
     private final Map<String, int[]> arrayBounds = new LinkedHashMap<>();
     // Procedure definitions: name → ProcInfo
     private final Map<String, ProcInfo> procedures = new LinkedHashMap<>();
+    // Switch declarations: name → parse context
+    private final Map<String, AlgolParser.SwitchDeclContext> switchDeclarations = new LinkedHashMap<>();
     // Stack of currently-open procedure declarations (supports nested procedures like manboy)
     private final Deque<ProcInfo> procStack = new ArrayDeque<>();
 
@@ -67,6 +69,10 @@ public class SymbolTableBuilder extends AlgolBaseListener {
 
     public Map<String, ProcInfo> getProcedures() {
         return procedures;
+    }
+
+    public Map<String, AlgolParser.SwitchDeclContext> getSwitchDeclarations() {
+        return switchDeclarations;
     }
 
     @Override
@@ -232,6 +238,13 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         if (proc != null && isOwn) {
             proc.ownArrays.add(name);
         }
+    }
+
+    @Override
+    public void enterSwitchDecl(AlgolParser.SwitchDeclContext ctx) {
+        String name = ctx.identifier().getText();
+        symbolTable.put(name, "switch");
+        switchDeclarations.put(name, ctx);
     }
 
     @Override

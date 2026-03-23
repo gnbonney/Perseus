@@ -36,6 +36,8 @@ public class CodeGenerator extends AlgolBaseListener {
     private final String className;
     // Procedure definitions from SymbolTableBuilder (name → ProcInfo)
     private final Map<String, SymbolTableBuilder.ProcInfo> procedures;
+    // Switch declarations from SymbolTableBuilder (name -> parse context)
+    private final Map<String, AlgolParser.SwitchDeclContext> switchDeclarations;
 
     // --- Thunk helper data ---
     // counter for generating unique thunk class names
@@ -118,12 +120,15 @@ public class CodeGenerator extends AlgolBaseListener {
     public CodeGenerator(String source, String packageName, String className,
                          Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
                          Map<AlgolParser.ExprContext, String> exprTypes, Map<String, int[]> arrayBounds,
-                         Map<String, SymbolTableBuilder.ProcInfo> procedures, Map<String, Integer> procVarSlots) {
+                         Map<String, SymbolTableBuilder.ProcInfo> procedures,
+                         Map<String, AlgolParser.SwitchDeclContext> switchDeclarations,
+                         Map<String, Integer> procVarSlots) {
         this.source = source;
         this.packageName = packageName;
         this.className = className;
         this.exprTypes = exprTypes;
         this.procedures = procedures;
+        this.switchDeclarations = switchDeclarations != null ? switchDeclarations : Map.of();
         this.procVarSlots = procVarSlots != null ? procVarSlots : Map.of();
         this.currentSymbolTable = symbolTable;
         this.currentLocalIndex  = localIndex;
@@ -1355,9 +1360,13 @@ public class CodeGenerator extends AlgolBaseListener {
     }
 
     @Override
+    public void exitSwitchDecl(AlgolParser.SwitchDeclContext ctx) {
+        // Switch declarations are metadata for designational goto codegen.
+    }
+
+    @Override
     public void exitGotoStatement(AlgolParser.GotoStatementContext ctx) {
-        String labelName = ctx.identifier().getText();
-        activeOutput.append("goto ").append(labelName).append("\n");
+        emitGotoDesignationalExpr(ctx.designationalExpr());
     }
 
     // -------------------------------------------------------------------------
@@ -1619,6 +1628,74 @@ public class CodeGenerator extends AlgolBaseListener {
 
     private String generateUniqueLabel(String prefix) {
         return prefix + "_" + (labelCounter++);
+    }
+
+    private void emitGotoDesignationalExpr(AlgolParser.DesignationalExprContext ctx) {
+        if (ctx instanceof AlgolParser.DirectDesignationalExprContext simpleCtx) {
+            emitGotoSimpleDesignationalExpr(simpleCtx.simpleDesignationalExpr());
+            return;
+        }
+        if (ctx instanceof AlgolParser.IfDesignationalExprContext ifCtx) {
+            String falseLabel = generateUniqueLabel("switch_else");
+            activeOutput.append(generateExpr(ifCtx.expr()));
+            activeOutput.append("ifeq ").append(falseLabel).append("\n");
+            emitGotoSimpleDesignationalExpr(ifCtx.simpleDesignationalExpr());
+            activeOutput.append(falseLabel).append(":\n");
+            emitGotoDesignationalExpr(ifCtx.designationalExpr());
+            return;
+        }
+        activeOutput.append("; ERROR: unsupported designational expression\n");
+    }
+
+    private void emitGotoSimpleDesignationalExpr(AlgolParser.SimpleDesignationalExprContext ctx) {
+        if (ctx instanceof AlgolParser.LabelDesignatorExprContext labelCtx) {
+            activeOutput.append("goto ").append(labelCtx.identifier().getText()).append("\n");
+            return;
+        }
+        if (ctx instanceof AlgolParser.ParenDesignatorExprContext parenCtx) {
+            emitGotoDesignationalExpr(parenCtx.designationalExpr());
+            return;
+        }
+        if (ctx instanceof AlgolParser.SwitchDesignatorExprContext switchCtx) {
+            emitGotoSwitchDesignator(switchCtx.identifier().getText(), switchCtx.expr());
+            return;
+        }
+        activeOutput.append("; ERROR: unsupported simple designational expression\n");
+    }
+
+    private void emitGotoSwitchDesignator(String switchName, AlgolParser.ExprContext indexExpr) {
+        AlgolParser.SwitchDeclContext switchDecl = switchDeclarations.get(switchName);
+        if (switchDecl == null) {
+            activeOutput.append("; ERROR: unknown switch ").append(switchName).append("\n");
+            return;
+        }
+
+        String indexType = exprTypes.getOrDefault(indexExpr, "integer");
+        int indexSlot = allocateNewLocal("switchIndex");
+        activeOutput.append(generateExpr(indexExpr));
+        if ("real".equals(indexType)) {
+            activeOutput.append("d2i\n");
+        }
+        emitStore("istore", indexSlot);
+
+        for (int caseIndex = 0; caseIndex < switchDecl.designationalExpr().size(); caseIndex++) {
+            String nextLabel = generateUniqueLabel("switch_next");
+            activeOutput.append("iload ").append(indexSlot).append("\n");
+            activeOutput.append("ldc ").append(caseIndex + 1).append("\n");
+            activeOutput.append("if_icmpne ").append(nextLabel).append("\n");
+            emitGotoDesignationalExpr(switchDecl.designationalExpr(caseIndex));
+            activeOutput.append(nextLabel).append(":\n");
+        }
+
+        emitUndefinedSwitchTrap(switchName);
+    }
+
+    private void emitUndefinedSwitchTrap(String switchName) {
+        activeOutput.append("new java/lang/RuntimeException\n");
+        activeOutput.append("dup\n");
+        activeOutput.append("ldc \"Undefined switch designator: ").append(switchName).append("\"\n");
+        activeOutput.append("invokespecial java/lang/RuntimeException/<init>(Ljava/lang/String;)V\n");
+        activeOutput.append("athrow\n");
     }
 
     /** Returns the JVM array descriptor for a JAlgol array type. */
@@ -3451,4 +3528,6 @@ public class CodeGenerator extends AlgolBaseListener {
         return sb.toString();
     }
 }
+
+
 

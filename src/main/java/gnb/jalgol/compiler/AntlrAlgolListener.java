@@ -196,6 +196,7 @@ public class AntlrAlgolListener {
 		Map<String, String> mainSymbolTable = symBuilder.getMainSymbolTable();
 		Map<String, int[]> arrayBounds = symBuilder.getArrayBounds();
 		Map<String, SymbolTableBuilder.ProcInfo> procedures = symBuilder.getProcedures();
+		Map<String, AlgolParser.SwitchDeclContext> switchDeclarations = symBuilder.getSwitchDeclarations();
 
         // Check for procedure variables (procedure names that are used in assignments or expressions)
         Set<String> procedureVariables = new LinkedHashSet<>();
@@ -313,7 +314,7 @@ public class AntlrAlgolListener {
 		String source = Paths.get(fileName).getFileName().toString();
 		CodeGenerator codegen = new CodeGenerator(source, packageName, className,
 				mainSymbolTable, localIndex, numLocals, exprTypes, arrayBounds,
-				symBuilder.getProcedures(), procVarSlotsMap);
+				symBuilder.getProcedures(), switchDeclarations, procVarSlotsMap);
 		walker.walk(codegen, programContext);
 		return codegen;
 	}
