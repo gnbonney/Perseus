@@ -809,36 +809,33 @@ public class CodeGenerator extends AlgolBaseListener {
         // Determine storage type: real if any destination is real, string if any destination is string
         boolean anyReal = lvalues.stream().anyMatch(lv -> {
             String lvName = lv.identifier().getText();
-            String vt = currentSymbolTable.get(lvName);
-            if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
-            if (lvName.equals(currentProcName)) return "real".equals(currentProcReturnType);
-            return "real".equals(vt);
-        });
-        boolean anyString = lvalues.stream().anyMatch(lv -> {
-            String lvName = lv.identifier().getText();
-            String vt = currentSymbolTable.get(lvName);
-            if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
-            if (lvName.equals(currentProcName)) return "string".equals(currentProcReturnType);
-            return "string".equals(vt);
-        });
-        // In Algol, assigning to the current procedure name sets its return value,
-        // not the procedure variable itself.  Therefore, exclude the current
-        // procedure name from determining whether this is a procedure-variable
-        // assignment.
-        boolean anyProcedure = lvalues.stream().anyMatch(lv -> {
-            String lvName = lv.identifier().getText();
-            // If this procedure is also a procedure-variable, then assigning to its own name
-            // should act like a procedure-variable assignment (not a return-value assignment).
-            if (lvName.equals(currentProcName) && procVarSlots.containsKey(currentProcName)) {
-                return true;
-            }
-            if (lvName.equals(currentProcName)) return false;
+            String returnTargetType = getProcedureReturnTargetType(lvName, rhsIsProcedureRef);
+            if (returnTargetType != null) return "real".equals(returnTargetType);
             String vt = currentSymbolTable.get(lvName);
             if (vt == null && mainSymbolTable != null) {
                 vt = mainSymbolTable.get(lvName);
             }
-            return vt != null && vt.startsWith("procedure:");
+            if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
+            return "real".equals(vt);
         });
+        boolean anyString = lvalues.stream().anyMatch(lv -> {
+            String lvName = lv.identifier().getText();
+            String returnTargetType = getProcedureReturnTargetType(lvName, rhsIsProcedureRef);
+            if (returnTargetType != null) return "string".equals(returnTargetType);
+            String vt = currentSymbolTable.get(lvName);
+            if (vt == null && mainSymbolTable != null) {
+                vt = mainSymbolTable.get(lvName);
+            }
+            if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
+            return "string".equals(vt);
+        });
+        // A typed procedure name can denote either a procedure reference or the
+        // procedure's implicit return variable. When the RHS is a procedure
+        // reference, keep the existing procedure-variable behavior. Otherwise,
+        // treat assignments to the current/enclosing typed procedure names as
+        // return-value writes.
+        boolean anyProcedure = lvalues.stream()
+            .anyMatch(lv -> isProcedureVariableTarget(lv.identifier().getText(), rhsIsProcedureRef));
         String storeType = anyProcedure ? "procedure" : anyReal ? "real" : anyString ? "string" : "integer";
 
         // Generate expression and widen if needed
@@ -877,7 +874,7 @@ public class CodeGenerator extends AlgolBaseListener {
             // Procedure return value assignment - but ONLY if this procedure actually has a return value slot.
             // For void procedures (including those used as procedure variables), assignment to the
             // procedure name should be treated as a procedure-variable assignment, not a return value.
-            if (name.equals(currentProcName) && procRetvalSlot >= 0 && !"procedure".equals(storeType)) {
+            if (name.equals(currentProcName) && isProcedureReturnTarget(name, rhsIsProcedureRef)) {
                 if ("real".equals(currentProcReturnType)) {
                     emitStore("dstore", procRetvalSlot);
                     if (useEnvBridge(currentProcName)) {
@@ -899,6 +896,25 @@ public class CodeGenerator extends AlgolBaseListener {
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(envReturnFieldName(currentProcName)).append(" I\n");
                     }
+                }
+                continue;
+            }
+
+            if (isEnclosingProcedureReturnTarget(name, rhsIsProcedureRef)) {
+                SymbolTableBuilder.ProcInfo outerProc = getEnclosingProcedureInfo(name);
+                if (outerProc == null) {
+                    activeOutput.append("; ERROR: missing enclosing procedure return target ").append(name).append("\n");
+                    continue;
+                }
+                if ("real".equals(outerProc.returnType)) {
+                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                .append("/").append(envReturnFieldName(name)).append(" D\n");
+                } else if ("string".equals(outerProc.returnType)) {
+                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                .append("/").append(envReturnFieldName(name)).append(" Ljava/lang/String;\n");
+                } else {
+                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                .append("/").append(envReturnFieldName(name)).append(" I\n");
                 }
                 continue;
             }
@@ -1272,9 +1288,11 @@ public class CodeGenerator extends AlgolBaseListener {
             String varType = currentSymbolTable.get(name);
             // Fall back to main scope if not found in current scope
             if (varType == null && mainSymbolTable != null) varType = mainSymbolTable.get(name);
+            SymbolTableBuilder.ProcInfo declaredProc = procedures.get(name);
+            boolean preferDirectProcedureCall = declaredProc != null && !"void".equals(declaredProc.returnType);
             boolean isProcVar = varType != null && varType.startsWith("procedure:")
                     && (currentLocalIndex.containsKey(name) || procVarSlots.containsKey(name));
-            if (isProcVar) {
+            if (isProcVar && !preferDirectProcedureCall) {
                 // Call through a procedure variable (local slot or static field)
                 activeOutput.append(generateProcedureVariableCall(name, varType, args));
                 // Procedure-variable calls return a value (unless void); in statement position,
@@ -1851,7 +1869,9 @@ public class CodeGenerator extends AlgolBaseListener {
         // uses closure-like state instead of whichever static env is current at get().
         if (actual instanceof AlgolParser.VarExprContext ve
                 && procedures.containsKey(ve.identifier().getText())
-                && (currentSymbolTable == null || !currentSymbolTable.containsKey(ve.identifier().getText()))) {
+                && (currentSymbolTable == null
+                    || !currentSymbolTable.containsKey(ve.identifier().getText())
+                    || ve.identifier().getText().equals(currentProcName))) {
             String pName = ve.identifier().getText();
             String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
             boolean captureOuterEnv = currentProcName != null && currentProcName.equals(pName)
@@ -1888,7 +1908,7 @@ public class CodeGenerator extends AlgolBaseListener {
                     cls.append("\n");
 
                     cls.append(".method public <init>()V\n");
-                    cls.append(". 64\n"); // TODO: calculate required stack
+                    cls.append(".limit stack 64\n"); // TODO: calculate required stack
                     cls.append(".limit locals 64\n"); // TODO: calculate required locals
                     cls.append("aload_0\n");
                     cls.append("invokespecial java/lang/Object/<init>()V\n");
@@ -2383,8 +2403,12 @@ public class CodeGenerator extends AlgolBaseListener {
                         if (selfThunkSlot == null) {
                             selfThunkSlot = allocateNewLocal(selfThunkLocal);
                             currentLocalIndex.put(selfThunkLocal, selfThunkSlot);
-                            // initialize the local slot (null) so the verifier is satisfied
-                            sb.append("aconst_null\n");
+                            // Seed the activation-local self-thunk slot from the current
+                            // dynamic self-thunk field so thunk re-entry can reuse the
+                            // active closure instead of always synthesizing a fresh one.
+                            sb.append("getstatic ").append(packageName).append("/").append(className)
+                              .append("/").append(selfThunkFieldName(vn))
+                              .append(" Lgnb/jalgol/compiler/Thunk;\n");
                             sb.append("astore ").append(selfThunkSlot).append("\n");
                         }
                         String useExisting = "selfthunk_use_" + thunkCounter + "_" + ai;
@@ -2416,6 +2440,7 @@ public class CodeGenerator extends AlgolBaseListener {
                                             .collect(Collectors.joining("", "(", ")V"));
                         sb.append("invokespecial ").append(thunkClass)
                           .append("/<init>").append(ctorDesc).append("\n");
+                        sb.append("checkcast gnb/jalgol/compiler/Thunk\n");
                         sb.append("dup\n");
                         sb.append("astore ").append(selfThunkSlot).append("\n");
                         sb.append("goto ").append(done).append("\n");
@@ -2616,6 +2641,47 @@ public class CodeGenerator extends AlgolBaseListener {
             }
         }
         return null;
+    }
+
+    private SymbolTableBuilder.ProcInfo getEnclosingProcedureInfo(String name) {
+        for (String outerProc : savedProcNameStack) {
+            if (outerProc == null || !outerProc.equals(name)) continue;
+            return procedures.get(outerProc);
+        }
+        return null;
+    }
+
+    private boolean isProcedureReturnTarget(String name, boolean rhsIsProcedureRef) {
+        if (rhsIsProcedureRef) return false;
+        String returnType = getProcedureReturnTargetType(name, false);
+        return returnType != null && !"void".equals(returnType);
+    }
+
+    private boolean isEnclosingProcedureReturnTarget(String name, boolean rhsIsProcedureRef) {
+        if (rhsIsProcedureRef || name == null || name.equals(currentProcName)) return false;
+        SymbolTableBuilder.ProcInfo outerInfo = getEnclosingProcedureInfo(name);
+        return outerInfo != null && !"void".equals(outerInfo.returnType);
+    }
+
+    private String getProcedureReturnTargetType(String name, boolean rhsIsProcedureRef) {
+        if (rhsIsProcedureRef || name == null) return null;
+        if (name.equals(currentProcName) && procRetvalSlot >= 0) {
+            return currentProcReturnType;
+        }
+        SymbolTableBuilder.ProcInfo outerInfo = getEnclosingProcedureInfo(name);
+        if (outerInfo != null && !"void".equals(outerInfo.returnType)) {
+            return outerInfo.returnType;
+        }
+        return null;
+    }
+
+    private boolean isProcedureVariableTarget(String name, boolean rhsIsProcedureRef) {
+        if (isProcedureReturnTarget(name, rhsIsProcedureRef)) return false;
+        String type = currentSymbolTable.get(name);
+        if (type == null && mainSymbolTable != null) {
+            type = mainSymbolTable.get(name);
+        }
+        return type != null && type.startsWith("procedure:");
     }
 
     private String envThunkFieldName(String procName, String paramName) {
@@ -3102,14 +3168,16 @@ public class CodeGenerator extends AlgolBaseListener {
             // Check if this name refers to a procedure variable
             String varType = lookupVarType(procName);
             boolean isProcVar = varType != null && varType.startsWith("procedure:");
+            SymbolTableBuilder.ProcInfo declaredProc = procedures.get(procName);
+            boolean preferDirectProcedureCall = declaredProc != null && !"void".equals(declaredProc.returnType);
 
             // If this is a declared procedure, invoke its body.
             // If the name is also a procedure variable, calls should route through the
             // current binding (procedure variable) so assignment to the variable affects
             // subsequent calls.
             String callCode;
-            if (procedures.containsKey(procName)) {
-                if (isProcVar) {
+            if (declaredProc != null) {
+                if (isProcVar && !preferDirectProcedureCall) {
                     callCode = generateProcedureVariableCall(procName, varType, e.argList().arg());
                 } else {
                     callCode = generateUserProcedureInvocation(procName, e.argList().arg(), false);
@@ -3125,8 +3193,8 @@ public class CodeGenerator extends AlgolBaseListener {
             // variable, the call is implemented as a `void` invoke and stores the result in
             // the procedure variable (e.g. __proc_make). In expression context we need to
             // preserve the original binding, return the new value, and restore the old one.
-            if (procedures.containsKey(procName) && isProcVar) {
-                String procReturnType = procedures.get(procName).returnType;
+            if (declaredProc != null && isProcVar) {
+                String procReturnType = declaredProc.returnType;
                 if ("void".equals(procReturnType)) {
                     int saveSlot = allocateNewLocal("procVar");
                     String currentBinding = generateProcedureVariableLoad(procName, varType);
