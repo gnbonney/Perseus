@@ -576,7 +576,7 @@ Algol allows formals without an explicit base type (deferred-typing). To handle 
 - [x] Codegen: string operations (assignment, concatenation, character access)
 - [x] Codegen: `concat(s1, s2)` built-in function — implemented in `BuiltinFunctionGenerator`
 - [x] Codegen: `length(s)` and `substring(s, i, j)` built-in functions
-- [ ] Codegen: `instring` procedure — not yet implemented (separate milestone, M11C.3)
+- [x] Codegen: `instring` procedure — implemented in Milestone 11C.3 via `Scanner.nextLine()` for string variable input
 - [x] Test: assert output matches expected formatted string for `string_output.alg`
 
 **Implementation notes:**
