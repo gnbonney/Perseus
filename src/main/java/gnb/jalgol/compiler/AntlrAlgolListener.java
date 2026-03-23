@@ -111,17 +111,6 @@ public class AntlrAlgolListener {
 			Files.writeString(procIfaceFile, PROCEDURE_INTERFACES_JASMIN);
 		}
 
-		// Assemble the procedure interfaces if they were emitted alongside this file
-		Path procIface = jasminFile.getParent().resolve("ProcedureInterfaces.j");
-		if (java.nio.file.Files.exists(procIface)) {
-			try {
-				assembleOne(procIface, outputDir);
-			} catch (InterruptedException e) {
-				Thread.currentThread().interrupt();
-				throw new IOException("Assembly of procedure interfaces interrupted", e);
-			}
-		}
-
 		return jasminFile;
 	}
 
