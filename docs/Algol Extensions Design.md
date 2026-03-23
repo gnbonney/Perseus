@@ -163,26 +163,170 @@ For rationale and historical context, see Environmental-Block.md.
 ---
 # External Procedures
 
-NU Algol had external procedures while Simula 67 had external classes and external procedures.  They had to be declared in the program they were being used in kind of like an import statement in a java class.  In the Simula 67 standard external classes and external procedures were considered "program modules".
+NU Algol had external procedures while Simula 67 had external classes and external procedures. They had to be declared in the program they were being used in, somewhat like an import statement in a Java class. In the Simula 67 standard, external classes and external procedures were considered "program modules".
 
-In the context of a JVM compiler I think that external classes and procedures (functions) should be usable from other JVM languages.  With regard to external procedures written in Algol that would, I think, mean that such procedures should not have call-by-name parameters.  Also, I don't think you should be able to pass a label to an external procedure, and an external procedure shouldn't be able to have a GOTO leading to the outside of the procedure.
+For JAlgol on the JVM, it helps to distinguish two different use cases that both look "external" from the Algol source:
 
-An external procedure declaration would look something like this:
+1. Calling an Algol procedure that was compiled from a different `.alg` file and therefore lives in a different generated JVM class.
+2. Calling a method defined in some other JVM language, primarily Java.
 
-external <kind> <type> procedure <identifier list> ;
+Those two cases should not be treated as identical, because they have different semantic expectations. Cross-file Algol linkage is mostly a separate-compilation problem, while Java interop is a foreign-interface problem.
 
-<type> is real or integer
-<kind> language or implementation-dependent
+## Proposed Syntax
 
-In NU Algol <kind> was ALGOL or another language such as FORTRAN, but the Simula 67 standard says <kind> is implementation-dependent.  I think for a JVM Algol or Simula compiler, <kind> would generally be a class name such as:
+JAlgol should make the target model explicit:
 
-external static(java.lang.Math) real procedure cos(real a);
+```algol
+external algol(Package.ClassName) real procedure f(real x);
+external java static(java.lang.Math) real procedure cos(real x);
+external java virtual(java.lang.System.out, java.io.PrintStream) procedure print(string s);
+```
 
-or
+The intent is:
 
-external virtual(java.lang.System.out, java.io.PrintStream) procedure print(string s);
+- `external algol(...)`
+  - Calls a procedure previously compiled from Algol into another generated JVM class.
+  - Uses JAlgol's own notion of procedures, type coercions, and return conventions.
+- `external java ...`
+  - Calls a JVM member intended for Java-style interop.
+  - Uses a stricter, Java-friendly subset of parameter passing.
 
-This would provide an easy way to get at some of the most frequently used JRE functions rather than hard-coding inline Jasmine code.
+This split is preferable to a single generic `external <kind>` form because it makes the allowed semantics and type rules much easier to explain and enforce.
+
+## External Algol
+
+`external algol(TargetClass)` is intended for separate compilation. A program in one file should be able to call an Algol procedure whose definition was compiled into another generated class.
+
+Example:
+
+```algol
+external algol(mylib.Numeric) real procedure hypot(real a, b);
+```
+
+This should lower to a call to the generated static entry point in `mylib/Numeric`, using the same conventions JAlgol already uses internally for ordinary procedure calls.
+
+### Design Goals
+
+- Allow one Algol compilation unit to call procedures defined in another.
+- Keep the mental model close to "this is still an Algol procedure", not "this is Java FFI".
+- Reuse JAlgol's existing procedure machinery where possible.
+
+### Restrictions
+
+Even for external Algol, the first version should stay conservative:
+
+- No label parameters.
+- No switch parameters until Milestone 22 is implemented.
+- No non-local `goto` across compilation-unit boundaries.
+- No call-by-name interop in the first version unless the callee signature can be described exactly in JAlgol terms.
+
+That last point matters because JAlgol's current call-by-name lowering depends on generated `Thunk` classes and environment-bridging conventions. It is possible to support cross-file Algol call-by-name eventually, but only if the external declaration can fully describe the callee's thunk-based ABI. For an initial design, external Algol procedures should therefore default to value-compatible signatures.
+
+## External Java
+
+`external java` is for calling methods from Java or other JVM languages that expose ordinary JVM methods.
+
+Examples:
+
+```algol
+external java static(java.lang.Math) real procedure cos(real x);
+external java static(java.lang.Integer) integer procedure parseInt(string s);
+external java virtual(java.lang.System.out, java.io.PrintStream) procedure print(string s);
+```
+
+Here `static(...)` names the owning class, while `virtual(targetExprType, ownerType)` is a sketch for calling an instance method through a receiver object. The exact surface syntax can still evolve, but the important point is that Java linkage should be explicit.
+
+### Restrictions
+
+External Java procedures should be deliberately narrower than ordinary Algol procedures:
+
+- Only call-by-value-compatible parameters.
+- No call-by-name parameters.
+- No label parameters.
+- No switch parameters.
+- No `goto` semantics crossing the boundary.
+- No dependence on caller environment or thunk refresh behavior.
+
+In other words, `external java` should model a normal JVM method call, not attempt to export full Algol parameter-passing semantics onto Java.
+
+## Parameter Passing Model
+
+The design must take into account that Java passes arguments by value, while Algol has both call-by-value and call-by-name, and Simula adds call-by-reference.
+
+For JAlgol external procedures:
+
+- `external java` should map only to call-by-value-compatible signatures.
+- `external algol` may eventually support richer conventions, but the first implementation should also be limited to value-compatible signatures unless the ABI is specified more formally.
+
+That means the declaration itself should communicate that an external boundary is not the place to silently synthesize Jensen's Device semantics.
+
+## Algol to Java Type Mapping
+
+For `external java`, JAlgol should define an explicit marshaling table instead of relying on ad hoc JVM coercions.
+
+Recommended first-pass mapping:
+
+| Algol type | Java/JVM view |
+|---|---|
+| `integer` | `int` |
+| `real` | `double` |
+| `Boolean` / boolean-valued expression | `boolean` |
+| `string` | `java.lang.String` |
+| `procedure` value | Not supported in first version, unless mapped explicitly to a JVM interface |
+| `array` | Not supported in first version |
+| `label` | Not supported |
+| `switch` | Not supported |
+
+Notes:
+
+- `string` is already a natural interop case because JAlgol's string design intentionally targets Java `String`.
+- `integer -> real` widening may be allowed automatically where the target JVM signature expects `double`.
+- `real -> integer` should **not** silently use Java's truncating cast if JAlgol wants to preserve Algol-style rounding semantics. This boundary needs to be specified explicitly.
+- Return values should follow the same mapping in reverse.
+
+## Algol to Algol External Type Mapping
+
+For `external algol`, the mapping should follow JAlgol's internal procedure ABI rather than Java source-language expectations.
+
+For the first version, that likely means:
+
+| Algol declaration type | Generated JVM form |
+|---|---|
+| `integer` parameter | `I` |
+| `real` parameter | `D` |
+| `string` parameter | `Ljava/lang/String;` |
+| procedure return `integer` | `I` |
+| procedure return `real` | `D` |
+| procedure return `string` | `Ljava/lang/String;` |
+| no declared return type | `V` |
+
+As the compiler grows support for stable cross-file procedure-value and thunk ABIs, this table can be extended to include procedure references and name parameters. But those should not be promised until the ABI is documented and tested.
+
+## Lowering Strategy
+
+### External Algol
+
+- Resolve the target generated class from the declaration.
+- Emit a direct `invokestatic` to the generated procedure entry point.
+- Apply the same JAlgol-side coercions used for normal internal procedure calls.
+- Require the external declaration to match the compiled Algol signature exactly.
+
+### External Java
+
+- Resolve the target class/member from the declaration.
+- Type-check actual arguments against the external signature using the Algol-to-Java mapping table.
+- Emit `invokestatic`, `invokevirtual`, or `invokeinterface` as appropriate.
+- Apply only documented coercions at the boundary.
+
+## Rationale
+
+This split gives JAlgol a cleaner long-term story:
+
+- `external algol` solves separate compilation and library reuse for Algol code.
+- `external java` solves JVM ecosystem interop.
+- The compiler does not need to pretend that Java methods support Algol call-by-name, labels, or designational control flow.
+
+It also fits the current architecture well. JAlgol already generates JVM-static procedure entry points and already distinguishes between ordinary value passing and thunk-based call-by-name lowering. External linkage should build on those realities instead of hiding them.
 
 # Lambda Notation
 

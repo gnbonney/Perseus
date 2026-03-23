@@ -647,16 +647,87 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 ---
 
-## Future Milestones (not yet sequenced)
+## Milestone 21 — Nested Procedures with Non-Local Variable Access
 
-- **`jalgol` CLI** — a command-line entry point mirroring `javac`: accepts one or more `.alg` source files, optional `-d <outdir>` flag, invokes the compiler pipeline and Jasmin assembler, exits non-zero on errors. Produces `Hello.class` and any `Hello$ThunkN.class` files in the output directory. No JAR packaging required — users run with `java -cp <outdir> Hello`.
-- Nested procedures with non-local variable access (display/frame pointer)
-- Algol 60 formal array parameters
-- File I/O extensions (`openfile`, `closefile`, extended channel support) — channels 2+ mapped to files; all I/O procedures extended to use dynamic stream dispatch; error handling via `fault`
-- External procedures — declare and call JVM static/virtual methods from Algol; syntax along the lines of `external static(java.lang.Math) real procedure cos(real a);`; restrictions: no call-by-name parameters, no label parameters, no external goto (see Algol Extensions.md)
-- Lambda notation — anonymous procedure expressions (`λ(x) x × x`); syntactic sugar for inline procedure values; useful for higher-order procedures and call-by-name arguments (see Algol Extensions.md)
-- Formatted I/O — `outformat(channel, format, ...)` and `informat(channel, format, ...)` with Algol-style format strings (e.g. `"I5, F8.2, A10"`); includes string channel support via `openstring`/`closefile` for sprintf-style output (see Algol Extensions.md and Environmental-Block.md)
+**Priority:** Highest remaining core-language milestone.
 
+**Goal:** Replace the remaining fragile environment-bridge cases with a solid model for nested procedures reading and updating outer-scope locals.
+
+- [ ] Implement a durable non-local access strategy (display/frame-pointer style, or an equivalent model that scales beyond the current bridge approach)
+- [ ] Support nested procedures reading and writing outer locals and arrays in more complex activation patterns
+- [ ] Add focused regression tests beyond `pi2.alg` for nested state mutation and re-entrant activations
+
+## Milestone 22 — Label and Switch Parameters / Designational Exits
+
+**Priority:** Core Algol 60 completeness milestone that should follow naturally after switch declarations.
+
+**Goal:** Allow labels and switches to be passed as parameters and used for procedure-mediated exits, matching real Algol 60 designational-expression semantics more closely.
+
+- [ ] Grammar: `label` and `switch` formal parameter specifiers
+- [ ] Procedure calls: pass labels and switches as actual parameters
+- [ ] Codegen: support designational exits through passed labels/switches where legal
+- [ ] Enforce or document the goto-scope restrictions that still apply
+
+## Milestone 23 — Algol 60 Formal Array Parameters
+
+**Priority:** Final major core-language data-passing feature.
+
+**Goal:** Support formal array parameters in procedures, including realistic report-style numeric code.
+
+- [ ] Grammar and symbol-table support for formal array parameters
+- [ ] Codegen for array descriptor/bounds passing and indexed access inside callees
+- [ ] Tests with array-processing procedures drawn from classic Algol-style examples
+
+## Milestone 24 — Dynamic Channels and File I/O
+
+**Priority:** First post-core runtime milestone.
+
+**Goal:** Move beyond channels 0/1 and support the modified-report style file/string channel model (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
+
+- [ ] Implement `openfile`, `closefile`, and channel-to-stream mapping for channels 2+
+- [ ] Extend input/output procedures to use dynamic stream dispatch instead of only `System.out` / `System.err`
+- [ ] Cover error-handling paths through `fault`
+
+## Milestone 25 — Formatted I/O
+
+**Goal:** Implement `outformat` and `informat` with Algol-style format strings and channel-backed formatting workflows (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
+
+- [ ] `outformat(channel, format, ...)`
+- [ ] `informat(channel, format, ...)`
+- [ ] String-channel formatting scenarios (`openstring`, `closefile`, sprintf-like usage)
+
+## Milestone 26 — CLI and Compiler UX
+
+**Goal:** Turn the existing CLI into a real compiler front end suitable for everyday use.
+
+- [ ] `jalgol` command mirroring `javac` for one or more `.alg` files
+- [ ] Optional `-d <outdir>` and sensible output layout
+- [ ] Stable exit codes and clearer user-facing error output
+
+## Milestone 27 — External Procedures
+
+**Goal:** Allow Algol code to declare and call JVM methods explicitly (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
+
+- [ ] Syntax for external static/virtual procedure declarations
+- [ ] Codegen and type-checking for JVM interop calls
+- [ ] Restrictions documented clearly (for example: no call-by-name label/switch interop)
+
+## Milestone 28 — Lambda Notation
+
+**Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
+
+- [ ] Syntax and parsing for lambda-style procedure literals
+- [ ] Lowering strategy onto existing procedure-reference infrastructure
+- [ ] Tests for higher-order procedure use cases
+
+## Notes on Prioritization
+
+The order above is intentional:
+1. Finish the biggest remaining **core Algol 60** semantic gaps first (`21`–`23`).
+2. Then complete the most valuable **runtime/library** work (`24`–`25`).
+3. After that, improve **tooling and extensions** (`26`–`28`).
+
+This also highlights one milestone we should explicitly add beyond the old future list: **label and switch parameters / designational exits**. That is the main remaining core Algol 60 feature family that was not clearly called out before.
 # Completed from previous Future Milestones:
 # - Standard math functions (`abs`, `sqrt`, `sin`, `cos`, `ln`, `exp`, etc.) — ✅ Milestone 11A
 # - `pi.alg` — `real` procedures; `sqrt` standard function — ✅ Milestone 11F
