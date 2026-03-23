@@ -988,22 +988,12 @@ end
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run FixLimits to verify and fix the generated class
-		String inputClass = BUILD_DIR.resolve("gnb/jalgol/programs/DeferredTypingTest.class").toString();
-		String outputClass = BUILD_DIR.resolve("gnb/jalgol/programs/DeferredTypingTest_fixed.class").toString();
-		String[] fixArgs = { inputClass, outputClass };
+		// Run FixLimits to verify and fix the generated class family.
 		try {
-			FixLimits.main(fixArgs);
+			FixLimits.fixClassFamilyInPlace(BUILD_DIR.resolve("gnb/jalgol/programs/DeferredTypingTest.class"));
 		} catch (Exception e) {
 			throw new AssertionError("ASM CheckClassAdapter verification failed: " + e.getMessage(), e);
 		}
-
-		// Optionally, replace the original class with the fixed one for execution
-		Files.move(
-			BUILD_DIR.resolve("gnb/jalgol/programs/DeferredTypingTest_fixed.class"),
-			BUILD_DIR.resolve("gnb/jalgol/programs/DeferredTypingTest.class"),
-			java.nio.file.StandardCopyOption.REPLACE_EXISTING
-		);
 
 		// Run and capture output
 		String output = runClass(BUILD_DIR, "gnb.jalgol.programs.DeferredTypingTest");
@@ -1071,22 +1061,12 @@ end
 		// Assemble to .class
 		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
 
-		// Run FixLimits to verify and fix the generated class
-		String inputClass = BUILD_DIR.resolve("gnb/jalgol/programs/ManBoy.class").toString();
-		String outputClass = BUILD_DIR.resolve("gnb/jalgol/programs/ManBoy_fixed.class").toString();
-		String[] fixArgs = { inputClass, outputClass };
+		// Run FixLimits to verify and fix the generated class family.
 		try {
-		    FixLimits.main(fixArgs);
+		    FixLimits.fixClassFamilyInPlace(BUILD_DIR.resolve("gnb/jalgol/programs/ManBoy.class"));
 		} catch (Exception e) {
 		    throw new AssertionError("ASM CheckClassAdapter verification failed: " + e.getMessage(), e);
 		}
-
-		// Optionally, replace the original class with the fixed one for execution
-		Files.move(
-		    BUILD_DIR.resolve("gnb/jalgol/programs/ManBoy_fixed.class"),
-		    BUILD_DIR.resolve("gnb/jalgol/programs/ManBoy.class"),
-		    java.nio.file.StandardCopyOption.REPLACE_EXISTING
-		);
 
 		// Run and capture output with a timeout so a bad recursive/codegen path
 		// fails fast instead of hanging the test suite indefinitely.
