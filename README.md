@@ -20,6 +20,12 @@ Why create a new Algol compiler?
 * **Readable, Maintainable Code:** ALGOL 60’s low semantic density and mathematical clarity make it ideal for readable, maintainable code—benefiting education, research, and AI-driven development.
 * **Open, Extensible Architecture:** JAlgol is built for extensibility, supporting future language features, research extensions, and integration with next-generation tooling.
 
+## Project Status
+
+JAlgol currently passes all 55 unit tests as of March 22, 2026, including Donald Knuth's classic Man-or-Boy test.
+
+In Knuth's old jargon, that makes this a "man" compiler: JAlgol can compile and run `manboy.alg` correctly and produce the expected answer `-67.0`.
+
 ## Building the Project
 
 This project uses Gradle for build and dependency management.
@@ -49,10 +55,10 @@ See [docs/Gradle-Build.md](docs/Gradle-Build.md) for more details.
 The `compileAlgol` Gradle task simplifies the process of compiling Algol source files into Jasmin assembly and then assembling the Jasmin files into JVM class files. This task performs the following steps:
 
 1. **Compile Algol to Jasmin**:
-   - The task uses the `AntlrAlgolListener` class to parse the Algol source file and generate a Jasmin `.j` file.
+   - The task uses the `AntlrAlgolListener` class to parse the Algol source file and generate the main Jasmin `.j` file plus any needed companion `.j` files for thunks and procedure references.
 
 2. **Assemble Jasmin to Class Files**:
-   - The task invokes the Jasmin assembler to convert the `.j` file into a `.class` file.
+   - The task invokes the Jasmin assembler to convert the main `.j` file, its generated companion `.j` files, and any emitted support interfaces into `.class` files.
 
 ### Running the Task
 
@@ -64,8 +70,8 @@ gradle compileAlgol -PinputFile=test/algol/myfile.alg -PoutputDir=build/output -
 
 This will:
 1. Compile the Algol source file located at `test/algol/myfile.alg`.
-2. Generate the Jasmin file (`MyClass.j`) in the `build/output` directory.
-3. Assemble the Jasmin file into a JVM class file (`MyClass.class`) in the same directory.
+2. Generate the main Jasmin file (`MyClass.j`) and any needed companion `.j` files in the `build/output` directory.
+3. Assemble that Jasmin family into JVM class files in the same directory.
 
 ### Default Behavior
 If no parameters are provided, the task defaults to:
@@ -75,8 +81,11 @@ If no parameters are provided, the task defaults to:
 
 ### Output
 After running the task, you can find the following files in the specified output directory:
-- `MyClass.j`: The generated Jasmin assembly file.
-- `MyClass.class`: The compiled JVM class file.
+- `MyClass.j`: The generated main Jasmin assembly file.
+- `MyClass.class`: The compiled main JVM class file.
+- `MyClass$ThunkN.j` / `MyClass$ThunkN.class`: Generated when call-by-name thunks are needed.
+- `MyClass$ProcRefN.j` / `MyClass$ProcRefN.class`: Generated when procedure references are needed.
+- `Thunk.j` / `Thunk.class` and `ProcedureInterfaces.j` / companion interface `.class` files when the program needs those runtime support interfaces.
 
 You can then run the compiled class file using the `java` command:
 
@@ -104,13 +113,14 @@ java -cp build/classes/java/main gnb.jalgol.cli.JAlgolCLI test/algol/hello.alg b
 
 This will:
 1. Compile the Algol source file located at `test/algol/hello.alg`.
-2. Generate the Jasmin file (`Hello.j`) in the `build/output` directory.
-3. Assemble the Jasmin file into a JVM class file (`Hello.class`) in the same directory.
+2. Generate the main Jasmin file (`Hello.j`) and any needed companion `.j` files in the `build/output` directory.
+3. Assemble that Jasmin family into JVM class files in the same directory.
 
 ### Output
 After running the CLI, you can find the following files in the specified output directory:
-- `Hello.j`: The generated Jasmin assembly file.
-- `Hello.class`: The compiled JVM class file.
+- `Hello.j`: The generated main Jasmin assembly file.
+- `Hello.class`: The compiled main JVM class file.
+- `Hello$ThunkN.*` and `Hello$ProcRefN.*` companions when the program uses call-by-name parameters or procedure references.
 
 You can then run the compiled class file using the `java` command:
 

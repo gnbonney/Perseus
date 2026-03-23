@@ -9,26 +9,26 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 ## Current Status
 
 
-**51/53 tests passing as of March 21, 2026.** Current failing tests:
+**55/55 tests passing as of March 22, 2026.**
 
-- `AntlrAlgolListenerTest.manboy_test()` (ASM verification fails due deferred/boxed primitives path)
-- `AntlrAlgolListenerTest.primer2()` (existing goto/label handling regression)
+Recent milestone wins:
 
-`AntlrAlgolListenerTest.deferred_typing_test()` is now passing after fixing its thunk dispatch path.
+- `AntlrAlgolListenerTest.manboy_test()` now passes. JAlgol compiles and runs Knuth's Man-or-Boy test correctly and returns `-67.0`.
+- `AntlrAlgolListenerTest.primer2()` now uses an explicit expected-timeout path so its intentional infinite loop cannot be mistaken for a normal passing run.
+- `FixLimits` now verifies generated class families (`Main.class` plus `Main$*.class`), not just the main class.
+- The Jasmin pipeline is cleaner: `compileToFile()` writes the `.j` family, `assemble()` assembles that family, and tests can post-process the resulting class family in place.
 
-The `thunk_closure_isolation_test` issue has been fixed with procedure variable call stack balance corrections and no more `VerifyError` for void procedure variable call paths.
-
-**Empirical bytecode verification (ASM) is now integrated for `manboy_test`.**
-
-**Root cause:** ASM CheckClassAdapter reports a JVM type error: primitive doubles are being stored directly in `Object[]` arrays for procedure argument passing, and call-by-name deferred typing path may currently emit unboxed `Integer`/`Double` mixing that triggers runtime `ClassCastException` in thunk wrappers.
-
-**Next steps:**
-1. Ensure codegen boxes all primitives before storing in `Object[]` for procedure calls (see `ExpressionGenerator`/`StatementGenerator`).
-2. Fix deferred-typing thunk dispatch in `ProcedureGenerator`/`CodeGenerator` so `BaseType.REAL`/`INTEGER` handling is consistent from thunk creation to `eval()/set()` extraction.
-3. Re-run ASM verification and confirm `manboy_test` and `deferred_typing_test` pass.
-4. See `docs/ManBoy-Debugging.md` for full analysis and findings.
+**Near-term next steps:**
+1. Continue the remaining language milestones (`own` variables and `switch` declarations).
+2. Keep expanding regression coverage around higher-order call-by-name and procedure-reference edge cases.
+3. Keep improving stack/local limit precision while retaining `FixLimits` as a verification backstop.
 
 ### Resolved Issues
+
+- Procedure-call boxing: procedure-reference invocation now boxes primitive arguments before storing them in `Object[]`.
+- Man-or-Boy recursion semantics: recursive procedure-identifier thunks now refresh re-entrant state correctly, nested procedures save/clear/restore `__selfThunk_*` bridges per activation, and `manboy.alg` returns the correct `-67.0`.
+- Generated class-family verification: `FixLimits.fixClassFamilyInPlace()` verifies the main generated class and all companion `$*.class` files.
+- Assembly pipeline cleanup: `compileToFile()` only emits Jasmin files and `assemble()` is the single place that assembles the full family.
 
 - ✅ **ParseTreeWalker / procedure inlining** — procedures are now correctly generated as separate static methods via the two-pass architecture.
 - ✅ **CodeGenerator.java size limit** — refactored into modular delegation architecture; `CodeGenerator` delegates to `ExpressionGenerator`, `StatementGenerator`, and `ProcedureGenerator`.
@@ -446,26 +446,24 @@ integer and string arguments.
 **Rationale:** `manboy.alg` (13E) already exercises mutual recursion and deep recursive calls. No additional deep recursion milestone is needed.
 
 
-### 13E — Man or Boy (`manboy.alg`) ⚠️ IN PROGRESS
+### 13E - Man or Boy (`manboy.alg`) DONE
 
 **Goal:** Full Man or Boy test with all features integrated.
 
-**Status: IN PROGRESS (JVM verifier failure remaining).**
-- Fixes applied for procedure-variable call object argument boxing; the previous `TypeError` path `expected R but found D` is resolved.
-- Current failure now is post-compilation ASM verification (`org.objectweb.asm.tree.analysis.AnalyzerException`) in the generated class mirror of `manboy_test`.
-- Diagnostic improvements are in place in `AntlrAlgolListener.compileToFile()`: immediate exception chain and full stack from underlying compilation context are now propagated.
-- Next concrete step: inspect and adjust the generated `aastore` call site for thunk-driven recursive procedure invocation in `CodeGenerator.generateProcedureVariableCallViaStaticField` to ensure all values are boxed and correct during nested recursive call-by-name procedure reference passing.
+**Status: PASSING** (`manboy_test` green as of March 22, 2026).
 
-**Note:** `testProcedureVariableCallBug` regression is now passing after `proceduresSupplier` null-safe path patch in `ProcedureGenerator`.
+**What was required to get it passing:**
+- [x] Box procedure-call arguments before storing them in `Object[]` for procedure-reference invocation.
+- [x] Clean up the Jasmin pipeline so `compileToFile()` writes the `.j` family and `assemble()` handles the family assembly step.
+- [x] Run ASM recomputation and verification across the full generated class family, not just the main class.
+- [x] Track nested procedures in `SymbolTableBuilder` so procedure entry/exit can save, clear, and restore nested `__selfThunk_*` bridges.
+- [x] Add a `sync()` hook to generated thunks so recursive procedure-identifier actuals can refresh their captured bridged environment before re-entrant reuse.
+- [x] Avoid the stale end-of-`get()` overwrite that had been resetting captured bridged parameters after recursive calls.
+- [x] Keep timeout-based tests explicit so recursion failures fail loudly instead of looking like normal passes.
 
+**Result:** `manboy.alg` now compiles, assembles, passes ASM verification, runs to completion, and prints the correct answer `-67.0`.
 
-**Root cause:** Codegen emits primitives directly into `Object[]` for procedure argument passing. All primitives must be boxed (e.g., `Double.valueOf`) before storing in `Object[]`.
-
-**Immediate TODO:**
-- [ ] Update codegen to box all primitives before storing in `Object[]` for procedure calls (see `ExpressionGenerator`/`StatementGenerator`).
-- [ ] Re-run ASM verification and confirm `manboy_test` passes.
-
-**Reference:** See `docs/ManBoy-Debugging.md` for ASM output and detailed analysis.
+**Reference:** See `docs/ManBoy-Debugging.md` for the debugging history and the intermediate verifier/runtime failure analysis.
 
 ---
 
@@ -473,14 +471,19 @@ integer and string arguments.
 
 Algol allows formals without an explicit base type (deferred-typing). To handle this correctly and avoid brittle global defaults, implement call-site deferred-typing as a focused milestone between ManBoy and Milestone 14.
 
-**Status: NEARLY COMPLETE.**
+**Status: COMPLETE.**
 
 - [x] Design call-site deferred-typing resolution: choose base type at each call site from (1) declared formal (if present), (2) inferred type of the actual, else (3) conservative fallback `integer`.
 - [x] Implement initial thunk/descriptor generation using call-site-resolved/deferred base types (updated `CodeGenerator` and `SymbolTableBuilder` integration).
 - [x] Fix runtime dispatch in deferred `Thunk.set/get` so integer vs real value conversions are handled without `ClassCastException`.
 - [x] Confirm `deferred_typing_test` passes after implementation.
-- [ ] Add unit tests covering mixed-type name-parameters (integer ↔ real) and missing formal types (small focused sample and ManBoy reproduction cases).
-- [ ] Update documentation: explain deferred-typing behavior in `docs/Algol.md` and `docs/Compiler-TODO.md`.
+- [x] Add unit tests covering mixed-type name-parameters (integer ↔ real) and missing formal types (small focused sample and ManBoy reproduction cases).
+- [x] Update documentation: explain deferred-typing behavior in `docs/Algol.md` and `docs/Compiler-TODO.md`.
+
+**Regression coverage now includes:**
+- `deferred_typing_test`
+- `deferred_name_params_mixed_type_test`
+- `deferred_missing_formal_types_test`
 
 
 ## Milestone 14 — Procedure Parameters and Real Arrays (`recursion_euler.alg`) ✅
@@ -653,7 +656,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 # - Standard I/O (`instring`) (M11C.3) — ✅ Milestone 18 (implemented; Scanner.nextLine())
 # - Error handling (`fault` procedure) — ✅ Milestone 11D
 # - `jen.alg` (call-by-name) — Milestone 12
-# - `manboy.alg` (deep recursion + procedure refs) — Milestone 13 (in progress; currently one failing test)
+# - `manboy.alg` (deep recursion + procedure refs) - completed in Milestone 13E
 # - `recursion_euler.alg` (procedure parameters + real arrays) — Milestone 14
 # - `pi2.alg` (non-local scalar access) — Milestone 15
 # - `boolean_operators.alg` — Milestone 16
@@ -690,3 +693,4 @@ To ensure long-term maintainability and enable advanced tooling/AI workflows, th
 - Consistent debug metadata: line number tables, local variable tables, source-to-bytecode mapping.
 - Modern CLI commands: `check`, `emit-jasmin`, `emit-ast`, `emit-jvmir`, etc.
 - Versioned diagnostic schemas, stable IR formats, and LSP (Language Server Protocol) integration.
+

@@ -9,7 +9,8 @@ The project consists of several main components:
 - **Pass 1 — Symbol Table Construction:** Walks the parse tree to collect variable names, types, and block scope nesting. Required before code generation because Jasmin needs `.limit locals N` declared before method body instructions, and forward `goto` labels must be known before jumps are emitted.
 - **Pass 1.5 — Type Inference:** Walks the parse tree after symbol table construction to annotate every expression node with its resolved type (`integer`, `real`, `boolean`, `string`, or `procedure:T`). Required because `CodeGenerator` must select different JVM instructions depending on expression type (e.g. `iadd` vs `dadd`), and those types must be fully resolved before any code is emitted.
 - **Pass 2 — Code Generation:** Walks the parse tree a third time, using both the symbol table from Pass 1 and the type annotations from Pass 1.5, to emit Jasmin assembly instructions.
-- **Assembly:** Jasmin assembles the `.j` output into JVM `.class` files.
+- **Assembly:** Jasmin assembles the generated `.j` family into JVM `.class` files.
+- **Post-Assembly Verification:** Tests can run `FixLimits` over the generated class family to recompute frames/max stack and catch verifier problems across the main class and its companions.
 - **Testing & Samples:** Includes sample Algol programs and JUnit tests for validation.
 - **Supporting Tools:** Soot can be used standalone for bytecode analysis/disassembly but is not a build dependency (see [Development.md](Development.md)).
 
@@ -64,10 +65,15 @@ The compiler produces one or more `.class` files per Algol source file:
 - **`Hello$Thunk0.class`, `Hello$Thunk1.class`, …** — synthetic thunk classes, one per call-by-name argument at each call site that uses a procedure with name-parameters
 - **`Hello$ProcRef0.class`, `Hello$ProcRef1.class`, …** — synthetic procedure reference classes that lift a static method to an object implementing the appropriate procedure interface (`VoidProcedure`, `RealProcedure`, `IntegerProcedure`, or `StringProcedure`). One is generated per distinct procedure variable assignment or procedure-typed argument.
 
-In addition, the following pre-compiled runtime support files are copied into the output directory alongside the program's `.class` files:
+If the program needs call-by-name thunks or procedure references, `compileToFile()` also emits support Jasmin sources alongside the main program:
 
-- **`VoidProcedure.class`**, **`RealProcedure.class`**, **`IntegerProcedure.class`**, **`StringProcedure.class`** — Java interfaces used as the type of procedure variables and procedure parameters. All `$ProcRef` classes implement one of these interfaces.
-- **`Thunk.class`** — the interface used by call-by-name thunk objects (`get()` / `set()`).
+- `Thunk.j` is emitted when generated thunk classes are needed.
+- `ProcedureInterfaces.j` is emitted when generated procedure-reference classes are needed.
+
+- **`VoidProcedure.class`**, **`RealProcedure.class`**, **`IntegerProcedure.class`**, **`StringProcedure.class`** — interface classes assembled from `ProcedureInterfaces.j` and used as the type of procedure variables and procedure parameters. All `$ProcRef` classes implement one of these interfaces.
+- **`Thunk.class`** — the interface class assembled from `Thunk.j` and used by call-by-name thunk objects (`get()` / `sync()` / `set()`).
+
+In current builds, those support classes are emitted as Jasmin when needed (`Thunk.j` and `ProcedureInterfaces.j`) and assembled together with the main program and every `Main$*.j` companion. The emitted `Thunk` interface now includes `get()`, `sync()`, and `set()`, where `sync()` lets recursive procedure-identifier thunks refresh their captured bridged environment before re-entrant reuse.
 
 This follows the same convention as `javac`, which emits `Foo$Inner.class` for inner classes and `Foo$1.class` for anonymous classes. Users run the program the same way regardless: `java -cp . Hello`. No JAR packaging is required.
 
@@ -168,22 +174,16 @@ flowchart TD
 
 ## Architectural Issues and Test-Driven Debugging
 
-Recent development has focused on fixing deep architectural issues exposed by advanced test cases, especially those involving call-by-name, closure isolation, and nested procedure semantics (see `docs/ManBoy-Debugging.md` and `docs/Compiler-TODO.md`).
+Recent development has focused on the advanced call-by-name and nested-procedure cases that culminate in Knuth's Man-or-Boy test. The important architectural lessons are now worth documenting because they are easy to regress:
 
-- **Closure/Thunk Isolation:** The compiler must ensure that each call-by-name argument and nested procedure activation receives its own mutable closure state (not a shared static field). This is critical for correct execution of programs like Man-or-Boy, which stress closure semantics and re-entrancy.
-- **Environment Bridge Refactor:** The use of static `__env_*` fields for environment bridging is being replaced by per-instance fields in generated thunks and procedure references, to avoid shared mutable state across activations.
-- **Test-Driven Refactoring:** Failing tests such as `manboy_test`, `thunk_closure_isolation_test`, and `proc_param_test` have driven architectural changes, especially in how the code generator emits and manages environment bridges, thunk construction, and variable capture.
-- **Verifier Failures:** Many failures (e.g., JVM `VerifyError` or stack discipline errors) have been traced to incorrect slot assignment, improper field access, or shared state. Fixes are ongoing and tracked in the test and debugging documentation.
-- **Safe Limit Strategy:** During this development phase, the compiler emits conservative fixed limits (e.g., `.limit stack 64`, `.limit locals 64`) to avoid early verifier failures while deep stack/local analysis is being implemented. This is intentional short-term policy for stability in complex features like nested procedures, thunks, and call-by-name.
-- **Future Limit Improvement:** Plan for precise limits is captured in `docs/StackAndLocalLimitCalculation.md`, with eventual stack simulation/local slot tracking and optional ASM-based recomputation.
+- **Static environment bridges are still part of the design.** Nested procedures currently communicate through generated static `__env_*` fields, and correctness depends on saving and restoring those bridge fields carefully at each procedure entry and exit.
+- **Nested procedure self-thunks must be scoped per activation.** When a procedure contains nested procedures, codegen now saves, clears, and restores the nested `__selfThunk_*` fields so one activation cannot leak a recursive self-thunk object into another.
+- **Recursive procedure-identifier actuals need a reusable but refreshable thunk.** For call-by-name procedure identifiers such as `B` inside Man-or-Boy, reusing the current thunk object is correct only if it is refreshed first. The generated `Thunk.sync()` hook exists specifically for that re-entrant refresh step.
+- **Refreshing at the wrong time breaks semantics.** A key Man-or-Boy bug came from overwriting a thunk's captured bridged parameters at the end of `get()`. Re-entrant recursion can already have advanced that state, so the safe refresh point is before reuse (`sync()`), not after return from the recursive call.
+- **Verifier coverage must include the whole generated family.** Problems can live in companion thunk/procedure-reference classes even when the main class verifies, so `FixLimits.fixClassFamilyInPlace()` now processes `Main.class` and every `Main$*.class`.
+- **Conservative limits plus post-processing remain the current strategy.** The compiler still emits safe fixed limits such as `.limit stack 64` and `.limit locals 64`, and tests can then use ASM recomputation as a verification and cleanup pass.
 
-The architecture is evolving to guarantee that:
-
-- All closure-captured variables are stored in per-activation fields (never shared statics).
-- Thunk and procedure reference classes are generated with correct constructor signatures and field layouts.
-- The code generator delegates all code emission to the appropriate modular generator, with shared state managed only via the `ContextManager`.
-
-For details on current failures and the debugging process, see:
+For more detail on the debugging history, see:
 - [docs/ManBoy-Debugging.md](ManBoy-Debugging.md)
 - [docs/Compiler-TODO.md](Compiler-TODO.md)
 
@@ -193,10 +193,12 @@ For details on current failures and the debugging process, see:
 To compile an Algol source file to Jasmin assembly, the following steps are performed:
 
 1. **Compile Algol to Jasmin**:
-   Use the `AntlrAlgolListener.compileToFile` method to compile the Algol source file into a Jasmin `.j` file. This method:
+   Use the `AntlrAlgolListener.compileToFile` method to compile the Algol source file into Jasmin output files. This method:
    - Parses the Algol source file.
    - Generates the Jasmin assembly code.
-   - Writes the output to the specified directory.
+   - Writes the main `.j` file to the specified directory.
+   - Writes any generated `Main$ThunkN.j` and `Main$ProcRefN.j` companions.
+   - Emits `Thunk.j` and/or `ProcedureInterfaces.j` when the program needs them.
 
    Example:
    ```java
@@ -207,14 +209,18 @@ To compile an Algol source file to Jasmin assembly, the following steps are perf
 2. **Assemble Jasmin to Class Files**:
    Use the `AntlrAlgolListener.assemble` method to convert the Jasmin `.j` file into a `.class` file. This method:
    - Assembles the main `.j` file.
-   - Assembles any companion files (e.g., Thunk classes or procedure reference classes).
+   - Assembles every matching `Main$*.j` companion file.
+   - Assembles `Thunk.j` and `ProcedureInterfaces.j` when present.
 
    Example:
    ```java
    AntlrAlgolListener.assemble(jasminFile, Paths.get("build/test-algol"));
    ```
 
-3. **Run the Compiled Class**:
+3. **Optionally verify/fix the class family**:
+   Tests can run `FixLimits.fixClassFamilyInPlace(...)` on the main generated class to recompute frames and max-stack values across the full generated class family.
+
+4. **Run the Compiled Class**:
    Use a helper method (e.g., `runClass`) to execute the compiled `.class` file and capture its output.
 
    Example:
@@ -222,7 +228,7 @@ To compile an Algol source file to Jasmin assembly, the following steps are perf
    String output = runClass(Paths.get("build/test-algol"), "gnb.jalgol.programs.Hello");
    ```
 
-These steps are demonstrated in the unit tests, such as `AntlrAlgolListenerTest.hello()`.
+These steps are demonstrated in the unit tests, including the more demanding `manboy_test`, which now compiles, verifies, and runs Knuth's classic stress test successfully.
 
 ---
 
@@ -233,9 +239,9 @@ The project includes a dedicated CLI, `JAlgolCLI`, for compiling Algol source fi
 ### Workflow with the CLI
 
 1. **Input**: Provide the Algol source file to the CLI.
-2. **Compilation**: The CLI invokes the `AntlrAlgolListener` to parse the source file and generate Jasmin assembly.
-3. **Assembly**: The Jasmin assembler converts the `.j` file into a `.class` file.
-4. **Output**: The `.class` file is ready to be executed on the JVM.
+2. **Compilation**: The CLI invokes the `AntlrAlgolListener` to parse the source file and generate the main Jasmin file plus any needed companion/support `.j` files.
+3. **Assembly**: The Jasmin assembler converts that generated `.j` family into the corresponding `.class` files.
+4. **Output**: The main program class and any required companion/support classes are ready to be executed on the JVM.
 
 ### Example Command
 
@@ -243,7 +249,7 @@ The project includes a dedicated CLI, `JAlgolCLI`, for compiling Algol source fi
 java -cp build/classes/java/main gnb.jalgol.cli.JAlgolCLI test/algol/hello.alg build/output Hello
 ```
 
-This command compiles `hello.alg` into `Hello.j` and `Hello.class` in the `build/output` directory.
+This command compiles `hello.alg` into `Hello.j`, any needed companion `.j` files, and the assembled `.class` outputs in the `build/output` directory.
 
 ---
 
@@ -266,4 +272,4 @@ This command compiles `hello.alg` into `Hello.j` and `Hello.class` in the `build
 
 ---
 
-_Last updated: March 10, 2026_
+_Last updated: March 22, 2026_
