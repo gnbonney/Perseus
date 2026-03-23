@@ -69,6 +69,7 @@ public class CodeGenerator extends AlgolBaseListener {
     private final Deque<Integer>              savedProcRetSlotStack = new LinkedList<>();
     private final Deque<Map<String, Integer>> savedEnvParamSlotsStack = new LinkedList<>();
     private final Deque<Integer>              savedEnvRetSaveSlotStack = new LinkedList<>();
+    private final Deque<Map<String, Integer>> savedNestedSelfThunkSlotsStack = new LinkedList<>();
     // Tracks whether the current procedure declaration is actually a procedure-variable declaration
     // (i.e., a `procedure p;` with no executable body) so we can skip generating a method for it.
     private final Deque<Boolean>              skipProcedureDeclStack = new LinkedList<>();
@@ -93,6 +94,7 @@ public class CodeGenerator extends AlgolBaseListener {
     private int    procRetvalSlot = -1;
     private Map<String, Integer> currentEnvParamSlots = new LinkedHashMap<>();
     private int currentEnvRetSaveSlot = -1;
+    private Map<String, Integer> currentNestedSelfThunkSlots = new LinkedHashMap<>();
 
     // For for loops
     private String currentForLoopLabel;
@@ -409,6 +411,7 @@ public class CodeGenerator extends AlgolBaseListener {
         savedProcRetSlotStack.push(procRetvalSlot);
         savedEnvParamSlotsStack.push(currentEnvParamSlots);
         savedEnvRetSaveSlotStack.push(currentEnvRetSaveSlot);
+        savedNestedSelfThunkSlotsStack.push(currentNestedSelfThunkSlots);
 
         // Make the current scope the new "outer" scope
         mainSymbolTable   = currentSymbolTable;
@@ -421,6 +424,7 @@ public class CodeGenerator extends AlgolBaseListener {
         currentProcReturnType = info.returnType;
         currentEnvParamSlots  = new LinkedHashMap<>();
         currentEnvRetSaveSlot = -1;
+        currentNestedSelfThunkSlots = new LinkedHashMap<>();
 
         Map<String, String>  procST = new LinkedHashMap<>();
         Map<String, Integer> procLI = new LinkedHashMap<>();
@@ -580,6 +584,19 @@ public class CodeGenerator extends AlgolBaseListener {
             else if ("string".equals(info.returnType)) emitStore("astore", currentEnvRetSaveSlot);
             else emitStore("istore", currentEnvRetSaveSlot);
         }
+        if (useEnvBridge(procName) && info != null) {
+            for (String nestedProcName : info.nestedProcedures) {
+                int saveSlot = currentNumLocals;
+                currentNumLocals += 1;
+                currentNestedSelfThunkSlots.put(nestedProcName, saveSlot);
+                activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                            .append("/").append(selfThunkFieldName(nestedProcName)).append(" Lgnb/jalgol/compiler/Thunk;\n");
+                emitStore("astore", saveSlot);
+                activeOutput.append("aconst_null\n");
+                activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                            .append("/").append(selfThunkFieldName(nestedProcName)).append(" Lgnb/jalgol/compiler/Thunk;\n");
+            }
+        }
         // TODO: Once we properly calculate limits everywhere, replace Math.max(currentNumLocals, 64) with exact calculation.
         ensureLocalLimit(Math.max(currentNumLocals, 64));
 
@@ -694,6 +711,15 @@ public class CodeGenerator extends AlgolBaseListener {
                             .append("/").append(envReturnFieldName(procName)).append(" ").append(rDesc).append("\n");
             }
         }
+        if (useEnvBridge(procName) && info != null) {
+            for (String nestedProcName : info.nestedProcedures) {
+                Integer saveSlot = currentNestedSelfThunkSlots.get(nestedProcName);
+                if (saveSlot == null) continue;
+                activeOutput.append("aload ").append(saveSlot).append("\n");
+                activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                            .append("/").append(selfThunkFieldName(nestedProcName)).append(" Lgnb/jalgol/compiler/Thunk;\n");
+            }
+        }
         // Emit return instruction based on return type
         if ("void".equals(currentProcReturnType)) {
             activeOutput.append("return\n");
@@ -726,6 +752,7 @@ public class CodeGenerator extends AlgolBaseListener {
         procRetvalSlot        = savedProcRetSlotStack.pop();
         currentEnvParamSlots  = savedEnvParamSlotsStack.pop();
         currentEnvRetSaveSlot = savedEnvRetSaveSlotStack.pop();
+        currentNestedSelfThunkSlots = savedNestedSelfThunkSlotsStack.pop();
     }
 
     // -------------------------------------------------------------------------
@@ -2074,28 +2101,9 @@ public class CodeGenerator extends AlgolBaseListener {
                     cls.append("putstatic ").append(packageName).append("/").append(className)
                        .append("/").append(selfThunkFieldName(pName)).append(" Lgnb/jalgol/compiler/Thunk;\n");
 
-                    for (String p : outerInfo.paramNames) {
-                        String pDesc;
-                        if (!outerInfo.valueParams.contains(p)) {
-                            pDesc = "Lgnb/jalgol/compiler/Thunk;";
-                        } else {
-                            String pType = getFormalBaseType(outerInfo, p);
-                            if ("real".equals(pType)) pDesc = "D";
-                            else if ("string".equals(pType)) pDesc = "Ljava/lang/String;";
-                            else if (pType.startsWith("procedure:")) {
-                                pDesc = switch (pType.substring("procedure:".length())) {
-                                    case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
-                                    case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
-                                    case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
-                                    default -> "Lgnb/jalgol/compiler/VoidProcedure;";
-                                };
-                            } else pDesc = "I";
-                        }
-                        cls.append("aload_0\n");
-                        cls.append("getstatic ").append(packageName).append("/").append(className)
-                           .append("/").append(envThunkFieldName(outerProc, p)).append(" ").append(pDesc).append("\n");
-                        cls.append("putfield ").append(internalName).append("/cap_").append(p).append(" ").append(pDesc).append("\n");
-                    }
+                    // Do not rewrite the captured bridged parameters here. A re-entrant
+                    // call on the same thunk can already have advanced the activation
+                    // further than the current suspended env snapshot.
                     if (!"void".equals(outerInfo.returnType)) {
                         cls.append("aload_0\n");
                         cls.append("getstatic ").append(packageName).append("/").append(className)
@@ -2169,6 +2177,40 @@ public class CodeGenerator extends AlgolBaseListener {
                     }
 
                     cls.append("areturn\n");
+                    cls.append(".end method\n\n");
+
+                    cls.append(".method public sync()V\n");
+                    cls.append(".limit stack 64\n"); // TODO: calculate required stack
+                    cls.append(".limit locals 64\n"); // TODO: calculate required locals
+                    for (String p : outerInfo.paramNames) {
+                        String pDesc;
+                        if (!outerInfo.valueParams.contains(p)) {
+                            pDesc = "Lgnb/jalgol/compiler/Thunk;";
+                        } else {
+                            String pType = getFormalBaseType(outerInfo, p);
+                            if ("real".equals(pType)) pDesc = "D";
+                            else if ("string".equals(pType)) pDesc = "Ljava/lang/String;";
+                            else if (pType.startsWith("procedure:")) {
+                                pDesc = switch (pType.substring("procedure:".length())) {
+                                    case "real" -> "Lgnb/jalgol/compiler/RealProcedure;";
+                                    case "integer" -> "Lgnb/jalgol/compiler/IntegerProcedure;";
+                                    case "string" -> "Lgnb/jalgol/compiler/StringProcedure;";
+                                    default -> "Lgnb/jalgol/compiler/VoidProcedure;";
+                                };
+                            } else pDesc = "I";
+                        }
+                        cls.append("aload_0\n");
+                        cls.append("getstatic ").append(packageName).append("/").append(className)
+                           .append("/").append(envThunkFieldName(outerProc, p)).append(" ").append(pDesc).append("\n");
+                        cls.append("putfield ").append(internalName).append("/cap_").append(p).append(" ").append(pDesc).append("\n");
+                    }
+                    if (!"void".equals(outerInfo.returnType)) {
+                        cls.append("aload_0\n");
+                        cls.append("getstatic ").append(packageName).append("/").append(className)
+                           .append("/").append(envReturnFieldName(outerProc)).append(" ").append(retDesc).append("\n");
+                        cls.append("putfield ").append(internalName).append("/cap_ret ").append(retDesc).append("\n");
+                    }
+                    cls.append("return\n");
                     cls.append(".end method\n\n");
 
                     cls.append(".method public set(Ljava/lang/Object;)V\n");
@@ -2269,6 +2311,11 @@ public class CodeGenerator extends AlgolBaseListener {
             cls.append("aconst_null\n");
         }
         cls.append("areturn\n");
+        cls.append(".end method\n\n");
+        cls.append(".method public sync()V\n");
+        cls.append(".limit stack 64\n"); // TODO: calculate required stack size
+        cls.append(".limit locals 64\n"); // TODO: calculate required locals
+        cls.append("return\n");
         cls.append(".end method\n\n");
         // generate set(Object) method
         cls.append(".method public set(Ljava/lang/Object;)V\n");
@@ -2398,14 +2445,13 @@ public class CodeGenerator extends AlgolBaseListener {
                     if (procedures.containsKey(vn) && currentProcName != null && currentProcName.equals(vn)) {
                         // Recursive call to this procedure: cache the thunk in a local variable
                         // so each activation has its own captured environment.
+                        // When reusing the currently-active thunk object, refresh it first so the
+                        // recursive self-reference sees the activation's latest bridged state.
                         String selfThunkLocal = "__selfThunk_" + vn;
                         Integer selfThunkSlot = currentLocalIndex.get(selfThunkLocal);
                         if (selfThunkSlot == null) {
                             selfThunkSlot = allocateNewLocal(selfThunkLocal);
                             currentLocalIndex.put(selfThunkLocal, selfThunkSlot);
-                            // Seed the activation-local self-thunk slot from the current
-                            // dynamic self-thunk field so thunk re-entry can reuse the
-                            // active closure instead of always synthesizing a fresh one.
                             sb.append("getstatic ").append(packageName).append("/").append(className)
                               .append("/").append(selfThunkFieldName(vn))
                               .append(" Lgnb/jalgol/compiler/Thunk;\n");
@@ -2445,6 +2491,8 @@ public class CodeGenerator extends AlgolBaseListener {
                         sb.append("astore ").append(selfThunkSlot).append("\n");
                         sb.append("goto ").append(done).append("\n");
                         sb.append(useExisting).append(":\n");
+                        sb.append("dup\n");
+                        sb.append("invokeinterface gnb/jalgol/compiler/Thunk/sync()V 1\n");
                         sb.append(done).append(":\n");
                         continue;
                     }

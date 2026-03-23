@@ -39,6 +39,7 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         public final Map<String, String> paramTypes = new LinkedHashMap<>();
         public final Set<String> valueParams = new LinkedHashSet<>();
         public final Map<String, String> localVars = new LinkedHashMap<>();
+        public final List<String> nestedProcedures = new ArrayList<>();
 
         public ProcInfo(String returnType) {
             this.returnType = returnType;
@@ -83,6 +84,11 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         // Note: We used to add to mainSymbolTable here (which causes it to get a slot). 
         // We now handle procedure variables (slots) through a manual scan in AntlrAlgolListener.
         // mainSymbolTable.put(name, "procedure:" + returnType);
+
+        ProcInfo outerProc = currentProc();
+        if (outerProc != null) {
+            outerProc.nestedProcedures.add(name);
+        }
 
         ProcInfo newProc = new ProcInfo(returnType);
         procedures.put(name, newProc);

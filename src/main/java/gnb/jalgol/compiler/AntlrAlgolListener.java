@@ -40,6 +40,7 @@ public class AntlrAlgolListener {
 		".interface public gnb/jalgol/compiler/Thunk\n" +
 		".super java/lang/Object\n\n" +
 		".method public abstract get()Ljava/lang/Object;\n.end method\n\n" +
+		".method public abstract sync()V\n.end method\n\n" +
 		".method public abstract set(Ljava/lang/Object;)V\n.end method\n";
 
 	/** Jasmin source for procedure reference interfaces needed by procedure-as-values compiled programs. */
