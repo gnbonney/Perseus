@@ -720,12 +720,22 @@ Here, the channel parameter is left empty, but the argument list is still presen
 - [ ] Lowering strategy onto existing procedure-reference infrastructure
 - [ ] Tests for higher-order procedure use cases
 
+## Milestone 29 — Simula-Style Classes and External Classes
+
+**Goal:** Add a class/object extension inspired by Simula 67, including a more natural model for external JVM classes (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
+
+- [ ] Design a minimal class syntax compatible with Algol/Simula style
+- [ ] Support instance fields, procedures, and object creation semantics
+- [ ] Add external java class ... style declarations for imported JVM classes
+- [ ] Define how class-based interop relates to external procedures
+- [ ] Tests for simple object-oriented and Java interop scenarios
+
 ## Notes on Prioritization
 
 The order above is intentional:
 1. Finish the biggest remaining **core Algol 60** semantic gaps first (`21`â€“`23`).
 2. Then complete the most valuable **runtime/library** work (`24`â€“`25`).
-3. After that, improve **tooling and extensions** (`26`â€“`28`).
+3. After that, improve **tooling and extensions** (`26`–`29`).
 
 This also highlights one milestone we should explicitly add beyond the old future list: **label and switch parameters / designational exits**. That is the main remaining core Algol 60 feature family that was not clearly called out before.
 # Completed from previous Future Milestones:
@@ -773,4 +783,6 @@ To ensure long-term maintainability and enable advanced tooling/AI workflows, th
 - Consistent debug metadata: line number tables, local variable tables, source-to-bytecode mapping.
 - Modern CLI commands: `check`, `emit-jasmin`, `emit-ast`, `emit-jvmir`, etc.
 - Versioned diagnostic schemas, stable IR formats, and LSP (Language Server Protocol) integration.
+
+
 

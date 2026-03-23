@@ -191,7 +191,7 @@ The intent is:
   - Calls a JVM member intended for Java-style interop.
   - Uses a stricter, Java-friendly subset of parameter passing.
 
-This split is preferable to a single generic `external <kind>` form because it makes the allowed semantics and type rules much easier to explain and enforce.
+This split is preferable to a single generic `external <kind>` form because it makes the allowed semantics and type rules much easier to explain and enforce. It also leaves room for a later Simula-inspired class extension, where imported JVM types could be declared more naturally as `external java class ...` instead of being modeled only as procedure targets.
 
 ## External Algol
 
@@ -379,3 +379,5 @@ This makes the parameter-passing mechanism explicit and generalizes it to any co
 ## Summary
 - Church's lambda notation for arrays is a formal, functional way to generalize array and call-by-name parameters using anonymous functions.
 - It is the conceptual ancestor of lambda functions and closures in modern languages.
+
+
