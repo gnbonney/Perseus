@@ -328,6 +328,174 @@ This split gives JAlgol a cleaner long-term story:
 
 It also fits the current architecture well. JAlgol already generates JVM-static procedure entry points and already distinguishes between ordinary value passing and thunk-based call-by-name lowering. External linkage should build on those realities instead of hiding them.
 
+# Exceptions
+
+Access to external Java procedures and classes strongly suggests a need for structured exception handling. Java methods may fail by throwing exceptions, and JAlgol should have a source-level way to respond to those failures without forcing everything through `fault(...)` or process termination. A block-oriented exception extension also fits Algol's existing `begin ... end` structure better than importing Java's `try/catch` syntax directly.
+
+## Design Goals
+
+- Keep the syntax Algol-like and block-oriented.
+- Support both JAlgol-signaled conditions and caught Java exceptions from `external java`.
+- Make the common case readable without forcing Java class names everywhere.
+- Preserve lexical scoping and block structure.
+- Allow a simple first implementation on the JVM using ordinary `try/catch`.
+
+## Proposed Syntax
+
+The simplest form attaches an exception part to a block:
+
+```algol
+begin
+    ...
+exception
+    when IOError do
+        outstring(0, "I/O failure");
+    when EndOfFile do
+        done := true
+end
+```
+
+Handlers are tried from top to bottom. The first matching `when` clause handles the exception. If no clause matches, the exception propagates outward to an enclosing exception block. If none exists, the program fails with the default runtime behavior.
+
+## Optional Bound Exception Variable
+
+For richer handling, a handler may bind the caught exception to a variable:
+
+```algol
+begin
+    ...
+exception
+    when java(java.io.IOException) as ex do
+        outstring(0, ex.message)
+end
+```
+
+This is especially useful for external Java interop, where the caller may want the exception message or specific exception-class discrimination.
+
+## Proposed Exception Names
+
+JAlgol should distinguish between:
+
+- **Language-level exception names**
+  - `IOError`
+  - `EndOfFile`
+  - `ArithmeticError`
+  - `BoundsError`
+  - `FaultError`
+- **Java exception patterns**
+  - `java(java.io.IOException)`
+  - `java(java.lang.IllegalArgumentException)`
+  - and similar fully qualified Java exception classes
+
+The language-level names give JAlgol code a portable vocabulary. The `java(...)` form gives precise control when interoperating with external JVM code.
+
+## Suggested Semantics
+
+- `begin ... exception ... end` establishes a protected block.
+- Normal completion skips the exception part entirely.
+- If an exception is raised inside the protected block, control transfers to the first matching `when` clause.
+- The handler runs in the lexical scope of the block, so it can inspect and update surrounding locals.
+- After the handler finishes, control continues after the whole block, not back inside the point where the exception occurred.
+- A handler may rethrow the exception with a future `raise`/`signal` statement if desired.
+
+This gives JAlgol a model closer to structured exception handling than to resumable conditions.
+
+## Raising Exceptions
+
+For completeness, the extension should eventually include an explicit way to raise exceptions in Algol code:
+
+```algol
+signal IOError;
+signal java(java.lang.IllegalStateException, "bad state");
+```
+
+The initial implementation does not need to expose every constructor form immediately. It is enough if JAlgol can:
+
+- translate internal runtime problems into language-level exception names, and
+- catch Java exceptions thrown from `external java` calls
+
+before growing a richer explicit `signal` syntax.
+
+## Interaction with Existing Procedures
+
+- `fault(...)` can remain a simple terminate-with-error procedure for compatibility.
+- Over time, some operations that currently go straight to `fault(...)` could instead raise language-level exceptions that user code may catch.
+- This would let programs choose between:
+  - fail-fast behavior
+  - local recovery
+  - translation of a low-level Java exception into a higher-level Algol condition
+
+## Interaction with External Java
+
+This extension is especially valuable for `external java`.
+
+Example:
+
+```algol
+begin
+    x := parseInt(s)
+exception
+    when java(java.lang.NumberFormatException) do
+        x := 0
+end
+```
+
+Without exception handling, Java interop would either:
+
+- force the compiler to terminate on every thrown exception, or
+- silently flatten Java exceptions into vague runtime failures
+
+Neither is a good long-term design.
+
+## JVM Lowering Strategy
+
+The obvious lowering strategy is:
+
+- compile the protected part of the block to JVM `try`
+- compile each `when` clause to a corresponding `catch`
+- translate language-level exceptions to small JAlgol runtime exception classes
+- allow `java(...)` handlers to catch matching JVM exception types directly
+
+For example:
+
+- `when IOError do ...`
+  - catches `gnb.jalgol.runtime.IOErrorException`
+- `when java(java.io.IOException) as ex do ...`
+  - catches `java/io/IOException`
+
+This is straightforward, maps well to the JVM, and avoids inventing a continuation model.
+
+## Scope and Restrictions
+
+To keep the first version robust:
+
+- handlers should attach only to `begin ... end` blocks, not individual statements
+- matching should be by exception name/class only, not arbitrary Boolean guard expressions
+- handlers should not resume execution at the throw site
+- the first implementation may omit `finally`/cleanup syntax
+
+If a cleanup feature is desired later, it could be added in an Algol-flavored way such as:
+
+```algol
+begin
+    ...
+exception
+    when IOError do ...
+finally
+    closefile(ch)
+end
+```
+
+but this should be a later layer, not part of the minimum design.
+
+## Summary
+
+- A block exception part (`begin ... exception ... end`) is the most Algol-like shape.
+- `when Name do ...` should handle language-level exceptions.
+- `when java(Fully.Qualified.Exception) as ex do ...` should handle precise Java interop failures.
+- JVM lowering is natural through ordinary `try/catch`.
+- This extension would make external Java/class interop much safer and more expressive.
+
 # Lambda Notation
 
 Rutishauser proposed, in the Handbook for Automatic Computation - Description of Algol, an extension to replace Jensen's device (call-by-name for array parameters) with Church's lambda notation for arrays. This approach is based on Alonzo Church's lambda calculus, which is the mathematical foundation for anonymous functions ("lambda functions") in modern programming languages.
