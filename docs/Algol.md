@@ -39,7 +39,7 @@ begin ...
 
 Here, reading `index` inside the procedure re-evaluates whatever variable was passed by the caller, and writing `index := index + 1` updates the caller's variable directly. Reading `expr` re-evaluates the entire expression (e.g. `i*i`) in the caller's scope on each access, so its value changes as `index` changes. This is Jensen's Device.
 
-Deferred typing: The Revised ALGOL 60 Report allowed type specifications for call-by-name parameters to be optional, which permits different call sites to pass values of different (but compatible) types to the same procedure. This is not the same as full dynamic typing: the language intent is compile-time flexibility where the compiler resolves the appropriate representation at each call site (for example, choosing whether to pass a primitive or a thunk that boxes values), rather than attaching runtime type tags to every value. In practical terms (and how JAlgol approaches it), when a formal parameter has no explicit type the compiler should prefer the declared type if present, otherwise choose the actual argument's inferred type at the call site (from `exprTypes`), and only fall back to a conservative default (e.g., `integer`) when inference is not available. This preserves Algol's higher-order/call-by-name flexibility while keeping JVM method descriptors and local-slot usage predictable.
+Deferred typing: The Revised ALGOL 60 Report allowed type specifications for call-by-name parameters to be optional, which permits different call sites to pass values of different (but compatible) types to the same procedure. This is not the same as full dynamic typing: the language intent is compile-time flexibility where the compiler resolves the appropriate representation at each call site (for example, choosing whether to pass a primitive or a thunk that boxes values), rather than attaching runtime type tags to every value. In practical terms (and how Perseus approaches it), when a formal parameter has no explicit type the compiler should prefer the declared type if present, otherwise choose the actual argument's inferred type at the call site (from `exprTypes`), and only fall back to a conservative default (e.g., `integer`) when inference is not available. This preserves Algol's higher-order/call-by-name flexibility while keeping JVM method descriptors and local-slot usage predictable.
 
 ### Comparison with Java
 
@@ -60,7 +60,7 @@ Mapped to Algol terms:
 
 **Algol call-by-value ≈ Java primitives** — effectively the same for `integer` and `real`.
 
-**Algol call-by-name has no direct Java equivalent.** The closest analogies are `Supplier<T>` (read-only re-evaluation) combined with a mutable wrapper for writes, but neither gives you the transparent read+write syntax Algol provides. JAlgol implements call-by-name using a `Thunk` interface with `get()` and `set()` methods, generating a synthetic `$ThunkN` class at each call site — the boilerplate that Algol requires the compiler to produce automatically.
+**Algol call-by-name has no direct Java equivalent.** The closest analogies are `Supplier<T>` (read-only re-evaluation) combined with a mutable wrapper for writes, but neither gives you the transparent read+write syntax Algol provides. Perseus implements call-by-name using a `Thunk` interface with `get()` and `set()` methods, generating a synthetic `$ThunkN` class at each call site — the boilerplate that Algol requires the compiler to produce automatically.
 
 ## Nesting
 

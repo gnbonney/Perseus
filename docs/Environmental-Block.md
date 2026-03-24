@@ -1,4 +1,4 @@
-# JAlgol Environmental Block Design
+# Perseus Environmental Block Design
 
 Every ALGOL 60 program executes inside a fictitious outermost block called the **environmental block**
 (Modified Report §1, Appendix 2). It pre-declares all standard functions and procedures so that
@@ -41,8 +41,8 @@ outinteger(1, result);                        comment goes to standard output;
 | `outformat(channel, format, ...)` | `procedure outformat(channel, format, ...)` | **Extension.** Formatted output to the given channel (see Format String Examples below) |
 
 **Notes (Algol 60 Modified Report, Appendix 2):**
-- `outstring` is defined in terms of `outchar`. JAlgol short-circuits this to a direct string output, which is semantically equivalent for well-formed strings.
-- `outinteger` and `outreal` are specified to call `outterminator` after printing. JAlgol currently omits this; the terminator is only required to separate successive numbers read back with `ininteger`.
+- `outstring` is defined in terms of `outchar`. Perseus short-circuits this to a direct string output, which is semantically equivalent for well-formed strings.
+- `outinteger` and `outreal` are specified to call `outterminator` after printing. Perseus currently omits this; the terminator is only required to separate successive numbers read back with `ininteger`.
 
 ### Input
 
@@ -59,7 +59,7 @@ Currently all input procedures read from standard input. File and string channel
 
 ## Format String Examples
 
-> **Extension.** `outformat` and `informat` are JAlgol extensions, not part of the Algol 60 Modified Report. See Algol Extensions.md for rationale and historical context.
+> **Extension.** `outformat` and `informat` are Perseus extensions, not part of the Algol 60 Modified Report. See Algol Extensions.md for rationale and historical context.
 
 The `outformat` and `informat` procedures accept a format string that specifies the width, type, and precision of each output field. Multiple fields are separated by commas or spaces.
 
@@ -123,7 +123,7 @@ These read-only values are pre-declared in the environmental block and may be us
 
 > **Note:** The following procedures and syntax are **extensions** to the Algol 60 Modified Report. They are not part of the standard, but are necessary for practical, real-world compiler implementations. These extensions are inspired by historical Algol compilers and modern language design, and are discussed in detail in Algol Extensions.md.
 
-To support file input/output and more meaningful channel usage, the following procedures are implemented by JAlgol:
+To support file input/output and more meaningful channel usage, the following procedures are implemented by Perseus:
 
 
 | Procedure | Syntax | Description |
@@ -132,7 +132,7 @@ To support file input/output and more meaningful channel usage, the following pr
 | `closefile` | `closefile(channel)` | **Extension.** Closes the file or string buffer associated with the channel. |
 | `instring` | `instring(channel, var)` | **Extension.** Reads a string from the stream or file mapped to the channel. |
 
-**Note:** String variables are an extended feature in JAlgol and many historic Algol compilers. The absence of a standard string type in Algol 60 is the reason why an `instring` procedure was not part of the original language specification. JAlgol's `instring` extension relies on the presence of string variables and associated operations. For rationale and historical context, see Algol Extensions.md.
+**Note:** String variables are an extended feature in Perseus and many historic Algol compilers. The absence of a standard string type in Algol 60 is the reason why an `instring` procedure was not part of the original language specification. Perseus's `instring` extension relies on the presence of string variables and associated operations. For rationale and historical context, see Algol Extensions.md.
 
 
 
@@ -157,7 +157,7 @@ closefile(2);
 
 ## String Channels and sprintf-style Output
 
-JAlgol supports associating a channel with a string variable, enabling output procedures to write directly to a string buffer. This provides the equivalent of `sprintf` in C or `StringWriter` in Java.
+Perseus supports associating a channel with a string variable, enabling output procedures to write directly to a string buffer. This provides the equivalent of `sprintf` in C or `StringWriter` in Java.
 
 | Procedure | Syntax | Description |
 |---|---|---|

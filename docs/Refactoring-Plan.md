@@ -37,31 +37,31 @@ The following components from `CodeGenerator.java` will be moved to specialized 
 
 #### Phase 1: Expression Logic (`ExpressionGenerator.java`)
 **Target**: Logic for evaluating all types of Algol expressions.
-- `generateExpr(ExprContext ctx)` - [Line 354](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L354)
-- `generateExpr(ExprContext ctx, Map<String,Integer> varToFieldIndex)` - [Line 358](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L358)
-- `generateBuiltinMathFunction(String funcName, ProcCallExprContext ctx)` - [Line 517](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L517)
-- Utility: `lookupArrayBounds(String name)` - [Line 342](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L342)
+- `generateExpr(ExprContext ctx)` - [Line 354](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L354)
+- `generateExpr(ExprContext ctx, Map<String,Integer> varToFieldIndex)` - [Line 358](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L358)
+- `generateBuiltinMathFunction(String funcName, ProcCallExprContext ctx)` - [Line 517](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L517)
+- Utility: `lookupArrayBounds(String name)` - [Line 342](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L342)
 
 #### Phase 2: Statement Logic (`StatementGenerator.java`)
 **Target**: Control flow and assignment statement handling.
-- `enterIfStatement(AlgolParser.IfStatementContext ctx)` - [Line 47](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L47)
-- `exitIfStatement(AlgolParser.IfStatementContext ctx)` - [Line 85](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L85)
-- `enterForStatement(AlgolParser.ForStatementContext ctx)` - [Line 96](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L96)
-- `exitForStatement(AlgolParser.ForStatementContext ctx)` - [Line 161](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L161)
+- `enterIfStatement(AlgolParser.IfStatementContext ctx)` - [Line 47](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L47)
+- `exitIfStatement(AlgolParser.IfStatementContext ctx)` - [Line 85](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L85)
+- `enterForStatement(AlgolParser.ForStatementContext ctx)` - [Line 96](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L96)
+- `exitForStatement(AlgolParser.ForStatementContext ctx)` - [Line 161](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L161)
 - *Note: `exitAssignmentStatement` (not currently in file) will be restored to this class.*
 
 #### Phase 3: Procedure & Thunk Logic (`ProcedureGenerator.java`)
 **Target**: Procedure declarations and complex call-by-name infrastructure.
-- `createThunkClass(...)` - [Line 249](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L249)
-- `generateProcedureReference(...)` - [Line 603](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L603)
-- `generateProcedureVariableCall(...)` - [Line 707](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L707)
-- `collectVarNames(ExprContext ctx)` - [Line 216](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L216)
+- `createThunkClass(...)` - [Line 249](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L249)
+- `generateProcedureReference(...)` - [Line 603](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L603)
+- `generateProcedureVariableCall(...)` - [Line 707](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L707)
+- `collectVarNames(ExprContext ctx)` - [Line 216](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L216)
 - *Note: This class will work alongside the existing `ProcedureInvocationGenerator.java`.*
 
 #### Phase 4: State & Infrastructure (`ContextManager.java` & Utilities)
 **Target**: Local variable management and Jasmin limit tracking.
-- `allocateNewLocal(String hint)` - [Line 207](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L207)
-- `ensureLocalLimit(int required)` - [Line 223](src/main/java/gnb/jalgol/compiler/CodeGenerator.java#L223)
+- `allocateNewLocal(String hint)` - [Line 207](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L207)
+- `ensureLocalLimit(int required)` - [Line 223](src/main/java/gnb/perseus/compiler/CodeGenerator.java#L223)
 
 ## Rules for Refactoring
 1. **Incremental Commits**: Commit after every successful listener migration and test run.

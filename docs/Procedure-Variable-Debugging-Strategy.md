@@ -8,7 +8,7 @@ The compiler currently fails to correctly handle procedure variables as demonstr
 
 ### A. JVM Verification Error (`ProcVar` Runtime)
 **Observed Error:**
-`Caused by: java.lang.VerifyError: (class: gnb/jalgol/programs/ProcVar, method: main signature: ([Ljava/lang/String;)V) Illegal local variable number`
+`Caused by: java.lang.VerifyError: (class: gnb/perseus/programs/ProcVar, method: main signature: ([Ljava/lang/String;)V) Illegal local variable number`
 
 **Impact:** The compiled Algol program cannot be loaded by the JVM.
 **Potential Indicators:** This typically occurs when a local variable instruction (load/store) uses an invalid index, such as `-1` or an index exceeding the `.limit locals` directive.
@@ -16,7 +16,7 @@ The compiler currently fails to correctly handle procedure variables as demonstr
 ### B. ExpressionGeneratorTest: ProcRef Instantiation Failure
 **Observed Error:**
 `org.opentest4j.AssertionFailedError: Should instantiate a ProcRef class for the procedure ==> expected: <true> but was: <false>`
-at `gnb.jalgol.compiler.codegen.ExpressionGeneratorTest.testGenerateProcedureReferenceAsValue(ExpressionGeneratorTest.java:95)`
+at `gnb.perseus.compiler.codegen.ExpressionGeneratorTest.testGenerateProcedureReferenceAsValue(ExpressionGeneratorTest.java:95)`
 
 **Significance:** This is a crucial unit test failure. It indicates that the `ExpressionGenerator` is not triggering the creation of the synthetic `ProcRef` class when it encounters a procedure name used as a value (an R-value). If this low-level component doesn't generate the object placeholder, the higher-level assignment logic will have no valid object to store, contributing to the corrupted bytecode and `VerifyError`.
 

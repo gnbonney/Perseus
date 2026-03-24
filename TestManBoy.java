@@ -4,9 +4,9 @@ public class TestManBoy {
     public static void main(String[] args) throws Exception {
         // Compile and run ManBoy
         ProcessBuilder pb = new ProcessBuilder(
-            "java", "-cp", "build/test-algol", "gnb.jalgol.programs.ManBoy"
+            "java", "-cp", "build/test-algol", "gnb.perseus.programs.ManBoy"
         );
-        pb.directory(new File("c:/Users/gnbon/Projects/JAlgol"));
+        pb.directory(new File("c:/Users/gnbon/Projects/Perseus"));
         
         // Capture output
         pb.redirectErrorStream(true);

@@ -7,7 +7,7 @@ Many historic Algol compilers (e.g., NU Algol, Data General Extended Algol, Algo
 - **Simula:** Used a `Text` class with similar semantics.
 - **DEC Algol:** Included string handling extensions.
 
-# Strings in JAlgol
+# Strings in Perseus
 
 - **Type:** `string`
 - **Semantics:** Strings are mutable, variable-length, and support slicing, concatenation, and assignment.
@@ -26,7 +26,7 @@ Many historic Algol compilers (e.g., NU Algol, Data General Extended Algol, Algo
 
 ## Implementation
 
-For JAlgol, we've decided the best approach is to generate code that uses Java String (or StringBuilder) for storage, but provide static utility methods (injected as needed) for Algol-like operations such as 1-based indexing, slicing, and concatenation. This approach:
+For Perseus, we've decided the best approach is to generate code that uses Java String (or StringBuilder) for storage, but provide static utility methods (injected as needed) for Algol-like operations such as 1-based indexing, slicing, and concatenation. This approach:
 - Keeps zero external dependencies (no runtime JAR required)
 - Maximizes Java interoperability (native compatibility with Java APIs and external procedures)
 - Maintains performance (leverages JVM-optimized String/StringBuilder)
@@ -52,7 +52,7 @@ s := concat(s, "!!!");   % s is now "Hello, World!!!"
 
 The original Algol 60 standard, and even the Modified Report, do not specify a standard mechanism for file input/output.  I/O in Algol 60 is limited to channels, which are left implementation-defined and typically mapped to standard input/output devices (e.g., teletype, punch cards, or console streams).  File I/O was handled in a variety of incompatible ways by different compilers, and the standard explicitly leaves the mapping of channels to devices or files outside its scope.
 
-JAlgol's current design (see Environmental-Block.md) maps channel numbers to Java streams (`System.out` for channel 1 and `System.err` for channel 0).  This is sufficient for standard output and error, but does not address file I/O.  Some recommendations for extending this:
+Perseus's current design (see Environmental-Block.md) maps channel numbers to Java streams (`System.out` for channel 1 and `System.err` for channel 0).  This is sufficient for standard output and error, but does not address file I/O.  Some recommendations for extending this:
 
 * **File Open/Close Procedures:** Introduce procedures such as `openfile(channel, filename, mode)` and `closefile(channel)` to manage file streams.  These would register a mapping from a channel number to a Java `PrintStream` or `BufferedReader`, enabling subsequent I/O procedures to use the channel as a file handle.
 * **Backward Compatibility:** Retain the current behavior for channels 0 and 1 (stderr/stdout), but allow higher channel numbers to be dynamically assigned to files.
@@ -67,11 +67,11 @@ closefile(2);
 ```
 
 
-This approach is consistent with the Modified Report's philosophy of implementation-defined channel-to-device mapping, while bringing JAlgol closer to modern I/O expectations.  It mirrors patterns already seen in Simula 67 (file, infile, outfile classes), NU Algol (FORMAT and LIST declarations), and DEC Algol (comprehensive file I/O).
+This approach is consistent with the Modified Report's philosophy of implementation-defined channel-to-device mapping, while bringing Perseus closer to modern I/O expectations.  It mirrors patterns already seen in Simula 67 (file, infile, outfile classes), NU Algol (FORMAT and LIST declarations), and DEC Algol (comprehensive file I/O).
 
 # Formatted I/O (Hybrid Design)
 
-Many historic Algol compilers provided formatted I/O via FORMAT statements or format strings, but the syntax and semantics varied widely. Modern JVM languages use `String.format` or similar mechanisms. To balance authenticity and practicality, JAlgol proposes a **hybrid formatted I/O system**:
+Many historic Algol compilers provided formatted I/O via FORMAT statements or format strings, but the syntax and semantics varied widely. Modern JVM languages use `String.format` or similar mechanisms. To balance authenticity and practicality, Perseus proposes a **hybrid formatted I/O system**:
 
 * **User-facing syntax:** Algol-style format strings, inspired by historic FORMAT statements but simplified for ease of use.
 * **Implementation:** Internally, these format strings are translated to Java `String.format` patterns, leveraging the JVM's formatting power while allowing Algol-like code.
@@ -130,7 +130,7 @@ outformat(1, "I5, F8.2, A10", i, x, s);
 
 # String Channels and sprintf-style Output
 
-JAlgol supports associating a channel with a string variable, enabling output procedures to write directly to a string buffer. This provides the equivalent of `sprintf` in C or `StringWriter` in Java, and is a natural extension of the channel-based I/O model.
+Perseus supports associating a channel with a string variable, enabling output procedures to write directly to a string buffer. This provides the equivalent of `sprintf` in C or `StringWriter` in Java, and is a natural extension of the channel-based I/O model.
 
 ## Procedures
 
@@ -165,7 +165,7 @@ For rationale and historical context, see Environmental-Block.md.
 
 NU Algol had external procedures while Simula 67 had external classes and external procedures. They had to be declared in the program they were being used in, somewhat like an import statement in a Java class. In the Simula 67 standard, external classes and external procedures were considered "program modules".
 
-For JAlgol on the JVM, it helps to distinguish two different use cases that both look "external" from the Algol source:
+For Perseus on the JVM, it helps to distinguish two different use cases that both look "external" from the Algol source:
 
 1. Calling an Algol procedure that was compiled from a different `.alg` file and therefore lives in a different generated JVM class.
 2. Calling a method defined in some other JVM language, primarily Java.
@@ -174,7 +174,7 @@ Those two cases should not be treated as identical, because they have different 
 
 ## Proposed Syntax
 
-JAlgol should make the target model explicit:
+Perseus should make the target model explicit:
 
 ```algol
 external algol(Package.ClassName) real procedure f(real x);
@@ -186,7 +186,7 @@ The intent is:
 
 - `external algol(...)`
   - Calls a procedure previously compiled from Algol into another generated JVM class.
-  - Uses JAlgol's own notion of procedures, type coercions, and return conventions.
+  - Uses Perseus's own notion of procedures, type coercions, and return conventions.
 - `external java ...`
   - Calls a JVM member intended for Java-style interop.
   - Uses a stricter, Java-friendly subset of parameter passing.
@@ -203,13 +203,13 @@ Example:
 external algol(mylib.Numeric) real procedure hypot(real a, b);
 ```
 
-This should lower to a call to the generated static entry point in `mylib/Numeric`, using the same conventions JAlgol already uses internally for ordinary procedure calls.
+This should lower to a call to the generated static entry point in `mylib/Numeric`, using the same conventions Perseus already uses internally for ordinary procedure calls.
 
 ### Design Goals
 
 - Allow one Algol compilation unit to call procedures defined in another.
 - Keep the mental model close to "this is still an Algol procedure", not "this is Java FFI".
-- Reuse JAlgol's existing procedure machinery where possible.
+- Reuse Perseus's existing procedure machinery where possible.
 
 ### Restrictions
 
@@ -218,9 +218,9 @@ Even for external Algol, the first version should stay conservative:
 - No label parameters.
 - No switch parameters until Milestone 22 is implemented.
 - No non-local `goto` across compilation-unit boundaries.
-- No call-by-name interop in the first version unless the callee signature can be described exactly in JAlgol terms.
+- No call-by-name interop in the first version unless the callee signature can be described exactly in Perseus terms.
 
-That last point matters because JAlgol's current call-by-name lowering depends on generated `Thunk` classes and environment-bridging conventions. It is possible to support cross-file Algol call-by-name eventually, but only if the external declaration can fully describe the callee's thunk-based ABI. For an initial design, external Algol procedures should therefore default to value-compatible signatures.
+That last point matters because Perseus's current call-by-name lowering depends on generated `Thunk` classes and environment-bridging conventions. It is possible to support cross-file Algol call-by-name eventually, but only if the external declaration can fully describe the callee's thunk-based ABI. For an initial design, external Algol procedures should therefore default to value-compatible signatures.
 
 ## External Java
 
@@ -253,7 +253,7 @@ In other words, `external java` should model a normal JVM method call, not attem
 
 The design must take into account that Java passes arguments by value, while Algol has both call-by-value and call-by-name, and Simula adds call-by-reference.
 
-For JAlgol external procedures:
+For Perseus external procedures:
 
 - `external java` should map only to call-by-value-compatible signatures.
 - `external algol` may eventually support richer conventions, but the first implementation should also be limited to value-compatible signatures unless the ABI is specified more formally.
@@ -262,7 +262,7 @@ That means the declaration itself should communicate that an external boundary i
 
 ## Algol to Java Type Mapping
 
-For `external java`, JAlgol should define an explicit marshaling table instead of relying on ad hoc JVM coercions.
+For `external java`, Perseus should define an explicit marshaling table instead of relying on ad hoc JVM coercions.
 
 Recommended first-pass mapping:
 
@@ -279,14 +279,14 @@ Recommended first-pass mapping:
 
 Notes:
 
-- `string` is already a natural interop case because JAlgol's string design intentionally targets Java `String`.
+- `string` is already a natural interop case because Perseus's string design intentionally targets Java `String`.
 - `integer -> real` widening may be allowed automatically where the target JVM signature expects `double`.
-- `real -> integer` should **not** silently use Java's truncating cast if JAlgol wants to preserve Algol-style rounding semantics. This boundary needs to be specified explicitly.
+- `real -> integer` should **not** silently use Java's truncating cast if Perseus wants to preserve Algol-style rounding semantics. This boundary needs to be specified explicitly.
 - Return values should follow the same mapping in reverse.
 
 ## Algol to Algol External Type Mapping
 
-For `external algol`, the mapping should follow JAlgol's internal procedure ABI rather than Java source-language expectations.
+For `external algol`, the mapping should follow Perseus's internal procedure ABI rather than Java source-language expectations.
 
 For the first version, that likely means:
 
@@ -308,7 +308,7 @@ As the compiler grows support for stable cross-file procedure-value and thunk AB
 
 - Resolve the target generated class from the declaration.
 - Emit a direct `invokestatic` to the generated procedure entry point.
-- Apply the same JAlgol-side coercions used for normal internal procedure calls.
+- Apply the same Perseus-side coercions used for normal internal procedure calls.
 - Require the external declaration to match the compiled Algol signature exactly.
 
 ### External Java
@@ -320,22 +320,22 @@ As the compiler grows support for stable cross-file procedure-value and thunk AB
 
 ## Rationale
 
-This split gives JAlgol a cleaner long-term story:
+This split gives Perseus a cleaner long-term story:
 
 - `external algol` solves separate compilation and library reuse for Algol code.
 - `external java` solves JVM ecosystem interop.
 - The compiler does not need to pretend that Java methods support Algol call-by-name, labels, or designational control flow.
 
-It also fits the current architecture well. JAlgol already generates JVM-static procedure entry points and already distinguishes between ordinary value passing and thunk-based call-by-name lowering. External linkage should build on those realities instead of hiding them.
+It also fits the current architecture well. Perseus already generates JVM-static procedure entry points and already distinguishes between ordinary value passing and thunk-based call-by-name lowering. External linkage should build on those realities instead of hiding them.
 
 # Exceptions
 
-Access to external Java procedures and classes strongly suggests a need for structured exception handling. Java methods may fail by throwing exceptions, and JAlgol should have a source-level way to respond to those failures without forcing everything through `fault(...)` or process termination. A block-oriented exception extension also fits Algol's existing `begin ... end` structure better than importing Java's `try/catch` syntax directly.
+Access to external Java procedures and classes strongly suggests a need for structured exception handling. Java methods may fail by throwing exceptions, and Perseus should have a source-level way to respond to those failures without forcing everything through `fault(...)` or process termination. A block-oriented exception extension also fits Algol's existing `begin ... end` structure better than importing Java's `try/catch` syntax directly.
 
 ## Design Goals
 
 - Keep the syntax Algol-like and block-oriented.
-- Support both JAlgol-signaled conditions and caught Java exceptions from `external java`.
+- Support both Perseus-signaled conditions and caught Java exceptions from `external java`.
 - Make the common case readable without forcing Java class names everywhere.
 - Preserve lexical scoping and block structure.
 - Allow a simple first implementation on the JVM using ordinary `try/catch`.
@@ -374,7 +374,7 @@ This is especially useful for external Java interop, where the caller may want t
 
 ## Proposed Exception Names
 
-JAlgol should distinguish between:
+Perseus should distinguish between:
 
 - **Language-level exception names**
   - `IOError`
@@ -387,7 +387,7 @@ JAlgol should distinguish between:
   - `java(java.lang.IllegalArgumentException)`
   - and similar fully qualified Java exception classes
 
-The language-level names give JAlgol code a portable vocabulary. The `java(...)` form gives precise control when interoperating with external JVM code.
+The language-level names give Perseus code a portable vocabulary. The `java(...)` form gives precise control when interoperating with external JVM code.
 
 ## Suggested Semantics
 
@@ -398,7 +398,7 @@ The language-level names give JAlgol code a portable vocabulary. The `java(...)`
 - After the handler finishes, control continues after the whole block, not back inside the point where the exception occurred.
 - A handler may rethrow the exception with a future `raise`/`signal` statement if desired.
 
-This gives JAlgol a model closer to structured exception handling than to resumable conditions.
+This gives Perseus a model closer to structured exception handling than to resumable conditions.
 
 ## Raising Exceptions
 
@@ -409,7 +409,7 @@ signal IOError;
 signal java(java.lang.IllegalStateException, "bad state");
 ```
 
-The initial implementation does not need to expose every constructor form immediately. It is enough if JAlgol can:
+The initial implementation does not need to expose every constructor form immediately. It is enough if Perseus can:
 
 - translate internal runtime problems into language-level exception names, and
 - catch Java exceptions thrown from `external java` calls
@@ -453,13 +453,13 @@ The obvious lowering strategy is:
 
 - compile the protected part of the block to JVM `try`
 - compile each `when` clause to a corresponding `catch`
-- translate language-level exceptions to small JAlgol runtime exception classes
+- translate language-level exceptions to small Perseus runtime exception classes
 - allow `java(...)` handlers to catch matching JVM exception types directly
 
 For example:
 
 - `when IOError do ...`
-  - catches `gnb.jalgol.runtime.IOErrorException`
+  - catches `gnb.perseus.runtime.IOErrorException`
 - `when java(java.io.IOException) as ex do ...`
   - catches `java/io/IOException`
 

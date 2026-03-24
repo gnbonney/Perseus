@@ -1,4 +1,4 @@
-# Contributing to JAlgol
+# Contributing to Perseus
 
 Contributions are welcome! Here are some guidelines to help you get started.
 
@@ -12,7 +12,7 @@ Contributions are welcome! Here are some guidelines to help you get started.
 ## Development Workflow
 
 - Use the iterative, test-driven approach described in [docs/Development.md](docs/Development.md).
-- Add or update Algol grammar rules in `src/main/antlr/gnb/jalgol/compiler/antlr/Algol.g4`.
+- Add or update Algol grammar rules in `src/main/antlr/gnb/perseus/compiler/antlr/Algol.g4`.
 - Add corresponding test cases in `src/test/java/` and sample Algol programs in `test/algol/`.
 - Run `gradle build` to regenerate the ANTLR parser and compile the project.
 - Run `gradle test` to verify all tests pass before submitting a pull request.

@@ -77,7 +77,7 @@ digraphs or reserved words where a single ASCII character is unavailable.
   reference material and in the sample programs inherited by this project (`primes.alg`).
 - `%` line comments are a non-standard extension, but they have clear historical precedent in
   the Burroughs/Unisys Extended ALGOL family, where `%` introduced an "escape remark" causing
-  the rest of the source record to be ignored. JAlgol adopts the modern text-file analogue of
+  the rest of the source record to be ignored. Perseus adopts the modern text-file analogue of
   that behavior by treating `%` as a comment introducer to end-of-line, which is convenient and
   avoids the trailing-semicolon requirement of `comment ... ;`.
 - `imp` and `eqv` follow historical Algol-family hardware representations used by systems such
@@ -97,4 +97,4 @@ digraphs or reserved words where a single ASCII character is unavailable.
 
 The Modified Report (IFIP Working Group 2.1, 1976; ISO 1538:1984) acknowledges hardware
 representations in Appendix 1 (Subsets) but does not mandate a specific one, leaving the
-choice to implementors. This document constitutes the hardware representation for JAlgol.
+choice to implementors. This document constitutes the hardware representation for Perseus.

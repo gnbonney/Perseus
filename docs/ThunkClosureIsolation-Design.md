@@ -59,7 +59,7 @@ This is required to make `manboy.alg` produce the correct result (`-67.0`) and t
 
 **Change required:**
 - When a variable is known to be `procedure:` (procedure-typed), *do not* treat it as scalar.
-- Ensure procedure-typed locals/fields use the correct descriptor (`Lgnb/jalgol/compiler/VoidProcedure;` etc.) and are stored/loaded with `astore`/`aload`.
+- Ensure procedure-typed locals/fields use the correct descriptor (`Lgnb/perseus/compiler/VoidProcedure;` etc.) and are stored/loaded with `astore`/`aload`.
 - Ensure calls through procedure variables use `invokeinterface` on the correct `*Procedure` interface.
 
 ### 2) `ProcedureGenerator` / `ExpressionGenerator`

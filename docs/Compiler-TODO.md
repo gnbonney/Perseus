@@ -13,7 +13,7 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 
 Recent milestone wins:
 
-- `AntlrAlgolListenerTest.manboy_test()` now passes. JAlgol compiles and runs Knuth's Man-or-Boy test correctly and returns `-67.0`.
+- `AntlrAlgolListenerTest.manboy_test()` now passes. Perseus compiles and runs Knuth's Man-or-Boy test correctly and returns `-67.0`.
 - `AntlrAlgolListenerTest.primer2()` now uses an explicit expected-timeout path so its intentional infinite loop cannot be mistaken for a normal passing run.
 - `FixLimits` now verifies generated class families (`Main.class` plus `Main$*.class`), not just the main class.
 - The Jasmin pipeline is cleaner: `compileToFile()` writes the `.j` family, `assemble()` assembles that family, and tests can post-process the resulting class family in place.
@@ -688,7 +688,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Priority:** Standard-syntax compliance milestone based on [Representation.md](Representation.md).
 
-**Goal:** Bring the grammar and expression handling fully in line with JAlgol's documented hardware representation before moving on to non-standard extensions.
+**Goal:** Bring the grammar and expression handling fully in line with Perseus's documented hardware representation before moving on to non-standard extensions.
 
 - [ ] Grammar / expression support: `div` integer division
 - [ ] Grammar / expression support: `**` and `^` exponentiation
@@ -700,7 +700,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Priority:** Final standard source-compatibility cleanup before extensions.
 
-**Goal:** Close the remaining non-extension syntax gaps that affect real Modified Report examples, while still allowing JAlgol's normalized grammar design.
+**Goal:** Close the remaining non-extension syntax gaps that affect real Modified Report examples, while still allowing Perseus's normalized grammar design.
 
 - [ ] Grammar: numeric labels
 - [ ] Grammar: dummy statements (empty statements used as label targets)
@@ -766,7 +766,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Goal:** Turn the existing CLI into a real compiler front end suitable for everyday use.
 
-- [ ] `jalgol` command mirroring `javac` for one or more `.alg` files
+- [ ] `perseus` command mirroring `javac` for one or more `.alg` files
 - [ ] Optional `-d <outdir>` and sensible output layout
 - [ ] Stable exit codes and clearer user-facing error output
 

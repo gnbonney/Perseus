@@ -1,7 +1,7 @@
-# Copilot Instructions for JAlgol
+# Copilot Instructions for Perseus
 
 ## Project Overview
-JAlgol is a modular, multi-pass compiler that translates Algol 60 (and extensions) source code into Jasmin assembly for the JVM. It is designed for education, research, and language experimentation, supporting modern compiler architecture, deterministic output, and advanced Algol features (call-by-name, procedure variables, etc.).
+Perseus is a modular, multi-pass compiler that translates Algol 60 (and extensions) source code into Jasmin assembly for the JVM. It is designed for education, research, and language experimentation, supporting modern compiler architecture, deterministic output, and advanced Algol features (call-by-name, procedure variables, etc.).
 
 **Audience:** Compiler developers, language researchers, and students interested in Algol, JVM bytecode, or compiler construction.
 
@@ -39,20 +39,20 @@ JAlgol is a modular, multi-pass compiler that translates Algol 60 (and extension
 - Place codegen logic in the correct generator: ExpressionGenerator, StatementGenerator, ProcedureGenerator, or ContextManager
 - Keep symbol table, type inference, and codegen logic separated
 - Emit deterministic Jasmin output for reproducible builds/tests
-- All new features/bugfixes must be covered by tests (see src/test/java/gnb/jalgol/compiler/AntlrAlgolListenerTest.java)
+- All new features/bugfixes must be covered by tests (see src/test/java/gnb/perseus/compiler/AntlrAlgolListenerTest.java)
 - Document major architectural changes in docs/Architecture.md
 - Use clear, maintainable code over brevity
 
 ---
 
 ## Project Structure
-- `src/main/java/gnb/jalgol/compiler/` : Main compiler logic
+- `src/main/java/gnb/perseus/compiler/` : Main compiler logic
   - `antlr/` : ANTLR grammar and generated parser
   - `codegen/` : Modular codegen classes (ExpressionGenerator, StatementGenerator, ProcedureGenerator, ContextManager)
   - `SymbolTableBuilder.java` : Symbol table pass
   - `TypeInferencer.java` : Type inference pass
   - `CodeGenerator.java` : Facade listener, delegates to codegen modules
-- `src/test/java/gnb/jalgol/compiler/` : JUnit tests
+- `src/test/java/gnb/perseus/compiler/` : JUnit tests
 - `test/algol/` : Sample Algol programs for milestone-driven testing
 - `jasmin-2.4/` : Jasmin assembler
 - `docs/` : Architecture, refactoring plan, and design docs

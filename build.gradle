@@ -3,7 +3,7 @@ plugins {
     id 'antlr'
 }
 
-group = 'org.jalgol'
+group = 'org.perseus'
 version = '0.1.0'
 
 sourceCompatibility = '21'
@@ -31,7 +31,7 @@ dependencies {
 }
 
 generateGrammarSource {
-    arguments += ['-package', 'gnb.jalgol.compiler.antlr', '-visitor', '-listener']
+    arguments += ['-package', 'gnb.perseus.compiler.antlr', '-visitor', '-listener']
 }
 
 test {
@@ -39,9 +39,9 @@ test {
     // Copy runtime interface classes (Thunk, *Procedure) to build/test-algol so
     // assembled programs can find them on their classpath.
     doFirst {
-        def destDir = file('build/test-algol/gnb/jalgol/compiler')
+        def destDir = file('build/test-algol/gnb/perseus/compiler')
         destDir.mkdirs()
-        def srcDir = file("${buildDir}/classes/java/main/gnb/jalgol/compiler")
+        def srcDir = file("${buildDir}/classes/java/main/gnb/perseus/compiler")
         if (srcDir.exists()) {
             copy {
                 from srcDir
@@ -56,7 +56,7 @@ test {
 // Add a Gradle task to compile Algol to Jasmin and then to class files
 task compileAlgol(type: JavaExec) {
     classpath = files(sourceSets.main.runtimeClasspath)
-    main = 'gnb.jalgol.cli.JAlgolCLI'
+    main = 'gnb.perseus.cli.PerseusCLI'
 
     // Define parameters for the task
     def inputFile = project.hasProperty('inputFile') ? project.inputFile : 'test/algol/hello.alg'

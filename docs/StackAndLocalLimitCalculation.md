@@ -1,4 +1,4 @@
-# Automatic Stack and Local Limit Calculation for JAlgol
+# Automatic Stack and Local Limit Calculation for Perseus
 
 ## Motivation
 - JVM requires accurate `.limit stack` and `.limit locals` directives for each method.
@@ -17,8 +17,8 @@
 ## Approach
 
 **Assembler Strategy**
-- Jasmin will remain the primary assembler for JAlgol output.
-- All stack and local limit calculation will be implemented in the JAlgol compiler, not delegated to Jasmin.
+- Jasmin will remain the primary assembler for Perseus output.
+- All stack and local limit calculation will be implemented in the Perseus compiler, not delegated to Jasmin.
 - If stack/local calculation proves intractable for advanced Algol features (deep call-by-name, thunks, etc.), migration to Krakatau or ASM (which can compute limits automatically) will be considered as Plan B.
 
 1. **Local Variable Limit Calculation**
@@ -78,7 +78,7 @@
 - Jasmin docs: https://jasmin.sourceforge.net/
 - ASM: https://asm.ow2.io/ (Java bytecode library with automatic limit computation)
 - Krakatau: https://github.com/Storyyeller/Krakatau (Plan B JVM assembler with automatic stack/local calculation)
-- JAlgol `docs/Architecture.md` for modular codegen design
+- Perseus `docs/Architecture.md` for modular codegen design
 
 ---
 _Last updated: March 20, 2026_

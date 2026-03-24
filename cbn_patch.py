@@ -1,6 +1,6 @@
 import os
 
-path = r'c:\Users\gnbon\Projects\JAlgol\src\main\java\gnb\jalgol\compiler\CodeGenerator.java'
+path = r'c:\Users\gnbon\Projects\Perseus\src\main\java\gnb\perseus\compiler\CodeGenerator.java'
 with open(path, 'rb') as f:
     content = f.read()
 

@@ -81,7 +81,7 @@ This follows the same convention as `javac`, which emits `Foo$Inner.class` for i
 
 ## Environmental Block Implementation
 
-The Algol 60 Modified Report defines a fictitious outermost block called the **environmental block** that pre-declares all standard identifiers (I/O procedures, math functions, constants). JAlgol implements this without generating any extra class files or runtime declarations. Instead, environmental identifiers are recognised **by name** in `CodeGenerator` and mapped directly to the appropriate JVM instruction sequences.
+The Algol 60 Modified Report defines a fictitious outermost block called the **environmental block** that pre-declares all standard identifiers (I/O procedures, math functions, constants). Perseus implements this without generating any extra class files or runtime declarations. Instead, environmental identifiers are recognised **by name** in `CodeGenerator` and mapped directly to the appropriate JVM instruction sequences.
 
 Recognition happens at two code-generation sites:
 
@@ -100,7 +100,7 @@ Environmental identifiers are **not** entered in `SymbolTableBuilder`'s symbol t
 
 ### Channel Resolution
 
-The channel parameter (first argument of all I/O procedures) is a compile-time constant integer. JAlgol resolves it at code-generation time:
+The channel parameter (first argument of all I/O procedures) is a compile-time constant integer. Perseus resolves it at code-generation time:
 
 | Channel | Target | Use |
 |---|---|---|
@@ -203,7 +203,7 @@ To compile an Algol source file to Jasmin assembly, the following steps are perf
    Example:
    ```java
    Path jasminFile = AntlrAlgolListener.compileToFile(
-       "test/algol/hello.alg", "gnb/jalgol/programs", "Hello", Paths.get("build/test-algol"));
+       "test/algol/hello.alg", "gnb/perseus/programs", "Hello", Paths.get("build/test-algol"));
    ```
 
 2. **Assemble Jasmin to Class Files**:
@@ -225,7 +225,7 @@ To compile an Algol source file to Jasmin assembly, the following steps are perf
 
    Example:
    ```java
-   String output = runClass(Paths.get("build/test-algol"), "gnb.jalgol.programs.Hello");
+   String output = runClass(Paths.get("build/test-algol"), "gnb.perseus.programs.Hello");
    ```
 
 These steps are demonstrated in the unit tests, including the more demanding `manboy_test`, which now compiles, verifies, and runs Knuth's classic stress test successfully.
@@ -234,7 +234,7 @@ These steps are demonstrated in the unit tests, including the more demanding `ma
 
 ## Command-Line Interface (CLI)
 
-The project includes a dedicated CLI, `JAlgolCLI`, for compiling Algol source files. The CLI wraps the `AntlrAlgolListener` and provides a user-friendly interface for compilation. Users can specify the input file, output directory, and class name directly from the command line.
+The project includes a dedicated CLI, `PerseusCLI`, for compiling Algol source files. The CLI wraps the `AntlrAlgolListener` and provides a user-friendly interface for compilation. Users can specify the input file, output directory, and class name directly from the command line.
 
 ### Workflow with the CLI
 
@@ -246,7 +246,7 @@ The project includes a dedicated CLI, `JAlgolCLI`, for compiling Algol source fi
 ### Example Command
 
 ```bash
-java -cp build/classes/java/main gnb.jalgol.cli.JAlgolCLI test/algol/hello.alg build/output Hello
+java -cp build/classes/java/main gnb.perseus.cli.PerseusCLI test/algol/hello.alg build/output Hello
 ```
 
 This command compiles `hello.alg` into `Hello.j`, any needed companion `.j` files, and the assembled `.class` outputs in the `build/output` directory.

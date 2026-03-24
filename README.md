@@ -14,17 +14,17 @@ Meanwhile, Algol 60 continued a life of its own.  In 1976 the Modified Report on
 
 Why create a new Algol compiler?
 
-* **AI-Ready and Tool-Friendly:** JAlgol is designed for seamless integration with AI, language servers, and modern developer tools. Its explicit, structured design enables advanced code analysis, transformation, and verification by both humans and AI systems.
-* **Education and Research:** ALGOL 60 is a foundational language for computer science, known for its clarity and structured programming. JAlgol makes it accessible on the JVM, providing a robust platform for teaching, research, and experimentation with classic and modern programming concepts.
-* **Modern JVM Ecosystem:** There are many JVM compilers for other languages, but none for Algol or Simula. JAlgol fills this gap, enabling legacy and new Algol code to run anywhere Java is available.
+* **AI-Ready and Tool-Friendly:** Perseus is designed for seamless integration with AI, language servers, and modern developer tools. Its explicit, structured design enables advanced code analysis, transformation, and verification by both humans and AI systems.
+* **Education and Research:** ALGOL 60 is a foundational language for computer science, known for its clarity and structured programming. Perseus makes it accessible on the JVM, providing a robust platform for teaching, research, and experimentation with classic and modern programming concepts.
+* **Modern JVM Ecosystem:** There are many JVM compilers for other languages, but none for Algol or Simula. Perseus fills this gap, enabling legacy and new Algol code to run anywhere Java is available.
 * **Readable, Maintainable Code:** ALGOL 60’s low semantic density and mathematical clarity make it ideal for readable, maintainable code—benefiting education, research, and AI-driven development.
-* **Open, Extensible Architecture:** JAlgol is built for extensibility, supporting future language features, research extensions, and integration with next-generation tooling.
+* **Open, Extensible Architecture:** Perseus is built for extensibility, supporting future language features, research extensions, and integration with next-generation tooling.
 
 ## Project Status
 
-JAlgol currently passes all 55 unit tests as of March 22, 2026, including Donald Knuth's classic Man-or-Boy test.
+Perseus currently passes all 55 unit tests as of March 22, 2026, including Donald Knuth's classic Man-or-Boy test.
 
-In Knuth's old jargon, that makes this a "man" compiler: JAlgol can compile and run `manboy.alg` correctly and produce the expected answer `-67.0`.
+In Knuth's old jargon, that makes this a "man" compiler: Perseus can compile and run `manboy.alg` correctly and produce the expected answer `-67.0`.
 
 ## Building the Project
 
@@ -90,25 +90,25 @@ After running the task, you can find the following files in the specified output
 You can then run the compiled class file using the `java` command:
 
 ```bash
-java -cp build/output gnb.jalgol.programs.MyClass
+java -cp build/output gnb.perseus.programs.MyClass
 ```
 
-## Using the JAlgol CLI
+## Using the Perseus CLI
 
-In addition to the Gradle task, you can use the `JAlgolCLI` directly to compile Algol source files. The CLI provides a simple interface for specifying the input file, output directory, and class name.
+In addition to the Gradle task, you can use the `PerseusCLI` directly to compile Algol source files. The CLI provides a simple interface for specifying the input file, output directory, and class name.
 
 ### Running the CLI
 
 To use the CLI, run the following command:
 
 ```bash
-java -cp build/classes/java/main gnb.jalgol.cli.JAlgolCLI <inputFile> <outputDir> <className>
+java -cp build/classes/java/main gnb.perseus.cli.PerseusCLI <inputFile> <outputDir> <className>
 ```
 
 For example:
 
 ```bash
-java -cp build/classes/java/main gnb.jalgol.cli.JAlgolCLI test/algol/hello.alg build/output Hello
+java -cp build/classes/java/main gnb.perseus.cli.PerseusCLI test/algol/hello.alg build/output Hello
 ```
 
 This will:
@@ -125,7 +125,7 @@ After running the CLI, you can find the following files in the specified output 
 You can then run the compiled class file using the `java` command:
 
 ```bash
-java -cp build/output gnb.jalgol.programs.Hello
+java -cp build/output gnb.perseus.programs.Hello
 ```
 
 ## Folder Structure of this Project
@@ -156,15 +156,15 @@ I found an article (https://www.linuxvoice.com/algol-the-language-of-academia/) 
 
 ## AI-Friendly Compiler Design
 
-JAlgol is designed from the ground up to be AI-friendly—possibly the first compiler intentionally architected for seamless AI and advanced tooling integration. This means:
+Perseus is designed from the ground up to be AI-friendly—possibly the first compiler intentionally architected for seamless AI and advanced tooling integration. This means:
 - Structured, machine-readable diagnostics with stable error codes and source mapping
 - Deterministic, reproducible output for identical inputs
 - Explicit, inspectable intermediate representations (AST, IR, JVM IR)
 - Fast feedback loops and modern CLI commands for rapid iteration
 - Architecture that enables future integration with AI assistants, IDEs, and language servers
 
-Our goal is to make JAlgol not only a robust Algol-to-JVM compiler, but also a model for next-generation, tool-friendly compiler engineering.
+Our goal is to make Perseus not only a robust Algol-to-JVM compiler, but also a model for next-generation, tool-friendly compiler engineering.
 
 ## Semantic Clarity for Human and AI Reasoning
 
-ALGOL 60 was designed for mathematical clarity and structured programming, resulting in low semantic density—each statement expresses a single, clear idea. JAlgol preserves this property, making both the source language and the compiler pipeline highly explicit and easy to reason about. This benefits not only human readers but also AI tools and language models, which can more reliably analyze, transform, and verify code with minimal ambiguity. The result is a compiler and language ecosystem that is exceptionally well-suited for education, research, and advanced AI-driven tooling.
+ALGOL 60 was designed for mathematical clarity and structured programming, resulting in low semantic density—each statement expresses a single, clear idea. Perseus preserves this property, making both the source language and the compiler pipeline highly explicit and easy to reason about. This benefits not only human readers but also AI tools and language models, which can more reliably analyze, transform, and verify code with minimal ambiguity. The result is a compiler and language ecosystem that is exceptionally well-suited for education, research, and advanced AI-driven tooling.
