@@ -2,9 +2,9 @@
 
 package gnb.perseus.compiler;
 
-import gnb.perseus.compiler.antlr.AlgolBaseListener;
-import gnb.perseus.compiler.antlr.AlgolParser;
-import gnb.perseus.compiler.antlr.AlgolParser.ExprContext;
+import gnb.perseus.compiler.antlr.PerseusBaseListener;
+import gnb.perseus.compiler.antlr.PerseusParser;
+import gnb.perseus.compiler.antlr.PerseusParser.ExprContext;
 import gnb.perseus.compiler.codegen.BuiltinFunctionGenerator;
 import gnb.perseus.compiler.codegen.ProcedureGenerator;
 import java.util.ArrayDeque;
@@ -30,14 +30,14 @@ import java.util.stream.Collectors;
  * When walking a procedureDecl subtree, activeOutput is redirected to a temporary procBuffer.
  * On exit the completed method is appended to procMethods and activeOutput is restored.
  */
-public class CodeGenerator extends AlgolBaseListener {
+public class CodeGenerator extends PerseusBaseListener {
     private final String source;
     private final String packageName;
     private final String className;
     // Procedure definitions from SymbolTableBuilder (name → ProcInfo)
     private final Map<String, SymbolTableBuilder.ProcInfo> procedures;
     // Switch declarations from SymbolTableBuilder (name -> parse context)
-    private final Map<String, AlgolParser.SwitchDeclContext> switchDeclarations;
+    private final Map<String, PerseusParser.SwitchDeclContext> switchDeclarations;
 
     // --- Thunk helper data ---
     // counter for generating unique thunk class names
@@ -78,7 +78,7 @@ public class CodeGenerator extends AlgolBaseListener {
     private final Deque<Boolean>              skipProcedureDeclStack = new LinkedList<>();
 
     // Maps expression contexts to their inferred types ("integer" or "real")
-    private final Map<AlgolParser.ExprContext, String> exprTypes;
+    private final Map<PerseusParser.ExprContext, String> exprTypes;
 
     // --- Output buffers ---
     private final StringBuilder classHeader = new StringBuilder();
@@ -121,9 +121,9 @@ public class CodeGenerator extends AlgolBaseListener {
 
     public CodeGenerator(String source, String packageName, String className,
                          Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
-                         Map<AlgolParser.ExprContext, String> exprTypes, Map<String, int[]> arrayBounds,
+                         Map<PerseusParser.ExprContext, String> exprTypes, Map<String, int[]> arrayBounds,
                          Map<String, SymbolTableBuilder.ProcInfo> procedures,
-                         Map<String, AlgolParser.SwitchDeclContext> switchDeclarations,
+                         Map<String, PerseusParser.SwitchDeclContext> switchDeclarations,
                          Map<String, Integer> procVarSlots) {
         this.source = source;
         this.packageName = packageName;
@@ -199,7 +199,7 @@ public class CodeGenerator extends AlgolBaseListener {
     }
 
     @Override
-    public void enterProgram(AlgolParser.ProgramContext ctx) {
+    public void enterProgram(PerseusParser.ProgramContext ctx) {
         mainHadExecutableStatements = false;
 
         // Class header and <init>
@@ -371,7 +371,7 @@ public class CodeGenerator extends AlgolBaseListener {
     }
 
     @Override
-    public void exitProgram(AlgolParser.ProgramContext ctx) {
+    public void exitProgram(PerseusParser.ProgramContext ctx) {
         // If the program contains no top-level executable statements, implicitly
         // invoke the last zero-arg procedure defined (common in some Algol test cases).
         if (!mainHadExecutableStatements) {
@@ -393,7 +393,7 @@ public class CodeGenerator extends AlgolBaseListener {
     // -------------------------------------------------------------------------
 
     @Override
-    public void enterProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
+    public void enterProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
         String procName = ctx.identifier().getText();
         SymbolTableBuilder.ProcInfo info = procedures.get(procName);
 
@@ -696,7 +696,7 @@ public class CodeGenerator extends AlgolBaseListener {
     }
 
     @Override
-    public void exitProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
+    public void exitProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
         boolean skip = skipProcedureDeclStack.pop();
         if (skip) {
             return;
@@ -832,13 +832,13 @@ public class CodeGenerator extends AlgolBaseListener {
     // -------------------------------------------------------------------------
 
     @Override
-    public void exitAssignment(AlgolParser.AssignmentContext ctx) {
+    public void exitAssignment(PerseusParser.AssignmentContext ctx) {
         if (currentProcName == null) mainHadExecutableStatements = true;
-        List<AlgolParser.LvalueContext> lvalues = ctx.lvalue();
+        List<PerseusParser.LvalueContext> lvalues = ctx.lvalue();
 
         // Array element assignment (single dest with subscript)
         if (lvalues.size() == 1 && lvalues.get(0).expr() != null) {
-            AlgolParser.LvalueContext lv = lvalues.get(0);
+            PerseusParser.LvalueContext lv = lvalues.get(0);
             String arrName = lv.identifier().getText();
             String elemType = lookupVarType(arrName);
             if (elemType == null) {
@@ -1216,16 +1216,16 @@ public class CodeGenerator extends AlgolBaseListener {
      * The channel must be a compile-time constant integer literal. If it's not,
      * a warning comment is emitted and System.out is used as the default.
      */
-    private String getChannelStream(AlgolParser.ArgContext channelArg) {
+    private String getChannelStream(PerseusParser.ArgContext channelArg) {
         if (channelArg == null || channelArg.expr() == null) {
             activeOutput.append("; WARNING: missing channel parameter, defaulting to System.out\n");
             return "java/lang/System/out";
         }
         
         // Try to evaluate as a constant integer literal
-        AlgolParser.ExprContext expr = channelArg.expr();
-        if (expr instanceof AlgolParser.IntLiteralExprContext) {
-            AlgolParser.IntLiteralExprContext intExpr = (AlgolParser.IntLiteralExprContext) expr;
+        PerseusParser.ExprContext expr = channelArg.expr();
+        if (expr instanceof PerseusParser.IntLiteralExprContext) {
+            PerseusParser.IntLiteralExprContext intExpr = (PerseusParser.IntLiteralExprContext) expr;
             String channelText = intExpr.unsignedInt().getText();
             try {
                 int channelValue = Integer.parseInt(channelText);
@@ -1246,25 +1246,25 @@ public class CodeGenerator extends AlgolBaseListener {
     }
 
     @Override
-    public void exitProcedureCall(AlgolParser.ProcedureCallContext ctx) {
+    public void exitProcedureCall(PerseusParser.ProcedureCallContext ctx) {
         if (currentProcName == null) mainHadExecutableStatements = true;
         String name = ctx.identifier().getText();
         System.out.println("Processing procedure call: " + name);
-        List<AlgolParser.ArgContext> args = ctx.argList() != null ? ctx.argList().arg() : List.of();
+        List<PerseusParser.ArgContext> args = ctx.argList() != null ? ctx.argList().arg() : List.of();
         if ("outstring".equals(name)) {
-            AlgolParser.ArgContext channelArg = args.size() > 1 ? args.get(0) : null;
+            PerseusParser.ArgContext channelArg = args.size() > 1 ? args.get(0) : null;
             String stream = getChannelStream(channelArg);
             activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
                         .append(generateExpr(args.get(args.size() - 1).expr()))
                         .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
         } else if ("outreal".equals(name)) {
-            AlgolParser.ArgContext channelArg = args.size() > 1 ? args.get(0) : null;
+            PerseusParser.ArgContext channelArg = args.size() > 1 ? args.get(0) : null;
             String stream = getChannelStream(channelArg);
             activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
                         .append(generateExpr(args.get(args.size() - 1).expr()))
                         .append("invokevirtual java/io/PrintStream/print(D)V\n");
         } else if ("outinteger".equals(name)) {
-            AlgolParser.ArgContext channelArg = args.size() > 1 ? args.get(0) : null;
+            PerseusParser.ArgContext channelArg = args.size() > 1 ? args.get(0) : null;
             String stream = getChannelStream(channelArg);
             activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
                         .append(generateExpr(args.get(args.size() - 1).expr()))
@@ -1285,9 +1285,9 @@ public class CodeGenerator extends AlgolBaseListener {
                         .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
         } else if ("ininteger".equals(name)) {
             // ininteger(channel, var) - reads an integer from System.in and stores in var
-            AlgolParser.ExprContext varExpr = args.get(1).expr();
-            if (varExpr instanceof AlgolParser.VarExprContext) {
-                String varName = ((AlgolParser.VarExprContext) varExpr).identifier().getText();
+            PerseusParser.ExprContext varExpr = args.get(1).expr();
+            if (varExpr instanceof PerseusParser.VarExprContext) {
+                String varName = ((PerseusParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
                 String varType = currentSymbolTable.get(varName);
                 if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
@@ -1310,9 +1310,9 @@ public class CodeGenerator extends AlgolBaseListener {
             }
         } else if ("inreal".equals(name)) {
             // inreal(channel, var) - reads a real from System.in and stores in var
-            AlgolParser.ExprContext varExpr = args.get(1).expr();
-            if (varExpr instanceof AlgolParser.VarExprContext) {
-                String varName = ((AlgolParser.VarExprContext) varExpr).identifier().getText();
+            PerseusParser.ExprContext varExpr = args.get(1).expr();
+            if (varExpr instanceof PerseusParser.VarExprContext) {
+                String varName = ((PerseusParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
                 String varType = currentSymbolTable.get(varName);
                 if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
@@ -1336,9 +1336,9 @@ public class CodeGenerator extends AlgolBaseListener {
         } else if ("inchar".equals(name)) {
             // inchar(channel, str, var) - reads one character and finds its position in str
             String str = args.get(1).getText();
-            AlgolParser.ExprContext varExpr = args.get(2).expr();
-            if (varExpr instanceof AlgolParser.VarExprContext) {
-                String varName = ((AlgolParser.VarExprContext) varExpr).identifier().getText();
+            PerseusParser.ExprContext varExpr = args.get(2).expr();
+            if (varExpr instanceof PerseusParser.VarExprContext) {
+                String varName = ((PerseusParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
                 String varType = currentSymbolTable.get(varName);
                 if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
@@ -1372,9 +1372,9 @@ public class CodeGenerator extends AlgolBaseListener {
             }
         } else if ("instring".equals(name)) {
             // instring(channel, var) - reads a string from System.in and stores in var
-            AlgolParser.ExprContext varExpr = args.get(1).expr();
-            if (varExpr instanceof AlgolParser.VarExprContext) {
-                String varName = ((AlgolParser.VarExprContext) varExpr).identifier().getText();
+            PerseusParser.ExprContext varExpr = args.get(1).expr();
+            if (varExpr instanceof PerseusParser.VarExprContext) {
+                String varName = ((PerseusParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
                 String varType = currentSymbolTable.get(varName);
                 if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
@@ -1440,18 +1440,18 @@ public class CodeGenerator extends AlgolBaseListener {
     // -------------------------------------------------------------------------
 
     @Override
-    public void enterLabel(AlgolParser.LabelContext ctx) {
+    public void enterLabel(PerseusParser.LabelContext ctx) {
         String labelName = ctx.identifier().getText();
         activeOutput.append(labelName).append(":\n");
     }
 
     @Override
-    public void exitSwitchDecl(AlgolParser.SwitchDeclContext ctx) {
+    public void exitSwitchDecl(PerseusParser.SwitchDeclContext ctx) {
         // Switch declarations are metadata for designational goto codegen.
     }
 
     @Override
-    public void exitGotoStatement(AlgolParser.GotoStatementContext ctx) {
+    public void exitGotoStatement(PerseusParser.GotoStatementContext ctx) {
         emitGotoDesignationalExpr(ctx.designationalExpr());
     }
 
@@ -1460,8 +1460,8 @@ public class CodeGenerator extends AlgolBaseListener {
     // -------------------------------------------------------------------------
 
     @Override
-    public void enterStatement(AlgolParser.StatementContext ctx) {
-        if (ctx.getParent() instanceof AlgolParser.IfStatementContext ifCtx
+    public void enterStatement(PerseusParser.StatementContext ctx) {
+        if (ctx.getParent() instanceof PerseusParser.IfStatementContext ifCtx
                 && ifCtx.statement().size() > 1
                 && ctx == ifCtx.statement(1)) {
             String endLabel  = ifEndLabelStack.peek();
@@ -1472,28 +1472,28 @@ public class CodeGenerator extends AlgolBaseListener {
     }
 
     @Override
-    public void enterBlock(AlgolParser.BlockContext ctx) {
+    public void enterBlock(PerseusParser.BlockContext ctx) {
         // Blocks are just containers for statements - no special handling needed
     }
 
     @Override
-    public void exitBlock(AlgolParser.BlockContext ctx) {
+    public void exitBlock(PerseusParser.BlockContext ctx) {
         // Blocks are just containers for statements - no special handling needed
     }
 
     @Override
-    public void enterCompoundStatement(AlgolParser.CompoundStatementContext ctx) {
+    public void enterCompoundStatement(PerseusParser.CompoundStatementContext ctx) {
         // Compound statements are just containers for statements - no special handling needed
     }
 
     @Override
-    public void exitCompoundStatement(AlgolParser.CompoundStatementContext ctx) {
+    public void exitCompoundStatement(PerseusParser.CompoundStatementContext ctx) {
         // Compound statements are just containers for statements - no special handling needed
     }
 
     @Override
-    public void enterIfStatement(AlgolParser.IfStatementContext ctx) {
-        AlgolParser.ExprContext cond = ctx.expr();
+    public void enterIfStatement(PerseusParser.IfStatementContext ctx) {
+        PerseusParser.ExprContext cond = ctx.expr();
         boolean hasElse = ctx.statement().size() > 1;
         String endLabel = generateUniqueLabel("endif");
         ifEndLabelStack.push(endLabel);
@@ -1509,7 +1509,7 @@ public class CodeGenerator extends AlgolBaseListener {
             falseTarget = endLabel;
         }
 
-        if (cond instanceof AlgolParser.RelExprContext rel) {
+        if (cond instanceof PerseusParser.RelExprContext rel) {
             String leftCode  = generateExpr(rel.expr(0));
             String rightCode = generateExpr(rel.expr(1));
             String leftType  = exprTypes.getOrDefault(rel.expr(0), "integer");
@@ -1551,7 +1551,7 @@ public class CodeGenerator extends AlgolBaseListener {
     }
 
     @Override
-    public void exitIfStatement(AlgolParser.IfStatementContext ctx) {
+    public void exitIfStatement(PerseusParser.IfStatementContext ctx) {
         String endLabel = ifEndLabelStack.pop();
         ifElseLabelStack.pop();
         activeOutput.append(endLabel).append(":\n");
@@ -1562,7 +1562,7 @@ public class CodeGenerator extends AlgolBaseListener {
     // -------------------------------------------------------------------------
 
     @Override
-    public void enterForStatement(AlgolParser.ForStatementContext ctx) {
+    public void enterForStatement(PerseusParser.ForStatementContext ctx) {
         // Redirect all body code to a capture buffer; exitForStatement will
         // reconstruct the complete for-list structure with inline body duplication.
         forBodyStack.push(activeOutput);
@@ -1570,7 +1570,7 @@ public class CodeGenerator extends AlgolBaseListener {
     }
 
     @Override
-    public void exitForStatement(AlgolParser.ForStatementContext ctx) {
+    public void exitForStatement(PerseusParser.ForStatementContext ctx) {
         String bodyCode = activeOutput.toString();
         activeOutput = forBodyStack.pop();
 
@@ -1596,8 +1596,8 @@ public class CodeGenerator extends AlgolBaseListener {
 
         String afterAllLabel = generateUniqueLabel("endfor");
 
-        for (AlgolParser.ForElementContext elem : ctx.forList().forElement()) {
-            if (elem instanceof AlgolParser.StepUntilElementContext e) {
+        for (PerseusParser.ForElementContext elem : ctx.forList().forElement()) {
+            if (elem instanceof PerseusParser.StepUntilElementContext e) {
                 String loopLabel = generateUniqueLabel("loop");
                 // init
                 activeOutput.append(generateExpr(e.expr(0)));
@@ -1654,7 +1654,7 @@ public class CodeGenerator extends AlgolBaseListener {
                 }
                 activeOutput.append("goto ").append(loopLabel).append("\n");
 
-            } else if (elem instanceof AlgolParser.WhileElementContext e) {
+            } else if (elem instanceof PerseusParser.WhileElementContext e) {
                 // while semantics: re-evaluate expr AND condition each iteration
                 String loopLabel = generateUniqueLabel("loop");
                 activeOutput.append(loopLabel).append(":\n");
@@ -1671,7 +1671,7 @@ public class CodeGenerator extends AlgolBaseListener {
 
             } else {
                 // SimpleElement: execute exactly once
-                AlgolParser.SimpleElementContext e = (AlgolParser.SimpleElementContext) elem;
+                PerseusParser.SimpleElementContext e = (PerseusParser.SimpleElementContext) elem;
                 activeOutput.append(generateExpr(e.expr()));
                 if (varIsThunk) {
                     appendBoxAndSetThunk(varIndex, baseVarType);
@@ -1716,12 +1716,12 @@ public class CodeGenerator extends AlgolBaseListener {
         return prefix + "_" + (labelCounter++);
     }
 
-    private void emitGotoDesignationalExpr(AlgolParser.DesignationalExprContext ctx) {
-        if (ctx instanceof AlgolParser.DirectDesignationalExprContext simpleCtx) {
+    private void emitGotoDesignationalExpr(PerseusParser.DesignationalExprContext ctx) {
+        if (ctx instanceof PerseusParser.DirectDesignationalExprContext simpleCtx) {
             emitGotoSimpleDesignationalExpr(simpleCtx.simpleDesignationalExpr());
             return;
         }
-        if (ctx instanceof AlgolParser.IfDesignationalExprContext ifCtx) {
+        if (ctx instanceof PerseusParser.IfDesignationalExprContext ifCtx) {
             String falseLabel = generateUniqueLabel("switch_else");
             activeOutput.append(generateExpr(ifCtx.expr()));
             activeOutput.append("ifeq ").append(falseLabel).append("\n");
@@ -1733,24 +1733,24 @@ public class CodeGenerator extends AlgolBaseListener {
         activeOutput.append("; ERROR: unsupported designational expression\n");
     }
 
-    private void emitGotoSimpleDesignationalExpr(AlgolParser.SimpleDesignationalExprContext ctx) {
-        if (ctx instanceof AlgolParser.LabelDesignatorExprContext labelCtx) {
+    private void emitGotoSimpleDesignationalExpr(PerseusParser.SimpleDesignationalExprContext ctx) {
+        if (ctx instanceof PerseusParser.LabelDesignatorExprContext labelCtx) {
             activeOutput.append("goto ").append(labelCtx.identifier().getText()).append("\n");
             return;
         }
-        if (ctx instanceof AlgolParser.ParenDesignatorExprContext parenCtx) {
+        if (ctx instanceof PerseusParser.ParenDesignatorExprContext parenCtx) {
             emitGotoDesignationalExpr(parenCtx.designationalExpr());
             return;
         }
-        if (ctx instanceof AlgolParser.SwitchDesignatorExprContext switchCtx) {
+        if (ctx instanceof PerseusParser.SwitchDesignatorExprContext switchCtx) {
             emitGotoSwitchDesignator(switchCtx.identifier().getText(), switchCtx.expr());
             return;
         }
         activeOutput.append("; ERROR: unsupported simple designational expression\n");
     }
 
-    private void emitGotoSwitchDesignator(String switchName, AlgolParser.ExprContext indexExpr) {
-        AlgolParser.SwitchDeclContext switchDecl = switchDeclarations.get(switchName);
+    private void emitGotoSwitchDesignator(String switchName, PerseusParser.ExprContext indexExpr) {
+        PerseusParser.SwitchDeclContext switchDecl = switchDeclarations.get(switchName);
         if (switchDecl == null) {
             activeOutput.append("; ERROR: unknown switch ").append(switchName).append("\n");
             return;
@@ -1870,7 +1870,7 @@ public class CodeGenerator extends AlgolBaseListener {
      */
     private Set<String> collectVarNames(ExprContext ctx) {
         Set<String> names = new LinkedHashSet<>();
-        if (ctx instanceof AlgolParser.VarExprContext ve) {
+        if (ctx instanceof PerseusParser.VarExprContext ve) {
             String varName = ve.identifier().getText();
             // If the expression refers to the current procedure (recursive call), it should
             // be treated as a call rather than a captured variable.
@@ -1878,33 +1878,33 @@ public class CodeGenerator extends AlgolBaseListener {
                 return names;
             }
             names.add(varName);
-        } else if (ctx instanceof AlgolParser.ArrayAccessExprContext ae) {
+        } else if (ctx instanceof PerseusParser.ArrayAccessExprContext ae) {
             names.add(ae.identifier().getText());
             names.addAll(collectVarNames(ae.expr()));
-        } else if (ctx instanceof AlgolParser.ProcCallExprContext pc) {
-            for (AlgolParser.ArgContext a : pc.argList().arg()) {
+        } else if (ctx instanceof PerseusParser.ProcCallExprContext pc) {
+            for (PerseusParser.ArgContext a : pc.argList().arg()) {
                 if (a.expr() != null) names.addAll(collectVarNames(a.expr()));
             }
-        } else if (ctx instanceof AlgolParser.RelExprContext re) {
+        } else if (ctx instanceof PerseusParser.RelExprContext re) {
             names.addAll(collectVarNames(re.expr(0)));
             names.addAll(collectVarNames(re.expr(1)));
-        } else if (ctx instanceof AlgolParser.MulDivExprContext me) {
+        } else if (ctx instanceof PerseusParser.MulDivExprContext me) {
             names.addAll(collectVarNames(me.expr(0)));
             names.addAll(collectVarNames(me.expr(1)));
-        } else if (ctx instanceof AlgolParser.AddSubExprContext ae) {
+        } else if (ctx instanceof PerseusParser.AddSubExprContext ae) {
             names.addAll(collectVarNames(ae.expr(0)));
             names.addAll(collectVarNames(ae.expr(1)));
-        } else if (ctx instanceof AlgolParser.AndExprContext ae) {
+        } else if (ctx instanceof PerseusParser.AndExprContext ae) {
             names.addAll(collectVarNames(ae.expr(0)));
             names.addAll(collectVarNames(ae.expr(1)));
-        } else if (ctx instanceof AlgolParser.OrExprContext oe) {
+        } else if (ctx instanceof PerseusParser.OrExprContext oe) {
             names.addAll(collectVarNames(oe.expr(0)));
             names.addAll(collectVarNames(oe.expr(1)));
-        } else if (ctx instanceof AlgolParser.NotExprContext ne) {
+        } else if (ctx instanceof PerseusParser.NotExprContext ne) {
             names.addAll(collectVarNames(ne.expr()));
-        } else if (ctx instanceof AlgolParser.UnaryMinusExprContext ue) {
+        } else if (ctx instanceof PerseusParser.UnaryMinusExprContext ue) {
             names.addAll(collectVarNames(ue.expr()));
-        } else if (ctx instanceof AlgolParser.ParenExprContext pe) {
+        } else if (ctx instanceof PerseusParser.ParenExprContext pe) {
             names.addAll(collectVarNames(pe.expr()));
         }
         // other cases (literals, true/false) add nothing
@@ -2066,7 +2066,7 @@ public class CodeGenerator extends AlgolBaseListener {
         // When a call-by-name actual is a procedure identifier, capture the defining
         // outer activation environment in thunk instance fields so recursive re-entry
         // uses closure-like state instead of whichever static env is current at get().
-        if (actual instanceof AlgolParser.VarExprContext ve
+        if (actual instanceof PerseusParser.VarExprContext ve
                 && procedures.containsKey(ve.identifier().getText())
                 && (currentSymbolTable == null
                     || !currentSymbolTable.containsKey(ve.identifier().getText())
@@ -2434,7 +2434,7 @@ public class CodeGenerator extends AlgolBaseListener {
         if (actual != null) {
             // generate expression code inside thunk, using mapping from vars to field indexes
             String actualExprType;
-            if (actual instanceof AlgolParser.VarExprContext ve && procedures.containsKey(ve.identifier().getText())) {
+            if (actual instanceof PerseusParser.VarExprContext ve && procedures.containsKey(ve.identifier().getText())) {
                 String pName = ve.identifier().getText();
                 SymbolTableBuilder.ProcInfo pInfo = procedures.get(pName);
                 String pRet = pInfo != null ? pInfo.returnType : "integer";
@@ -2524,7 +2524,7 @@ public class CodeGenerator extends AlgolBaseListener {
      * @return a string containing the Jasmin instructions for the call (including
      *         any temporary box initialization and variable restoration).
      */
-    private String generateUserProcedureInvocation(String name, List<AlgolParser.ArgContext> args, boolean isStatement) {
+    private String generateUserProcedureInvocation(String name, List<PerseusParser.ArgContext> args, boolean isStatement) {
         SymbolTableBuilder.ProcInfo info = procedures.get(name);
         if (info == null) {
             return "; unknown procedure: " + name + "\n";
@@ -2537,11 +2537,11 @@ public class CodeGenerator extends AlgolBaseListener {
         Set<String> varsToRestore = new LinkedHashSet<>();
 
         // first pass: discover variables referenced by each name argument
-        List<AlgolParser.ArgContext> argList = args;
+        List<PerseusParser.ArgContext> argList = args;
         for (int ai = 0; ai < argList.size() && ai < info.paramNames.size(); ai++) {
             String paramName = info.paramNames.get(ai);
             boolean isValue = info.valueParams.contains(paramName);
-            AlgolParser.ArgContext arg = argList.get(ai);
+            PerseusParser.ArgContext arg = argList.get(ai);
             if (!isValue) {
                 if (arg.expr() != null) {
                     Set<String> names = collectVarNames(arg.expr());
@@ -2596,7 +2596,7 @@ public class CodeGenerator extends AlgolBaseListener {
                 }
             } else {
                 ExprContext actual = arg.expr();
-                if (actual instanceof AlgolParser.VarExprContext ve) {
+                if (actual instanceof PerseusParser.VarExprContext ve) {
                     String vn = ve.identifier().getText();
                     String vType = lookupVarType(vn);
                     String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
@@ -2809,7 +2809,7 @@ public class CodeGenerator extends AlgolBaseListener {
 
     // Clean retyped: Checks if the given expression is a procedure reference
     private boolean isProcedureReferenceExpr(ExprContext expr) {
-        if (!(expr instanceof AlgolParser.VarExprContext ve)) {
+        if (!(expr instanceof PerseusParser.VarExprContext ve)) {
             return false;
         }
         String name = ve.identifier().getText();
@@ -2938,7 +2938,7 @@ public class CodeGenerator extends AlgolBaseListener {
         if (expr == null) {
             return "integer";
         }
-        if (expr instanceof AlgolParser.VarExprContext ve) {
+        if (expr instanceof PerseusParser.VarExprContext ve) {
             String name = ve.identifier().getText();
             SymbolTableBuilder.ProcInfo procInfo = procedures.get(name);
             if (procInfo != null) {
@@ -3058,7 +3058,7 @@ public class CodeGenerator extends AlgolBaseListener {
     }
 
     private String generateExpr(ExprContext ctx, Map<String,Integer> varToFieldIndex) {
-        if (ctx instanceof AlgolParser.RelExprContext e) {
+        if (ctx instanceof PerseusParser.RelExprContext e) {
             String leftCode  = generateExpr(e.expr(0), varToFieldIndex);
             String rightCode = generateExpr(e.expr(1), varToFieldIndex);
             String leftType  = exprTypes.getOrDefault(e.expr(0), "integer");
@@ -3099,7 +3099,7 @@ public class CodeGenerator extends AlgolBaseListener {
                     trueLabel + ":\niconst_1\n" +
                     endLabel + ":\n";
             }
-        } else if (ctx instanceof AlgolParser.IfExprContext e) {
+        } else if (ctx instanceof PerseusParser.IfExprContext e) {
             // if-then-else as expression (mandatory else branch)
             String condCode  = generateExpr(e.expr(0), varToFieldIndex);
             String thenCode  = generateExpr(e.expr(1), varToFieldIndex);
@@ -3118,7 +3118,7 @@ public class CodeGenerator extends AlgolBaseListener {
                 elseLabel + ":\n" +
                 elseCode +
                 endLabel + ":\n";
-        } else if (ctx instanceof AlgolParser.MulDivExprContext e) {
+        } else if (ctx instanceof PerseusParser.MulDivExprContext e) {
             String left  = generateExpr(e.expr(0), varToFieldIndex);
             String right = generateExpr(e.expr(1), varToFieldIndex);
             String leftType  = exprTypes.getOrDefault(e.expr(0), "integer");
@@ -3137,7 +3137,7 @@ public class CodeGenerator extends AlgolBaseListener {
                 ("*".equals(op) ? "dmul" : "ddiv") :
                 ("*".equals(op) ? "imul" : "idiv");
             return left + right + instr + "\n";
-        } else if (ctx instanceof AlgolParser.AddSubExprContext e) {
+        } else if (ctx instanceof PerseusParser.AddSubExprContext e) {
             String left  = generateExpr(e.expr(0), varToFieldIndex);
             String right = generateExpr(e.expr(1), varToFieldIndex);
             String leftType  = exprTypes.getOrDefault(e.expr(0), "integer");
@@ -3156,13 +3156,13 @@ public class CodeGenerator extends AlgolBaseListener {
                 ("+".equals(op) ? "dadd" : "dsub") :
                 ("+".equals(op) ? "iadd" : "isub");
             return left + right + instr + "\n";
-        } else if (ctx instanceof AlgolParser.AndExprContext e) {
+        } else if (ctx instanceof PerseusParser.AndExprContext e) {
             return generateExpr(e.expr(0), varToFieldIndex) + generateExpr(e.expr(1), varToFieldIndex) + "iand\n";
-        } else if (ctx instanceof AlgolParser.OrExprContext e) {
+        } else if (ctx instanceof PerseusParser.OrExprContext e) {
             return generateExpr(e.expr(0), varToFieldIndex) + generateExpr(e.expr(1), varToFieldIndex) + "ior\n";
-        } else if (ctx instanceof AlgolParser.NotExprContext e) {
+        } else if (ctx instanceof PerseusParser.NotExprContext e) {
             return generateExpr(e.expr(), varToFieldIndex) + "iconst_1\nixor\n";
-        } else if (ctx instanceof AlgolParser.VarExprContext e) {
+        } else if (ctx instanceof PerseusParser.VarExprContext e) {
             String name = e.identifier().getText();
 
             // If we're generating code inside a thunk, some variables may be
@@ -3362,7 +3362,7 @@ public class CodeGenerator extends AlgolBaseListener {
             } else {
                 return "; ERROR: unknown variable type " + type + "\n";
             }
-        } else if (ctx instanceof AlgolParser.ArrayAccessExprContext e) {
+        } else if (ctx instanceof PerseusParser.ArrayAccessExprContext e) {
             String arrName = e.identifier().getText();
             String elemType = lookupVarType(arrName);
             if (elemType == null) return "; ERROR: undeclared array " + arrName + "\n";
@@ -3392,7 +3392,7 @@ public class CodeGenerator extends AlgolBaseListener {
             }
             sb.append("real[]".equals(elemType) ? "daload\n" : "boolean[]".equals(elemType) ? "baload\n" : "string[]".equals(elemType) ? "aaload\n" : "iaload\n");
             return sb.toString();
-        } else if (ctx instanceof AlgolParser.ProcCallExprContext e) {
+        } else if (ctx instanceof PerseusParser.ProcCallExprContext e) {
             String procName = e.identifier().getText();
             
             // Check for built-in math functions first
@@ -3454,17 +3454,17 @@ public class CodeGenerator extends AlgolBaseListener {
                 }
             }
             return callCode;
-        } else if (ctx instanceof AlgolParser.RealLiteralExprContext e) {
+        } else if (ctx instanceof PerseusParser.RealLiteralExprContext e) {
             return "ldc2_w " + e.realLiteral().getText() + "d\n";
-        } else if (ctx instanceof AlgolParser.IntLiteralExprContext e) {
+        } else if (ctx instanceof PerseusParser.IntLiteralExprContext e) {
             return "ldc " + e.unsignedInt().getText() + "\n";
-        } else if (ctx instanceof AlgolParser.StringLiteralExprContext e) {
+        } else if (ctx instanceof PerseusParser.StringLiteralExprContext e) {
             return "ldc " + e.string().getText() + "\n";
-        } else if (ctx instanceof AlgolParser.TrueLiteralExprContext) {
+        } else if (ctx instanceof PerseusParser.TrueLiteralExprContext) {
             return "iconst_1\n";
-        } else if (ctx instanceof AlgolParser.FalseLiteralExprContext) {
+        } else if (ctx instanceof PerseusParser.FalseLiteralExprContext) {
             return "iconst_0\n";
-        } else if (ctx instanceof AlgolParser.UnaryMinusExprContext e) {
+        } else if (ctx instanceof PerseusParser.UnaryMinusExprContext e) {
             String type = exprTypes.getOrDefault(ctx, "integer");
             String inner = generateExpr(e.expr(), varToFieldIndex);
             if ("real".equals(type)) {
@@ -3472,7 +3472,7 @@ public class CodeGenerator extends AlgolBaseListener {
             } else {
                 return inner + "ineg\n";
             }
-        } else if (ctx instanceof AlgolParser.ParenExprContext e) {
+        } else if (ctx instanceof PerseusParser.ParenExprContext e) {
             return generateExpr(e.expr(), varToFieldIndex);
         }
         return "; unknown expr type\n";
@@ -3483,7 +3483,7 @@ public class CodeGenerator extends AlgolBaseListener {
      * (sqrt, abs, sin, …) and string builtins (length, concat, substring) separately.
      * Returns null if the function name is not a recognized built-in.
      */
-    private String generateBuiltinMathFunction(String funcName, AlgolParser.ProcCallExprContext ctx) {
+    private String generateBuiltinMathFunction(String funcName, PerseusParser.ProcCallExprContext ctx) {
         return builtinGen.generate(funcName, ctx);
     }
 
@@ -3524,7 +3524,7 @@ public class CodeGenerator extends AlgolBaseListener {
      * Delegates to ProcedureGenerator when the variable is stored in a local slot.
      * Falls back to a static field lookup if the variable is stored in the outer scope.
      */
-    private String generateProcedureVariableCall(String varName, String varType, List<AlgolParser.ArgContext> args) {
+    private String generateProcedureVariableCall(String varName, String varType, List<PerseusParser.ArgContext> args) {
         // Prefer calling through a local slot if this procedure variable is stored locally.
         Integer slot = currentLocalIndex.get(varName);
         if (slot != null) {
@@ -3552,7 +3552,7 @@ public class CodeGenerator extends AlgolBaseListener {
         return "getstatic " + packageName + "/" + className + "/" + staticFieldName(varName, varType) + " " + desc + "\n";
     }
 
-    private String generateProcedureVariableCallViaStaticField(String varName, String varType, List<AlgolParser.ArgContext> args) {
+    private String generateProcedureVariableCallViaStaticField(String varName, String varType, List<PerseusParser.ArgContext> args) {
         // Load the procedure reference from the static field instead of a local slot.
         String load = generateProcedureVariableLoad(varName, varType);
         // Build the argument array and invoke the method on the procedure interface.
@@ -3576,7 +3576,7 @@ public class CodeGenerator extends AlgolBaseListener {
         } else {
             sb.append("ldc ").append(argCount).append("\nanewarray java/lang/Object\n");
             for (int i = 0; i < argCount; i++) {
-                AlgolParser.ExprContext argExpr = args.get(i).expr();
+                PerseusParser.ExprContext argExpr = args.get(i).expr();
 
                 boolean isByName = false;
                 String paramBaseType = "integer";
@@ -3592,7 +3592,7 @@ public class CodeGenerator extends AlgolBaseListener {
                 if (isByName) {
                     // Pass a Thunk for by-name parameters. If the source expression is already
                     // a thunk variable, use it directly; otherwise create a thunk wrapper.
-                    if (argExpr instanceof AlgolParser.VarExprContext argVar) {
+                    if (argExpr instanceof PerseusParser.VarExprContext argVar) {
                         String vn = argVar.identifier().getText();
                         String vnType = lookupVarType(vn);
                         if (vnType != null && vnType.startsWith("thunk:")) {
@@ -3634,6 +3634,7 @@ public class CodeGenerator extends AlgolBaseListener {
         return sb.toString();
     }
 }
+
 
 
 

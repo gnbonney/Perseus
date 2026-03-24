@@ -1,6 +1,6 @@
 package gnb.perseus.compiler.codegen;
 
-import gnb.perseus.compiler.antlr.AlgolParser;
+import gnb.perseus.compiler.antlr.PerseusParser;
 import gnb.perseus.compiler.CodeGenUtils;
 import gnb.perseus.compiler.SymbolTableBuilder;
 import gnb.perseus.compiler.SymbolTableBuilder.ProcInfo;
@@ -22,8 +22,8 @@ public class ProcedureGenerator implements GeneratorDelegate {
     private IntSupplier nextProcRefId;
     private BiConsumer<String, String> storeProcRefClass;
     private Function<String, Integer> lookupLocalSlot;
-    private Map<AlgolParser.ExprContext, String> exprTypes;
-    private Function<AlgolParser.ExprContext, String> generateExprFn;
+    private Map<PerseusParser.ExprContext, String> exprTypes;
+    private Function<PerseusParser.ExprContext, String> generateExprFn;
 
     // Label counter for generated thunk helper methods
     private int labelCounter = 0;
@@ -57,8 +57,8 @@ public class ProcedureGenerator implements GeneratorDelegate {
                                IntSupplier nextProcRefId,
                                BiConsumer<String, String> storeProcRefClass,
                                Function<String, Integer> lookupLocalSlot,
-                               Map<AlgolParser.ExprContext, String> exprTypes,
-                               Function<AlgolParser.ExprContext, String> generateExprFn) {
+                               Map<PerseusParser.ExprContext, String> exprTypes,
+                               Function<PerseusParser.ExprContext, String> generateExprFn) {
         this.packageName      = packageName;
         this.className        = className;
         this.nextProcRefId    = nextProcRefId;
@@ -68,7 +68,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
         this.generateExprFn   = generateExprFn;
     }
 
-    private String generateExpr(AlgolParser.ExprContext ctx) {
+    private String generateExpr(PerseusParser.ExprContext ctx) {
         return exprGen.generateExpr(ctx);
     }
 
@@ -88,8 +88,8 @@ public class ProcedureGenerator implements GeneratorDelegate {
 
     private Set<String> collectVarNames(ParseTree tree) {
         Set<String> names = new LinkedHashSet<>();
-        if (tree instanceof AlgolParser.VarExprContext) {
-            names.add(((AlgolParser.VarExprContext) tree).identifier().getText());
+        if (tree instanceof PerseusParser.VarExprContext) {
+            names.add(((PerseusParser.VarExprContext) tree).identifier().getText());
         } else {
             for (int i = 0; i < tree.getChildCount(); i++) {
                 names.addAll(collectVarNames(tree.getChild(i)));
@@ -98,7 +98,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
         return names;
     }
 
-    public String createThunkClass(Map<String, Integer> varToField, AlgolParser.ExprContext actual, String baseType) {
+    public String createThunkClass(Map<String, Integer> varToField, PerseusParser.ExprContext actual, String baseType) {
         String thunkClassName = "Thunk" + context.getThunkId();
         context.incrementThunkId();
         StringBuilder sb = new StringBuilder();
@@ -194,7 +194,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
         return thunkClassName;
     }
 
-    public String generateProcedureCall(String name, List<AlgolParser.ArgContext> args, boolean isStatement) {
+    public String generateProcedureCall(String name, List<PerseusParser.ArgContext> args, boolean isStatement) {
         ProcInfo info = context.getProcedures().get(name);
         if (info == null) {
             return "; unknown procedure: " + name + "\n";
@@ -206,7 +206,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
         for (int ai = 0; ai < args.size() && ai < info.paramNames.size(); ai++) {
             String paramName = info.paramNames.get(ai);
             if (!info.valueParams.contains(paramName)) {
-                AlgolParser.ArgContext arg = args.get(ai);
+                PerseusParser.ArgContext arg = args.get(ai);
                 if (arg.expr() != null) {
                     for (String vn : collectVarNames(arg.expr())) {
                         if (!varToBoxSlot.containsKey(vn)) {
@@ -244,7 +244,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
         for (int ai = 0; ai < args.size() && ai < info.paramNames.size(); ai++) {
             String paramName = info.paramNames.get(ai);
             boolean isValue = info.valueParams.contains(paramName);
-            AlgolParser.ArgContext arg = args.get(ai);
+            PerseusParser.ArgContext arg = args.get(ai);
             if (isValue) {
                 if (arg.expr() != null) {
                     sb.append(generateExpr(arg.expr()));
@@ -253,7 +253,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
                     if ("real".equals(paramType) && "integer".equals(argType)) sb.append("i2d\n");
                 }
             } else {
-                AlgolParser.ExprContext actual = arg.expr();
+                PerseusParser.ExprContext actual = arg.expr();
                 Set<String> names = actual != null ? collectVarNames(actual) : Set.of();
                 Map<String, Integer> varToField = new LinkedHashMap<>();
                 int fi = 0;
@@ -287,9 +287,9 @@ public class ProcedureGenerator implements GeneratorDelegate {
         for (int ai = 0; ai < args.size() && ai < info.paramNames.size(); ai++) {
             String paramName = info.paramNames.get(ai);
             if (!info.valueParams.contains(paramName)) {
-                AlgolParser.ArgContext arg = args.get(ai);
-                if (arg.expr() instanceof AlgolParser.VarExprContext) {
-                    String vn = ((AlgolParser.VarExprContext) arg.expr()).identifier().getText();
+                PerseusParser.ArgContext arg = args.get(ai);
+                if (arg.expr() instanceof PerseusParser.VarExprContext) {
+                    String vn = ((PerseusParser.VarExprContext) arg.expr()).identifier().getText();
                     String varType = context.getSymbolTable().get(vn);
                     if (varType == null && context.getMainSymbolTable() != null) varType = context.getMainSymbolTable().get(vn);
                     int boxSlot = varToBoxSlot.get(vn);
@@ -307,7 +307,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
         return sb.toString();
     }
 
-    public void enterProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
+    public void enterProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
         String procName = ctx.identifier().getText();
         ProcInfo info = context.getProcedures().get(procName);
         
@@ -365,7 +365,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
         context.pushOutput(sb);
     }
 
-    public void exitProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
+    public void exitProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
         String procName = ctx.identifier().getText();
         
         StringBuilder sb = context.getActiveOutput();
@@ -389,7 +389,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
      * Generates code to call a procedure through a procedure variable.
      * Uses callback-based state injection (CodeGenerator delegation pattern).
      */
-    public String generateProcedureVariableCall(String varName, String varType, List<AlgolParser.ArgContext> args) {
+    public String generateProcedureVariableCall(String varName, String varType, List<PerseusParser.ArgContext> args) {
         String returnType = varType.substring("procedure:".length());
         String interfaceName;
         switch (returnType) {
@@ -426,7 +426,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
             sb.append("ldc ").append(argCount).append("\n");
             sb.append("anewarray java/lang/Object\n");
             for (int i = 0; i < argCount; i++) {
-                AlgolParser.ExprContext argExpr = args.get(i).expr();
+                PerseusParser.ExprContext argExpr = args.get(i).expr();
                 boolean isByName = false;
                 String paramBaseType = "integer";
                 if (targetInfo != null && i < targetInfo.paramNames.size()) {
@@ -439,7 +439,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
                 sb.append("ldc ").append(i).append("\n");
 
                 if (isByName) {
-                    if (argExpr instanceof AlgolParser.VarExprContext argVar) {
+                    if (argExpr instanceof PerseusParser.VarExprContext argVar) {
                         String vn = argVar.identifier().getText();
                         String vnType = context.getSymbolTable().get(vn);
                         if (vnType != null && vnType.startsWith("thunk:")) {
@@ -787,3 +787,4 @@ public class ProcedureGenerator implements GeneratorDelegate {
         if (this.exprGen != null) this.exprGen.setContext(context);
     }
 }
+

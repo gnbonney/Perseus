@@ -1,12 +1,18 @@
-grammar Algol;
+grammar Perseus;
 // Copyright (c) 2017-2026 Greg Bonney
 
-/* This is an Algol 60 grammar, not Algol 68.
- * 
- * Initially I tried to convert the entire Algol 60 BNF to Antlr format, but I ran into numerous 
- * left recursion and other errors.  So, instead I am using small code samples from various sources 
- * and slowly building up a grammar that can correctly parse the code.
- * 
+/* Grammar for the Perseus language.
+ *
+ * Perseus began as an ALGOL 60 compiler and this grammar still preserves much
+ * of that heritage, but the project is no longer limited to a strict historical
+ * reconstruction of ALGOL 60. The grammar is intended to support an
+ * Algol-derived language on the JVM, including compatible ALGOL-style syntax
+ * where practical and project-specific extensions where useful.
+ *
+ * Development has been iterative rather than a direct transcription of the full
+ * ALGOL reports into ANTLR. The grammar has grown by implementing and testing
+ * concrete language features against sample programs, which has been a more
+ * practical way to evolve both correctness and compiler support.
  */
 
 /* NOTE:  Lexer rules start with a capital letter; parser rules start with a lower case letter */

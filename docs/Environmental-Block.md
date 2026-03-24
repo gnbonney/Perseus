@@ -59,7 +59,7 @@ Currently all input procedures read from standard input. File and string channel
 
 ## Format String Examples
 
-> **Extension.** `outformat` and `informat` are Perseus extensions, not part of the Algol 60 Modified Report. See Algol Extensions.md for rationale and historical context.
+> **Extension.** `outformat` and `informat` are Perseus extensions, not part of the Algol 60 Modified Report. See Perseus Language Design.md for rationale and historical context.
 
 The `outformat` and `informat` procedures accept a format string that specifies the width, type, and precision of each output field. Multiple fields are separated by commas or spaces.
 
@@ -121,7 +121,7 @@ These read-only values are pre-declared in the environmental block and may be us
 
 ## File I/O Extensions
 
-> **Note:** The following procedures and syntax are **extensions** to the Algol 60 Modified Report. They are not part of the standard, but are necessary for practical, real-world compiler implementations. These extensions are inspired by historical Algol compilers and modern language design, and are discussed in detail in Algol Extensions.md.
+> **Note:** The following procedures and syntax are **extensions** to the Algol 60 Modified Report. They are not part of the standard, but are necessary for practical, real-world compiler implementations. These extensions are inspired by historical Algol compilers and modern language design, and are discussed in detail in Perseus Language Design.md.
 
 To support file input/output and more meaningful channel usage, the following procedures are implemented by Perseus:
 
@@ -132,7 +132,7 @@ To support file input/output and more meaningful channel usage, the following pr
 | `closefile` | `closefile(channel)` | **Extension.** Closes the file or string buffer associated with the channel. |
 | `instring` | `instring(channel, var)` | **Extension.** Reads a string from the stream or file mapped to the channel. |
 
-**Note:** String variables are an extended feature in Perseus and many historic Algol compilers. The absence of a standard string type in Algol 60 is the reason why an `instring` procedure was not part of the original language specification. Perseus's `instring` extension relies on the presence of string variables and associated operations. For rationale and historical context, see Algol Extensions.md.
+**Note:** String variables are an extended feature in Perseus and many historic Algol compilers. The absence of a standard string type in Algol 60 is the reason why an `instring` procedure was not part of the original language specification. Perseus's `instring` extension relies on the presence of string variables and associated operations. For rationale and historical context, see Perseus Language Design.md.
 
 
 
@@ -179,4 +179,5 @@ closefile(5);
 - All I/O procedures work with string channels in the same way as file and console channels.
 - These extensions are not defined in the Algol 60 Modified Report, but are consistent with historical Algol compiler practice.
 
-For rationale and historical context, see Algol Extensions.md.
+For rationale and historical context, see Perseus Language Design.md.
+

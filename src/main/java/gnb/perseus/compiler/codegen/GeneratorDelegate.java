@@ -1,6 +1,6 @@
 package gnb.perseus.compiler.codegen;
 
-import gnb.perseus.compiler.antlr.AlgolParser;
+import gnb.perseus.compiler.antlr.PerseusParser;
 import java.util.Map;
 
 /**
@@ -9,3 +9,4 @@ import java.util.Map;
 public interface GeneratorDelegate {
     void setContext(ContextManager context);
 }
+

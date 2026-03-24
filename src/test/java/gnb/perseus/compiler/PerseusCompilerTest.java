@@ -21,14 +21,14 @@ import org.junit.jupiter.api.Test;
  * @author Greg Bonney
  *
  */
-public class AntlrAlgolListenerTest {
+public class PerseusCompilerTest {
 
 	private static final Path BUILD_DIR = Paths.get("build/test-algol");
 
 	@Test
 	public void hello() throws Exception {
 		// Compile Algol source to Jasmin
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/hello.alg", "gnb/perseus/programs", "Hello", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println(jasminSource);
@@ -42,7 +42,7 @@ public class AntlrAlgolListenerTest {
 				"Output should emit outstring call");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run and capture output
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.Hello");
@@ -53,7 +53,7 @@ public class AntlrAlgolListenerTest {
 	@Test
 	public void primer1() throws Exception {
 		// Compile Algol source to Jasmin
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/primer1.alg", "gnb/perseus/programs", "Primer1", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println(jasminSource);
@@ -69,7 +69,7 @@ public class AntlrAlgolListenerTest {
 				"Output should contain ddiv for real division");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run � primer1 has no output, just verify it executes without error
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.Primer1");
@@ -79,7 +79,7 @@ public class AntlrAlgolListenerTest {
 	@Test
 	public void primer2() throws Exception {
 		// Compile Algol source to Jasmin (infinite loop � run briefly to confirm no crash)
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/primer2.alg", "gnb/perseus/programs", "Primer2", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== PRIMER2 JASMIN ===");
@@ -97,7 +97,7 @@ public class AntlrAlgolListenerTest {
 				"Output should contain goto AA");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run briefly (infinite loop) � should not crash before timeout
 		// A timeout is the expected outcome for Primer2; an early exit should fail the test.
@@ -109,7 +109,7 @@ public class AntlrAlgolListenerTest {
 	@Test
 	public void primer3() throws Exception {
 		// Compile Algol source to Jasmin (loops 1000 times then stops)
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/primer3.alg", "gnb/perseus/programs", "Primer3", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== PRIMER3 JASMIN ===");
@@ -129,7 +129,7 @@ public class AntlrAlgolListenerTest {
 				"Output should contain putstatic for variable assignment");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run � should terminate after 1000 iterations
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.Primer3");
@@ -139,7 +139,7 @@ public class AntlrAlgolListenerTest {
 	@Test
 	public void primer5() throws Exception {
 		// Compile Algol source to Jasmin (approximation of e via Taylor series)
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/primer5.alg", "gnb/perseus/programs", "Primer5", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== PRIMER5 JASMIN ===");
@@ -151,7 +151,7 @@ public class AntlrAlgolListenerTest {
 				"Output should declare the correct class");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run � should print an approximation of e
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.Primer5");
@@ -161,7 +161,7 @@ public class AntlrAlgolListenerTest {
 
 	@Test
 	public void boolean_test() throws Exception {
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/boolean.alg", "gnb/perseus/programs", "Boolean", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== BOOLEAN JASMIN ===");
@@ -172,7 +172,7 @@ public class AntlrAlgolListenerTest {
 		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run � should print "true"
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.Boolean");
@@ -182,7 +182,7 @@ public class AntlrAlgolListenerTest {
 
 	@Test
 	public void thunkIsolation_test() throws Exception {
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/thunk_isolation.alg", "gnb/perseus/programs", "ThunkIsolation", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== THUNK ISOLATION JASMIN ===");
@@ -192,7 +192,7 @@ public class AntlrAlgolListenerTest {
 		assertNotEquals("NO OUTPUT", jasminSource, "Compilation should succeed");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run � should print "2"
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ThunkIsolation");
@@ -202,7 +202,7 @@ public class AntlrAlgolListenerTest {
 
 	@Test
 	public void array_test() throws Exception {
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/array.alg", "gnb/perseus/programs", "ArrayTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== ARRAY JASMIN ===");
@@ -213,7 +213,7 @@ public class AntlrAlgolListenerTest {
 		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run � nArr[5]=5, nArr[3]=0 (uninitialized)
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ArrayTest");
@@ -223,7 +223,7 @@ public class AntlrAlgolListenerTest {
 
 	@Test
 	public void real_array_test() throws Exception {
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/real_array.alg", "gnb/perseus/programs", "RealArrayTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== REAL ARRAY JASMIN ===");
@@ -236,7 +236,7 @@ public class AntlrAlgolListenerTest {
 		assertTrue(jasminSource.contains("daload"), "Should use daload for real array element access");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run � q[-7]=1.23, q[2]=4.56
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.RealArrayTest");
@@ -248,7 +248,7 @@ public class AntlrAlgolListenerTest {
 	@Test
 	public void primer4() throws Exception {
 		// Compile Algol source to Jasmin (for loop with 1000 iterations)
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/primer4.alg", "gnb/perseus/programs", "Primer4", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== PRIMER4 JASMIN ===");
@@ -266,7 +266,7 @@ public class AntlrAlgolListenerTest {
 				"Output should contain endfor labels");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run � should terminate after 1000 iterations, output final x and y
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.Primer4");
@@ -276,7 +276,7 @@ public class AntlrAlgolListenerTest {
 
 	@Test
 	public void oneton_test() throws Exception {
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/oneton.alg", "gnb/perseus/programs", "OnetonTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== ONETON JASMIN ===");
@@ -290,7 +290,7 @@ public class AntlrAlgolListenerTest {
 				"Should declare integer procedure oneton");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run � loop prints 1..12 each followed by newline, then M=oneton(12)=24
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.OnetonTest");
@@ -301,7 +301,7 @@ public class AntlrAlgolListenerTest {
 
 	@Test
 	public void primes_test() throws Exception {
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/primes.alg", "gnb/perseus/programs", "PrimesTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.err.println("=== PRIMES JASMIN ===");
@@ -318,7 +318,7 @@ public class AntlrAlgolListenerTest {
 				"Should allocate boolean array for sieve");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run � sieve prints primes below 1000, 10 per line
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.PrimesTest");
@@ -394,7 +394,7 @@ end
 		Files.createDirectories(BUILD_DIR);
 		Files.writeString(tempFile, algolSrc);
 
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				tempFile.toString(), "gnb/perseus/programs", "MathFunctionsTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		
@@ -418,7 +418,7 @@ end
 				"Should call Math.signum for sign");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run and check output
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.MathFunctionsTest");
@@ -437,12 +437,12 @@ end
 
 	@Test
 	public void jen_test() throws Exception {
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/jen.alg", "gnb/perseus/programs", "JenTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not error: " + jasminSource);
 
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.JenTest");
 		System.out.println("jen output: [" + output + "]");
 		String[] lines = output.trim().split("\\R");
@@ -473,11 +473,11 @@ end
 		Path temp = BUILD_DIR.resolve("cbn_test.alg");
 		Files.createDirectories(BUILD_DIR);
 		Files.writeString(temp, algolSrc);
-		Path jas = AntlrAlgolListener.compileToFile(
+		Path jas = PerseusCompiler.compileToFile(
 			temp.toString(), "gnb/perseus/programs", "CbnTest", BUILD_DIR);
 		String jasSrc = Files.readString(jas);
 		assertFalse(jasSrc.startsWith("ERROR"), "Compilation should succeed");
-		AntlrAlgolListener.assemble(jas, BUILD_DIR);
+		PerseusCompiler.assemble(jas, BUILD_DIR);
 		String out = runClass(BUILD_DIR, "gnb.perseus.programs.CbnTest");
 		System.out.println("cbn output: [" + out + "]");
 		String[] parts = out.trim().split("\\R");
@@ -487,7 +487,7 @@ end
 
 	@Test
 	public void pi_test() throws Exception {
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/pi.alg", "gnb/perseus/programs", "PiTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 
@@ -497,7 +497,7 @@ end
 				"Should call Math.sqrt");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run � pi.alg uses Archimedes method to approximate pi
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.PiTest");
@@ -511,7 +511,7 @@ end
 
 	@Test
 	public void pi2_test() throws Exception {
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/pi2.alg", "gnb/perseus/programs", "Pi2Test", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 
@@ -521,7 +521,7 @@ end
 				"Should call Math.sqrt");
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run � pi2.alg uses Archimedes method with procedures accessing outer variables
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.Pi2Test");
@@ -630,7 +630,7 @@ begin
 end
 """;
         
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/output_test.alg", "gnb/perseus/programs",
                 "OutputTestM11B", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
@@ -654,7 +654,7 @@ end
     public void channel_aware_stream_selection_test() throws Exception {
         // Test channel-aware stream selection for output procedures
         // Channel 0 -> System.err, Channel 1 -> System.out
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/channel_test.alg", "gnb/perseus/programs",
                 "ChannelTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
@@ -697,7 +697,7 @@ end
     @Test
     public void string_test() throws Exception {
         // Test string variable support from Milestone 11C.2
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/string_test.alg", "gnb/perseus/programs",
                 "StringTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
@@ -727,7 +727,7 @@ end
                 "Should generate getstatic for string variable access");
 
         // Assemble to .class
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         // Run and check output
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.StringTest");
@@ -738,7 +738,7 @@ end
     @Test
     public void instring_test() throws Exception {
         // Test instring procedure from Milestone 11C.3
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/instring_test.alg", "gnb/perseus/programs",
                 "InstringTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
@@ -758,7 +758,7 @@ end
                 "Should store result in string variable with putstatic");
 
         // Assemble to .class
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         // Run with input and check output
         String output = runClassWithInput(BUILD_DIR, "gnb.perseus.programs.InstringTest", "Test Input String\n");
@@ -769,7 +769,7 @@ end
     @Test
     public void stop_fault_test() throws Exception {
         // Test stop and fault procedures from Milestone 11D
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/stop_fault_test.alg", "gnb/perseus/programs",
                 "StopFaultTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
@@ -797,7 +797,7 @@ end
                 "Should load exit code 1 for fault");
 
         // Assemble to .class
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         // Note: We don't run the program since stop and fault exit the JVM
         // Just verify that compilation and Jasmin generation work correctly
@@ -806,7 +806,7 @@ end
     @Test
     public void constants_test() throws Exception {
         // Test environmental constants from Milestone 11E
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/constants_test.alg", "gnb/perseus/programs",
                 "ConstantsTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
@@ -830,7 +830,7 @@ end
                 "Should load Integer.MAX_VALUE for maxint");
 
         // Assemble to .class
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         // Run and check output
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.ConstantsTest");
@@ -846,7 +846,7 @@ end
     @Test
     public void pi_programs_test() throws Exception {
         // Test that pi_simple.alg (Archimedes pi approximation) compiles and runs from Milestone 11F
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/pi_simple.alg", "gnb/perseus/programs",
                 "PiTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
@@ -865,7 +865,7 @@ end
                 "Should have main method");
 
         // Assemble and run
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.PiTest");
 
         // Verify output contains pi approximations (10 iterations of the Archimedes method)
@@ -876,7 +876,7 @@ end
     @Test
     public void sqrt_negative_test() throws Exception {
         // Test that sqrt of negative number returns NaN (documented choice) from Milestone 11F
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/sqrt_negative_test.alg", "gnb/perseus/programs",
                 "SqrtNegativeTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
@@ -894,7 +894,7 @@ end
                 "Should call Math.sqrt");
 
         // Assemble and run
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.SqrtNegativeTest");
         System.out.println("sqrt negative test output: [" + output + "]");
 
@@ -905,7 +905,7 @@ end
     @Test
     public void proc_var_test() throws Exception {
         // Compile Algol source to Jasmin
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/proc_var.alg", "gnb/perseus/programs", "ProcVar", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -917,7 +917,7 @@ end
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
         // Assemble to .class
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         // Run and capture output
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.ProcVar");
@@ -928,7 +928,7 @@ end
     @Test
     public void proc_param_test() throws Exception {
         // Compile Algol source to Jasmin
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/proc_param.alg", "gnb/perseus/programs", "ProcParam", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -940,7 +940,7 @@ end
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
         // Assemble to .class
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         // Run and capture output
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.ProcParam");
@@ -951,7 +951,7 @@ end
     @Test
     public void proc_typed_simple_test() throws Exception {
         // Compile Algol source to Jasmin
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/proc_typed_simple.alg", "gnb/perseus/programs", "ProcTypedSimple", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -963,7 +963,7 @@ end
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
         // Assemble to .class
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         // Run and capture output
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.ProcTypedSimple");
@@ -974,7 +974,7 @@ end
 	@Test
 	public void deferred_typing_test() throws Exception {
 		// Compile Algol source to Jasmin
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 			"test/algol/deferred_typing_test.alg", "gnb/perseus/programs", "DeferredTypingTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 
@@ -986,7 +986,7 @@ end
 			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run FixLimits to verify and fix the generated class family.
 		try {
@@ -1004,7 +1004,7 @@ end
 
     @Test
     public void deferred_name_params_mixed_type_test() throws Exception {
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
             "test/algol/deferred_name_params_mixed_type.alg", "gnb/perseus/programs", "DeferredNameParamsMixedType", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -1015,7 +1015,7 @@ end
         assertFalse(jasminSource.startsWith("ERROR"),
             "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.DeferredNameParamsMixedType");
         System.out.println("Deferred name params mixed type output: [" + output + "]");
@@ -1025,7 +1025,7 @@ end
 
     @Test
     public void deferred_missing_formal_types_test() throws Exception {
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
             "test/algol/deferred_missing_formal_types.alg", "gnb/perseus/programs", "DeferredMissingFormalTypes", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -1036,7 +1036,7 @@ end
         assertFalse(jasminSource.startsWith("ERROR"),
             "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.DeferredMissingFormalTypes");
         System.out.println("Deferred missing formal types output: [" + output + "]");
@@ -1047,7 +1047,7 @@ end
     @Test
     public void manboy_test() throws Exception {
 		// Compile Algol source to Jasmin
-		Path jasminFile = AntlrAlgolListener.compileToFile(
+		Path jasminFile = PerseusCompiler.compileToFile(
 			"test/algol/manboy.alg", "gnb/perseus/programs", "ManBoy", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 
@@ -1059,7 +1059,7 @@ end
 			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
 		// Assemble to .class
-		AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 		// Run FixLimits to verify and fix the generated class family.
 		try {
@@ -1077,7 +1077,7 @@ end
 
     @Test
     public void recursion_euler_test() throws Exception {
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/recursion_euler.alg", "gnb/perseus/programs", "RecursionEuler", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -1088,7 +1088,7 @@ end
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.RecursionEuler");
         System.out.println("RecursionEuler output: [" + output + "]");
@@ -1097,7 +1097,7 @@ end
 
     @Test
     public void nested_scope_access_test() throws Exception {
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/nested_scope_access.alg", "gnb/perseus/programs", "NestedScopeAccess", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -1108,7 +1108,7 @@ end
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.NestedScopeAccess");
         System.out.println("Nested scope access output: [" + output + "]");
@@ -1117,7 +1117,7 @@ end
 
     @Test
     public void nested_digits_test() throws Exception {
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/nested_digits.alg", "gnb/perseus/programs", "NestedDigits", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -1128,7 +1128,7 @@ end
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         try {
             FixLimits.fixClassFamilyInPlace(BUILD_DIR.resolve("gnb/perseus/programs/NestedDigits.class"));
@@ -1144,7 +1144,7 @@ end
 
     @Test
     public void thunk_closure_isolation_test() throws Exception {
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/thunk_closure_isolation.alg", "gnb/perseus/programs", "ThunkClosureIsolation", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -1155,7 +1155,7 @@ end
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.ThunkClosureIsolation");
         System.out.println("Thunk closure isolation output: [" + output + "]");
@@ -1164,7 +1164,7 @@ end
 
     @Test
     public void boolean_operators_test() throws Exception {
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/boolean_operators.alg", "gnb/perseus/programs",
                 "BooleanOperators", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
@@ -1176,7 +1176,7 @@ end
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.BooleanOperators");
         System.out.println("boolean operators output: [" + output + "]");
@@ -1189,7 +1189,7 @@ end
     @Test
     public void string_output_test() throws Exception {
 	// Milestone 18: string variable declaration, assignment, length, substring, concat, s[i] access, s[i] := mutation
-	Path jasminFile = AntlrAlgolListener.compileToFile(
+	Path jasminFile = PerseusCompiler.compileToFile(
 		"test/algol/string_output.alg", "gnb/perseus/programs", "StringOutput", BUILD_DIR);
 	String jasminSource = Files.readString(jasminFile);
 
@@ -1218,7 +1218,7 @@ end
 		"Should use String.concat() for concat()");
 
 	// Assemble to .class
-	AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+	PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
 	// Run and check output
 	String output = runClass(BUILD_DIR, "gnb.perseus.programs.StringOutput");
@@ -1229,7 +1229,7 @@ end
 
     @Test
     public void own_variables_test() throws Exception {
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/own_variables.alg", "gnb/perseus/programs", "OwnVariables", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -1244,7 +1244,7 @@ end
         assertTrue(jasminSource.contains(".field public static history [I"),
                 "own array should be emitted as a persistent static field");
 
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         try {
             FixLimits.fixClassFamilyInPlace(BUILD_DIR.resolve("gnb/perseus/programs/OwnVariables.class"));
@@ -1258,7 +1258,7 @@ end
     }
     @Test
     public void switch_declaration_test() throws Exception {
-        Path jasminFile = AntlrAlgolListener.compileToFile(
+        Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/switch_declaration.alg", "gnb/perseus/programs", "SwitchDeclaration", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -1273,7 +1273,7 @@ end
         assertTrue(jasminSource.contains("if_icmpne"),
                 "Switch lowering should compare the computed index against switch entries");
 
-        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
         try {
             FixLimits.fixClassFamilyInPlace(BUILD_DIR.resolve("gnb/perseus/programs/SwitchDeclaration.class"));
@@ -1286,3 +1286,4 @@ end
         assertEquals("25", output.trim(), "Switch declaration should drive the staged score computation to the expected total");
     }
 }
+

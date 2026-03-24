@@ -13,8 +13,8 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 
 Recent milestone wins:
 
-- `AntlrAlgolListenerTest.manboy_test()` now passes. Perseus compiles and runs Knuth's Man-or-Boy test correctly and returns `-67.0`.
-- `AntlrAlgolListenerTest.primer2()` now uses an explicit expected-timeout path so its intentional infinite loop cannot be mistaken for a normal passing run.
+- `PerseusCompilerTest.manboy_test()` now passes. Perseus compiles and runs Knuth's Man-or-Boy test correctly and returns `-67.0`.
+- `PerseusCompilerTest.primer2()` now uses an explicit expected-timeout path so its intentional infinite loop cannot be mistaken for a normal passing run.
 - `FixLimits` now verifies generated class families (`Main.class` plus `Main$*.class`), not just the main class.
 - The Jasmin pipeline is cleaner: `compileToFile()` writes the `.j` family, `assemble()` assembles that family, and tests can post-process the resulting class family in place.
 
@@ -61,7 +61,7 @@ The symbol table pass is not needed for Milestone 1 (no variables, no labels)
 but is required from **Milestone 2** onward. It should be designed and
 implemented as part of Milestone 2 before any variable codegen is attempted.
 
-See also: [Development.md](Development.md) (Symbol Tables section) and the
+See also: [Architecture.md](Architecture.md) and the
 ANTLR discussion linked there.
 
 ---
@@ -77,7 +77,7 @@ For Milestone 2 and beyond, we will use **separate listener classes**:
 - Easier to test, debug, and extend each pass independently
 - Facilitates future expansion (adding IR, diagnostics, or more passes)
 - Symbol table logic can be reused for analysis, linting, or tooling
-- Aligns with best practices for modular, AI-friendly compiler design
+- Aligns with best practices for modular, tool-friendly compiler design
 
 This approach may require more initial setup, but it will pay off as the compiler grows in complexity.
 
@@ -122,7 +122,7 @@ integer and string arguments.
 - [x] Wire Jasmin output to a file (currently returns a String; write `<ClassName>.j` to disk)
 - [x] Invoke Jasmin assembler on the output file to produce a `.class` file
 - [x] Run the `.class` file and capture stdout in the test
-- [x] Update `AntlrAlgolListenerTest.hello()` to assert the output is `"Hello World"`
+- [x] Update `PerseusCompilerTest.hello()` to assert the output is `"Hello World"`
 
 ---
 
@@ -135,7 +135,7 @@ integer and string arguments.
 **New features needed:**
 - [x] Grammar: `real` variable declarations (`real x, y, u;`)
 - [x] **Design and implement symbol table** — first-pass visitor that collects variable names, types, and block scope
-- [x] **Implement two-pass compile in `AntlrAlgolListener`** — split into separate `SymbolTableBuilder` and `CodeGenerator` listener classes
+- [x] **Implement two-pass compile in `PerseusCompiler`** — split into separate `SymbolTableBuilder` and `CodeGenerator` listener classes
 - [x] Grammar: assignment statement (`:=`)
 - [x] Grammar: arithmetic expressions (`*`, `-`, `+`, `/`)
 - [x] Grammar: real number literals
@@ -310,7 +310,7 @@ integer and string arguments.
 
 **Goal:** Implement all standard input procedures.
 
-**Note:** String variables and string I/O (e.g., `instring`, `outstring`) are extensions to Algol 60, not part of the original standard. Implementation of string input procedures depends on first supporting string variables (see Algol Extensions.md).
+**Note:** String variables and string I/O (e.g., `instring`, `outstring`) are extensions to Algol 60, not part of the original standard. Implementation of string input procedures depends on first supporting string variables (see Perseus Language Design.md).
 
 **Subtasks:**
 
@@ -324,7 +324,7 @@ integer and string arguments.
 - [x] SymbolTableBuilder: track string variables and scope
 - [x] TypeInferencer: handle string types and type rules
 - [x] Codegen: string operations (assignment, concatenation via `concat`, slicing via `substring`, length via `length`)
-- [x] **String variable support follows the design in [Algol Extensions Design.md](Algol%20Extensions%20Design.md).**
+- [x] **String variable support follows the design in [Perseus Language Design.md](Algol%20Extensions%20Design.md).**
 
 **11C.3 — String Input Procedures (requires 11C.2):** ✅
 - [x] Codegen: `instring(channel, var)` — reads a line from `System.in` via `Scanner.nextLine()` and stores in a string variable; test `instring_test` asserts round-trip read/print of `"Test Input String"`
@@ -371,7 +371,7 @@ integer and string arguments.
 - [x] SymbolTableBuilder: parameter passing modes already tracked via `valueParams`
 - [x] TypeInferencer: strips `thunk:` prefix when resolving variable types
 - [x] `Thunk` interface emitted as `Thunk.j` alongside compiled program; assembled into output dir so program is self-contained
-- [x] `AntlrAlgolListener`: `assemble()` picks up all `ClassName$ThunkN.j` and `Thunk.j` companion files automatically
+- [x] `PerseusCompiler`: `assemble()` picks up all `ClassName$ThunkN.j` and `Thunk.j` companion files automatically
 - [x] Test: `jen_test()` — `sumof(1,10,i,i)` = 55.0 and `sumof(-5,5,j,j*j)` = 110.0
 - [x] Test: `callByNameUpdateTest()` — `inc(i)` updates caller's `i` from 5 to 6
 
@@ -408,7 +408,7 @@ integer and string arguments.
 - [x] Runtime: `VoidProcedure`/`RealProcedure`/`IntegerProcedure`/`StringProcedure` Java interfaces created
 - [x] Build: Gradle `test.doFirst` copies interface `.class` files to `build/test-algol`
 - [x] `ExpressionGenerator`: fallback to `procedures` map when symbol table type lookup returns null
-- [x] `AntlrAlgolListener`: pre-scan correctly detects procedure variables without over-adding
+- [x] `PerseusCompiler`: pre-scan correctly detects procedure variables without over-adding
 
 ### 13B — Procedure Parameters (`proc_param.alg`) ✅
 
@@ -712,7 +712,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Priority:** First JVM-practical interop milestone.
 
-**Goal:** Allow Algol code to declare and call JVM methods explicitly (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
+**Goal:** Allow Algol code to declare and call JVM methods explicitly (see [Perseus Language Design.md](Algol%20Extensions%20Design.md)).
 
 - [ ] Syntax for external static/virtual procedure declarations
 - [ ] Codegen and type-checking for JVM interop calls
@@ -722,7 +722,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Priority:** Core JVM-practical milestone after external procedures.
 
-**Goal:** Add a class/object extension inspired by Simula 67, including a more natural model for external JVM classes (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
+**Goal:** Add a class/object extension inspired by Simula 67, including a more natural model for external JVM classes (see [Perseus Language Design.md](Algol%20Extensions%20Design.md)).
 
 - [ ] Design a minimal class syntax compatible with Algol/Simula style
 - [ ] Support instance fields, procedures, and object creation semantics
@@ -734,7 +734,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Priority:** Core JVM-practical recovery/interoperability milestone.
 
-**Goal:** Add an Algol-flavored exception mechanism for structured recovery, especially around `external java` interop and modern I/O extensions (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
+**Goal:** Add an Algol-flavored exception mechanism for structured recovery, especially around `external java` interop and modern I/O extensions (see [Perseus Language Design.md](Algol%20Extensions%20Design.md)).
 
 - [ ] Grammar: `begin ... exception ... end` block form with `when ... do ...` clauses
 - [ ] Define initial language-level exception names such as `IOError`, `EndOfFile`, `ArithmeticError`, `BoundsError`, and `FaultError`
@@ -748,7 +748,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Priority:** First post-core runtime milestone.
 
-**Goal:** Move beyond channels 0/1 and support the modified-report style file/string channel model (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
+**Goal:** Move beyond channels 0/1 and support the modified-report style file/string channel model (see [Perseus Language Design.md](Algol%20Extensions%20Design.md)).
 
 - [ ] Implement `openfile`, `closefile`, and channel-to-stream mapping for channels 2+
 - [ ] Extend input/output procedures to use dynamic stream dispatch instead of only `System.out` / `System.err`
@@ -756,7 +756,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 ## Milestone 30 — Formatted I/O
 
-**Goal:** Implement `outformat` and `informat` with Algol-style format strings and channel-backed formatting workflows (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
+**Goal:** Implement `outformat` and `informat` with Algol-style format strings and channel-backed formatting workflows (see [Perseus Language Design.md](Algol%20Extensions%20Design.md)).
 
 - [ ] `outformat(channel, format, ...)`
 - [ ] `informat(channel, format, ...)`
@@ -772,7 +772,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 ## Milestone 32 — Lambda Notation
 
-**Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Algol Extensions Design.md](Algol%20Extensions%20Design.md)).
+**Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Perseus Language Design.md](Algol%20Extensions%20Design.md)).
 
 - [ ] Syntax and parsing for lambda-style procedure literals
 - [ ] Lowering strategy onto existing procedure-reference infrastructure
@@ -831,9 +831,9 @@ This keeps the roadmap aligned with the current goal of reaching a JVM-practical
 
 ---
 
-# AI-Friendly Compiler Design: Implementation Priorities
+# Tool-Friendly Compiler Design: Implementation Priorities
 
-To ensure long-term maintainability and enable advanced tooling/AI workflows, the following improvements are tracked below. Items marked ✅ have been addressed; remaining items can be added incrementally.
+To ensure long-term maintainability and enable advanced tooling workflows, the following improvements are tracked below. Items marked ✅ have been addressed; remaining items can be added incrementally.
 
 ## Completed
 - ✅ Modular multi-pass architecture: `SymbolTableBuilder` → `TypeInferencer` → `CodeGenerator` — clear separation of concerns, implemented from Milestone 2 onward.
@@ -848,6 +848,9 @@ To ensure long-term maintainability and enable advanced tooling/AI workflows, th
 - Consistent debug metadata: line number tables, local variable tables, source-to-bytecode mapping.
 - Modern CLI commands: `check`, `emit-jasmin`, `emit-ast`, `emit-jvmir`, etc.
 - Versioned diagnostic schemas, stable IR formats, and LSP (Language Server Protocol) integration.
+
+
+
 
 
 

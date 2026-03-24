@@ -22,18 +22,19 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
-import gnb.perseus.compiler.antlr.AlgolBaseListener;
-import gnb.perseus.compiler.antlr.AlgolLexer;
-import gnb.perseus.compiler.antlr.AlgolParser;
-import gnb.perseus.compiler.antlr.AlgolParser.ProgramContext;
+import gnb.perseus.compiler.antlr.PerseusBaseListener;
+import gnb.perseus.compiler.antlr.PerseusLexer;
+import gnb.perseus.compiler.antlr.PerseusParser;
+import gnb.perseus.compiler.antlr.PerseusParser.ProgramContext;
 
 /**
- * Façade for the Algol-to-Jasmin compiler.
- * Orchestrates the two-pass compilation pipeline:
- *   Pass 1 — SymbolTableBuilder: collect variable declarations
- *   Pass 2 — CodeGenerator: emit Jasmin assembly
+ * Facade for the Perseus-to-Jasmin compiler pipeline.
+ * Orchestrates the multi-pass compilation flow:
+ *   Pass 1 - SymbolTableBuilder: collect declarations and procedure metadata
+ *   Pass 1.5 - TypeInferencer: resolve expression types before emission
+ *   Pass 2 - CodeGenerator: emit Jasmin assembly
  */
-public class AntlrAlgolListener {
+public class PerseusCompiler {
 
 	/** Jasmin source for the Thunk interface needed by call-by-name compiled programs. */
 	private static final String THUNK_INTERFACE_JASMIN =
@@ -179,9 +180,9 @@ public class AntlrAlgolListener {
 	@SuppressWarnings("deprecation")
 	static CodeGenerator runPipeline(String fileName, String packageName, String className) throws Exception {
 		ANTLRInputStream is = new ANTLRInputStream(new FileReader(fileName));
-		AlgolLexer lexer = new AlgolLexer(is);
+		PerseusLexer lexer = new PerseusLexer(is);
 		CommonTokenStream tokens = new CommonTokenStream(lexer);
-		AlgolParser parser = new AlgolParser(tokens);
+		PerseusParser parser = new PerseusParser(tokens);
 		lexer.removeErrorListeners();
 		lexer.addErrorListener(DescriptiveErrorListener.INSTANCE);
 		parser.removeErrorListeners();
@@ -196,26 +197,26 @@ public class AntlrAlgolListener {
 		Map<String, String> mainSymbolTable = symBuilder.getMainSymbolTable();
 		Map<String, int[]> arrayBounds = symBuilder.getArrayBounds();
 		Map<String, SymbolTableBuilder.ProcInfo> procedures = symBuilder.getProcedures();
-		Map<String, AlgolParser.SwitchDeclContext> switchDeclarations = symBuilder.getSwitchDeclarations();
+		Map<String, PerseusParser.SwitchDeclContext> switchDeclarations = symBuilder.getSwitchDeclarations();
 
         // Check for procedure variables (procedure names that are used in assignments or expressions)
         Set<String> procedureVariables = new LinkedHashSet<>();
-        walker.walk(new AlgolBaseListener() {
+        walker.walk(new PerseusBaseListener() {
             private final Deque<String> currentProcedure = new ArrayDeque<>();
 
             @Override
-            public void enterProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
+            public void enterProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
                 currentProcedure.push(ctx.identifier().getText());
             }
 
             @Override
-            public void exitProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
+            public void exitProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
                 currentProcedure.pop();
             }
 
             private Set<String> collectVarNames(ParseTree tree) {
                 Set<String> names = new LinkedHashSet<>();
-                if (tree instanceof AlgolParser.VarExprContext ve) {
+                if (tree instanceof PerseusParser.VarExprContext ve) {
                     names.add(ve.identifier().getText());
                 } else {
                     for (int i = 0; i < tree.getChildCount(); i++) {
@@ -226,8 +227,8 @@ public class AntlrAlgolListener {
             }
 
             @Override
-            public void enterAssignment(AlgolParser.AssignmentContext ctx) {
-                for (AlgolParser.LvalueContext lv : ctx.lvalue()) {
+            public void enterAssignment(PerseusParser.AssignmentContext ctx) {
+                for (PerseusParser.LvalueContext lv : ctx.lvalue()) {
                     String name = lv.identifier().getText();
                     String type = symbolTable.get(name);
                     // If a procedure name is used as an L-value, it may be a procedure variable.
@@ -247,7 +248,7 @@ public class AntlrAlgolListener {
                                 } else {
                                     // Typed procedure: treat as a procedure-variable assignment if the RHS
                                     // is a direct procedure reference or returns a procedure.
-                                    AlgolParser.ExprContext rhs = ctx.expr();
+                                    PerseusParser.ExprContext rhs = ctx.expr();
                                     for (String rhsName : collectVarNames(rhs)) {
                                         if (procedures.containsKey(rhsName)) {
                                             procedureVariables.add(name);
@@ -308,7 +309,7 @@ public class AntlrAlgolListener {
 		// Pass 1.5: type inference
 		TypeInferencer typeInf = new TypeInferencer(symbolTable);
 		walker.walk(typeInf, programContext);
-		Map<AlgolParser.ExprContext, String> exprTypes = typeInf.getExprTypes();
+		Map<PerseusParser.ExprContext, String> exprTypes = typeInf.getExprTypes();
 
 		// Pass 2: code generation
 		String source = Paths.get(fileName).getFileName().toString();
@@ -319,3 +320,6 @@ public class AntlrAlgolListener {
 		return codegen;
 	}
 }
+
+
+

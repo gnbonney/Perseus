@@ -36,7 +36,7 @@
 6. Replace contents of string_output.alg with the design doc example adapted for double-quoted strings. Note: grammar only supports `"double-quoted"` strings, not `'single-char'`. Fix the design doc's indexing typo: use `s[8] := "W"` (not `s[7]`) to correctly change `'w'` → `'W'` in `"Hello, world!"` (1-based position 8 = `w`). Expected output: `Hello, world! 13 H world Hello, World! Hello, World!!!`
 
 ### Phase 7 — Add test method (*depends on 3–6*)
-7. Add `@Test void stringOutputTest()` to AntlrAlgolListenerTest.java: compile → assemble → run `StringOutput`, assert output contains `"Hello, world!"`, `"13"`, `"H"`, `"world"`, `"Hello, World!"`, `"Hello, World!!!"`.
+7. Add `@Test void stringOutputTest()` to PerseusCompilerTest.java: compile → assemble → run `StringOutput`, assert output contains `"Hello, world!"`, `"13"`, `"H"`, `"world"`, `"Hello, World!"`, `"Hello, World!!!"`.
 
 ### Phase 8 — Update Compiler-TODO.md
 8. Mark all M11C.2, M11C.3, and M18 checklist items as `[x]`; note that grammar was already complete and `instring` was already implemented.
@@ -47,7 +47,7 @@
 - TypeInferencer.java — `getBuiltinFunctionType()` (~line 182)
 - CodeGenerator.java — `generateBuiltinMathFunction()` (~line 1805), `generateExpr()` ArrayAccessExprContext (~line 1743), `exitAssignment()` subscript block (~line 436)
 - string_output.alg — rewrite
-- AntlrAlgolListenerTest.java — add `stringOutputTest()`
+- PerseusCompilerTest.java — add `stringOutputTest()`
 - Compiler-TODO.md — checkbox updates
 
 **Verification**

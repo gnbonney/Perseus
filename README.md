@@ -1,24 +1,27 @@
-# Algol to JVM Compiler
+# Perseus
 
 ## Background
 
-This project has the goal of creating an Algol 60 compiler (with some extensions) which will compile to JVM so that Algol programs can run wherever a Java runtime is installed.  
+Perseus began as an ALGOL 60 compiler targeting the JVM. It is now evolving into an Algol-derived language and compiler platform: one that preserves the best ideas of ALGOL's syntax, structure, and procedural semantics while leaving room for practical extensions and modern language features.
+
+The long-term goal is not merely to reproduce every corner of historical ALGOL 60, but to build a language in the same family. That means Perseus can remain faithful to ALGOL where it is elegant and useful, while also growing in directions that make sense for modern software development, such as richer type systems, structured exceptions, object-oriented features, and deeper interoperability with the Java ecosystem.
 
 Algol is "...the common ancestor of C, Pascal, Algol-68, Modula, Ada, and most other conventional languages that aren't BASIC, FORTRAN, or COBOL."[http://www.catb.org/retro/] Edsger Dijkstra quoted C.A.R. Hoare as saying Algol 60 was, "a major improvement on most of its successors." [https://www.cs.utexas.edu/users/EWD/transcriptions/EWD12xx/EWD1284.html]
 
-Algol 68 was not a new version of Algol 60 but "a completely new language".  Many people who already had a big investment in writing Algol compilers were very disappointed in the decision of the international committee to abandon previous work and go off in a new direction.  Dijkstra said of Algol 68, "The more I see of it, the more unhappy I become."  Niklaus Wirth, disillusioned with the committee process, created his own series of Algol-based languages, including Pascal.
+Algol 68 was not a new version of Algol 60 but "a completely new language". Many people who already had a big investment in writing Algol compilers were very disappointed in the decision of the international committee to abandon previous work and go off in a new direction. Dijkstra said of Algol 68, "The more I see of it, the more unhappy I become." Niklaus Wirth, disillusioned with the committee process, created his own series of Algol-based languages, including Pascal.
 
-Meanwhile, Algol 60 continued a life of its own.  In 1976 the Modified Report on the Algorithmic Language ALGOL 60 was published by IFIP Working Group 2.1.  The modified report gives some details on standard i/o procedures not addressed in previous versions of the report.  This became the basis for ISO1538 in 1984.  Several web sites say that the standard was later withdrawn, but when I checked the ISO web site it says, "This standard was last reviewed and confirmed in 2003. Therefore this version remains current."
+Meanwhile, Algol 60 continued a life of its own. In 1976 the Modified Report on the Algorithmic Language ALGOL 60 was published by IFIP Working Group 2.1. The modified report gives some details on standard I/O procedures not addressed in previous versions of the report. This became the basis for ISO1538 in 1984. Several web sites say that the standard was later withdrawn, but when I checked the ISO web site it says, "This standard was last reviewed and confirmed in 2003. Therefore this version remains current."
 
 ## Motivation
 
-Why create a new Algol compiler?
+Why create a new Algol-based language for the JVM?
 
-* **AI-Ready and Tool-Friendly:** Perseus is designed for seamless integration with AI, language servers, and modern developer tools. Its explicit, structured design enables advanced code analysis, transformation, and verification by both humans and AI systems.
-* **Education and Research:** ALGOL 60 is a foundational language for computer science, known for its clarity and structured programming. Perseus makes it accessible on the JVM, providing a robust platform for teaching, research, and experimentation with classic and modern programming concepts.
-* **Modern JVM Ecosystem:** There are many JVM compilers for other languages, but none for Algol or Simula. Perseus fills this gap, enabling legacy and new Algol code to run anywhere Java is available.
-* **Readable, Maintainable Code:** ALGOL 60’s low semantic density and mathematical clarity make it ideal for readable, maintainable code—benefiting education, research, and AI-driven development.
-* **Open, Extensible Architecture:** Perseus is built for extensibility, supporting future language features, research extensions, and integration with next-generation tooling.
+* **A Strong Historical Foundation:** ALGOL 60 remains one of the most influential languages ever designed. Its block structure, procedural abstraction, and emphasis on clarity still make it a valuable starting point for language design.
+* **A Bridge Between Classic and Modern Ideas:** Perseus provides a path from classic ALGOL-style programming to modern features such as classes, exceptions, richer libraries, and improved tooling without abandoning the language family entirely.
+* **Modern JVM Ecosystem:** Targeting the JVM means Perseus programs can run anywhere Java runs and can benefit from mature tooling, packaging, debugging, profiling, and deployment options.
+* **Access to the Java Ecosystem:** A language on the JVM can eventually interoperate with Java libraries and frameworks, making it more practical than a purely historical implementation.
+* **A Platform for Experimentation:** Perseus is not limited to strict language preservation. It is also a place to explore thoughtful extensions in the spirit of Algol, much as Simula and Pascal grew from the same lineage.
+* **Readable, Structured Code:** ALGOL's block-oriented design still encourages code that is explicit, disciplined, and approachable for teaching, experimentation, and long-term maintenance.
 
 ## Project Status
 
@@ -26,11 +29,13 @@ Perseus currently passes all 55 unit tests as of March 22, 2026, including Donal
 
 In Knuth's old jargon, that makes this a "man" compiler: Perseus can compile and run `manboy.alg` correctly and produce the expected answer `-67.0`.
 
+Today, the implemented feature set is still closest to an ALGOL 60 compiler with extensions. The broader direction, however, is for Perseus to become its own Algol-family language rather than remain only a historical reconstruction.
+
 ## Building the Project
 
 This project uses Gradle for build and dependency management.
 
-```
+```bash
 gradle build
 gradle test
 gradle clean
@@ -45,19 +50,18 @@ This project uses Gradle for build and dependency management. Below are the key 
 - **`gradle build`**: Compiles the source code, generates the ANTLR parser and lexer, and packages the project.
 - **`gradle test`**: Runs all unit tests using JUnit 5.
 - **`gradle clean`**: Cleans the build directory, removing all generated files.
-- **`gradle generateGrammarSource`**: Regenerates the ANTLR parser and lexer from the grammar file (`Algol.g4`).
+- **`gradle generateGrammarSource`**: Regenerates the ANTLR parser and lexer from the grammar file (`Perseus.g4`).
 - **`gradle build -x test`**: Compiles the source code, generates the ANTLR parser and lexer, and packages the project, skipping all unit tests.
 
 See [docs/Gradle-Build.md](docs/Gradle-Build.md) for more details.
 
 ## Using the `compileAlgol` Gradle Task
 
-The `compileAlgol` Gradle task simplifies the process of compiling Algol source files into Jasmin assembly and then assembling the Jasmin files into JVM class files. This task performs the following steps:
+The `compileAlgol` Gradle task simplifies the process of compiling Algol-family source files into Jasmin assembly and then assembling the Jasmin files into JVM class files. This task performs the following steps:
 
-1. **Compile Algol to Jasmin**:
-   - The task uses the `AntlrAlgolListener` class to parse the Algol source file and generate the main Jasmin `.j` file plus any needed companion `.j` files for thunks and procedure references.
-
-2. **Assemble Jasmin to Class Files**:
+1. **Compile source to Jasmin**:
+   - The task uses the `PerseusCompiler` class to parse the source file and generate the main Jasmin `.j` file plus any needed companion `.j` files for thunks and procedure references.
+2. **Assemble Jasmin to class files**:
    - The task invokes the Jasmin assembler to convert the main `.j` file, its generated companion `.j` files, and any emitted support interfaces into `.class` files.
 
 ### Running the Task
@@ -69,18 +73,23 @@ gradle compileAlgol -PinputFile=test/algol/myfile.alg -PoutputDir=build/output -
 ```
 
 This will:
-1. Compile the Algol source file located at `test/algol/myfile.alg`.
+
+1. Compile the source file located at `test/algol/myfile.alg`.
 2. Generate the main Jasmin file (`MyClass.j`) and any needed companion `.j` files in the `build/output` directory.
 3. Assemble that Jasmin family into JVM class files in the same directory.
 
 ### Default Behavior
+
 If no parameters are provided, the task defaults to:
+
 - **Input File**: `test/algol/hello.alg`
 - **Output Directory**: `build/test-algol`
 - **Class Name**: `Hello`
 
 ### Output
+
 After running the task, you can find the following files in the specified output directory:
+
 - `MyClass.j`: The generated main Jasmin assembly file.
 - `MyClass.class`: The compiled main JVM class file.
 - `MyClass$ThunkN.j` / `MyClass$ThunkN.class`: Generated when call-by-name thunks are needed.
@@ -95,7 +104,7 @@ java -cp build/output gnb.perseus.programs.MyClass
 
 ## Using the Perseus CLI
 
-In addition to the Gradle task, you can use the `PerseusCLI` directly to compile Algol source files. The CLI provides a simple interface for specifying the input file, output directory, and class name.
+In addition to the Gradle task, you can use the `PerseusCLI` directly to compile source files. The CLI provides a simple interface for specifying the input file, output directory, and class name.
 
 ### Running the CLI
 
@@ -112,12 +121,15 @@ java -cp build/classes/java/main gnb.perseus.cli.PerseusCLI test/algol/hello.alg
 ```
 
 This will:
-1. Compile the Algol source file located at `test/algol/hello.alg`.
+
+1. Compile the source file located at `test/algol/hello.alg`.
 2. Generate the main Jasmin file (`Hello.j`) and any needed companion `.j` files in the `build/output` directory.
 3. Assemble that Jasmin family into JVM class files in the same directory.
 
 ### Output
+
 After running the CLI, you can find the following files in the specified output directory:
+
 - `Hello.j`: The generated main Jasmin assembly file.
 - `Hello.class`: The compiled main JVM class file.
 - `Hello$ThunkN.*` and `Hello$ProcRefN.*` companions when the program uses call-by-name parameters or procedure references.
@@ -133,20 +145,14 @@ java -cp build/output gnb.perseus.programs.Hello
 * `src/main/java/` - Java source code for the compiler
 * `src/main/antlr/` - ANTLR grammar files
 * `src/test/java/` - Unit tests
-* `test/algol/` - Sample Algol programs used for testing
+* `test/algol/` - Sample source programs used for testing
 * `jasmin-2.4/` - Jasmin 2.4 assembler, bundled with the project
 * `lib/` - Reserved for additional third-party libraries
 * `docs/` - Documentation
 
 ## Sample Programs
 
-The `test/algol/` directory contains sample Algol 60 programs used for testing the compiler. These programs were sourced from books and the internet to ensure they represent valid Algol 60. See [docs/Samples.md](docs/Samples.md) for sources and details.
-
-## Other Algol 60 Compilers
-
-MARST AND CIM
-
-I found an article (https://www.linuxvoice.com/algol-the-language-of-academia/) that mentions a GNU compiler for Algol called MARST (https://www.gnu.org/software/marst/).  In addition, there's a GNU project for a Simula compiler called Cim.  Both translate code to C instead of compiling directly to assembler or machine code.  As GNU projects they have a restrictive open source license whereas I prefer more permissive licensing such as Eclipse, BSD, or MIT.  However, they may be useful for functional comparison.
+The `test/algol/` directory contains sample Algol-family programs used for testing the compiler. Many were sourced from classic ALGOL 60 examples, books, and reference material so the project can be checked against historically meaningful programs while the language evolves. See [docs/Samples.md](docs/Samples.md) for sources and details.
 
 ## Dependencies
 
@@ -154,17 +160,25 @@ I found an article (https://www.linuxvoice.com/algol-the-language-of-academia/) 
 - **ANTLR 4**: Managed via Gradle.
 - **JUnit 5**: Managed via Gradle for unit testing.
 
-## AI-Friendly Compiler Design
+## Why an Algol-Superset on the JVM?
 
-Perseus is designed from the ground up to be AI-friendly—possibly the first compiler intentionally architected for seamless AI and advanced tooling integration. This means:
-- Structured, machine-readable diagnostics with stable error codes and source mapping
-- Deterministic, reproducible output for identical inputs
-- Explicit, inspectable intermediate representations (AST, IR, JVM IR)
-- Fast feedback loops and modern CLI commands for rapid iteration
-- Architecture that enables future integration with AI assistants, IDEs, and language servers
+An Algol-superset language on the JVM offers a combination that is hard to find elsewhere:
 
-Our goal is to make Perseus not only a robust Algol-to-JVM compiler, but also a model for next-generation, tool-friendly compiler engineering.
+* **Classic language design with modern runtime support:** Perseus can preserve ALGOL's strengths while relying on the JVM for portability, garbage collection, runtime services, and a mature execution environment.
+* **Room for pragmatic extensions:** Features such as classes, exceptions, modules, or improved standard libraries can be added without needing to abandon the language's Algol roots.
+* **A path to real-world usability:** JVM deployment makes it easier to package, test, run, and eventually integrate Perseus code into existing systems.
+* **A useful research and education platform:** Perseus can serve both as an implementation of important historical ideas and as a sandbox for exploring how those ideas evolve in a modern setting.
 
-## Semantic Clarity for Human and AI Reasoning
+The inspiration here is less "strictly preserve every historical detail" and more "carry the best ideas of the Algol tradition forward into a language that can still grow."
 
-ALGOL 60 was designed for mathematical clarity and structured programming, resulting in low semantic density—each statement expresses a single, clear idea. Perseus preserves this property, making both the source language and the compiler pipeline highly explicit and easy to reason about. This benefits not only human readers but also AI tools and language models, which can more reliably analyze, transform, and verify code with minimal ambiguity. The result is a compiler and language ecosystem that is exceptionally well-suited for education, research, and advanced AI-driven tooling.
+## Design Goals
+
+Perseus aims to balance several goals:
+
+* Preserve the clarity, structure, and procedural strengths of ALGOL-family languages
+* Support historical ALGOL programs where practical
+* Introduce modern features deliberately rather than as ad hoc additions
+* Fit naturally into the JVM ecosystem and eventually interoperate well with Java
+* Remain a useful platform for education, experimentation, and language-design research
+
+

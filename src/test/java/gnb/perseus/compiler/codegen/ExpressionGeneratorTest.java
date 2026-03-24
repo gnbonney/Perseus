@@ -2,8 +2,8 @@ package gnb.perseus.compiler.codegen;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import gnb.perseus.compiler.antlr.AlgolLexer;
-import gnb.perseus.compiler.antlr.AlgolParser;
+import gnb.perseus.compiler.antlr.PerseusLexer;
+import gnb.perseus.compiler.antlr.PerseusParser;
 import gnb.perseus.compiler.SymbolTableBuilder;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -26,14 +26,14 @@ public class ExpressionGeneratorTest {
 
     @Test
     public void testGenerateIntLiteral() {
-        AlgolParser.ExprContext ctx = parseExpr("42");
+        PerseusParser.ExprContext ctx = parseExpr("42");
         String code = exprGen.generateExpr(ctx);
         assertTrue(code.contains("ldc 42"), "Should generate ldc for integer literal");
     }
 
     @Test
     public void testGenerateRealLiteral() {
-        AlgolParser.ExprContext ctx = parseExpr("3.14");
+        PerseusParser.ExprContext ctx = parseExpr("3.14");
         String code = exprGen.generateExpr(ctx);
         assertTrue(code.contains("ldc2_w 3.14"), "Should generate ldc2_w for real literal");
     }
@@ -58,7 +58,7 @@ public class ExpressionGeneratorTest {
 
     @Test
     public void testGenerateAddExpr() {
-        AlgolParser.ExprContext ctx = parseExpr("1 + 2");
+        PerseusParser.ExprContext ctx = parseExpr("1 + 2");
         String code = exprGen.generateExpr(ctx);
         assertTrue(code.contains("ldc 1"), "Should load 1");
         assertTrue(code.contains("ldc 2"), "Should load 2");
@@ -88,7 +88,7 @@ public class ExpressionGeneratorTest {
         ProcedureGenerator procGen = new ProcedureGenerator(context, exprGen);
         exprGen.setProcedureGenerator(procGen);
 
-        AlgolParser.ExprContext ctx = parseExpr("myProc");
+        PerseusParser.ExprContext ctx = parseExpr("myProc");
         String code = exprGen.generateExpr(ctx);
         
         // Should generate a new ProcRef object
@@ -96,10 +96,11 @@ public class ExpressionGeneratorTest {
         assertTrue(code.contains("invokenonvirtual gnb/perseus/test/TestClass$ProcRef0/<init>()V"), "Should call ProcRef constructor");
     }
 
-    private AlgolParser.ExprContext parseExpr(String input) {
-        AlgolLexer lexer = new AlgolLexer(CharStreams.fromString(input));
+    private PerseusParser.ExprContext parseExpr(String input) {
+        PerseusLexer lexer = new PerseusLexer(CharStreams.fromString(input));
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        AlgolParser parser = new AlgolParser(tokens);
+        PerseusParser parser = new PerseusParser(tokens);
         return parser.expr();
     }
 }
+

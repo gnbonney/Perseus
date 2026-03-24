@@ -1,7 +1,7 @@
 package gnb.perseus.compiler.codegen;
 
 import gnb.perseus.compiler.SymbolTableBuilder;
-import gnb.perseus.compiler.antlr.AlgolParser;
+import gnb.perseus.compiler.antlr.PerseusParser;
 import java.util.*;
 
 /**
@@ -13,7 +13,7 @@ public class ContextManager {
     private final String className;
     private Map<String, String> symbolTable;
     private Map<String, Integer> localIndex;
-    private final Map<AlgolParser.ExprContext, String> exprTypes;
+    private final Map<PerseusParser.ExprContext, String> exprTypes;
     private Map<String, int[]> arrayBounds;
     private final Map<String, SymbolTableBuilder.ProcInfo> procedures;
     private Map<String, Integer> procVarSlots = new HashMap<>();
@@ -39,7 +39,7 @@ public class ContextManager {
 
     private Map<String, String> mainSymbolTable;
 
-    public ContextManager(String source, String packageName, String className, Map<String, SymbolTableBuilder.ProcInfo> procedures, Map<AlgolParser.ExprContext, String> exprTypes) {
+    public ContextManager(String source, String packageName, String className, Map<String, SymbolTableBuilder.ProcInfo> procedures, Map<PerseusParser.ExprContext, String> exprTypes) {
         this.source = source;
         this.packageName = packageName;
         this.className = className;
@@ -121,7 +121,7 @@ public class ContextManager {
     }
     public Map<String, Integer> getMainLocalIndex() { return mainLocalIndex; }
     public void setLocalIndex(Map<String, Integer> li) { this.localIndex = li; }
-    public Map<AlgolParser.ExprContext, String> getExprTypes() { return exprTypes; }
+    public Map<PerseusParser.ExprContext, String> getExprTypes() { return exprTypes; }
     public Map<String, int[]> getArrayBounds() { return arrayBounds; }
     public void setArrayBounds(Map<String, int[]> ab) { this.arrayBounds = ab; }
     public Map<String, SymbolTableBuilder.ProcInfo> getProcedures() { return procedures; }
@@ -156,3 +156,4 @@ public class ContextManager {
     public void addProcRefClass(String name, String content) { procRefClasses.put(name, content); }
     public Map<String, String> getProcRefClasses() { return procRefClasses; }
 }
+

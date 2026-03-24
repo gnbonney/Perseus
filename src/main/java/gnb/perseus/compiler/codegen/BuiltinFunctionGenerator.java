@@ -1,6 +1,6 @@
 package gnb.perseus.compiler.codegen;
 
-import gnb.perseus.compiler.antlr.AlgolParser;
+import gnb.perseus.compiler.antlr.PerseusParser;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -21,10 +21,10 @@ import java.util.function.Function;
  */
 public class BuiltinFunctionGenerator {
 
-    private final Map<AlgolParser.ExprContext, String> exprTypes;
-    private Function<AlgolParser.ExprContext, String> exprCodeGen;
+    private final Map<PerseusParser.ExprContext, String> exprTypes;
+    private Function<PerseusParser.ExprContext, String> exprCodeGen;
 
-    public BuiltinFunctionGenerator(Map<AlgolParser.ExprContext, String> exprTypes) {
+    public BuiltinFunctionGenerator(Map<PerseusParser.ExprContext, String> exprTypes) {
         this.exprTypes = exprTypes;
     }
 
@@ -32,7 +32,7 @@ public class BuiltinFunctionGenerator {
      * Sets the callback used to generate Jasmin code for sub-expressions.
      * Must be called before any {@link #generate} invocation.
      */
-    public void setExprCodeGen(Function<AlgolParser.ExprContext, String> fn) {
+    public void setExprCodeGen(Function<PerseusParser.ExprContext, String> fn) {
         this.exprCodeGen = fn;
     }
 
@@ -40,7 +40,7 @@ public class BuiltinFunctionGenerator {
      * Returns Jasmin code for a recognized built-in function call, or {@code null}
      * if the function name is not a built-in.
      */
-    public String generate(String funcName, AlgolParser.ProcCallExprContext ctx) {
+    public String generate(String funcName, PerseusParser.ProcCallExprContext ctx) {
         if (isMathBuiltin(funcName))   return generateMathBuiltin(funcName, ctx);
         if (isStringBuiltin(funcName)) return generateStringBuiltin(funcName, ctx);
         return null;
@@ -65,10 +65,10 @@ public class BuiltinFunctionGenerator {
     // Math builtins — all delegate to java/lang/Math statics
     // -------------------------------------------------------------------------
 
-    private String generateMathBuiltin(String funcName, AlgolParser.ProcCallExprContext ctx) {
+    private String generateMathBuiltin(String funcName, PerseusParser.ProcCallExprContext ctx) {
         if (ctx.argList() == null || ctx.argList().arg().isEmpty())
             return "; ERROR: " + funcName + " requires an argument\n";
-        AlgolParser.ExprContext argExpr = ctx.argList().arg().get(0).expr();
+        PerseusParser.ExprContext argExpr = ctx.argList().arg().get(0).expr();
         if (argExpr == null)
             return "; ERROR: " + funcName + " requires an expression argument\n";
 
@@ -149,10 +149,10 @@ public class BuiltinFunctionGenerator {
     // String builtins — all delegate to java/lang/String instance methods
     // -------------------------------------------------------------------------
 
-    private String generateStringBuiltin(String funcName, AlgolParser.ProcCallExprContext ctx) {
+    private String generateStringBuiltin(String funcName, PerseusParser.ProcCallExprContext ctx) {
         if (ctx.argList() == null || ctx.argList().arg().isEmpty())
             return "; ERROR: " + funcName + " requires an argument\n";
-        AlgolParser.ExprContext argExpr = ctx.argList().arg().get(0).expr();
+        PerseusParser.ExprContext argExpr = ctx.argList().arg().get(0).expr();
         if (argExpr == null)
             return "; ERROR: " + funcName + " requires an expression argument\n";
 
@@ -167,7 +167,7 @@ public class BuiltinFunctionGenerator {
 
             case "concat": {
                 // concat(s1, s2) → s1.concat(s2)
-                AlgolParser.ExprContext s2Expr = ctx.argList().arg().get(1).expr();
+                PerseusParser.ExprContext s2Expr = ctx.argList().arg().get(1).expr();
                 sb.append(exprCodeGen.apply(argExpr));
                 sb.append(exprCodeGen.apply(s2Expr));
                 sb.append("invokevirtual java/lang/String/concat(Ljava/lang/String;)Ljava/lang/String;\n");
@@ -177,8 +177,8 @@ public class BuiltinFunctionGenerator {
             case "substring": {
                 // substring(s, start, end) — Algol 1-based inclusive; Java substring(start-1, end)
                 // Example: substring(s, 8, 12) → s.substring(7, 12)
-                AlgolParser.ExprContext startExpr = ctx.argList().arg().get(1).expr();
-                AlgolParser.ExprContext endExpr   = ctx.argList().arg().get(2).expr();
+                PerseusParser.ExprContext startExpr = ctx.argList().arg().get(1).expr();
+                PerseusParser.ExprContext endExpr   = ctx.argList().arg().get(2).expr();
                 sb.append(exprCodeGen.apply(argExpr));    // push s
                 sb.append(exprCodeGen.apply(startExpr));  // push start
                 sb.append("iconst_1\n").append("isub\n"); // beginIndex = start - 1
@@ -192,3 +192,4 @@ public class BuiltinFunctionGenerator {
         }
     }
 }
+

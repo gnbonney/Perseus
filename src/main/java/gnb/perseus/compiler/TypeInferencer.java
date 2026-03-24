@@ -1,7 +1,7 @@
 package gnb.perseus.compiler;
 
-import gnb.perseus.compiler.antlr.AlgolBaseListener;
-import gnb.perseus.compiler.antlr.AlgolParser;
+import gnb.perseus.compiler.antlr.PerseusBaseListener;
+import gnb.perseus.compiler.antlr.PerseusParser;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -10,25 +10,25 @@ import java.util.Map;
  * Walks the parse tree and annotates each ExprContext with its resolved type ("integer" or "real").
  * Uses the symbol table to look up variable types.
  */
-public class TypeInferencer extends AlgolBaseListener {
+public class TypeInferencer extends PerseusBaseListener {
     private final Map<String, String> symbolTable;
-    private final Map<AlgolParser.ExprContext, String> exprTypes = new HashMap<>();
+    private final Map<PerseusParser.ExprContext, String> exprTypes = new HashMap<>();
 
     public TypeInferencer(Map<String, String> symbolTable) {
         this.symbolTable = symbolTable;
     }
 
-    public Map<AlgolParser.ExprContext, String> getExprTypes() {
+    public Map<PerseusParser.ExprContext, String> getExprTypes() {
         return exprTypes;
     }
 
     @Override
-    public void exitRelExpr(AlgolParser.RelExprContext ctx) {
+    public void exitRelExpr(PerseusParser.RelExprContext ctx) {
         exprTypes.put(ctx, "boolean");
     }
 
     @Override
-    public void exitMulDivExpr(AlgolParser.MulDivExprContext ctx) {
+    public void exitMulDivExpr(PerseusParser.MulDivExprContext ctx) {
         String leftType = exprTypes.get(ctx.expr(0));
         String rightType = exprTypes.get(ctx.expr(1));
         String op = ctx.op.getText();
@@ -47,7 +47,7 @@ public class TypeInferencer extends AlgolBaseListener {
     }
 
     @Override
-    public void exitAddSubExpr(AlgolParser.AddSubExprContext ctx) {
+    public void exitAddSubExpr(PerseusParser.AddSubExprContext ctx) {
         String leftType = exprTypes.get(ctx.expr(0));
         String rightType = exprTypes.get(ctx.expr(1));
         String resultType;
@@ -60,7 +60,7 @@ public class TypeInferencer extends AlgolBaseListener {
     }
 
     @Override
-    public void exitAndExpr(AlgolParser.AndExprContext ctx) {
+    public void exitAndExpr(PerseusParser.AndExprContext ctx) {
         String leftType = exprTypes.get(ctx.expr(0));
         String rightType = exprTypes.get(ctx.expr(1));
         if (!"boolean".equals(leftType) || !"boolean".equals(rightType)) {
@@ -70,7 +70,7 @@ public class TypeInferencer extends AlgolBaseListener {
     }
 
     @Override
-    public void exitOrExpr(AlgolParser.OrExprContext ctx) {
+    public void exitOrExpr(PerseusParser.OrExprContext ctx) {
         String leftType = exprTypes.get(ctx.expr(0));
         String rightType = exprTypes.get(ctx.expr(1));
         if (!"boolean".equals(leftType) || !"boolean".equals(rightType)) {
@@ -80,7 +80,7 @@ public class TypeInferencer extends AlgolBaseListener {
     }
 
     @Override
-    public void exitNotExpr(AlgolParser.NotExprContext ctx) {
+    public void exitNotExpr(PerseusParser.NotExprContext ctx) {
         String operandType = exprTypes.get(ctx.expr());
         if (!"boolean".equals(operandType)) {
             throw new RuntimeException("not operator requires boolean operand");
@@ -89,7 +89,7 @@ public class TypeInferencer extends AlgolBaseListener {
     }
 
     @Override
-    public void exitVarExpr(AlgolParser.VarExprContext ctx) {
+    public void exitVarExpr(PerseusParser.VarExprContext ctx) {
         String varName = ctx.identifier().getText();
         
         // Check for environmental constants
@@ -118,7 +118,7 @@ public class TypeInferencer extends AlgolBaseListener {
     }
 
     @Override
-    public void exitArrayAccessExpr(AlgolParser.ArrayAccessExprContext ctx) {
+    public void exitArrayAccessExpr(PerseusParser.ArrayAccessExprContext ctx) {
         String arrName = ctx.identifier().getText();
         String arrType = symbolTable.get(arrName);
         if (arrType == null) throw new RuntimeException("Undeclared array: " + arrName);
@@ -128,39 +128,39 @@ public class TypeInferencer extends AlgolBaseListener {
     }
 
     @Override
-    public void exitRealLiteralExpr(AlgolParser.RealLiteralExprContext ctx) {
+    public void exitRealLiteralExpr(PerseusParser.RealLiteralExprContext ctx) {
         exprTypes.put(ctx, "real");
     }
 
     @Override
-    public void exitIntLiteralExpr(AlgolParser.IntLiteralExprContext ctx) {
+    public void exitIntLiteralExpr(PerseusParser.IntLiteralExprContext ctx) {
         exprTypes.put(ctx, "integer");
     }
 
     @Override
-    public void exitTrueLiteralExpr(AlgolParser.TrueLiteralExprContext ctx) {
+    public void exitTrueLiteralExpr(PerseusParser.TrueLiteralExprContext ctx) {
         exprTypes.put(ctx, "boolean");
     }
 
     @Override
-    public void exitStringLiteralExpr(AlgolParser.StringLiteralExprContext ctx) {
+    public void exitStringLiteralExpr(PerseusParser.StringLiteralExprContext ctx) {
         exprTypes.put(ctx, "string");
     }
 
     @Override
-    public void exitUnaryMinusExpr(AlgolParser.UnaryMinusExprContext ctx) {
+    public void exitUnaryMinusExpr(PerseusParser.UnaryMinusExprContext ctx) {
         String innerType = exprTypes.get(ctx.expr());
         exprTypes.put(ctx, innerType == null ? "integer" : innerType);
     }
 
     @Override
-    public void exitParenExpr(AlgolParser.ParenExprContext ctx) {
+    public void exitParenExpr(PerseusParser.ParenExprContext ctx) {
         String innerType = exprTypes.get(ctx.expr());
         exprTypes.put(ctx, innerType);
     }
 
     @Override
-    public void exitProcCallExpr(AlgolParser.ProcCallExprContext ctx) {
+    public void exitProcCallExpr(PerseusParser.ProcCallExprContext ctx) {
         String procName = ctx.identifier().getText();
         
         // Check for built-in math functions first
@@ -178,12 +178,12 @@ public class TypeInferencer extends AlgolBaseListener {
     }
     
     @Override
-    public void exitFalseLiteralExpr(AlgolParser.FalseLiteralExprContext ctx) {
+    public void exitFalseLiteralExpr(PerseusParser.FalseLiteralExprContext ctx) {
         exprTypes.put(ctx, "boolean");
     }
 
     @Override
-    public void exitIfExpr(AlgolParser.IfExprContext ctx) {
+    public void exitIfExpr(PerseusParser.IfExprContext ctx) {
         // Result type is determined by the then-branch
         String thenType = exprTypes.get(ctx.expr(1));
         exprTypes.put(ctx, thenType != null ? thenType : "integer");

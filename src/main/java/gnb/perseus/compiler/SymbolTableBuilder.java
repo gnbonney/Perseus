@@ -1,7 +1,7 @@
 package gnb.perseus.compiler;
 
-import gnb.perseus.compiler.antlr.AlgolBaseListener;
-import gnb.perseus.compiler.antlr.AlgolParser;
+import gnb.perseus.compiler.antlr.PerseusBaseListener;
+import gnb.perseus.compiler.antlr.PerseusParser;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -15,7 +15,7 @@ import java.util.Set;
  * First-pass listener: builds symbol table (variables, types, scopes).
  * Uses LinkedHashMap to preserve declaration order for stable local variable slot assignment.
  */
-public class SymbolTableBuilder extends AlgolBaseListener {
+public class SymbolTableBuilder extends PerseusBaseListener {
     // Ordered symbol table: name → type for ALL scopes (used by TypeInferencer)
     private final Map<String, String> symbolTable = new LinkedHashMap<>();
     // Main-scope only symbol table: name → type (used for JVM slot assignment in main method)
@@ -27,7 +27,7 @@ public class SymbolTableBuilder extends AlgolBaseListener {
     // Procedure definitions: name → ProcInfo
     private final Map<String, ProcInfo> procedures = new LinkedHashMap<>();
     // Switch declarations: name → parse context
-    private final Map<String, AlgolParser.SwitchDeclContext> switchDeclarations = new LinkedHashMap<>();
+    private final Map<String, PerseusParser.SwitchDeclContext> switchDeclarations = new LinkedHashMap<>();
     // Stack of currently-open procedure declarations (supports nested procedures like manboy)
     private final Deque<ProcInfo> procStack = new ArrayDeque<>();
 
@@ -71,12 +71,12 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         return procedures;
     }
 
-    public Map<String, AlgolParser.SwitchDeclContext> getSwitchDeclarations() {
+    public Map<String, PerseusParser.SwitchDeclContext> getSwitchDeclarations() {
         return switchDeclarations;
     }
 
     @Override
-    public void enterProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
+    public void enterProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
         // First token is INTEGER/REAL/STRING (typed) or PROCEDURE (void)
         String firstToken = ctx.getStart().getText();
         String returnType;
@@ -90,7 +90,7 @@ public class SymbolTableBuilder extends AlgolBaseListener {
         symbolTable.put(name, "procedure:" + returnType);
         
         // Note: We used to add to mainSymbolTable here (which causes it to get a slot). 
-        // We now handle procedure variables (slots) through a manual scan in AntlrAlgolListener.
+        // We now handle procedure variables (slots) through a manual scan in PerseusCompiler.
         // mainSymbolTable.put(name, "procedure:" + returnType);
 
         ProcInfo outerProc = currentProc();
@@ -104,14 +104,14 @@ public class SymbolTableBuilder extends AlgolBaseListener {
 
         // Collect parameter names from formal-parameter-list
         if (ctx.paramList() != null) {
-            for (AlgolParser.IdentifierContext id : ctx.paramList().identifier()) {
+            for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
                 newProc.paramNames.add(id.getText());
             }
         }
     }
 
     @Override
-    public void exitProcedureDecl(AlgolParser.ProcedureDeclContext ctx) {
+    public void exitProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
         // Add parameters to symbol table for type inference
         ProcInfo proc = procStack.peek();
         if (proc != null) {
@@ -131,43 +131,43 @@ public class SymbolTableBuilder extends AlgolBaseListener {
     }
 
     @Override
-    public void enterValueSpec(AlgolParser.ValueSpecContext ctx) {
+    public void enterValueSpec(PerseusParser.ValueSpecContext ctx) {
         ProcInfo proc = currentProc();
         if (proc != null) {
-            for (AlgolParser.IdentifierContext id : ctx.paramList().identifier()) {
+            for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
                 proc.valueParams.add(id.getText());
             }
         }
     }
 
     @Override
-    public void enterParamSpec(AlgolParser.ParamSpecContext ctx) {
+    public void enterParamSpec(PerseusParser.ParamSpecContext ctx) {
         ProcInfo proc = currentProc();
         if (proc != null) {
             // Determine the type from the paramSpecType alternative
-            AlgolParser.ParamSpecTypeContext typeCtx = ctx.paramSpecType();
+            PerseusParser.ParamSpecTypeContext typeCtx = ctx.paramSpecType();
             String actualBaseType;
             boolean isProcType = false;
-            if (typeCtx instanceof AlgolParser.RealProcedureParamTypeContext) {
+            if (typeCtx instanceof PerseusParser.RealProcedureParamTypeContext) {
                 actualBaseType = "procedure:real"; isProcType = true;
-            } else if (typeCtx instanceof AlgolParser.IntegerProcedureParamTypeContext) {
+            } else if (typeCtx instanceof PerseusParser.IntegerProcedureParamTypeContext) {
                 actualBaseType = "procedure:integer"; isProcType = true;
-            } else if (typeCtx instanceof AlgolParser.StringProcedureParamTypeContext) {
+            } else if (typeCtx instanceof PerseusParser.StringProcedureParamTypeContext) {
                 actualBaseType = "procedure:string"; isProcType = true;
-            } else if (typeCtx instanceof AlgolParser.VoidProcedureParamTypeContext) {
+            } else if (typeCtx instanceof PerseusParser.VoidProcedureParamTypeContext) {
                 actualBaseType = "procedure:void"; isProcType = true;
-            } else if (typeCtx instanceof AlgolParser.RealParamTypeContext) {
+            } else if (typeCtx instanceof PerseusParser.RealParamTypeContext) {
                 actualBaseType = "real";
-            } else if (typeCtx instanceof AlgolParser.IntegerParamTypeContext) {
+            } else if (typeCtx instanceof PerseusParser.IntegerParamTypeContext) {
                 actualBaseType = "integer";
-            } else if (typeCtx instanceof AlgolParser.StringParamTypeContext) {
+            } else if (typeCtx instanceof PerseusParser.StringParamTypeContext) {
                 actualBaseType = "string";
-            } else if (typeCtx instanceof AlgolParser.BooleanParamTypeContext) {
+            } else if (typeCtx instanceof PerseusParser.BooleanParamTypeContext) {
                 actualBaseType = "boolean";
             } else {
                 actualBaseType = "integer"; // fallback
             }
-            for (AlgolParser.IdentifierContext id : ctx.paramList().identifier()) {
+            for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
                 String paramName = id.getText();
                 proc.paramTypes.put(paramName, actualBaseType);
                 if (isProcType) {
@@ -181,7 +181,7 @@ public class SymbolTableBuilder extends AlgolBaseListener {
     }
 
     @Override
-    public void enterVarDecl(AlgolParser.VarDeclContext ctx) {
+    public void enterVarDecl(PerseusParser.VarDeclContext ctx) {
         // Check if this is a procedure variable declaration
         boolean isProcedure = ctx.PROCEDURE() != null;
         boolean isOwn = ctx.OWN() != null;
@@ -201,7 +201,7 @@ public class SymbolTableBuilder extends AlgolBaseListener {
             else type = "integer"; // default
         }
         
-        for (AlgolParser.IdentifierContext idCtx : ctx.varList().identifier()) {
+        for (PerseusParser.IdentifierContext idCtx : ctx.varList().identifier()) {
             String name = idCtx.getText();
             ProcInfo proc = currentProc();
             System.out.println("DEBUG: Declaring variable " + name + " with type " + type + " in " + (proc == null ? "main" : proc.paramNames.contains(name) ? "params" : "locals"));
@@ -219,7 +219,7 @@ public class SymbolTableBuilder extends AlgolBaseListener {
     }
 
     @Override
-    public void enterArrayDecl(AlgolParser.ArrayDeclContext ctx) {
+    public void enterArrayDecl(PerseusParser.ArrayDeclContext ctx) {
         boolean isOwn = ctx.OWN() != null;
         String elemType;
         if (ctx.INTEGER() != null) elemType = "integer";
@@ -241,14 +241,16 @@ public class SymbolTableBuilder extends AlgolBaseListener {
     }
 
     @Override
-    public void enterSwitchDecl(AlgolParser.SwitchDeclContext ctx) {
+    public void enterSwitchDecl(PerseusParser.SwitchDeclContext ctx) {
         String name = ctx.identifier().getText();
         symbolTable.put(name, "switch");
         switchDeclarations.put(name, ctx);
     }
 
     @Override
-    public void enterLabel(AlgolParser.LabelContext ctx) {
+    public void enterLabel(PerseusParser.LabelContext ctx) {
         labels.add(ctx.identifier().getText());
     }
 }
+
+

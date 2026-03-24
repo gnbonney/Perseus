@@ -16,18 +16,18 @@ import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.junit.jupiter.api.Test;
 
-import gnb.perseus.compiler.antlr.AlgolLexer;
-import gnb.perseus.compiler.antlr.AlgolParser;
+import gnb.perseus.compiler.antlr.PerseusLexer;
+import gnb.perseus.compiler.antlr.PerseusParser;
 
-public class AlgolParserTest {
+public class PerseusParserTest {
 
 	@Test
 	public void parse() {
 		try {
 			ANTLRInputStream is = new ANTLRInputStream(new FileReader("test/algol/hello.alg"));
-			AlgolLexer lexer = new AlgolLexer(is);
+			PerseusLexer lexer = new PerseusLexer(is);
 			CommonTokenStream tokens = new CommonTokenStream(lexer);
-			AlgolParser parser = new AlgolParser(tokens);
+			PerseusParser parser = new PerseusParser(tokens);
 			ParseTree choose = parser.program();
 			if (choose != null) {
 				ParseTreeWalker walker = new ParseTreeWalker();
@@ -63,9 +63,9 @@ public class AlgolParserTest {
 		try {
 			System.out.println("Starting parsePrimer4");
 			ANTLRInputStream is = new ANTLRInputStream(new FileReader("test/algol/primer4.alg"));
-			AlgolLexer lexer = new AlgolLexer(is);
+			PerseusLexer lexer = new PerseusLexer(is);
 			CommonTokenStream tokens = new CommonTokenStream(lexer);
-			AlgolParser parser = new AlgolParser(tokens);
+			PerseusParser parser = new PerseusParser(tokens);
 			System.out.println("Parser created");
 			ParseTree tree = parser.program();
 			System.out.println("Parse tree obtained");
@@ -83,3 +83,4 @@ public class AlgolParserTest {
 	}
 
 }
+

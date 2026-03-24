@@ -40,7 +40,7 @@ Three independent bugs prevent ManBoy from producing -67. Fix in order of depend
 
 Verify the exact output format of `outreal(-67.0)` then change `manboy_test` from `output.length() > 0` to `assertEquals("...", output.trim())`.
 
-**File:** AntlrAlgolListenerTest.java — `manboy_test`
+**File:** PerseusCompilerTest.java — `manboy_test`
 
 ---
 
@@ -63,3 +63,4 @@ Phases 1 and 2 are parallelizable (static code edits); Phase 3 requires runtime 
 3. ManBoy output strictly equals `-67.0` (or the exact `outreal` format)
 
 **Scope:** Only CodeGenerator.java changes + one test assertion. No SymbolTableBuilder, TypeInferencer, or grammar changes needed.
+

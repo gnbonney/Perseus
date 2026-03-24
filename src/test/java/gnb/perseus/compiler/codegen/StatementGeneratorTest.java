@@ -3,8 +3,8 @@ package gnb.perseus.compiler.codegen;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import gnb.perseus.compiler.antlr.AlgolLexer;
-import gnb.perseus.compiler.antlr.AlgolParser;
+import gnb.perseus.compiler.antlr.PerseusLexer;
+import gnb.perseus.compiler.antlr.PerseusParser;
 import gnb.perseus.compiler.SymbolTableBuilder;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -38,8 +38,8 @@ public class StatementGeneratorTest {
         context.getSymbolTable().put("x", "integer");
         context.getLocalIndex().put("x", 1);
 
-        AlgolParser.ProgramContext prog = parse("begin x := 42 end");
-        AlgolParser.AssignmentContext assignCtx = (AlgolParser.AssignmentContext) prog.compoundStatement().statement(0).assignment();
+        PerseusParser.ProgramContext prog = parse("begin x := 42 end");
+        PerseusParser.AssignmentContext assignCtx = (PerseusParser.AssignmentContext) prog.compoundStatement().statement(0).assignment();
         
         String code = stmtGen.generateAssignment(assignCtx, "gnb/perseus/test", "TestClass");
         
@@ -49,8 +49,8 @@ public class StatementGeneratorTest {
 
     @Test
     public void testIfStatementLabels() {
-        AlgolParser.ProgramContext prog = parse("begin if x > 0 then x := 1 end");
-        AlgolParser.IfStatementContext ifCtx = (AlgolParser.IfStatementContext) prog.compoundStatement().statement(0).ifStatement();
+        PerseusParser.ProgramContext prog = parse("begin if x > 0 then x := 1 end");
+        PerseusParser.IfStatementContext ifCtx = (PerseusParser.IfStatementContext) prog.compoundStatement().statement(0).ifStatement();
         
         StringBuilder output = new StringBuilder();
         stmtGen.enterIfStatement(ifCtx, output);
@@ -69,8 +69,8 @@ public class StatementGeneratorTest {
         context.getSymbolTable().put("i", "integer");
         context.getLocalIndex().put("i", 2);
 
-        AlgolParser.ProgramContext prog = parse("begin for i := 1 step 1 until 10 do x := i end");
-        AlgolParser.ForStatementContext forCtx = (AlgolParser.ForStatementContext) prog.compoundStatement().statement(0).forStatement();
+        PerseusParser.ProgramContext prog = parse("begin for i := 1 step 1 until 10 do x := i end");
+        PerseusParser.ForStatementContext forCtx = (PerseusParser.ForStatementContext) prog.compoundStatement().statement(0).forStatement();
         
         StringBuilder output = new StringBuilder();
         stmtGen.enterForStatement(forCtx, output);
@@ -96,8 +96,8 @@ public class StatementGeneratorTest {
         SymbolTableBuilder.ProcInfo info = new SymbolTableBuilder.ProcInfo("void");
         context.getProcedures().put("myProc", info);
 
-        AlgolParser.ProgramContext prog = parse("begin P := myProc end");
-        AlgolParser.AssignmentContext assignCtx = (AlgolParser.AssignmentContext) prog.compoundStatement().statement(0).assignment();
+        PerseusParser.ProgramContext prog = parse("begin P := myProc end");
+        PerseusParser.AssignmentContext assignCtx = (PerseusParser.AssignmentContext) prog.compoundStatement().statement(0).assignment();
         
         // We need ExpressionGenerator to handle the RHS 'myProc' as a reference
         // Actually the bug report says generateAssignment emits istore -1.
@@ -113,8 +113,8 @@ public class StatementGeneratorTest {
         context.getSymbolTable().put("P", "procedure:void");
         context.getLocalIndex().put("P", 4);
         
-        AlgolParser.ProgramContext prog = parse("begin P end");
-        AlgolParser.ProcedureCallContext callCtx = (AlgolParser.ProcedureCallContext) prog.compoundStatement().statement(0).procedureCall();
+        PerseusParser.ProgramContext prog = parse("begin P end");
+        PerseusParser.ProcedureCallContext callCtx = (PerseusParser.ProcedureCallContext) prog.compoundStatement().statement(0).procedureCall();
         
         String code = stmtGen.exitProcedureCall(callCtx);
         
@@ -122,10 +122,11 @@ public class StatementGeneratorTest {
         assertTrue(code.contains("invokeinterface gnb/perseus/compiler/VoidProcedure/invoke"), "Should call variable via interface");
     }
 
-    private AlgolParser.ProgramContext parse(String input) {
-        AlgolLexer lexer = new AlgolLexer(CharStreams.fromString(input));
+    private PerseusParser.ProgramContext parse(String input) {
+        PerseusLexer lexer = new PerseusLexer(CharStreams.fromString(input));
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        AlgolParser parser = new AlgolParser(tokens);
+        PerseusParser parser = new PerseusParser(tokens);
         return parser.program();
     }
 }
+

@@ -3,8 +3,8 @@ package gnb.perseus.compiler;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import gnb.perseus.compiler.antlr.AlgolLexer;
-import gnb.perseus.compiler.antlr.AlgolParser;
+import gnb.perseus.compiler.antlr.PerseusLexer;
+import gnb.perseus.compiler.antlr.PerseusParser;
 import gnb.perseus.compiler.codegen.ContextManager;
 import gnb.perseus.compiler.codegen.ExpressionGenerator;
 import gnb.perseus.compiler.codegen.StatementGenerator;
@@ -20,7 +20,7 @@ public class SlotAssignmentTest {
 
     @Test
     public void testProcedureVariableSlotAssignment() {
-        // This test simulates the logic in AntlrAlgolListener for assigning slots
+        // This test simulates the logic in PerseusCompiler for assigning slots
         // to procedure variables and verifies CodeGenerator uses them.
         
         Map<String, String> symbolTable = new HashMap<>();
@@ -56,7 +56,7 @@ public class SlotAssignmentTest {
         // Since procVarSlots is private, we verify behavior.
         // In CodeGenerator.enterProgram, it iterates over localIndex to initialize variables.
         
-        AlgolParser parser = parse("begin P := hello end");
+        PerseusParser parser = parse("begin P := hello end");
         // We don't actually need to walk it to verify the mapping was stored.
         
         // Let's use reflection or just assume the successfully passed map is used.
@@ -66,9 +66,11 @@ public class SlotAssignmentTest {
         // Since we refactored to modular generators, let's see if we can trigger an assignment.
     }
 
-    private AlgolParser parse(String content) {
-        AlgolLexer lexer = new AlgolLexer(CharStreams.fromString(content));
+    private PerseusParser parse(String content) {
+        PerseusLexer lexer = new PerseusLexer(CharStreams.fromString(content));
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        return new AlgolParser(tokens);
+        return new PerseusParser(tokens);
     }
 }
+
+

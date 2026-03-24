@@ -1,24 +1,60 @@
 # Project Architecture
 
-This document describes the high-level architecture of the Algol-to-JVM compiler project.
+This document describes the high-level architecture of Perseus, an Algol-derived language and compiler platform targeting the JVM.
 
 ## Overview
 
 The project consists of several main components:
-- **Frontend (Parser & Lexer):** Parses Algol source code using ANTLR grammar.
+- **Frontend (Parser & Lexer):** Parses Perseus source code using an ANTLR grammar rooted in the project's Algol heritage.
 - **Pass 1 — Symbol Table Construction:** Walks the parse tree to collect variable names, types, and block scope nesting. Required before code generation because Jasmin needs `.limit locals N` declared before method body instructions, and forward `goto` labels must be known before jumps are emitted.
 - **Pass 1.5 — Type Inference:** Walks the parse tree after symbol table construction to annotate every expression node with its resolved type (`integer`, `real`, `boolean`, `string`, or `procedure:T`). Required because `CodeGenerator` must select different JVM instructions depending on expression type (e.g. `iadd` vs `dadd`), and those types must be fully resolved before any code is emitted.
 - **Pass 2 — Code Generation:** Walks the parse tree a third time, using both the symbol table from Pass 1 and the type annotations from Pass 1.5, to emit Jasmin assembly instructions.
 - **Assembly:** Jasmin assembles the generated `.j` family into JVM `.class` files.
 - **Post-Assembly Verification:** Tests can run `FixLimits` over the generated class family to recompute frames/max stack and catch verifier problems across the main class and its companions.
-- **Testing & Samples:** Includes sample Algol programs and JUnit tests for validation.
-- **Supporting Tools:** Soot can be used standalone for bytecode analysis/disassembly but is not a build dependency (see [Development.md](Development.md)).
+- **Testing & Samples:** Includes sample programs and JUnit tests for validation.
+- **Supporting Tools:** Soot can be used standalone for bytecode analysis/disassembly but is not a build dependency.
+
+## Development Approach
+
+Perseus was not built by transliterating the full ALGOL reports directly into a finished ANTLR grammar in one step. In practice, that approach ran into the usual grammar-conversion problems, including left-recursion issues and hard-to-diagnose parse failures.
+
+The project instead evolved iteratively:
+
+- Start from small working programs
+- Add the minimum grammar and code generation needed for each feature
+- Expand coverage through tests and historically meaningful sample programs
+
+That incremental approach remains part of the architecture story, because it explains why the grammar, tests, and implementation are so tightly coupled. Perseus grows by validating concrete language behavior, not just by broadening grammar coverage in the abstract.
+
+## Tooling Choices
+
+### Why ANTLR
+
+ANTLR was chosen because Perseus is implemented in Java and benefits from a parser generator with strong Java integration, good documentation, and a practical developer experience. Other parser generators were considered, including CUP, but ANTLR fit the project better as the grammar evolved.
+
+ANTLR also works well with the incremental development strategy above: the grammar can be extended feature by feature while keeping parsing, tests, and compiler passes aligned.
+
+### Why Jasmin 2.4
+
+Perseus uses **Jasmin 2.4** for JVM bytecode assembly. The project keeps `jasmin-2.4/jasmin.jar` bundled locally and references it directly from Gradle. This keeps the bytecode emission path explicit and stable, which is especially useful in a compiler that intentionally exposes and inspects its generated assembly.
+
+Jasmin 3.x exists as a Maven artifact, but it is based on an older Jasmin lineage and is not the version used here.
+
+### Why Soot Is Not a Build Dependency
+
+Soot can still be useful as a standalone analysis or disassembly tool, but it is not a normal build dependency for Perseus. The main reason is dependency conflict: the Soot artifact pulls in a different Jasmin line transitively, which clashes with the project's deliberate use of Jasmin 2.4.
+
+So the current approach is:
+
+- Use Jasmin 2.4 directly for assembly
+- Use ASM-based verification where needed in tests and post-processing
+- Use Soot only as an optional external tool when deeper bytecode inspection is useful
 
 ## Component Diagram
 
 ```mermaid
 flowchart TD
-    A[Algol Source Code] --> B[ANTLR Lexer/Parser]
+    A[Perseus Source Code] --> B[ANTLR Lexer/Parser]
     B --> C[Parse Tree]
     C --> D[Pass 1: Symbol Table Builder]
     D --> E[Symbol Table]
@@ -45,7 +81,7 @@ sequenceDiagram
     participant CodeGenerator
     participant Jasmin
     participant JVM
-    User->>Parser: Provide Algol source
+    User->>Parser: Provide Perseus source
     Parser->>SymbolTableBuilder: Parse tree (Pass 1)
     SymbolTableBuilder->>TypeInferencer: Symbol table
     Parser->>TypeInferencer: Parse tree (Pass 1.5)
@@ -59,7 +95,7 @@ sequenceDiagram
 
 ## Output Class Files
 
-The compiler produces one or more `.class` files per Algol source file:
+The compiler produces one or more `.class` files per source file:
 
 - **`Hello.class`** — the main compiled class (always produced)
 - **`Hello$Thunk0.class`, `Hello$Thunk1.class`, …** — synthetic thunk classes, one per call-by-name argument at each call site that uses a procedure with name-parameters
@@ -136,7 +172,7 @@ As of March 2026, the code generation phase (Pass 2) has been refactored to use 
 This modular approach enables:
 - Clean separation of concerns for each code generation domain
 - Easier testing and extension of codegen logic
-- Support for advanced Algol features (call-by-name, procedure variables, higher-order procedures)
+- Support for advanced Algol-family features (call-by-name, procedure variables, higher-order procedures)
 - Deterministic and maintainable output structure
 
 The overall data flow and output conventions remain as described above, but the code generation logic is now distributed across these specialized classes, coordinated by the `CodeGenerator` facade and the `ContextManager` state hub.
@@ -188,13 +224,13 @@ For more detail on the debugging history, see:
 - [docs/Compiler-TODO.md](Compiler-TODO.md)
 
 
-## Compiling Algol to Jasmin
+## Compiling Perseus Source to Jasmin
 
-To compile an Algol source file to Jasmin assembly, the following steps are performed:
+To compile a Perseus source file to Jasmin assembly, the following steps are performed:
 
-1. **Compile Algol to Jasmin**:
-   Use the `AntlrAlgolListener.compileToFile` method to compile the Algol source file into Jasmin output files. This method:
-   - Parses the Algol source file.
+1. **Compile source to Jasmin**:
+   Use the `PerseusCompiler.compileToFile` method to compile the source file into Jasmin output files. This method:
+   - Parses the source file.
    - Generates the Jasmin assembly code.
    - Writes the main `.j` file to the specified directory.
    - Writes any generated `Main$ThunkN.j` and `Main$ProcRefN.j` companions.
@@ -202,19 +238,19 @@ To compile an Algol source file to Jasmin assembly, the following steps are perf
 
    Example:
    ```java
-   Path jasminFile = AntlrAlgolListener.compileToFile(
+   Path jasminFile = PerseusCompiler.compileToFile(
        "test/algol/hello.alg", "gnb/perseus/programs", "Hello", Paths.get("build/test-algol"));
    ```
 
 2. **Assemble Jasmin to Class Files**:
-   Use the `AntlrAlgolListener.assemble` method to convert the Jasmin `.j` file into a `.class` file. This method:
+   Use the `PerseusCompiler.assemble` method to convert the Jasmin `.j` file into a `.class` file. This method:
    - Assembles the main `.j` file.
    - Assembles every matching `Main$*.j` companion file.
    - Assembles `Thunk.j` and `ProcedureInterfaces.j` when present.
 
    Example:
    ```java
-   AntlrAlgolListener.assemble(jasminFile, Paths.get("build/test-algol"));
+   PerseusCompiler.assemble(jasminFile, Paths.get("build/test-algol"));
    ```
 
 3. **Optionally verify/fix the class family**:
@@ -234,12 +270,12 @@ These steps are demonstrated in the unit tests, including the more demanding `ma
 
 ## Command-Line Interface (CLI)
 
-The project includes a dedicated CLI, `PerseusCLI`, for compiling Algol source files. The CLI wraps the `AntlrAlgolListener` and provides a user-friendly interface for compilation. Users can specify the input file, output directory, and class name directly from the command line.
+The project includes a dedicated CLI, `PerseusCLI`, for compiling source files. The CLI wraps the `PerseusCompiler` and provides a user-friendly interface for compilation. Users can specify the input file, output directory, and class name directly from the command line.
 
 ### Workflow with the CLI
 
-1. **Input**: Provide the Algol source file to the CLI.
-2. **Compilation**: The CLI invokes the `AntlrAlgolListener` to parse the source file and generate the main Jasmin file plus any needed companion/support `.j` files.
+1. **Input**: Provide the source file to the CLI.
+2. **Compilation**: The CLI invokes the `PerseusCompiler` to parse the source file and generate the main Jasmin file plus any needed companion/support `.j` files.
 3. **Assembly**: The Jasmin assembler converts that generated `.j` family into the corresponding `.class` files.
 4. **Output**: The main program class and any required companion/support classes are ready to be executed on the JVM.
 
@@ -258,14 +294,14 @@ This command compiles `hello.alg` into `Hello.j`, any needed companion `.j` file
 - `src/main/java/` - Java source code
 - `src/main/antlr/` - ANTLR grammar files
 - `src/test/java/` - Unit tests
-- `test/algol/` - Sample Algol programs used for testing
+- `test/algol/` - Sample source programs used for testing
 - `jasmin-2.4/` - Jasmin 2.4 assembler (jar bundled with project; ANTLR managed via Gradle)
 - `lib/` - Reserved for additional third-party libraries
 - `docs/` - Documentation
 
 ## Future Extensions
 
-- Support for more Algol features
+- Support for more Perseus language features
 - Improved error handling and diagnostics
 - IDE integration (syntax highlighting, auto-completion)
 - More advanced optimizations and analysis
@@ -273,3 +309,4 @@ This command compiles `hello.alg` into `Hello.j`, any needed companion `.j` file
 ---
 
 _Last updated: March 22, 2026_
+

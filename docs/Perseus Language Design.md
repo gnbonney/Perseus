@@ -1,4 +1,8 @@
-# Strings
+# Perseus Language Design
+
+This document collects design notes for language features that extend, reinterpret, or modernize Perseus's Algol heritage. Some of these features are inspired by historical Algol-family compilers; others are new directions intended to make Perseus more practical on the JVM.
+
+## Strings
 
 Many historic Algol compilers (e.g., NU Algol, Data General Extended Algol, Algol W, Simula) introduced a string type or class, often as a variable-length array of characters or a record with a length and character array. Simula's `Text` class and Algol W's `string` type are notable examples.
 
@@ -7,7 +11,7 @@ Many historic Algol compilers (e.g., NU Algol, Data General Extended Algol, Algo
 - **Simula:** Used a `Text` class with similar semantics.
 - **DEC Algol:** Included string handling extensions.
 
-# Strings in Perseus
+## Strings in Perseus
 
 - **Type:** `string`
 - **Semantics:** Strings are mutable, variable-length, and support slicing, concatenation, and assignment.
@@ -48,7 +52,7 @@ s[7] := 'W';              % changes 'w' to 'W', so s becomes "Hello, World!"
 s := concat(s, "!!!");   % s is now "Hello, World!!!"
 ```
 
-# File I/O
+## File I/O
 
 The original Algol 60 standard, and even the Modified Report, do not specify a standard mechanism for file input/output.  I/O in Algol 60 is limited to channels, which are left implementation-defined and typically mapped to standard input/output devices (e.g., teletype, punch cards, or console streams).  File I/O was handled in a variety of incompatible ways by different compilers, and the standard explicitly leaves the mapping of channels to devices or files outside its scope.
 
@@ -69,7 +73,7 @@ closefile(2);
 
 This approach is consistent with the Modified Report's philosophy of implementation-defined channel-to-device mapping, while bringing Perseus closer to modern I/O expectations.  It mirrors patterns already seen in Simula 67 (file, infile, outfile classes), NU Algol (FORMAT and LIST declarations), and DEC Algol (comprehensive file I/O).
 
-# Formatted I/O (Hybrid Design)
+## Formatted I/O (Hybrid Design)
 
 Many historic Algol compilers provided formatted I/O via FORMAT statements or format strings, but the syntax and semantics varied widely. Modern JVM languages use `String.format` or similar mechanisms. To balance authenticity and practicality, Perseus proposes a **hybrid formatted I/O system**:
 
@@ -128,7 +132,7 @@ outformat(1, "I5, F8.2, A10", i, x, s);
 
 ---
 
-# String Channels and sprintf-style Output
+## String Channels and sprintf-style Output
 
 Perseus supports associating a channel with a string variable, enabling output procedures to write directly to a string buffer. This provides the equivalent of `sprintf` in C or `StringWriter` in Java, and is a natural extension of the channel-based I/O model.
 
@@ -161,7 +165,7 @@ closefile(5);
 For rationale and historical context, see Environmental-Block.md.
 
 ---
-# External Procedures
+## External Procedures
 
 NU Algol had external procedures while Simula 67 had external classes and external procedures. They had to be declared in the program they were being used in, somewhat like an import statement in a Java class. In the Simula 67 standard, external classes and external procedures were considered "program modules".
 
@@ -328,7 +332,7 @@ This split gives Perseus a cleaner long-term story:
 
 It also fits the current architecture well. Perseus already generates JVM-static procedure entry points and already distinguishes between ordinary value passing and thunk-based call-by-name lowering. External linkage should build on those realities instead of hiding them.
 
-# Exceptions
+## Exceptions
 
 Access to external Java procedures and classes strongly suggests a need for structured exception handling. Java methods may fail by throwing exceptions, and Perseus should have a source-level way to respond to those failures without forcing everything through `fault(...)` or process termination. A block-oriented exception extension also fits Algol's existing `begin ... end` structure better than importing Java's `try/catch` syntax directly.
 
@@ -496,7 +500,7 @@ but this should be a later layer, not part of the minimum design.
 - JVM lowering is natural through ordinary `try/catch`.
 - This extension would make external Java/class interop much safer and more expressive.
 
-# Lambda Notation
+## Lambda Notation
 
 Rutishauser proposed, in the Handbook for Automatic Computation - Description of Algol, an extension to replace Jensen's device (call-by-name for array parameters) with Church's lambda notation for arrays. This approach is based on Alonzo Church's lambda calculus, which is the mathematical foundation for anonymous functions ("lambda functions") in modern programming languages.
 
@@ -547,5 +551,4 @@ This makes the parameter-passing mechanism explicit and generalizes it to any co
 ## Summary
 - Church's lambda notation for arrays is a formal, functional way to generalize array and call-by-name parameters using anonymous functions.
 - It is the conceptual ancestor of lambda functions and closures in modern languages.
-
 

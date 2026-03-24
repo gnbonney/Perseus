@@ -1,6 +1,6 @@
 package gnb.perseus.cli;
 
-import gnb.perseus.compiler.AntlrAlgolListener;
+import gnb.perseus.compiler.PerseusCompiler;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -17,7 +17,7 @@ public class PerseusCLI {
         String className = args[2];
 
         try {
-            Path outputPath = AntlrAlgolListener.compileToFile(inputFile, "gnb/perseus/programs", className, Paths.get(outputDir));
+            Path outputPath = PerseusCompiler.compileToFile(inputFile, "gnb/perseus/programs", className, Paths.get(outputDir));
             System.out.println("Compilation successful. Jasmin file generated at: " + outputPath);
         } catch (Exception e) {
             System.err.println("Compilation failed: " + e.getMessage());

@@ -1,6 +1,6 @@
 package gnb.perseus.compiler.codegen;
 
-import gnb.perseus.compiler.antlr.AlgolParser;
+import gnb.perseus.compiler.antlr.PerseusParser;
 import gnb.perseus.compiler.CodeGenUtils;
 import java.util.Stack;
 import java.util.Map;
@@ -42,9 +42,9 @@ public class StatementGenerator implements GeneratorDelegate {
         this.inProcedureWalk = inProcedureWalk;
     }
 
-    public void enterIfStatement(AlgolParser.IfStatementContext ctx, StringBuilder activeOutput) {
+    public void enterIfStatement(PerseusParser.IfStatementContext ctx, StringBuilder activeOutput) {
         if (isInProcedureDecl && !inProcedureWalk) return;
-        AlgolParser.ExprContext cond = ctx.expr();
+        PerseusParser.ExprContext cond = ctx.expr();
         boolean hasElse = ctx.statement().size() > 1;
         String endLabel = CodeGenUtils.generateUniqueLabel("endif");
         ifEndLabelStack.push(endLabel);
@@ -60,7 +60,7 @@ public class StatementGenerator implements GeneratorDelegate {
             falseTarget = endLabel;
         }
 
-        if (cond instanceof AlgolParser.RelExprContext rel) {
+        if (cond instanceof PerseusParser.RelExprContext rel) {
             activeOutput.append(exprGen.generateExpr(rel.expr(0)));
             activeOutput.append(exprGen.generateExpr(rel.expr(1)));
             String op = rel.op.getText();
@@ -82,16 +82,16 @@ public class StatementGenerator implements GeneratorDelegate {
         activeOutput.append(thenLabel).append(":\n");
     }
 
-    public void exitIfStatement(AlgolParser.IfStatementContext ctx, StringBuilder activeOutput) {
+    public void exitIfStatement(PerseusParser.IfStatementContext ctx, StringBuilder activeOutput) {
         if (isInProcedureDecl && !inProcedureWalk) return;
         String endLabel = ifEndLabelStack.pop();
         ifElseLabelStack.pop();
         activeOutput.append(endLabel).append(":\n");
     }
 
-    public String generateAssignment(AlgolParser.AssignmentContext ctx, String packageName, String className) {
+    public String generateAssignment(PerseusParser.AssignmentContext ctx, String packageName, String className) {
         if (isInProcedureDecl && !inProcedureWalk) return "";
-        List<AlgolParser.LvalueContext> lvalues = ctx.lvalue();
+        List<PerseusParser.LvalueContext> lvalues = ctx.lvalue();
         StringBuilder activeOutput = new StringBuilder();
 
         String currentProcName = context.getCurrentProcName();
@@ -101,7 +101,7 @@ public class StatementGenerator implements GeneratorDelegate {
         Map<String, int[]> currentArrayBounds = context.getArrayBounds();
 
         if (lvalues.size() == 1 && lvalues.get(0).expr() != null) {
-            AlgolParser.LvalueContext lv = lvalues.get(0);
+            PerseusParser.LvalueContext lv = lvalues.get(0);
             String arrName = lv.identifier().getText();
             String elemType = currentSymbolTable.get(arrName);
             if (elemType == null && context.getMainSymbolTable() != null) elemType = context.getMainSymbolTable().get(arrName);
@@ -168,7 +168,7 @@ public class StatementGenerator implements GeneratorDelegate {
         return activeOutput.toString();
     }
 
-    public void enterForStatement(AlgolParser.ForStatementContext ctx, StringBuilder activeOutput) {
+    public void enterForStatement(PerseusParser.ForStatementContext ctx, StringBuilder activeOutput) {
         if (isInProcedureDecl && !inProcedureWalk) return;
         String varName = ctx.identifier().getText();
         Integer varIndex = context.getLocalIndex().get(varName);
@@ -179,8 +179,8 @@ public class StatementGenerator implements GeneratorDelegate {
 
         // Only handle the first for-element for simple step/until support in this delegate
         if (!ctx.forList().forElement().isEmpty()) {
-            AlgolParser.ForElementContext elem = ctx.forList().forElement().get(0);
-            if (elem instanceof AlgolParser.StepUntilElementContext e) {
+            PerseusParser.ForElementContext elem = ctx.forList().forElement().get(0);
+            if (elem instanceof PerseusParser.StepUntilElementContext e) {
                 activeOutput.append(exprGen.generateExpr(e.expr(0)));
                 activeOutput.append("istore ").append(varIndex).append("\n");
                 activeOutput.append(currentForLoopLabel).append(":\n");
@@ -191,11 +191,11 @@ public class StatementGenerator implements GeneratorDelegate {
         }
     }
 
-    public void exitForStatement(AlgolParser.ForStatementContext ctx, StringBuilder activeOutput) {
+    public void exitForStatement(PerseusParser.ForStatementContext ctx, StringBuilder activeOutput) {
         if (isInProcedureDecl && !inProcedureWalk) return;
         if (!ctx.forList().forElement().isEmpty()) {
-            AlgolParser.ForElementContext elem = ctx.forList().forElement().get(0);
-            if (elem instanceof AlgolParser.StepUntilElementContext e) {
+            PerseusParser.ForElementContext elem = ctx.forList().forElement().get(0);
+            if (elem instanceof PerseusParser.StepUntilElementContext e) {
                 String varName = ctx.identifier().getText();
                 Integer varIndex = context.getLocalIndex().get(varName);
                 if (varIndex == null) return;
@@ -208,10 +208,10 @@ public class StatementGenerator implements GeneratorDelegate {
         activeOutput.append(currentForEndLabel).append(":\n");
     }
 
-    public String exitProcedureCall(AlgolParser.ProcedureCallContext ctx) {
+    public String exitProcedureCall(PerseusParser.ProcedureCallContext ctx) {
         if (isInProcedureDecl && !inProcedureWalk) return "";
         String name = ctx.identifier().getText();
-        List<AlgolParser.ArgContext> args = ctx.argList() != null ? ctx.argList().arg() : new ArrayList<>();
+        List<PerseusParser.ArgContext> args = ctx.argList() != null ? ctx.argList().arg() : new ArrayList<>();
         StringBuilder sb = new StringBuilder();
         
         // Handle built-ins first (Simplified for now)
@@ -232,3 +232,4 @@ public class StatementGenerator implements GeneratorDelegate {
         return sb.toString();
     }
 }
+

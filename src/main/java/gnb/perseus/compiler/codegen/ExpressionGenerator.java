@@ -1,7 +1,7 @@
 package gnb.perseus.compiler.codegen;
 
-import gnb.perseus.compiler.antlr.AlgolParser;
-import gnb.perseus.compiler.antlr.AlgolParser.ExprContext;
+import gnb.perseus.compiler.antlr.PerseusParser;
+import gnb.perseus.compiler.antlr.PerseusParser.ExprContext;
 import gnb.perseus.compiler.SymbolTableBuilder;
 import gnb.perseus.compiler.CodeGenUtils;
 import java.util.Map;
@@ -26,13 +26,13 @@ public class ExpressionGenerator implements GeneratorDelegate {
         this.context = context;
     }
 
-    public String generateExpr(AlgolParser.ExprContext ctx) {
+    public String generateExpr(PerseusParser.ExprContext ctx) {
         if (ctx == null) return "";
-        if (ctx instanceof AlgolParser.IntLiteralExprContext) {
+        if (ctx instanceof PerseusParser.IntLiteralExprContext) {
             return "ldc " + ctx.getText() + "\n";
-        } else if (ctx instanceof AlgolParser.RealLiteralExprContext) {
+        } else if (ctx instanceof PerseusParser.RealLiteralExprContext) {
             return "ldc2_w " + ctx.getText() + "d\n";
-        } else if (ctx instanceof AlgolParser.VarExprContext varCtx) {
+        } else if (ctx instanceof PerseusParser.VarExprContext varCtx) {
             String name = varCtx.identifier().getText();
             System.out.println("DEBUG: ExpressionGenerator generating for VarExpr: " + name);
             // Check if it's a procedure name being used as a value or a variable call
@@ -56,7 +56,7 @@ public class ExpressionGenerator implements GeneratorDelegate {
                     boolean isCall = false;
                     org.antlr.v4.runtime.tree.ParseTree p = varCtx.getParent();
                     while (p != null) {
-                        if (p instanceof AlgolParser.ProcedureCallContext call) {
+                        if (p instanceof PerseusParser.ProcedureCallContext call) {
                             if (call.identifier().getText().equals(name)) {
                                 isCall = true;
                                 break;
@@ -85,19 +85,19 @@ public class ExpressionGenerator implements GeneratorDelegate {
                 }
             }
             return generateLoadVar(name);
-        } else if (ctx instanceof AlgolParser.AddSubExprContext binCtx) {
+        } else if (ctx instanceof PerseusParser.AddSubExprContext binCtx) {
             String op = binCtx.op.getText();
             return generateExpr(binCtx.expr(0)) + generateExpr(binCtx.expr(1)) + ("+".equals(op) ? "iadd\n" : "isub\n");
-        } else if (ctx instanceof AlgolParser.MulDivExprContext mulCtx) {
+        } else if (ctx instanceof PerseusParser.MulDivExprContext mulCtx) {
             String op = mulCtx.op.getText();
             return generateExpr(mulCtx.expr(0)) + generateExpr(mulCtx.expr(1)) + ("*".equals(op) ? "imul\n" : "idiv\n");
-        } else if (ctx instanceof AlgolParser.ParenExprContext parCtx) {
+        } else if (ctx instanceof PerseusParser.ParenExprContext parCtx) {
             return generateExpr(parCtx.expr());
-        } else if (ctx instanceof AlgolParser.TrueLiteralExprContext) {
+        } else if (ctx instanceof PerseusParser.TrueLiteralExprContext) {
             return "iconst_1\n";
-        } else if (ctx instanceof AlgolParser.FalseLiteralExprContext) {
+        } else if (ctx instanceof PerseusParser.FalseLiteralExprContext) {
             return "iconst_0\n";
-        } else if (ctx instanceof AlgolParser.StringLiteralExprContext strCtx) {
+        } else if (ctx instanceof PerseusParser.StringLiteralExprContext strCtx) {
             return "ldc " + strCtx.getText() + "\n";
         }
         return "; expr logic missing\n";
@@ -182,3 +182,4 @@ public class ExpressionGenerator implements GeneratorDelegate {
         return "istore " + idx + "\n";
     }
 }
+

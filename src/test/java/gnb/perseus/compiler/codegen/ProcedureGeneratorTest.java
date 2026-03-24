@@ -3,8 +3,8 @@ package gnb.perseus.compiler.codegen;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-import gnb.perseus.compiler.antlr.AlgolLexer;
-import gnb.perseus.compiler.antlr.AlgolParser;
+import gnb.perseus.compiler.antlr.PerseusLexer;
+import gnb.perseus.compiler.antlr.PerseusParser;
 import gnb.perseus.compiler.SymbolTableBuilder;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -42,7 +42,7 @@ public class ProcedureGeneratorTest {
 
     @Test
     public void testGenerateProcedureWithIntegerParam() {
-        AlgolParser.ProgramContext prog = parse("begin procedure p(x); value x; integer x; x := 1; p(10) end");
+        PerseusParser.ProgramContext prog = parse("begin procedure p(x); value x; integer x; x := 1; p(10) end");
         
         SymbolTableBuilder.ProcInfo info = new SymbolTableBuilder.ProcInfo("void");
         info.paramNames.add("x");
@@ -51,8 +51,8 @@ public class ProcedureGeneratorTest {
         context.getProcedures().put("p", info);
 
         // find the procedureCall inside the compoundStatement
-        AlgolParser.ProcedureCallContext callCtx = null;
-        for (AlgolParser.StatementContext stmt : prog.compoundStatement().statement()) {
+        PerseusParser.ProcedureCallContext callCtx = null;
+        for (PerseusParser.StatementContext stmt : prog.compoundStatement().statement()) {
             if (stmt.procedureCall() != null) {
                 callCtx = stmt.procedureCall();
                 break;
@@ -71,8 +71,8 @@ public class ProcedureGeneratorTest {
         SymbolTableBuilder.ProcInfo info = new SymbolTableBuilder.ProcInfo("integer");
         context.getProcedures().put("myFunc", info);
 
-        AlgolParser.ProgramContext prog = parse("begin integer procedure myFunc; myFunc := 42; myFunc end");
-        AlgolParser.ProcedureDeclContext decl = prog.compoundStatement().statement(0).procedureDecl();
+        PerseusParser.ProgramContext prog = parse("begin integer procedure myFunc; myFunc := 42; myFunc end");
+        PerseusParser.ProcedureDeclContext decl = prog.compoundStatement().statement(0).procedureDecl();
 
         procGen.enterProcedureDecl(decl);
         
@@ -87,10 +87,11 @@ public class ProcedureGeneratorTest {
         assertTrue(methodCode.contains(".end method"), "Should contain end method");
     }
 
-    private AlgolParser.ProgramContext parse(String input) {
-        AlgolLexer lexer = new AlgolLexer(CharStreams.fromString(input));
+    private PerseusParser.ProgramContext parse(String input) {
+        PerseusLexer lexer = new PerseusLexer(CharStreams.fromString(input));
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        AlgolParser parser = new AlgolParser(tokens);
+        PerseusParser parser = new PerseusParser(tokens);
         return parser.program();
     }
 }
+
