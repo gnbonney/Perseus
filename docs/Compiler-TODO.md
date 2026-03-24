@@ -651,11 +651,17 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Priority:** Highest remaining core-language milestone.
 
-**Goal:** Replace the remaining fragile environment-bridge cases with a solid model for nested procedures reading and updating outer-scope locals.
+**Goal:** Make nested procedures reliably read and update enclosing-scope state across realistic activation patterns.
 
-- [ ] Implement a durable non-local access strategy (display/frame-pointer style, or an equivalent model that scales beyond the current bridge approach)
-- [ ] Support nested procedures reading and writing outer locals and arrays in more complex activation patterns
-- [ ] Add focused regression tests beyond `pi2.alg` for nested state mutation and re-entrant activations
+**Covered use cases:**
+
+- [x] Nested procedure reads outer scalar variables (`pi2.alg`, Milestone 15)
+- [x] Nested procedure reads an enclosing value parameter via environment bridging (`manboy.alg`)
+- [x] Nested recursive procedure updates enclosing scalar locals and the outer procedure observes the updated values after re-entry (`nested_digits.alg`)
+- [x] Nested procedures preserve re-entrant self-thunk state across recursive activations (`manboy.alg`)
+- [x] Simple nested scope access regression remains covered (`nested_scope_access.alg`)
+
+**Known limitations and possible future direction:** The current implementation uses the existing environment-bridge/static-field strategy and is intentionally being kept stable now that `manboy.alg` and `nested_digits.alg` both work. We have not yet added Milestone 21-specific regressions for nested procedures updating outer arrays or for deeper multi-level non-local mutation chains beyond the currently verified cases. If future classic Algol 60 examples expose gaps here, the next step should be to add targeted regression tests first and document the specific limitation before considering a broader refactor of the non-local access machinery.
 
 ## Milestone 22 — Label and Switch Parameters / Designational Exits
 
@@ -670,11 +676,15 @@ Here, the channel parameter is left empty, but the argument list is still presen
 - [ ] Codegen: support designational exits through passed labels/switches where legal
 - [ ] Enforce or document the goto-scope restrictions that still apply
 
+Possible JVM strategy for passed labels: lower non-local label exits to tagged exceptions (or an equivalent non-local escape mechanism) and catch them in the block/procedure activation that owns the real target labels. This would avoid requiring impossible cross-method JVM jumps while still giving a plausible implementation path for Algol-style designational exits.
+
+Possible JVM strategy for passed switches: lower a switch parameter to an indexed collection of label-exit descriptors (or thunks that resolve to them), reusing the same non-local escape machinery as passed labels when `goto sw[i]` selects a non-local target.
+
 ## Milestone 23 — Algol 60 Formal Array Parameters
 
 **Priority:** Final major core-language data-passing feature.
 
-**Goal:** Support formal array parameters in procedures, including realistic report-style numeric code.
+**Goal:** Support formal array parameters in procedures, including realistic classic Algol 60 numeric examples.
 
 - [ ] Grammar and symbol-table support for formal array parameters
 - [ ] Codegen for array descriptor/bounds passing and indexed access inside callees
@@ -682,14 +692,14 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 ## Milestone 24 — Multidimensional Arrays and Bound-Pair Syntax
 
-**Priority:** Remaining core-language array-completeness milestone needed for report-style numeric code.
+**Priority:** Remaining core-language array-completeness milestone needed for classic Algol 60 numeric examples.
 
 **Goal:** Support standard multidimensional array declarations and subscripts so classic matrix-style examples from the Modified Report can compile naturally.
 
 - [ ] Grammar: multiple bound pairs in array declarations
 - [ ] Grammar: comma-separated subscript lists in array access and assignment
 - [ ] Codegen: lowering strategy for multidimensional arrays with non-zero lower bounds
-- [ ] Tests using report-style matrix examples such as `Spur`, `Transpose`, or `Absmax`
+- [ ] Tests using classic Algol 60 matrix examples such as `Spur`, `Transpose`, or `Absmax`
 
 ## Milestone 25 — Hardware Representation Completion
 
@@ -713,7 +723,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 - [ ] Grammar: dummy statements (empty statements used as label targets)
 - [ ] Grammar: elaborate parameter delimiters such as `Order:(n)` and `Result:(y)`
 - [ ] Decide and document which rarely used report notations remain normalized rather than accepted verbatim
-- [ ] Add focused report-style parser/integration tests for these forms
+- [ ] Add focused parser/integration tests based on Modified Report examples for these forms
 
 ## Milestone 27 — Dynamic Channels and File I/O
 

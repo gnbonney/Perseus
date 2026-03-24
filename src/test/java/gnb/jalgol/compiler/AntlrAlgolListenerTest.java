@@ -1116,6 +1116,33 @@ end
     }
 
     @Test
+    public void nested_digits_test() throws Exception {
+        Path jasminFile = AntlrAlgolListener.compileToFile(
+                "test/algol/nested_digits.alg", "gnb/jalgol/programs", "NestedDigits", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== NESTED_DIGITS JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END NESTED_DIGITS ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+        AntlrAlgolListener.assemble(jasminFile, BUILD_DIR);
+
+        try {
+            FixLimits.fixClassFamilyInPlace(BUILD_DIR.resolve("gnb/jalgol/programs/NestedDigits.class"));
+        } catch (Exception e) {
+            throw new AssertionError("ASM CheckClassAdapter verification failed: " + e.getMessage(), e);
+        }
+
+        String output = runClassWithTimeout(BUILD_DIR, "gnb.jalgol.programs.NestedDigits", 10_000);
+        System.out.println("Nested digits output: [" + output + "]");
+        assertEquals("3 1 4 8 3\n2 7 9 2", output.trim(),
+                "Nested digits should preserve each outer activation while updating outer locals");
+    }
+
+    @Test
     public void thunk_closure_isolation_test() throws Exception {
         Path jasminFile = AntlrAlgolListener.compileToFile(
                 "test/algol/thunk_closure_isolation.alg", "gnb/jalgol/programs", "ThunkClosureIsolation", BUILD_DIR);

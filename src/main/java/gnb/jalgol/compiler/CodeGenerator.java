@@ -70,6 +70,7 @@ public class CodeGenerator extends AlgolBaseListener {
     private final Deque<String>               savedProcRetTypeStack = new LinkedList<>();
     private final Deque<Integer>              savedProcRetSlotStack = new LinkedList<>();
     private final Deque<Map<String, Integer>> savedEnvParamSlotsStack = new LinkedList<>();
+    private final Deque<Map<String, Integer>> savedEnvLocalSlotsStack = new LinkedList<>();
     private final Deque<Integer>              savedEnvRetSaveSlotStack = new LinkedList<>();
     private final Deque<Map<String, Integer>> savedNestedSelfThunkSlotsStack = new LinkedList<>();
     // Tracks whether the current procedure declaration is actually a procedure-variable declaration
@@ -95,6 +96,7 @@ public class CodeGenerator extends AlgolBaseListener {
     private String currentProcReturnType = null;
     private int    procRetvalSlot = -1;
     private Map<String, Integer> currentEnvParamSlots = new LinkedHashMap<>();
+    private Map<String, Integer> currentEnvLocalSlots = new LinkedHashMap<>();
     private int currentEnvRetSaveSlot = -1;
     private Map<String, Integer> currentNestedSelfThunkSlots = new LinkedHashMap<>();
 
@@ -198,10 +200,6 @@ public class CodeGenerator extends AlgolBaseListener {
 
     @Override
     public void enterProgram(AlgolParser.ProgramContext ctx) {
-        // Debug: inspect symbol table for known failing cases
-        if ("ProcParam".equals(className)) {
-            System.out.println("DEBUG: ProcParam symbol table keys: " + currentSymbolTable.keySet());
-        }
         mainHadExecutableStatements = false;
 
         // Class header and <init>
@@ -278,6 +276,14 @@ public class CodeGenerator extends AlgolBaseListener {
                 classHeader.append(".field public static ")
                            .append(envThunkFieldName(pName, p))
                            .append(" ").append(pDesc).append("\n");
+            }
+            if (procedureNeedsLocalBridge(pInfo)) for (Map.Entry<String, String> local : pInfo.localVars.entrySet()) {
+                String localName = local.getKey();
+                String localType = local.getValue();
+                if (pInfo.ownVars.contains(localName) || localType == null || localType.endsWith("[]") || localType.startsWith("procedure:")) continue;
+                classHeader.append(".field public static ")
+                           .append(envThunkFieldName(pName, localName))
+                           .append(" ").append(scalarTypeToJvmDesc(localType)).append("\n");
             }
             if (!"void".equals(pInfo.returnType)) {
                 String rDesc = "real".equals(pInfo.returnType) ? "D" : "string".equals(pInfo.returnType) ? "Ljava/lang/String;" : "I";
@@ -415,6 +421,7 @@ public class CodeGenerator extends AlgolBaseListener {
         savedProcRetTypeStack.push(currentProcReturnType);
         savedProcRetSlotStack.push(procRetvalSlot);
         savedEnvParamSlotsStack.push(currentEnvParamSlots);
+        savedEnvLocalSlotsStack.push(currentEnvLocalSlots);
         savedEnvRetSaveSlotStack.push(currentEnvRetSaveSlot);
         savedNestedSelfThunkSlotsStack.push(currentNestedSelfThunkSlots);
 
@@ -428,6 +435,7 @@ public class CodeGenerator extends AlgolBaseListener {
         currentProcName       = procName;
         currentProcReturnType = info.returnType;
         currentEnvParamSlots  = new LinkedHashMap<>();
+        currentEnvLocalSlots  = new LinkedHashMap<>();
         currentEnvRetSaveSlot = -1;
         currentNestedSelfThunkSlots = new LinkedHashMap<>();
 
@@ -594,6 +602,22 @@ public class CodeGenerator extends AlgolBaseListener {
             else if ("string".equals(info.returnType)) emitStore("astore", currentEnvRetSaveSlot);
             else emitStore("istore", currentEnvRetSaveSlot);
         }
+        if (useEnvBridge(procName) && procedureNeedsLocalBridge(info)) {
+            for (Map.Entry<String, String> local : info.localVars.entrySet()) {
+                String localName = local.getKey();
+                String localType = local.getValue();
+                if (info.ownVars.contains(localName) || localType == null || localType.endsWith("[]") || localType.startsWith("procedure:")) continue;
+                int saveSlot = currentNumLocals;
+                currentNumLocals += "real".equals(localType) ? 2 : 1;
+                currentEnvLocalSlots.put(localName, saveSlot);
+                activeOutput.append("getstatic ").append(packageName).append("/").append(className)
+                            .append("/").append(envThunkFieldName(procName, localName)).append(" ")
+                            .append(scalarTypeToJvmDesc(localType)).append("\n");
+                if ("real".equals(localType)) emitStore("dstore", saveSlot);
+                else if ("string".equals(localType)) emitStore("astore", saveSlot);
+                else emitStore("istore", saveSlot);
+            }
+        }
         if (useEnvBridge(procName) && info != null) {
             for (String nestedProcName : info.nestedProcedures) {
                 int saveSlot = currentNumLocals;
@@ -648,6 +672,25 @@ public class CodeGenerator extends AlgolBaseListener {
                 }
                 activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                             .append("/").append(envReturnFieldName(procName)).append(" ").append(rDesc).append("\n");
+            }
+        }
+        if (useEnvBridge(procName) && procedureNeedsLocalBridge(info)) {
+            for (Map.Entry<String, String> local : info.localVars.entrySet()) {
+                String localName = local.getKey();
+                String localType = local.getValue();
+                if (info.ownVars.contains(localName) || localType == null || localType.endsWith("[]") || localType.startsWith("procedure:")) continue;
+                Integer slot = procLI.get(localName);
+                if (slot == null) continue;
+                if ("real".equals(localType)) {
+                    activeOutput.append("dload ").append(slot).append("\n");
+                } else if ("string".equals(localType)) {
+                    activeOutput.append("aload ").append(slot).append("\n");
+                } else {
+                    activeOutput.append("iload ").append(slot).append("\n");
+                }
+                activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                            .append("/").append(envThunkFieldName(procName, localName)).append(" ")
+                            .append(scalarTypeToJvmDesc(localType)).append("\n");
             }
         }
     }
@@ -721,6 +764,24 @@ public class CodeGenerator extends AlgolBaseListener {
                             .append("/").append(envReturnFieldName(procName)).append(" ").append(rDesc).append("\n");
             }
         }
+        if (useEnvBridge(procName) && procedureNeedsLocalBridge(info)) {
+            for (Map.Entry<String, String> local : info.localVars.entrySet()) {
+                String localName = local.getKey();
+                String localType = local.getValue();
+                Integer saveSlot = currentEnvLocalSlots.get(localName);
+                if (saveSlot == null || info.ownVars.contains(localName) || localType == null || localType.endsWith("[]") || localType.startsWith("procedure:")) continue;
+                if ("real".equals(localType)) {
+                    activeOutput.append("dload ").append(saveSlot).append("\n");
+                } else if ("string".equals(localType)) {
+                    activeOutput.append("aload ").append(saveSlot).append("\n");
+                } else {
+                    activeOutput.append("iload ").append(saveSlot).append("\n");
+                }
+                activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                            .append("/").append(envThunkFieldName(procName, localName)).append(" ")
+                            .append(scalarTypeToJvmDesc(localType)).append("\n");
+            }
+        }
         if (useEnvBridge(procName) && info != null) {
             for (String nestedProcName : info.nestedProcedures) {
                 Integer saveSlot = currentNestedSelfThunkSlots.get(nestedProcName);
@@ -761,6 +822,7 @@ public class CodeGenerator extends AlgolBaseListener {
         currentProcReturnType = savedProcRetTypeStack.pop();
         procRetvalSlot        = savedProcRetSlotStack.pop();
         currentEnvParamSlots  = savedEnvParamSlotsStack.pop();
+        currentEnvLocalSlots  = savedEnvLocalSlotsStack.pop();
         currentEnvRetSaveSlot = savedEnvRetSaveSlotStack.pop();
         currentNestedSelfThunkSlots = savedNestedSelfThunkSlotsStack.pop();
     }
@@ -1090,10 +1152,34 @@ public class CodeGenerator extends AlgolBaseListener {
             // normal local variable storage
             if ("integer".equals(varType) || "boolean".equals(varType)) {
                 emitStore("istore", idx);
+                if (currentProcName != null && currentLocalIndex.containsKey(name)) {
+                    SymbolTableBuilder.ProcInfo currInfo = procedures.get(currentProcName);
+                    if (procedureNeedsLocalBridge(currInfo) && currInfo.localVars.containsKey(name) && !currInfo.ownVars.contains(name)) {
+                        activeOutput.append("iload ").append(idx).append("\n");
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(currentProcName, name)).append(" I\n");
+                    }
+                }
             } else if ("real".equals(varType)) {
                 emitStore("dstore", idx);
+                if (currentProcName != null && currentLocalIndex.containsKey(name)) {
+                    SymbolTableBuilder.ProcInfo currInfo = procedures.get(currentProcName);
+                    if (procedureNeedsLocalBridge(currInfo) && currInfo.localVars.containsKey(name) && !currInfo.ownVars.contains(name)) {
+                        activeOutput.append("dload ").append(idx).append("\n");
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(currentProcName, name)).append(" D\n");
+                    }
+                }
             } else if ("string".equals(varType)) {
                 emitStore("astore", idx);
+                if (currentProcName != null && currentLocalIndex.containsKey(name)) {
+                    SymbolTableBuilder.ProcInfo currInfo = procedures.get(currentProcName);
+                    if (procedureNeedsLocalBridge(currInfo) && currInfo.localVars.containsKey(name) && !currInfo.ownVars.contains(name)) {
+                        activeOutput.append("aload ").append(idx).append("\n");
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(currentProcName, name)).append(" Ljava/lang/String;\n");
+                    }
+                }
             } else if (isProcVar) {
                 // Procedure variables are stored in a static field so they are shared across activations.
                 String pdesc = switch (varType.substring("procedure:".length())) {
@@ -1944,6 +2030,10 @@ public class CodeGenerator extends AlgolBaseListener {
                 return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentProcName, name) + " " + desc + "\n";
             }
         }
+        if (isCurrentProcedureBridgedLocal(name)) {
+            return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentProcName, name)
+                + " " + scalarTypeToJvmDesc(type) + "\n";
+        }
         if ("integer".equals(type) || "boolean".equals(type)) {
             return "iload " + idx + "\n";
         } else if ("real".equals(type)) {
@@ -2517,9 +2607,6 @@ public class CodeGenerator extends AlgolBaseListener {
                             outerIsCallByNameParam = true;
                         }
                     }
-                    if (outerProc != null && (vn.startsWith("x") || vn.equals("k"))) {
-                        System.out.println("DEBUG: call-by-name arg var=\"" + vn + "\" outerProc=" + outerProc + " outerIsCallByNameParam=" + outerIsCallByNameParam + " vType=" + vType);
-                    }
                     if ((vType != null && vType.startsWith("thunk:")) || outerIsCallByNameParam) {
                         sb.append(generateLoadThunkRef(vn));
                         continue;
@@ -2908,6 +2995,21 @@ public class CodeGenerator extends AlgolBaseListener {
         return procName != null && procedures.containsKey(procName);
     }
 
+    private boolean procedureNeedsLocalBridge(SymbolTableBuilder.ProcInfo info) {
+        return info != null && !info.nestedProcedures.isEmpty();
+    }
+
+    private boolean isCurrentProcedureBridgedLocal(String name) {
+        if (currentProcName == null || name == null || !useEnvBridge(currentProcName)) return false;
+        SymbolTableBuilder.ProcInfo info = procedures.get(currentProcName);
+        if (!procedureNeedsLocalBridge(info)) return false;
+        String localType = info.localVars.get(name);
+        return localType != null
+            && !info.ownVars.contains(name)
+            && !localType.endsWith("[]")
+            && !localType.startsWith("procedure:");
+    }
+
     private String generateLoadThunkRef(String name) {
         Integer idx = currentLocalIndex.get(name);
         if (idx != null) {
@@ -3243,6 +3345,10 @@ public class CodeGenerator extends AlgolBaseListener {
                     } else desc = "I";
                     return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentProcName, name) + " " + desc + "\n";
                 }
+            }
+            if (isCurrentProcedureBridgedLocal(name)) {
+                return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentProcName, name)
+                    + " " + scalarTypeToJvmDesc(type) + "\n";
             }
             if ("integer".equals(type) || "boolean".equals(type)) {
                 return "iload " + idx + "\n";
