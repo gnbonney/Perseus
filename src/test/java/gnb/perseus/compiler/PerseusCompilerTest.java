@@ -246,6 +246,28 @@ public class PerseusCompilerTest {
 	}
 
 	@Test
+	public void array_param_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/array_param.alg", "gnb/perseus/programs", "ArrayParamTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== ARRAY PARAM JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END ARRAY PARAM ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains(".method public static sum([DIIII)D"),
+				"Formal real array parameters should carry array bounds alongside explicit integer parameters");
+		assertTrue(jasminSource.contains(".method public static shift([DII)V"),
+				"Void procedures with array parameters should also receive bounds");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ArrayParamTest");
+		System.out.println("array_param output: [" + output + "]");
+		assertTrue(output.contains("5"), "Array parameter procedure should respect the caller's bounds");
+	}
+
+	@Test
 	public void primer4() throws Exception {
 		// Compile Algol source to Jasmin (for loop with 1000 iterations)
 		Path jasminFile = PerseusCompiler.compileToFile(

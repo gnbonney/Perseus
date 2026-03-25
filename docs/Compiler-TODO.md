@@ -669,9 +669,17 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Goal:** Support formal array parameters in procedures, including realistic classic Algol 60 numeric examples.
 
-- [ ] Grammar and symbol-table support for formal array parameters
-- [ ] Codegen for array descriptor/bounds passing and indexed access inside callees
-- [ ] Tests with array-processing procedures drawn from classic Algol-style examples
+**Status: PASSING** (`array_param_test` and full suite green as of March 25, 2026).
+
+- [x] Grammar and symbol-table support for formal array parameters
+- [x] Codegen for array descriptor/bounds passing and indexed access inside callees
+- [x] Tests with array-processing procedures drawn from classic Algol-style examples
+
+**Implementation notes:**
+- Formal parameters can now use typed or untyped `array` specs (`real array`, `integer array`, `string array`, `boolean array`, or plain `array`)
+- Array arguments are passed as a JVM array reference plus hidden lower/upper bound integers so the callee preserves the caller's declared index range
+- Array indexing inside procedures now uses those passed bounds instead of assuming compile-time static bounds
+- Current coverage focuses on direct use of array formals inside the declaring procedure body; nested procedures capturing outer array formals should get their own regression before any broader refactor
 
 ## Milestone 23 — Multidimensional Arrays and Bound-Pair Syntax
 

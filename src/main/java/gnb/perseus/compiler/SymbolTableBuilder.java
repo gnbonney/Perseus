@@ -40,6 +40,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         public final List<String> paramNames = new ArrayList<>();
         public final Map<String, String> paramTypes = new LinkedHashMap<>();
         public final Set<String> valueParams = new LinkedHashSet<>();
+        public final Set<String> arrayParams = new LinkedHashSet<>();
         public final Map<String, String> localVars = new LinkedHashMap<>();
         public final Set<String> ownVars = new LinkedHashSet<>();
         public final Set<String> ownArrays = new LinkedHashSet<>();
@@ -148,6 +149,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             PerseusParser.ParamSpecTypeContext typeCtx = ctx.paramSpecType();
             String actualBaseType;
             boolean isProcType = false;
+            boolean isArrayType = false;
             if (typeCtx instanceof PerseusParser.RealProcedureParamTypeContext) {
                 actualBaseType = "procedure:real"; isProcType = true;
             } else if (typeCtx instanceof PerseusParser.IntegerProcedureParamTypeContext) {
@@ -156,6 +158,16 @@ public class SymbolTableBuilder extends PerseusBaseListener {
                 actualBaseType = "procedure:string"; isProcType = true;
             } else if (typeCtx instanceof PerseusParser.VoidProcedureParamTypeContext) {
                 actualBaseType = "procedure:void"; isProcType = true;
+            } else if (typeCtx instanceof PerseusParser.RealArrayParamTypeContext) {
+                actualBaseType = "real[]"; isArrayType = true;
+            } else if (typeCtx instanceof PerseusParser.IntegerArrayParamTypeContext) {
+                actualBaseType = "integer[]"; isArrayType = true;
+            } else if (typeCtx instanceof PerseusParser.StringArrayParamTypeContext) {
+                actualBaseType = "string[]"; isArrayType = true;
+            } else if (typeCtx instanceof PerseusParser.BooleanArrayParamTypeContext) {
+                actualBaseType = "boolean[]"; isArrayType = true;
+            } else if (typeCtx instanceof PerseusParser.DefaultArrayParamTypeContext) {
+                actualBaseType = "real[]"; isArrayType = true;
             } else if (typeCtx instanceof PerseusParser.RealParamTypeContext) {
                 actualBaseType = "real";
             } else if (typeCtx instanceof PerseusParser.IntegerParamTypeContext) {
@@ -173,6 +185,10 @@ public class SymbolTableBuilder extends PerseusBaseListener {
                 if (isProcType) {
                     // Procedure parameters are passed as ProcRef objects (by value), not as thunks
                     proc.valueParams.add(paramName);
+                }
+                if (isArrayType) {
+                    proc.valueParams.add(paramName);
+                    proc.arrayParams.add(paramName);
                 }
                 // Add to global symbol table so TypeInferencer can resolve types of param uses
                 symbolTable.put(paramName, actualBaseType);

@@ -75,6 +75,7 @@ public class CodeGenerator extends PerseusBaseListener {
     private final Deque<Map<String, Integer>> savedEnvLocalSlotsStack = new LinkedList<>();
     private final Deque<Integer>              savedEnvRetSaveSlotStack = new LinkedList<>();
     private final Deque<Map<String, Integer>> savedNestedSelfThunkSlotsStack = new LinkedList<>();
+    private final Deque<Map<String, int[]>>   savedArrayParamBoundSlotsStack = new LinkedList<>();
     // Tracks whether the current procedure declaration is actually a procedure-variable declaration
     // (i.e., a `procedure p;` with no executable body) so we can skip generating a method for it.
     private final Deque<Boolean>              skipProcedureDeclStack = new LinkedList<>();
@@ -101,6 +102,7 @@ public class CodeGenerator extends PerseusBaseListener {
     private Map<String, Integer> currentEnvLocalSlots = new LinkedHashMap<>();
     private int currentEnvRetSaveSlot = -1;
     private Map<String, Integer> currentNestedSelfThunkSlots = new LinkedHashMap<>();
+    private Map<String, int[]> currentArrayParamBoundSlots = new LinkedHashMap<>();
 
     // For for loops
     private String currentForLoopLabel;
@@ -264,6 +266,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     pDesc = "Lgnb/perseus/compiler/Thunk;";
                 } else {
                     String pType = getFormalBaseType(pInfo, p);
+                    if (pType.endsWith("[]")) continue;
                     if ("real".equals(pType)) pDesc = "D";
                     else if ("string".equals(pType)) pDesc = "Ljava/lang/String;";
                     else if (pType.startsWith("procedure:")) {
@@ -428,6 +431,7 @@ public class CodeGenerator extends PerseusBaseListener {
         savedEnvLocalSlotsStack.push(currentEnvLocalSlots);
         savedEnvRetSaveSlotStack.push(currentEnvRetSaveSlot);
         savedNestedSelfThunkSlotsStack.push(currentNestedSelfThunkSlots);
+        savedArrayParamBoundSlotsStack.push(currentArrayParamBoundSlots);
 
         // Make the current scope the new "outer" scope
         mainSymbolTable   = currentSymbolTable;
@@ -442,6 +446,7 @@ public class CodeGenerator extends PerseusBaseListener {
         currentEnvLocalSlots  = new LinkedHashMap<>();
         currentEnvRetSaveSlot = -1;
         currentNestedSelfThunkSlots = new LinkedHashMap<>();
+        currentArrayParamBoundSlots = new LinkedHashMap<>();
 
         Map<String, String>  procST = new LinkedHashMap<>();
         Map<String, Integer> procLI = new LinkedHashMap<>();
@@ -459,8 +464,15 @@ public class CodeGenerator extends PerseusBaseListener {
             }
             procST.put(paramName, paramType);
             procLI.put(paramName, nextSlot);
-            // thunks and procedure refs are object references so occupy 1 slot, real still 2
-            nextSlot += (paramType.startsWith("thunk:") || paramType.startsWith("procedure:")) ? 1 : ("real".equals(paramType) ? 2 : 1);
+            if (paramType.endsWith("[]")) {
+                int lowerSlot = nextSlot + 1;
+                int upperSlot = nextSlot + 2;
+                currentArrayParamBoundSlots.put(paramName, new int[]{lowerSlot, upperSlot});
+                nextSlot += 3;
+            } else {
+                // thunks and procedure refs are object references so occupy 1 slot, real still 2
+                nextSlot += (paramType.startsWith("thunk:") || paramType.startsWith("procedure:")) ? 1 : ("real".equals(paramType) ? 2 : 1);
+            }
         }
         // Then locals
         for (Map.Entry<String, String> local : info.localVars.entrySet()) {
@@ -506,6 +518,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     return "Lgnb/perseus/compiler/Thunk;";
                 }
                 String type = getFormalBaseType(info, p);
+                if (type.endsWith("[]")) return arrayTypeToJvmDesc(type) + "II";
                 if ("real".equals(type)) return "D";
                 if ("string".equals(type)) return "Ljava/lang/String;";
                 if (type.startsWith("procedure:")) {
@@ -533,6 +546,7 @@ public class CodeGenerator extends PerseusBaseListener {
             Integer pSlot = procLI.get(p);
             if (pSlot != null) {
                 String pType = getFormalBaseType(info, p);
+                if (pType.endsWith("[]")) continue;
                 if (info.valueParams.contains(p)) {
                     // Only value parameters use static env fields
                     if ("real".equals(pType)) {
@@ -715,6 +729,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 Integer saveSlot = currentEnvParamSlots.get(p);
                 if (saveSlot == null) continue;
                 String pType = getFormalBaseType(info, p);
+                if (pType.endsWith("[]")) continue;
                 if (info.valueParams.contains(p)) {
                     if ("real".equals(pType)) {
                         activeOutput.append("dload ").append(saveSlot).append("\n");
@@ -829,6 +844,7 @@ public class CodeGenerator extends PerseusBaseListener {
         currentEnvLocalSlots  = savedEnvLocalSlotsStack.pop();
         currentEnvRetSaveSlot = savedEnvRetSaveSlotStack.pop();
         currentNestedSelfThunkSlots = savedNestedSelfThunkSlotsStack.pop();
+        currentArrayParamBoundSlots = savedArrayParamBoundSlotsStack.pop();
     }
 
     // -------------------------------------------------------------------------
@@ -893,14 +909,18 @@ public class CodeGenerator extends PerseusBaseListener {
             int[] bounds = lookupArrayBounds(arrName);
             int lower = bounds != null ? bounds[0] : 0;
             String jvmDesc = arrayTypeToJvmDesc(elemType);
-            activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                        .append("/").append(arrName).append(" ").append(jvmDesc).append("\n");
+            activeOutput.append(generateLoadVar(arrName));
             activeOutput.append(generateExpr(lv.expr())); // subscript
-            if (lower != 0) {
-                activeOutput.append("ldc ").append(lower).append("\n");
+            String lowerLoad = generateLoadArrayLowerBound(arrName);
+            if (!lowerLoad.isEmpty()) {
+                activeOutput.append(lowerLoad);
                 activeOutput.append("isub\n");
             }
+            String rhsType = exprTypes.getOrDefault(ctx.expr(), "integer");
             activeOutput.append(generateExpr(ctx.expr())); // value
+            if ("real[]".equals(elemType) && "integer".equals(rhsType)) {
+                activeOutput.append("i2d\n");
+            }
             activeOutput.append("real[]".equals(elemType) ? "dastore\n" : "boolean[]".equals(elemType) ? "bastore\n" : "string[]".equals(elemType) ? "aastore\n" : "iastore\n");
             return;
         }
@@ -1987,11 +2007,18 @@ public class CodeGenerator extends PerseusBaseListener {
                 String jvmDesc = scalarTypeToJvmDesc(type);
                 return "getstatic " + packageName + "/" + className + "/" + name + " " + jvmDesc + "\n";
             }
+            if (type != null && type.endsWith("[]")) {
+                String jvmDesc = arrayTypeToJvmDesc(type);
+                return "getstatic " + packageName + "/" + className + "/" + name + " " + jvmDesc + "\n";
+            }
             // Check main symbol table for outer scope static scalars
             if (mainSymbolTable != null) {
                 String mainType = mainSymbolTable.get(name);
                 if (mainType != null && !mainType.endsWith("[]") && !mainType.startsWith("procedure:") && !mainType.startsWith("thunk:")) {
                     String jvmDesc = scalarTypeToJvmDesc(mainType);
+                    return "getstatic " + packageName + "/" + className + "/" + name + " " + jvmDesc + "\n";
+                } else if (mainType != null && mainType.endsWith("[]")) {
+                    String jvmDesc = arrayTypeToJvmDesc(mainType);
                     return "getstatic " + packageName + "/" + className + "/" + name + " " + jvmDesc + "\n";
                 }
             }
@@ -2029,6 +2056,9 @@ public class CodeGenerator extends PerseusBaseListener {
             SymbolTableBuilder.ProcInfo cp = procedures.get(currentProcName);
             if (cp != null && cp.paramNames.contains(name) && cp.valueParams.contains(name)) {
                 String pType = getFormalBaseType(cp, name);
+                if (pType.endsWith("[]")) {
+                    return "aload " + idx + "\n";
+                }
                 String desc;
                 if ("real".equals(pType)) desc = "D";
                 else if ("string".equals(pType)) desc = "Ljava/lang/String;";
@@ -2052,6 +2082,8 @@ public class CodeGenerator extends PerseusBaseListener {
         } else if ("real".equals(type)) {
             return "dload " + idx + "\n";
         } else if ("string".equals(type)) {
+            return "aload " + idx + "\n";
+        } else if (type != null && type.endsWith("[]")) {
             return "aload " + idx + "\n";
         } else {
             return "; ERROR: unknown var type " + type + "\n";
@@ -2597,6 +2629,21 @@ public class CodeGenerator extends PerseusBaseListener {
                 }
             }
             if (isValue) {
+                if (getFormalBaseType(info, paramName).endsWith("[]")) {
+                    if (arg.expr() instanceof PerseusParser.VarExprContext ve) {
+                        String arrayName = ve.identifier().getText();
+                        String actualType = lookupVarType(arrayName);
+                        if (actualType != null && actualType.endsWith("[]")) {
+                            sb.append(generateLoadVar(arrayName));
+                            sb.append(generatePushArrayBounds(arrayName));
+                        } else {
+                            sb.append("; ERROR: expected array argument for ").append(paramName).append("\n");
+                        }
+                    } else {
+                        sb.append("; ERROR: array argument must be an array identifier for ").append(paramName).append("\n");
+                    }
+                    continue;
+                }
                 if (arg.expr() != null) {
                     sb.append(generateExpr(arg.expr()));
                     String paramType = getFormalBaseType(info, paramName);
@@ -2713,6 +2760,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     return "Lgnb/perseus/compiler/Thunk;";
                 }
                 String type = getFormalBaseType(info, p);
+                if (type.endsWith("[]")) return arrayTypeToJvmDesc(type) + "II";
                 if ("real".equals(type)) return "D";
                 if ("string".equals(type)) return "Ljava/lang/String;";
                 if (type.startsWith("procedure:")) {
@@ -2962,6 +3010,35 @@ public class CodeGenerator extends PerseusBaseListener {
         return info.valueParams.contains(paramName) ? "integer" : "deferred";
     }
 
+    private boolean isCurrentArrayParameter(String name) {
+        return currentArrayParamBoundSlots.containsKey(name);
+    }
+
+    private String generateLoadArrayLowerBound(String name) {
+        int[] boundSlots = currentArrayParamBoundSlots.get(name);
+        if (boundSlots != null) {
+            return "iload " + boundSlots[0] + "\n";
+        }
+        int[] bounds = lookupArrayBounds(name);
+        if (bounds != null && bounds[0] != 0) {
+            return "ldc " + bounds[0] + "\n";
+        }
+        return "";
+    }
+
+    private String generatePushArrayBounds(String name) {
+        int[] boundSlots = currentArrayParamBoundSlots.get(name);
+        if (boundSlots != null) {
+            return "iload " + boundSlots[0] + "\n"
+                + "iload " + boundSlots[1] + "\n";
+        }
+        int[] bounds = lookupArrayBounds(name);
+        int lower = bounds != null ? bounds[0] : 0;
+        int upper = bounds != null ? bounds[1] : 0;
+        return "ldc " + lower + "\n"
+            + "ldc " + upper + "\n";
+    }
+
     private String getExprBaseType(ExprContext expr) {
         if (expr == null) {
             return "integer";
@@ -3067,6 +3144,9 @@ public class CodeGenerator extends PerseusBaseListener {
 
     /** Looks up array bounds in the current scope, falling back to main-scope bounds if inside a procedure. */
     private int[] lookupArrayBounds(String name) {
+        if (isCurrentArrayParameter(name)) {
+            return new int[]{0, 0};
+        }
         int[] bounds = currentArrayBounds.get(name);
         if (bounds == null && mainArrayBounds != null) bounds = mainArrayBounds.get(name);
         return bounds;
@@ -3353,12 +3433,21 @@ public class CodeGenerator extends PerseusBaseListener {
                     String fieldName = resolveOuterFieldName(name, type, resolvedFromRootMain);
                     return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + jvmDesc + "\n";
                 }
+                if (type != null && type.endsWith("[]")) {
+                    String jvmDesc = arrayTypeToJvmDesc(type);
+                    String fieldName = resolveOuterFieldName(name, type, resolvedFromRootMain);
+                    return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + jvmDesc + "\n";
+                }
                 // Check main symbol table for outer scope static scalars
                 if (mainSymbolTable != null) {
                     String mainType = mainSymbolTable.get(name);
                     if (mainType != null && !mainType.endsWith("[]") && !mainType.startsWith("procedure:") && !mainType.startsWith("thunk:")) {
                         // Static scalar from outer scope: emit getstatic
                         String jvmDesc = scalarTypeToJvmDesc(mainType);
+                        String fieldName = resolveOuterFieldName(name, mainType, resolvedFromRootMain);
+                        return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + jvmDesc + "\n";
+                    } else if (mainType != null && mainType.endsWith("[]")) {
+                        String jvmDesc = arrayTypeToJvmDesc(mainType);
                         String fieldName = resolveOuterFieldName(name, mainType, resolvedFromRootMain);
                         return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + jvmDesc + "\n";
                     }
@@ -3391,6 +3480,9 @@ public class CodeGenerator extends PerseusBaseListener {
                 SymbolTableBuilder.ProcInfo cp = procedures.get(currentProcName);
                 if (cp != null && cp.paramNames.contains(name) && cp.valueParams.contains(name)) {
                     String pType = getFormalBaseType(cp, name);
+                    if (pType.endsWith("[]")) {
+                        return "aload " + idx + "\n";
+                    }
                     String desc;
                     if ("real".equals(pType)) desc = "D";
                     else if ("string".equals(pType)) desc = "Ljava/lang/String;";
@@ -3414,6 +3506,8 @@ public class CodeGenerator extends PerseusBaseListener {
             } else if ("real".equals(type)) {
                 return "dload " + idx + "\n";
             } else if ("string".equals(type)) {
+                return "aload " + idx + "\n";
+            } else if (type != null && type.endsWith("[]")) {
                 return "aload " + idx + "\n";
             } else if (type != null && type.startsWith("procedure:")) {
                 // Procedure variable: call through the stored reference
@@ -3442,11 +3536,11 @@ public class CodeGenerator extends PerseusBaseListener {
             int lower = bounds != null ? bounds[0] : 0;
             String jvmDesc = arrayTypeToJvmDesc(elemType);
             StringBuilder sb = new StringBuilder();
-            sb.append("getstatic ").append(packageName).append("/").append(className)
-              .append("/").append(arrName).append(" ").append(jvmDesc).append("\n");
+            sb.append(generateLoadVar(arrName));
             sb.append(generateExpr(e.expr(), varToFieldIndex));
-            if (lower != 0) {
-                sb.append("ldc ").append(lower).append("\n");
+            String lowerLoad = generateLoadArrayLowerBound(arrName);
+            if (!lowerLoad.isEmpty()) {
+                sb.append(lowerLoad);
                 sb.append("isub\n");
             }
             sb.append("real[]".equals(elemType) ? "daload\n" : "boolean[]".equals(elemType) ? "baload\n" : "string[]".equals(elemType) ? "aaload\n" : "iaload\n");

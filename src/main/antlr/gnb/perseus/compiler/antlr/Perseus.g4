@@ -75,6 +75,11 @@ paramSpecType
   : REAL PROCEDURE    # RealProcedureParamType
   | INTEGER PROCEDURE # IntegerProcedureParamType
   | STRING PROCEDURE  # StringProcedureParamType
+  | REAL ARRAY        # RealArrayParamType
+  | INTEGER ARRAY     # IntegerArrayParamType
+  | STRING ARRAY      # StringArrayParamType
+  | BOOLEAN ARRAY     # BooleanArrayParamType
+  | ARRAY             # DefaultArrayParamType
   | REAL              # RealParamType
   | INTEGER           # IntegerParamType
   | STRING            # StringParamType
