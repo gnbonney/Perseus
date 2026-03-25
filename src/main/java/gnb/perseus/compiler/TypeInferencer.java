@@ -11,10 +11,12 @@ import java.util.Map;
  * Uses the symbol table to look up variable types.
  */
 public class TypeInferencer extends PerseusBaseListener {
+    private final String sourceName;
     private final Map<String, String> symbolTable;
     private final Map<PerseusParser.ExprContext, String> exprTypes = new HashMap<>();
 
-    public TypeInferencer(Map<String, String> symbolTable) {
+    public TypeInferencer(String sourceName, Map<String, String> symbolTable) {
+        this.sourceName = sourceName;
         this.symbolTable = symbolTable;
     }
 
@@ -64,7 +66,7 @@ public class TypeInferencer extends PerseusBaseListener {
         String leftType = exprTypes.get(ctx.expr(0));
         String rightType = exprTypes.get(ctx.expr(1));
         if (!"boolean".equals(leftType) || !"boolean".equals(rightType)) {
-            throw new RuntimeException("& operator requires boolean operands");
+            throw error(ctx, "PERS2003", "& operator requires boolean operands");
         }
         exprTypes.put(ctx, "boolean");
     }
@@ -74,7 +76,7 @@ public class TypeInferencer extends PerseusBaseListener {
         String leftType = exprTypes.get(ctx.expr(0));
         String rightType = exprTypes.get(ctx.expr(1));
         if (!"boolean".equals(leftType) || !"boolean".equals(rightType)) {
-            throw new RuntimeException("or operator requires boolean operands");
+            throw error(ctx, "PERS2004", "or operator requires boolean operands");
         }
         exprTypes.put(ctx, "boolean");
     }
@@ -83,7 +85,7 @@ public class TypeInferencer extends PerseusBaseListener {
     public void exitNotExpr(PerseusParser.NotExprContext ctx) {
         String operandType = exprTypes.get(ctx.expr());
         if (!"boolean".equals(operandType)) {
-            throw new RuntimeException("not operator requires boolean operand");
+            throw error(ctx, "PERS2005", "not operator requires boolean operand");
         }
         exprTypes.put(ctx, "boolean");
     }
@@ -104,7 +106,7 @@ public class TypeInferencer extends PerseusBaseListener {
         // Regular variable lookup
         String type = symbolTable.get(varName);
         if (type == null) {
-            throw new RuntimeException("Undeclared variable: " + varName);
+            throw error(ctx, "PERS2001", "Undeclared variable: " + varName);
         }
         // call-by-name parameters are stored as "thunk:base" in the symbol table;
         // for type inference we only care about the underlying base type.
@@ -121,7 +123,7 @@ public class TypeInferencer extends PerseusBaseListener {
     public void exitArrayAccessExpr(PerseusParser.ArrayAccessExprContext ctx) {
         String arrName = ctx.identifier().getText();
         String arrType = symbolTable.get(arrName);
-        if (arrType == null) throw new RuntimeException("Undeclared array: " + arrName);
+        if (arrType == null) throw error(ctx, "PERS2002", "Undeclared array: " + arrName);
         // "integer[]" → "integer",  "real[]" → "real"
         String elemType = arrType.endsWith("[]") ? arrType.substring(0, arrType.length() - 2) : arrType;
         exprTypes.put(ctx, elemType);
@@ -200,5 +202,9 @@ public class TypeInferencer extends PerseusBaseListener {
             case "substring", "concat" -> "string";
             default -> null;
         };
+    }
+
+    private DiagnosticException error(PerseusParser.ExprContext ctx, String code, String message) {
+        return new DiagnosticException(CompilerDiagnostic.error(code, ctx.getStart(), sourceName, message));
     }
 }

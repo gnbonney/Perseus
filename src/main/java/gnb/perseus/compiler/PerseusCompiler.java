@@ -68,6 +68,8 @@ public class PerseusCompiler {
 			if (codegen == null) {
 				throw new IOException("runPipeline returned null");
 			}
+		} catch (CompilationFailedException e) {
+			throw e;
 		} catch (Exception e) {
 			StringWriter sw = new StringWriter();
 			e.printStackTrace(new PrintWriter(sw));
@@ -166,6 +168,9 @@ public class PerseusCompiler {
 	public static String compile(String fileName, String packageName, String className) {
 		try {
 			return runPipeline(fileName, packageName, className).getOutput();
+		} catch (CompilationFailedException e) {
+			return String.join(System.lineSeparator(),
+					e.getDiagnostics().stream().map(CompilerDiagnostic::format).toList());
 		} catch (Exception e) {
 			StringWriter sw = new StringWriter();
 			e.printStackTrace(new PrintWriter(sw));
@@ -183,11 +188,15 @@ public class PerseusCompiler {
 		PerseusLexer lexer = new PerseusLexer(is);
 		CommonTokenStream tokens = new CommonTokenStream(lexer);
 		PerseusParser parser = new PerseusParser(tokens);
+		DescriptiveErrorListener errorListener = new DescriptiveErrorListener(fileName);
 		lexer.removeErrorListeners();
-		lexer.addErrorListener(DescriptiveErrorListener.INSTANCE);
+		lexer.addErrorListener(errorListener);
 		parser.removeErrorListeners();
-		parser.addErrorListener(DescriptiveErrorListener.INSTANCE);
+		parser.addErrorListener(errorListener);
 		ProgramContext programContext = parser.program();
+		if (errorListener.hasErrors()) {
+			throw new CompilationFailedException(errorListener.getDiagnostics());
+		}
 
 		// Pass 1: build symbol table
 		SymbolTableBuilder symBuilder = new SymbolTableBuilder();
@@ -307,8 +316,12 @@ public class PerseusCompiler {
 		int numLocals = Math.max(nextLocal, 1);
 
 		// Pass 1.5: type inference
-		TypeInferencer typeInf = new TypeInferencer(symbolTable);
-		walker.walk(typeInf, programContext);
+		TypeInferencer typeInf = new TypeInferencer(fileName, symbolTable);
+		try {
+			walker.walk(typeInf, programContext);
+		} catch (DiagnosticException e) {
+			throw new CompilationFailedException(java.util.List.of(e.getDiagnostic()));
+		}
 		Map<PerseusParser.ExprContext, String> exprTypes = typeInf.getExprTypes();
 
 		// Pass 2: code generation

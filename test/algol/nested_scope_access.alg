@@ -9,7 +9,7 @@ begin
             k := k + 1
         end;
         inner;
-        outinteger(1, k); (* EXPECT: 2 *)
+        outinteger(1, k); % EXPECT: 2
         outstring(1, "\n");
     end;
 

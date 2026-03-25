@@ -1,5 +1,6 @@
 package gnb.perseus.cli;
 
+import gnb.perseus.compiler.CompilationFailedException;
 import gnb.perseus.compiler.PerseusCompiler;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -19,8 +20,13 @@ public class PerseusCLI {
         try {
             Path outputPath = PerseusCompiler.compileToFile(inputFile, "gnb/perseus/programs", className, Paths.get(outputDir));
             System.out.println("Compilation successful. Jasmin file generated at: " + outputPath);
+        } catch (CompilationFailedException e) {
+            for (var diagnostic : e.getDiagnostics()) {
+                System.err.println(diagnostic.format());
+            }
+            System.exit(1);
         } catch (Exception e) {
-            System.err.println("Compilation failed: " + e.getMessage());
+            System.err.println("Internal compiler error: " + e.getMessage());
             e.printStackTrace();
             System.exit(1);
         }

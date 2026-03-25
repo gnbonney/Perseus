@@ -48,6 +48,8 @@ Perseus already follows this principle in part through its symbol-table pass, ty
 
 Diagnostics are one of the most important interfaces between the compiler and its users. Good diagnostic design should aim for:
 
+The current implementation status and active error-code set are documented in [Compiler Diagnostics.md](Compiler%20Diagnostics.md).
+
 - **Stable Error Codes:** Assign unique, stable identifiers to diagnostics so they can be referenced in docs, tests, and tooling.
 - **Deterministic Ordering:** Emit diagnostics in a predictable order, such as by file, line, and column.
 - **Multiple Errors per Run:** Report as many independent issues as possible instead of aborting after the first failure.

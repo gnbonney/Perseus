@@ -665,7 +665,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 ## Milestone 22 — Algol 60 Formal Array Parameters
 
-**Priority:** Final major core-language data-passing feature.
+**Priority:** Final major classic Algol data-passing feature.
 
 **Goal:** Support formal array parameters in procedures, including realistic classic Algol 60 numeric examples.
 
@@ -712,7 +712,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Priority:** First JVM-practical interop milestone.
 
-**Goal:** Allow Algol code to declare and call JVM methods explicitly (see [Perseus Language Design.md](Algol%20Extensions%20Design.md)).
+**Goal:** Allow Algol code to declare and call JVM methods explicitly (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
 - [ ] Syntax for external static/virtual procedure declarations
 - [ ] Codegen and type-checking for JVM interop calls
@@ -722,7 +722,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Priority:** Core JVM-practical milestone after external procedures.
 
-**Goal:** Add a class/object extension inspired by Simula 67, including a more natural model for external JVM classes (see [Perseus Language Design.md](Algol%20Extensions%20Design.md)).
+**Goal:** Add a class/object extension inspired by Simula 67, including a more natural model for external JVM classes (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
 - [ ] Design a minimal class syntax compatible with Algol/Simula style
 - [ ] Support instance fields, procedures, and object creation semantics
@@ -734,7 +734,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Priority:** Core JVM-practical recovery/interoperability milestone.
 
-**Goal:** Add an Algol-flavored exception mechanism for structured recovery, especially around `external java` interop and modern I/O extensions (see [Perseus Language Design.md](Algol%20Extensions%20Design.md)).
+**Goal:** Add an Algol-flavored exception mechanism for structured recovery, especially around `external java` interop and modern I/O extensions (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
 - [ ] Grammar: `begin ... exception ... end` block form with `when ... do ...` clauses
 - [ ] Define initial language-level exception names such as `IOError`, `EndOfFile`, `ArithmeticError`, `BoundsError`, and `FaultError`
@@ -748,7 +748,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Priority:** First post-core runtime milestone.
 
-**Goal:** Move beyond channels 0/1 and support the modified-report style file/string channel model (see [Perseus Language Design.md](Algol%20Extensions%20Design.md)).
+**Goal:** Move beyond channels 0/1 and support the modified-report style file/string channel model (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
 - [ ] Implement `openfile`, `closefile`, and channel-to-stream mapping for channels 2+
 - [ ] Extend input/output procedures to use dynamic stream dispatch instead of only `System.out` / `System.err`
@@ -756,7 +756,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 ## Milestone 30 — Formatted I/O
 
-**Goal:** Implement `outformat` and `informat` with Algol-style format strings and channel-backed formatting workflows (see [Perseus Language Design.md](Algol%20Extensions%20Design.md)).
+**Goal:** Implement `outformat` and `informat` with Algol-style format strings and channel-backed formatting workflows (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
 - [ ] `outformat(channel, format, ...)`
 - [ ] `informat(channel, format, ...)`
@@ -768,11 +768,12 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 - [ ] `perseus` command mirroring `javac` for one or more `.alg` files
 - [ ] Optional `-d <outdir>` and sensible output layout
+- [ ] Optional or default ASM post-processing/verification step after Jasmin assembly (for example via `FixLimits`) so CLI builds get the same class-family cleanup and verifier feedback used by the `manboy` tests
 - [ ] Stable exit codes and clearer user-facing error output
 
 ## Milestone 32 — Lambda Notation
 
-**Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Perseus Language Design.md](Algol%20Extensions%20Design.md)).
+**Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
 - [ ] Syntax and parsing for lambda-style procedure literals
 - [ ] Lowering strategy onto existing procedure-reference infrastructure
@@ -840,7 +841,7 @@ To ensure long-term maintainability and enable advanced tooling workflows, the f
 - ✅ Deterministic Jasmin output: canonical label naming, stable method/field ordering (sufficient for current milestones).
 
 ## Still Relevant (Can Be Added Any Time)
-- Minimal structured diagnostics: error reporting with file, line, column, and stable error codes (as Java objects, even if not yet JSON). Allow multiple errors per run.
+- Extend the current structured diagnostics work beyond parse/type inference: add more phases, collect multiple independent errors per run where practical, and keep stable file/line/column/code reporting.
 - Snapshot/golden tests: verify Jasmin output and diagnostics are stable and deterministic across compiler changes.
 - Full structured JSON diagnostics: machine-readable output, fix-it suggestions, deterministic ordering.
 - CLI options to emit AST, IR, or JVM IR for inspection/tooling.

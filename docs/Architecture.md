@@ -272,6 +272,8 @@ These steps are demonstrated in the unit tests, including the more demanding `ma
 
 The project includes a dedicated CLI, `PerseusCLI`, for compiling source files. The CLI wraps the `PerseusCompiler` and provides a user-friendly interface for compilation. Users can specify the input file, output directory, and class name directly from the command line.
 
+Current parser/type diagnostic behavior and error-code conventions are documented in [Compiler Diagnostics.md](Compiler%20Diagnostics.md).
+
 ### Workflow with the CLI
 
 1. **Input**: Provide the source file to the CLI.
@@ -308,5 +310,5 @@ This command compiles `hello.alg` into `Hello.j`, any needed companion `.j` file
 
 ---
 
-_Last updated: March 22, 2026_
+_Last updated: March 24, 2026_
 

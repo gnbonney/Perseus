@@ -2,6 +2,9 @@
 
 package gnb.perseus.compiler;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.antlr.v4.runtime.BaseErrorListener;
 
 /**
@@ -9,16 +12,30 @@ import org.antlr.v4.runtime.BaseErrorListener;
  *
  */
 public class DescriptiveErrorListener extends BaseErrorListener {
-	public static DescriptiveErrorListener INSTANCE = new DescriptiveErrorListener();
+	private final String sourceName;
+	private final List<CompilerDiagnostic> diagnostics = new ArrayList<>();
+
+	public DescriptiveErrorListener(String sourceName) {
+		this.sourceName = sourceName;
+	}
+
+	public boolean hasErrors() {
+		return !diagnostics.isEmpty();
+	}
+
+	public List<CompilerDiagnostic> getDiagnostics() {
+		return List.copyOf(diagnostics);
+	}
 
 	@Override
 	public void syntaxError(org.antlr.v4.runtime.Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
 			int charPositionInLine, String msg, org.antlr.v4.runtime.RecognitionException e) {
-		String sourceName = recognizer.getInputStream().getSourceName();
-		if (!sourceName.isEmpty()) {
-			sourceName = String.format("%s:%d:%d: ", sourceName, line, charPositionInLine);
-		}
-		System.err.println(sourceName + "line " + line + ":" + charPositionInLine + " " + msg);
+		diagnostics.add(CompilerDiagnostic.error(
+				"PERS1001",
+				sourceName,
+				line,
+				charPositionInLine + 1,
+				msg));
 	}
 
 }

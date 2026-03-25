@@ -157,7 +157,7 @@ expr
   | ('~' | NOT) expr                     # NotExpr
   | IF expr THEN expr ELSE expr          # IfExpr
   | identifier '[' expr ']'              # ArrayAccessExpr
-  | identifier '(' argList ')'           # ProcCallExpr
+  | identifier '(' argList? ')'          # ProcCallExpr
   | realLiteral                          # RealLiteralExpr
   | unsignedInt                          # IntLiteralExpr
   | string                               # StringLiteralExpr
@@ -167,7 +167,7 @@ expr
   | FALSE                                # FalseLiteralExpr
   ;
 
-procedureCall: identifier ('(' argList ')')?;
+procedureCall: identifier ('(' argList? ')')?;
 
 identifier: IDENT;
 
