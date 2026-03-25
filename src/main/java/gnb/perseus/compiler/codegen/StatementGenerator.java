@@ -100,7 +100,7 @@ public class StatementGenerator implements GeneratorDelegate {
         Map<String, String> currentSymbolTable = context.getSymbolTable();
         Map<String, int[]> currentArrayBounds = context.getArrayBounds();
 
-        if (lvalues.size() == 1 && lvalues.get(0).expr() != null) {
+        if (lvalues.size() == 1 && !lvalues.get(0).expr().isEmpty()) {
             PerseusParser.LvalueContext lv = lvalues.get(0);
             String arrName = lv.identifier().getText();
             String elemType = currentSymbolTable.get(arrName);
@@ -115,7 +115,7 @@ public class StatementGenerator implements GeneratorDelegate {
             String jvmDesc = CodeGenUtils.arrayTypeToJvmDesc(elemType);
             activeOutput.append("getstatic ").append(packageName).append("/")
                         .append(className).append("/").append(arrName).append(" ").append(jvmDesc).append("\n");
-            activeOutput.append(exprGen.generateExpr(lv.expr()));
+            activeOutput.append(exprGen.generateExpr(lv.expr(0)));
             if (lower != 0) {
                 activeOutput.append("ldc ").append(lower).append("\n");
                 activeOutput.append("isub\n");

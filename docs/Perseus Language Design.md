@@ -2,6 +2,19 @@
 
 This document collects design notes for language features that extend, reinterpret, or modernize Perseus's Algol heritage. Some of these features are inspired by historical Algol-family compilers; others are new directions intended to make Perseus more practical on the JVM.
 
+## Arrays
+
+Perseus arrays follow Algol-family conventions rather than Java's array syntax and semantics.
+
+- A declaration gives explicit index bounds, not just a length.
+- Lower bounds do not have to be zero; they may be one-based or even negative.
+- Multidimensional arrays are written as a single array with multiple bound pairs, for example `integer array a[-1:0, 1:2];`.
+- Access uses comma-separated subscripts such as `a[i, j]`, not chained Java-style indexing like `a[i][j]`.
+
+That means a Perseus array declaration describes an abstract index space, while a Java array mainly describes storage with zero-based offsets. Perseus preserves the Algol view at the language level and hides the offset arithmetic from the programmer.
+
+On the JVM, Perseus currently lowers declared arrays to ordinary JVM arrays and performs the bound normalization in generated code. Non-zero lower bounds are handled by subtracting the declared lower bound, and multidimensional arrays are flattened in row-major order rather than emitted as Java arrays-of-arrays. This keeps the surface language close to Algol while still mapping cleanly onto JVM bytecode.
+
 ## Strings
 
 Many historic Algol compilers (e.g., NU Algol, Data General Extended Algol, Algol W, Simula) introduced a string type or class, often as a variable-length array of characters or a record with a length and character array. Simula's `Text` class and Algol W's `string` type are notable examples.
@@ -551,4 +564,3 @@ This makes the parameter-passing mechanism explicit and generalizes it to any co
 ## Summary
 - Church's lambda notation for arrays is a formal, functional way to generalize array and call-by-name parameters using anonymous functions.
 - It is the conceptual ancestor of lambda functions and closures in modern languages.
-

@@ -268,6 +268,37 @@ public class PerseusCompilerTest {
 	}
 
 	@Test
+	public void multidimensional_array_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/matrix_trace.alg", "gnb/perseus/programs", "MatrixTraceTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== MULTIDIM ARRAY JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END MULTIDIM ARRAY ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("ldc 9\nnewarray int"),
+				"A two-dimensional 3x3 integer array should flatten to a single nine-element JVM array");
+		assertTrue(jasminSource.contains("imul"),
+				"Multidimensional array indexing should linearize subscripts with multiplication");
+		assertTrue(jasminSource.contains("iaload"),
+				"Integer multidimensional arrays should read through iaload");
+		assertTrue(jasminSource.contains("iastore"),
+				"Integer multidimensional arrays should write through iastore");
+		assertTrue(jasminSource.contains(".method public static Spur(II)I"),
+				"The regression should include a Spur procedure operating on a multidimensional matrix");
+		assertTrue(jasminSource.contains(".method public static Transpose(II)V"),
+				"The regression should include a Transpose procedure operating on a multidimensional matrix");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.MatrixTraceTest");
+		System.out.println("multidimensional_array output: [" + output + "]");
+		assertEquals("15\n4\n2\n15", output.trim(),
+				"Spur and Transpose should preserve Algol-style multidimensional indexing with non-zero lower bounds");
+	}
+
+	@Test
 	public void primer4() throws Exception {
 		// Compile Algol source to Jasmin (for loop with 1000 iterations)
 		Path jasminFile = PerseusCompiler.compileToFile(

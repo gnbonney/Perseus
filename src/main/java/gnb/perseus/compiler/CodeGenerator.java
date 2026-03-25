@@ -56,6 +56,7 @@ public class CodeGenerator extends PerseusBaseListener {
     private Map<String, Integer> currentLocalIndex;
     private int currentNumLocals;
     private Map<String, int[]> currentArrayBounds;
+    private Map<String, List<int[]>> currentArrayBoundPairs;
     private final Map<String, String> rootMainSymbolTable;
     private final Map<String, Integer> rootMainLocalIndex;
 
@@ -64,10 +65,12 @@ public class CodeGenerator extends PerseusBaseListener {
     private Map<String, Integer> mainLocalIndex;
     private int                  mainNumLocals;
     private Map<String, int[]>   mainArrayBounds;
+    private Map<String, List<int[]>> mainArrayBoundPairs;
     private final Deque<Map<String, String>>  savedOuterSTStack     = new LinkedList<>();
     private final Deque<Map<String, Integer>> savedOuterLIStack     = new LinkedList<>();
     private final Deque<Integer>              savedOuterNLStack     = new LinkedList<>();
     private final Deque<Map<String, int[]>>   savedOuterABStack     = new LinkedList<>();
+    private final Deque<Map<String, List<int[]>>> savedOuterABPairsStack = new LinkedList<>();
     private final Deque<String>               savedProcNameStack    = new LinkedList<>();
     private final Deque<String>               savedProcRetTypeStack = new LinkedList<>();
     private final Deque<Integer>              savedProcRetSlotStack = new LinkedList<>();
@@ -126,6 +129,7 @@ public class CodeGenerator extends PerseusBaseListener {
     public CodeGenerator(String source, String packageName, String className,
                          Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
                          Map<PerseusParser.ExprContext, String> exprTypes, Map<String, int[]> arrayBounds,
+                         Map<String, List<int[]>> arrayBoundPairs,
                          Map<String, SymbolTableBuilder.ProcInfo> procedures,
                          Map<String, PerseusParser.SwitchDeclContext> switchDeclarations,
                          Map<String, Integer> procVarSlots) {
@@ -142,6 +146,7 @@ public class CodeGenerator extends PerseusBaseListener {
         this.currentLocalIndex  = localIndex;
         this.currentNumLocals   = numLocals;
         this.currentArrayBounds = arrayBounds;
+        this.currentArrayBoundPairs = arrayBoundPairs;
         this.builtinGen = new BuiltinFunctionGenerator(exprTypes);
         this.builtinGen.setExprCodeGen(e -> generateExpr(e));
         this.procGen = new ProcedureGenerator(
@@ -355,9 +360,9 @@ public class CodeGenerator extends PerseusBaseListener {
             String varName = symEntry.getKey();
             String type = symEntry.getValue();
             if (!type.endsWith("[]")) continue;
-            int[] bounds = currentArrayBounds.get(varName);
-            if (bounds == null) continue;
-            int size = bounds[1] - bounds[0] + 1;
+            List<int[]> bounds = lookupDeclaredArrayBoundPairs(varName);
+            if (bounds == null || bounds.isEmpty()) continue;
+            int size = computeFlattenedArraySize(bounds);
             String elemType = "real[]".equals(type) ? "double" : "boolean[]".equals(type) ? "boolean" : "string[]".equals(type) ? "java/lang/String" : "int";
             String newarrayInstr = "string[]".equals(type) ? "anewarray" : "newarray";
             mainCode.append("ldc ").append(size).append("\n")
@@ -424,6 +429,7 @@ public class CodeGenerator extends PerseusBaseListener {
         savedOuterLIStack.push(mainLocalIndex);
         savedOuterNLStack.push(mainNumLocals);
         savedOuterABStack.push(mainArrayBounds);
+        savedOuterABPairsStack.push(mainArrayBoundPairs);
         savedProcNameStack.push(currentProcName);
         savedProcRetTypeStack.push(currentProcReturnType);
         savedProcRetSlotStack.push(procRetvalSlot);
@@ -438,6 +444,7 @@ public class CodeGenerator extends PerseusBaseListener {
         mainLocalIndex    = currentLocalIndex;
         mainNumLocals     = currentNumLocals;
         mainArrayBounds   = currentArrayBounds;
+        mainArrayBoundPairs = currentArrayBoundPairs;
 
         // Build procedure-local context
         currentProcName       = procName;
@@ -832,11 +839,13 @@ public class CodeGenerator extends PerseusBaseListener {
         currentLocalIndex     = mainLocalIndex;
         currentNumLocals      = mainNumLocals;
         currentArrayBounds    = mainArrayBounds;
+        currentArrayBoundPairs = mainArrayBoundPairs;
         activeOutput          = procBufferStack.isEmpty() ? mainCode : procBufferStack.peek();
         mainSymbolTable       = savedOuterSTStack.pop();
         mainLocalIndex        = savedOuterLIStack.pop();
         mainNumLocals         = savedOuterNLStack.pop();
         mainArrayBounds       = savedOuterABStack.pop();
+        mainArrayBoundPairs   = savedOuterABPairsStack.pop();
         currentProcName       = savedProcNameStack.pop();
         currentProcReturnType = savedProcRetTypeStack.pop();
         procRetvalSlot        = savedProcRetSlotStack.pop();
@@ -857,7 +866,7 @@ public class CodeGenerator extends PerseusBaseListener {
         List<PerseusParser.LvalueContext> lvalues = ctx.lvalue();
 
         // Array element assignment (single dest with subscript)
-        if (lvalues.size() == 1 && lvalues.get(0).expr() != null) {
+        if (lvalues.size() == 1 && !lvalues.get(0).expr().isEmpty()) {
             PerseusParser.LvalueContext lv = lvalues.get(0);
             String arrName = lv.identifier().getText();
             String elemType = lookupVarType(arrName);
@@ -868,7 +877,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
             // String scalar character mutation: s[i] := replacement
             // Rebuilds the string using StringBuilder: prefix + replacement + suffix
-            if ("string".equals(elemType)) {
+            if ("string".equals(elemType) && lv.expr().size() == 1) {
                 activeOutput
                     .append("new java/lang/StringBuilder\n")
                     .append("dup\n")
@@ -876,7 +885,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     // prefix: s.substring(0, i-1)
                     .append(generateLoadVar(arrName))
                     .append("iconst_0\n")
-                    .append(generateExpr(lv.expr()))
+                    .append(generateExpr(lv.expr(0)))
                     .append("iconst_1\n").append("isub\n")
                     .append("invokevirtual java/lang/String/substring(II)Ljava/lang/String;\n")
                     .append("invokevirtual java/lang/StringBuilder/append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n")
@@ -885,7 +894,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     .append("invokevirtual java/lang/StringBuilder/append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n")
                     // suffix: s.substring(i)
                     .append(generateLoadVar(arrName))
-                    .append(generateExpr(lv.expr()))
+                    .append(generateExpr(lv.expr(0)))
                     .append("invokevirtual java/lang/String/substring(I)Ljava/lang/String;\n")
                     .append("invokevirtual java/lang/StringBuilder/append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n")
                     .append("invokevirtual java/lang/StringBuilder/toString()Ljava/lang/String;\n");
@@ -905,17 +914,8 @@ public class CodeGenerator extends PerseusBaseListener {
                 }
                 return;
             }
-
-            int[] bounds = lookupArrayBounds(arrName);
-            int lower = bounds != null ? bounds[0] : 0;
-            String jvmDesc = arrayTypeToJvmDesc(elemType);
             activeOutput.append(generateLoadVar(arrName));
-            activeOutput.append(generateExpr(lv.expr())); // subscript
-            String lowerLoad = generateLoadArrayLowerBound(arrName);
-            if (!lowerLoad.isEmpty()) {
-                activeOutput.append(lowerLoad);
-                activeOutput.append("isub\n");
-            }
+            activeOutput.append(generateArrayElementIndex(arrName, lv.expr(), null));
             String rhsType = exprTypes.getOrDefault(ctx.expr(), "integer");
             activeOutput.append(generateExpr(ctx.expr())); // value
             if ("real[]".equals(elemType) && "integer".equals(rhsType)) {
@@ -1905,7 +1905,9 @@ public class CodeGenerator extends PerseusBaseListener {
             names.add(varName);
         } else if (ctx instanceof PerseusParser.ArrayAccessExprContext ae) {
             names.add(ae.identifier().getText());
-            names.addAll(collectVarNames(ae.expr()));
+            for (PerseusParser.ExprContext subscript : ae.expr()) {
+                names.addAll(collectVarNames(subscript));
+            }
         } else if (ctx instanceof PerseusParser.ProcCallExprContext pc) {
             if (pc.argList() != null) {
                 for (PerseusParser.ArgContext a : pc.argList().arg()) {
@@ -2634,8 +2636,14 @@ public class CodeGenerator extends PerseusBaseListener {
                         String arrayName = ve.identifier().getText();
                         String actualType = lookupVarType(arrayName);
                         if (actualType != null && actualType.endsWith("[]")) {
-                            sb.append(generateLoadVar(arrayName));
-                            sb.append(generatePushArrayBounds(arrayName));
+                            List<int[]> actualBounds = lookupDeclaredArrayBoundPairs(arrayName);
+                            if (actualBounds != null && actualBounds.size() > 1) {
+                                sb.append("; ERROR: multidimensional array arguments are not supported for ")
+                                  .append(paramName).append("\n");
+                            } else {
+                                sb.append(generateLoadVar(arrayName));
+                                sb.append(generatePushArrayBounds(arrayName));
+                            }
                         } else {
                             sb.append("; ERROR: expected array argument for ").append(paramName).append("\n");
                         }
@@ -3037,6 +3045,73 @@ public class CodeGenerator extends PerseusBaseListener {
         int upper = bounds != null ? bounds[1] : 0;
         return "ldc " + lower + "\n"
             + "ldc " + upper + "\n";
+    }
+
+    private List<int[]> lookupDeclaredArrayBoundPairs(String name) {
+        List<int[]> bounds = currentArrayBoundPairs != null ? currentArrayBoundPairs.get(name) : null;
+        if (bounds == null && mainArrayBoundPairs != null) {
+            bounds = mainArrayBoundPairs.get(name);
+        }
+        return bounds;
+    }
+
+    private int computeFlattenedArraySize(List<int[]> bounds) {
+        int size = 1;
+        for (int[] boundPair : bounds) {
+            size *= (boundPair[1] - boundPair[0] + 1);
+        }
+        return size;
+    }
+
+    private String generateNormalizedSubscript(ExprContext expr, int[] boundPair, Map<String, Integer> varToFieldIndex) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(generateExpr(expr, varToFieldIndex));
+        if ("real".equals(exprTypes.getOrDefault(expr, "integer"))) {
+            sb.append("d2i\n");
+        }
+        if (boundPair != null && boundPair[0] != 0) {
+            sb.append("ldc ").append(boundPair[0]).append("\n");
+            sb.append("isub\n");
+        }
+        return sb.toString();
+    }
+
+    private String generateArrayElementIndex(String name, List<? extends ExprContext> subscripts, Map<String, Integer> varToFieldIndex) {
+        if (isCurrentArrayParameter(name)) {
+            if (subscripts.size() != 1) {
+                return "; ERROR: multidimensional array parameters are not supported yet\n";
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.append(generateExpr(subscripts.get(0), varToFieldIndex));
+            if ("real".equals(exprTypes.getOrDefault(subscripts.get(0), "integer"))) {
+                sb.append("d2i\n");
+            }
+            String lowerLoad = generateLoadArrayLowerBound(name);
+            if (!lowerLoad.isEmpty()) {
+                sb.append(lowerLoad);
+                sb.append("isub\n");
+            }
+            return sb.toString();
+        }
+
+        List<int[]> bounds = lookupDeclaredArrayBoundPairs(name);
+        if (bounds == null || bounds.isEmpty()) {
+            return subscripts.isEmpty() ? "" : generateExpr(subscripts.get(0), varToFieldIndex);
+        }
+        if (bounds.size() != subscripts.size()) {
+            return "; ERROR: wrong number of subscripts for array " + name + "\n";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(generateNormalizedSubscript(subscripts.get(0), bounds.get(0), varToFieldIndex));
+        for (int i = 1; i < subscripts.size(); i++) {
+            int extent = bounds.get(i)[1] - bounds.get(i)[0] + 1;
+            sb.append("ldc ").append(extent).append("\n");
+            sb.append("imul\n");
+            sb.append(generateNormalizedSubscript(subscripts.get(i), bounds.get(i), varToFieldIndex));
+            sb.append("iadd\n");
+        }
+        return sb.toString();
     }
 
     private String getExprBaseType(ExprContext expr) {
@@ -3521,10 +3596,10 @@ public class CodeGenerator extends PerseusBaseListener {
             if (elemType == null) return "; ERROR: undeclared array " + arrName + "\n";
 
             // String scalar character access: s[i] -> s.substring(i-1, i)
-            if ("string".equals(elemType)) {
+            if ("string".equals(elemType) && e.expr().size() == 1) {
                 StringBuilder sb = new StringBuilder();
                 sb.append(generateLoadVar(arrName));                         // load s
-                sb.append(generateExpr(e.expr(), varToFieldIndex));          // load i
+                sb.append(generateExpr(e.expr(0), varToFieldIndex));         // load i
                 sb.append("dup\n");                                          // i, i
                 sb.append("iconst_1\n").append("isub\n");                    // i-1, i  (beginIndex)
                 sb.append("swap\n");                                         // i-1, i  → correct order for (II)
@@ -3532,17 +3607,9 @@ public class CodeGenerator extends PerseusBaseListener {
                 return sb.toString();
             }
 
-            int[] bounds = lookupArrayBounds(arrName);
-            int lower = bounds != null ? bounds[0] : 0;
-            String jvmDesc = arrayTypeToJvmDesc(elemType);
             StringBuilder sb = new StringBuilder();
             sb.append(generateLoadVar(arrName));
-            sb.append(generateExpr(e.expr(), varToFieldIndex));
-            String lowerLoad = generateLoadArrayLowerBound(arrName);
-            if (!lowerLoad.isEmpty()) {
-                sb.append(lowerLoad);
-                sb.append("isub\n");
-            }
+            sb.append(generateArrayElementIndex(arrName, e.expr(), varToFieldIndex));
             sb.append("real[]".equals(elemType) ? "daload\n" : "boolean[]".equals(elemType) ? "baload\n" : "string[]".equals(elemType) ? "aaload\n" : "iaload\n");
             return sb.toString();
         } else if (ctx instanceof PerseusParser.ProcCallExprContext e) {

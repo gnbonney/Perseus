@@ -205,6 +205,7 @@ public class PerseusCompiler {
 		Map<String, String> symbolTable = symBuilder.getSymbolTable();
 		Map<String, String> mainSymbolTable = symBuilder.getMainSymbolTable();
 		Map<String, int[]> arrayBounds = symBuilder.getArrayBounds();
+		Map<String, java.util.List<int[]>> arrayBoundPairs = symBuilder.getArrayBoundPairs();
 		Map<String, SymbolTableBuilder.ProcInfo> procedures = symBuilder.getProcedures();
 		Map<String, PerseusParser.SwitchDeclContext> switchDeclarations = symBuilder.getSwitchDeclarations();
 
@@ -327,7 +328,7 @@ public class PerseusCompiler {
 		// Pass 2: code generation
 		String source = Paths.get(fileName).getFileName().toString();
 		CodeGenerator codegen = new CodeGenerator(source, packageName, className,
-				mainSymbolTable, localIndex, numLocals, exprTypes, arrayBounds,
+				mainSymbolTable, localIndex, numLocals, exprTypes, arrayBounds, arrayBoundPairs,
 				symBuilder.getProcedures(), switchDeclarations, procVarSlotsMap);
 		walker.walk(codegen, programContext);
 		return codegen;

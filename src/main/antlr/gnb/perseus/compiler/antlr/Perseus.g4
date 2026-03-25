@@ -96,7 +96,11 @@ varDecl
   ;
 
 arrayDecl
-  : OWN? (INTEGER | REAL | BOOLEAN | STRING | PROCEDURE)? ARRAY identifier '[' signedInt ':' signedInt ']'
+  : OWN? (INTEGER | REAL | BOOLEAN | STRING | PROCEDURE)? ARRAY identifier '[' boundPair (',' boundPair)* ']'
+  ;
+
+boundPair
+  : signedInt ':' signedInt
   ;
 
 switchDecl
@@ -112,7 +116,7 @@ assignment
   ;
 
 lvalue
-  : identifier ('[' expr ']')?
+  : identifier ('[' expr (',' expr)* ']')?
   ;
 
 gotoStatement
@@ -161,7 +165,7 @@ expr
   | '-' expr                             # UnaryMinusExpr
   | ('~' | NOT) expr                     # NotExpr
   | IF expr THEN expr ELSE expr          # IfExpr
-  | identifier '[' expr ']'              # ArrayAccessExpr
+  | identifier '[' expr (',' expr)* ']'  # ArrayAccessExpr
   | identifier '(' argList? ')'          # ProcCallExpr
   | realLiteral                          # RealLiteralExpr
   | unsignedInt                          # IntLiteralExpr

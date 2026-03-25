@@ -115,6 +115,52 @@ This follows the same convention as `javac`, which emits `Foo$Inner.class` for i
 
 ---
 
+## Array Model on the JVM
+
+Perseus arrays are intentionally not Java arrays in the language-design sense, even though they are implemented on top of JVM array bytecodes.
+
+### How Perseus differs from Java
+
+- Perseus declarations use explicit bounds such as `real array q[-7:2];`, whereas Java uses lengths such as `double[] q = new double[10];`.
+- Perseus subscripts are defined in terms of the declared lower and upper bounds, so `q[-7]` can be the first element of the array.
+- Perseus multidimensional arrays are written with bound pairs in a single declaration, for example `integer array a[-1:0, 1:2];`, and accessed as `a[i, j]`.
+- Java multidimensional arrays are arrays of arrays and are always indexed from zero.
+
+### How Perseus lowers arrays
+
+For ordinary declared arrays, Perseus currently lowers all arrays to a single JVM array whose element type matches the Perseus element type:
+
+- `integer array` -> `int[]`
+- `real array` -> `double[]`
+- `boolean array` -> `boolean[]`
+- `string array` -> `String[]`
+
+Non-zero lower bounds are handled in generated code by subtracting the declared lower bound before each load or store. Multidimensional arrays are flattened to one JVM array in row-major order, with generated index arithmetic based on the declared extent of each dimension.
+
+So a declaration like:
+
+```algol
+integer array a[-1:0, 1:2];
+```
+
+is treated as a four-element `int[]` on the JVM, while source-level accesses such as `a[-1, 1]` and `a[0, 2]` are translated into the corresponding zero-based linear offsets automatically.
+
+### Why not use Java arrays-of-arrays
+
+Java's nested-array model does not naturally match classic Algol semantics:
+
+- lower bounds are always zero,
+- the source syntax suggests separate nested arrays rather than one indexed matrix,
+- and preserving Algol-style bound arithmetic would still require extra translation logic.
+
+Flattening keeps the generated representation simple, deterministic, and close to the way classic numeric examples treat multidimensional arrays conceptually.
+
+### Current limitation
+
+Formal array parameters currently still use the existing one-dimensional passing convention: a JVM array reference plus hidden lower/upper bound integers. Multidimensional declared arrays are supported, but multidimensional formal array parameters are not yet lowered through that calling convention.
+
+---
+
 ## Environmental Block Implementation
 
 The Algol 60 Modified Report defines a fictitious outermost block called the **environmental block** that pre-declares all standard identifiers (I/O procedures, math functions, constants). Perseus implements this without generating any extra class files or runtime declarations. Instead, environmental identifiers are recognised **by name** in `CodeGenerator` and mapped directly to the appropriate JVM instruction sequences.

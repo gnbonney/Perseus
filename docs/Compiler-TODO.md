@@ -687,10 +687,18 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Goal:** Support standard multidimensional array declarations and subscripts so classic matrix-style examples from the Modified Report can compile naturally.
 
-- [ ] Grammar: multiple bound pairs in array declarations
-- [ ] Grammar: comma-separated subscript lists in array access and assignment
-- [ ] Codegen: lowering strategy for multidimensional arrays with non-zero lower bounds
-- [ ] Tests using classic Algol 60 matrix examples such as `Spur`, `Transpose`, or `Absmax`
+**Status: PASSING** (`multidimensional_array_test` and full suite green as of March 25, 2026).
+
+- [x] Grammar: multiple bound pairs in array declarations
+- [x] Grammar: comma-separated subscript lists in array access and assignment
+- [x] Codegen: lowering strategy for multidimensional arrays with non-zero lower bounds
+- [x] Tests using classic Algol 60 matrix examples such as `Spur`, `Transpose`, or `Absmax`
+
+**Implementation notes:**
+- Multidimensional arrays are currently lowered to a single JVM array using row-major linearization
+- Bound metadata is retained per dimension so subscripts with non-zero lower bounds are normalized before flattening
+- The new `matrix_trace.alg` regression exercises `Spur`/`Transpose`, two-dimensional declaration, assignment, access, and lower-bound offset behavior
+- Multidimensional formal array parameters are still not supported; current formal-array passing remains one-dimensional
 
 ## Milestone 24 — Hardware Representation Completion
 

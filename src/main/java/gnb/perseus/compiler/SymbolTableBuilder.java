@@ -24,6 +24,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     private final Set<String> labels = new LinkedHashSet<>();
     // Array bounds: name → [lowerBound, upperBound]
     private final Map<String, int[]> arrayBounds = new LinkedHashMap<>();
+    private final Map<String, List<int[]>> arrayBoundPairs = new LinkedHashMap<>();
     // Procedure definitions: name → ProcInfo
     private final Map<String, ProcInfo> procedures = new LinkedHashMap<>();
     // Switch declarations: name → parse context
@@ -66,6 +67,10 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
     public Map<String, int[]> getArrayBounds() {
         return arrayBounds;
+    }
+
+    public Map<String, List<int[]>> getArrayBoundPairs() {
+        return arrayBoundPairs;
     }
 
     public Map<String, ProcInfo> getProcedures() {
@@ -245,11 +250,18 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         else elemType = "real"; // bare 'array' defaults to real per Algol 60
         String arrType = elemType + "[]";
         String name = ctx.identifier().getText();
-        int lower = Integer.parseInt(ctx.signedInt(0).getText());
-        int upper = Integer.parseInt(ctx.signedInt(1).getText());
+        List<int[]> bounds = new ArrayList<>();
+        for (PerseusParser.BoundPairContext pairCtx : ctx.boundPair()) {
+            int lower = Integer.parseInt(pairCtx.signedInt(0).getText());
+            int upper = Integer.parseInt(pairCtx.signedInt(1).getText());
+            bounds.add(new int[]{lower, upper});
+        }
         symbolTable.put(name, arrType);
         mainSymbolTable.put(name, arrType);
-        arrayBounds.put(name, new int[]{lower, upper});
+        if (!bounds.isEmpty()) {
+            arrayBounds.put(name, bounds.get(0));
+            arrayBoundPairs.put(name, bounds);
+        }
         ProcInfo proc = currentProc();
         if (proc != null && isOwn) {
             proc.ownArrays.add(name);
