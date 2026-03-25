@@ -140,6 +140,8 @@ You can then run the compiled class file using the `java` command:
 java -cp build/output gnb.perseus.programs.Hello
 ```
 
+For VS Code users, the [Algol 60 syntax highlighter](https://marketplace.visualstudio.com/items?itemName=TrisTOON.language-algol60) by TrisTOON is a useful extension for editing `.alg` files.
+
 ## Folder Structure of this Project
 
 * `src/main/java/` - Java source code for the compiler
