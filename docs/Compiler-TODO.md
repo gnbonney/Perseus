@@ -745,11 +745,18 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Priority:** First JVM-practical interop milestone.
 
-**Goal:** Allow Algol code to declare and call JVM methods explicitly (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
+**Goal:** Introduce external procedures in phased form, starting with the simplest robust separate-compilation and JVM-static interop cases (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
-- [ ] Syntax for external static/virtual procedure declarations
-- [ ] Codegen and type-checking for JVM interop calls
-- [ ] Restrictions documented clearly (for example: no call-by-name label/switch interop)
+- [ ] Phase 26A: `external algol(TargetClass)` for exact-signature static procedure linkage across separately compiled Perseus units
+- [ ] Phase 26A: `external java static(TargetClass)` for explicit static JVM interop calls
+- [ ] CLI/compiler support for classpath-based resolution (`--classpath` / `-cp` or equivalent)
+- [ ] Compile-time diagnostics for class-not-found, method-not-found, and signature-mismatch cases
+- [ ] Document and enforce the initial ABI boundary clearly: scalar/string support first; arrays, procedure values, labels, switches, and call-by-name handled only when their ABI is documented
+
+**Planned follow-on after Milestone 26:**
+- External Algol array parameters as a documented ABI case
+- External Algol call-by-name only after the thunk ABI is frozen and documented
+- Java instance-method interop after the object/class story is clearer
 
 ## Milestone 27 — Simula-Style Classes and External Classes
 

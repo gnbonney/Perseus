@@ -189,6 +189,8 @@ For Perseus on the JVM, it helps to distinguish two different use cases that bot
 
 Those two cases should not be treated as identical, because they have different semantic expectations. Cross-file Algol linkage is mostly a separate-compilation problem, while Java interop is a foreign-interface problem.
 
+Perseus should therefore treat external procedures as a phased feature rather than one monolithic interoperability milestone. The simplest and most robust first step is separate compilation and explicit calls to static JVM entry points. Richer cases such as instance-method interop, call-by-name across compilation units, and imported classes should come later, after the ABI is documented more formally.
+
 ## Proposed Syntax
 
 Perseus should make the target model explicit:
@@ -210,6 +212,24 @@ The intent is:
 
 This split is preferable to a single generic `external <kind>` form because it makes the allowed semantics and type rules much easier to explain and enforce. It also leaves room for a later Simula-inspired class extension, where imported JVM types could be declared more naturally as `external java class ...` instead of being modeled only as procedure targets.
 
+For the first implementation, Perseus should prioritize `external algol(...)` and `external java static(...)`. The `virtual(...)` form is still a plausible direction, but it should be treated as a later phase rather than part of the minimum external-procedure milestone.
+
+## Resolution and Classpath
+
+External procedure declarations should resolve against the ordinary JVM classpath rather than inventing a separate Perseus-specific search mechanism.
+
+- Compiled external Algol classes and Java classes should both be found on the classpath.
+- The CLI should therefore grow an explicit classpath option such as `--classpath` / `-cp`.
+- For a first implementation, Perseus should prefer compile-time resolution and emit diagnostics when a referenced class or method cannot be found.
+
+This gives users a predictable workflow:
+
+1. Compile a Perseus library or obtain the target JVM classes.
+2. Put the output directory or JAR on the classpath.
+3. Compile the dependent Perseus program against that classpath.
+
+That model is already familiar to JVM users and keeps external Algol linkage and Java interop conceptually aligned.
+
 ## External Algol
 
 `external algol(TargetClass)` is intended for separate compilation. A program in one file should be able to call an Algol procedure whose definition was compiled into another generated class.
@@ -228,16 +248,31 @@ This should lower to a call to the generated static entry point in `mylib/Numeri
 - Keep the mental model close to "this is still an Algol procedure", not "this is Java FFI".
 - Reuse Perseus's existing procedure machinery where possible.
 
+### Resolution Model
+
+For `external algol(TargetClass)`, the class name comes from `TargetClass` and the method name comes from the declared Perseus procedure identifier. In other words:
+
+```algol
+external algol(mylib.Numeric) real procedure hypot(real a, b);
+```
+
+means "look for a static JVM entry point named `hypot` in class `mylib.Numeric` whose descriptor matches the declared Perseus signature."
+
+The first implementation should require an exact match. Separate compilation only works well if the external signature is checked explicitly instead of being left to fail later with a JVM linkage error.
+
 ### Restrictions
 
 Even for external Algol, the first version should stay conservative:
 
 - No label parameters.
-- No switch parameters until Milestone 22 is implemented.
+- No switch parameters.
 - No non-local `goto` across compilation-unit boundaries.
+- No procedure-value parameters in the first version.
 - No call-by-name interop in the first version unless the callee signature can be described exactly in Perseus terms.
 
 That last point matters because Perseus's current call-by-name lowering depends on generated `Thunk` classes and environment-bridging conventions. It is possible to support cross-file Algol call-by-name eventually, but only if the external declaration can fully describe the callee's thunk-based ABI. For an initial design, external Algol procedures should therefore default to value-compatible signatures.
+
+Arrays deserve to be called out separately. Historic Algol procedure libraries clearly used formal array parameters, so external Algol array support is important. However, array parameters are still ABI-bearing rather than simple scalar value parameters, because the callee must agree with the caller about the JVM array representation, bounds metadata, and dimensionality. Perseus should therefore treat external Algol arrays as a documented ABI case of their own rather than silently lumping them into "ordinary value passing".
 
 ## External Java
 
@@ -252,6 +287,8 @@ external java virtual(java.lang.System.out, java.io.PrintStream) procedure print
 ```
 
 Here `static(...)` names the owning class, while `virtual(targetExprType, ownerType)` is a sketch for calling an instance method through a receiver object. The exact surface syntax can still evolve, but the important point is that Java linkage should be explicit.
+
+For the first implementation, only the `static(...)` form should be considered in scope. Instance-method linkage should wait until Perseus has either a more settled external-object story or class support of its own.
 
 ### Restrictions
 
@@ -273,7 +310,7 @@ The design must take into account that Java passes arguments by value, while Alg
 For Perseus external procedures:
 
 - `external java` should map only to call-by-value-compatible signatures.
-- `external algol` may eventually support richer conventions, but the first implementation should also be limited to value-compatible signatures unless the ABI is specified more formally.
+- `external algol` may eventually support richer conventions, but the first implementation should also be limited to signatures whose ABI is documented and stable.
 
 That means the declaration itself should communicate that an external boundary is not the place to silently synthesize Jensen's Device semantics.
 
@@ -317,7 +354,26 @@ For the first version, that likely means:
 | procedure return `string` | `Ljava/lang/String;` |
 | no declared return type | `V` |
 
-As the compiler grows support for stable cross-file procedure-value and thunk ABIs, this table can be extended to include procedure references and name parameters. But those should not be promised until the ABI is documented and tested.
+This first table intentionally covers the scalar/string cases that already map cleanly onto JVM method descriptors. A later external-Algol ABI table should add:
+
+- one-dimensional array parameters, including hidden bounds
+- multidimensional arrays if and when formal multidimensional arrays are supported
+- procedure references
+- call-by-name parameters via a stable thunk ABI
+
+Those cases should not be promised until the ABI is documented and tested.
+
+## ABI Note
+
+Here "ABI" means the binary calling convention used by separately compiled code, not just the source-level procedure declaration. For Perseus external procedures, the ABI includes things like:
+
+- the JVM method name and descriptor
+- whether a procedure is expected to be `static`
+- how arrays are represented and how bounds are passed
+- how call-by-name thunks are represented
+- which helper interfaces or companion classes must be present
+
+This matters because two separately compiled Perseus units may have source declarations that look compatible while still failing to link correctly if the underlying binary conventions are not defined and kept stable.
 
 ## Lowering Strategy
 
@@ -334,6 +390,27 @@ As the compiler grows support for stable cross-file procedure-value and thunk AB
 - Type-check actual arguments against the external signature using the Algol-to-Java mapping table.
 - Emit `invokestatic`, `invokevirtual`, or `invokeinterface` as appropriate.
 - Apply only documented coercions at the boundary.
+
+## Suggested Implementation Phases
+
+### Phase 26A: External Algol and Java Static Methods
+
+- `external algol(TargetClass)` for scalar/string procedures with exact signature matching
+- `external java static(TargetClass)` with explicit Algol-to-Java type mapping
+- compile-time classpath-based resolution and diagnostics
+- no procedure values, no call-by-name, no labels, no switches
+
+### Phase 26B: External Algol Arrays
+
+- document the array ABI explicitly
+- support one-dimensional array parameters across compilation units
+- verify bounds-passing conventions at compile time
+
+### Later phases
+
+- external Algol call-by-name once the thunk ABI is frozen and documented
+- Java instance methods
+- richer object/class interop, likely after Perseus class support
 
 ## Rationale
 
