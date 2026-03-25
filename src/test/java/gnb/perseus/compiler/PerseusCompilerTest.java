@@ -299,6 +299,101 @@ public class PerseusCompilerTest {
 	}
 
 	@Test
+	public void modified_division_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/modified_division.alg", "gnb/perseus/programs", "ModifiedDivisionTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== MODIFIED DIVISION JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END MODIFIED DIVISION ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ModifiedDivisionTest");
+		System.out.println("modified_division output: [" + output + "]");
+		assertEquals("2\n-2\n-2\n2", output.trim(),
+				"div should follow the Modified Report's integer-division behavior");
+	}
+
+	@Test
+	public void power_associativity_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/power_associativity.alg", "gnb/perseus/programs", "PowerAssociativityTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== POWER ASSOCIATIVITY JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END POWER ASSOCIATIVITY ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.PowerAssociativityTest");
+		System.out.println("power_associativity output: [" + output + "]");
+		assertEquals("64\n512\n8", output.trim(),
+				"** and ^ should support the expected exponentiation behavior and associativity");
+	}
+
+	@Test
+	public void boolean_imp_eqv_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/boolean_imp_eqv.alg", "gnb/perseus/programs", "BooleanImpEqvTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== BOOLEAN IMP EQV JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END BOOLEAN IMP EQV ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.BooleanImpEqvTest");
+		System.out.println("boolean_imp_eqv output: [" + output + "]");
+		assertEquals("imp-1\nimp-2\neqv-1\neqv-2\nprecedence-1\nprecedence-2", output.trim(),
+				"imp and eqv should compile with the intended Boolean behavior and precedence");
+	}
+
+	@Test
+	public void representation_synonyms_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/representation_synonyms.alg", "gnb/perseus/programs", "RepresentationSynonymsTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== REPRESENTATION SYNONYMS JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END REPRESENTATION SYNONYMS ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.RepresentationSynonymsTest");
+		System.out.println("representation_synonyms output: [" + output + "]");
+		assertEquals("imp-synonym\neqv-synonym\n16", output.trim(),
+				"=>, ==, and ^ should work as the documented hardware-representation synonyms");
+	}
+
+	@Test
+	public void brace_blocks_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/brace_blocks.alg", "gnb/perseus/programs", "BraceBlocksTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== BRACE BLOCKS JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END BRACE BLOCKS ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.BraceBlocksTest");
+		System.out.println("brace_blocks output: [" + output + "]");
+		assertEquals("brace-blocks", output.trim(),
+				"Brace-delimited blocks should work anywhere begin/end blocks are accepted");
+	}
+
+	@Test
 	public void primer4() throws Exception {
 		// Compile Algol source to Jasmin (for loop with 1000 iterations)
 		Path jasminFile = PerseusCompiler.compileToFile(

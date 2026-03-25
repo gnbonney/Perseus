@@ -706,11 +706,20 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Goal:** Bring the grammar and expression handling fully in line with Perseus's documented hardware representation before moving on to non-standard extensions.
 
-- [ ] Grammar / expression support: `div` integer division
-- [ ] Grammar / expression support: `**` and `^` exponentiation
-- [ ] Grammar / expression support: `imp` / `eqv` and synonyms `=>` / `==`
-- [ ] Grammar: allow `{` and `}` everywhere `begin` and `end` are accepted, not only at the top-level program rule
-- [ ] Tests covering the documented symbol mappings in [Representation.md](Representation.md)
+**Status: PASSING** (Milestone 24 regressions and full suite green as of March 25, 2026).
+
+- [x] Grammar / expression support: `div` integer division
+- [x] Grammar / expression support: `**` and `^` exponentiation
+- [x] Grammar / expression support: `imp` / `eqv` and synonyms `=>` / `==`
+- [x] Grammar: allow `{` and `}` everywhere `begin` and `end` are accepted, not only at the top-level program rule
+- [x] Tests covering the documented symbol mappings in [Representation.md](Representation.md)
+
+**Implementation notes:**
+- `div` now parses in the multiplicative-precedence tier and currently lowers to JVM integer division
+- `**` and `^` now parse as exponentiation operators and lower through `java/lang/Math.pow`, with integer results converted back to `int` when both operands are integral
+- `imp`, `eqv`, `=>`, and `==` now participate in Boolean expression parsing and code generation, with prefix `not` precedence tightened so mixed expressions behave as intended
+- Brace-delimited blocks are now accepted anywhere a normal `begin ... end` block is accepted
+- Milestone 24 coverage is anchored by `modified_division.alg`, `power_associativity.alg`, `boolean_imp_eqv.alg`, `representation_synonyms.alg`, and `brace_blocks.alg`
 
 ## Milestone 25 — Remaining Modified Report Surface Syntax
 

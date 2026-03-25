@@ -50,6 +50,7 @@ statement
 
 block
   : BEGIN compoundStatement END endComment?
+  | '{' compoundStatement '}'
   ;
 
 endComment
@@ -157,13 +158,16 @@ simpleDesignationalExpr
   ;
 
 expr
-  : expr op=('*'|'/') expr               # MulDivExpr
+  : '-' expr                             # UnaryMinusExpr
+  | ('~' | NOT) expr                     # NotExpr
+  | expr op=('**'|'^') expr              # PowExpr
+  | expr op=('*'|'/'|DIV_KW) expr        # MulDivExpr
   | expr op=('+'|'-') expr               # AddSubExpr
   | expr op=('<'|'<='|'>'|'>='|'='|'<>') expr   # RelExpr
   | expr ('&' | AND_KW) expr             # AndExpr
   | expr ('|' | OR) expr                 # OrExpr
-  | '-' expr                             # UnaryMinusExpr
-  | ('~' | NOT) expr                     # NotExpr
+  | expr (IMP | '=>') expr               # ImpExpr
+  | expr (EQV | '==') expr               # EqvExpr
   | IF expr THEN expr ELSE expr          # IfExpr
   | identifier '[' expr (',' expr)* ']'  # ArrayAccessExpr
   | identifier '(' argList? ')'          # ProcCallExpr
@@ -221,6 +225,9 @@ FALSE : 'false';
 NOT : 'not';
 AND_KW : 'and';
 OR : 'or';
+IMP : 'imp';
+EQV : 'eqv';
+DIV_KW : 'div';
 /* IDENT should be defined after your other keywords */
 IDENT : ('a'..'z' | 'A'..'Z')  ('a'..'z'|'A'..'Z' | '0'..'9'| '_')*;
 

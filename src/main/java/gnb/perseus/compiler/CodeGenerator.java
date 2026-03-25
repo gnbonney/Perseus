@@ -3301,6 +3301,28 @@ public class CodeGenerator extends PerseusBaseListener {
                 elseLabel + ":\n" +
                 elseCode +
                 endLabel + ":\n";
+        } else if (ctx instanceof PerseusParser.PowExprContext e) {
+            String left  = generateExpr(e.expr(0), varToFieldIndex);
+            String right = generateExpr(e.expr(1), varToFieldIndex);
+            String leftType  = exprTypes.getOrDefault(e.expr(0), "integer");
+            String rightType = exprTypes.getOrDefault(e.expr(1), "integer");
+            String type = exprTypes.getOrDefault(ctx, "integer");
+            if (leftType.startsWith("thunk:")) {
+                leftType = leftType.substring("thunk:".length());
+            }
+            if (rightType.startsWith("thunk:")) {
+                rightType = rightType.substring("thunk:".length());
+            }
+            if ("integer".equals(leftType))  left  += "i2d\n";
+            if ("integer".equals(rightType)) right += "i2d\n";
+            StringBuilder sb = new StringBuilder();
+            sb.append(left);
+            sb.append(right);
+            sb.append("invokestatic java/lang/Math/pow(DD)D\n");
+            if ("integer".equals(type)) {
+                sb.append("d2i\n");
+            }
+            return sb.toString();
         } else if (ctx instanceof PerseusParser.MulDivExprContext e) {
             String left  = generateExpr(e.expr(0), varToFieldIndex);
             String right = generateExpr(e.expr(1), varToFieldIndex);
@@ -3343,6 +3365,16 @@ public class CodeGenerator extends PerseusBaseListener {
             return generateExpr(e.expr(0), varToFieldIndex) + generateExpr(e.expr(1), varToFieldIndex) + "iand\n";
         } else if (ctx instanceof PerseusParser.OrExprContext e) {
             return generateExpr(e.expr(0), varToFieldIndex) + generateExpr(e.expr(1), varToFieldIndex) + "ior\n";
+        } else if (ctx instanceof PerseusParser.ImpExprContext e) {
+            return generateExpr(e.expr(0), varToFieldIndex)
+                + "iconst_1\nixor\n"
+                + generateExpr(e.expr(1), varToFieldIndex)
+                + "ior\n";
+        } else if (ctx instanceof PerseusParser.EqvExprContext e) {
+            return generateExpr(e.expr(0), varToFieldIndex)
+                + generateExpr(e.expr(1), varToFieldIndex)
+                + "ixor\n"
+                + "iconst_1\nixor\n";
         } else if (ctx instanceof PerseusParser.NotExprContext e) {
             return generateExpr(e.expr(), varToFieldIndex) + "iconst_1\nixor\n";
         } else if (ctx instanceof PerseusParser.VarExprContext e) {

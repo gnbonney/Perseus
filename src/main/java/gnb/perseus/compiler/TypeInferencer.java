@@ -35,7 +35,9 @@ public class TypeInferencer extends PerseusBaseListener {
         String rightType = exprTypes.get(ctx.expr(1));
         String op = ctx.op.getText();
         String resultType;
-        if ("/".equals(op)) {
+        if ("div".equals(op)) {
+            resultType = "integer";
+        } else if ("/".equals(op)) {
             resultType = "real"; // / always real
         } else {
             // deferred type means runtime-dispatch numeric type, so treat as real in arithmetic
@@ -44,6 +46,19 @@ public class TypeInferencer extends PerseusBaseListener {
             } else {
                 resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
             }
+        }
+        exprTypes.put(ctx, resultType);
+    }
+
+    @Override
+    public void exitPowExpr(PerseusParser.PowExprContext ctx) {
+        String leftType = exprTypes.get(ctx.expr(0));
+        String rightType = exprTypes.get(ctx.expr(1));
+        String resultType;
+        if ("deferred".equals(leftType) || "deferred".equals(rightType)) {
+            resultType = "real";
+        } else {
+            resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
         }
         exprTypes.put(ctx, resultType);
     }
@@ -77,6 +92,26 @@ public class TypeInferencer extends PerseusBaseListener {
         String rightType = exprTypes.get(ctx.expr(1));
         if (!"boolean".equals(leftType) || !"boolean".equals(rightType)) {
             throw error(ctx, "PERS2004", "or operator requires boolean operands");
+        }
+        exprTypes.put(ctx, "boolean");
+    }
+
+    @Override
+    public void exitImpExpr(PerseusParser.ImpExprContext ctx) {
+        String leftType = exprTypes.get(ctx.expr(0));
+        String rightType = exprTypes.get(ctx.expr(1));
+        if (!"boolean".equals(leftType) || !"boolean".equals(rightType)) {
+            throw error(ctx, "PERS2006", "imp operator requires boolean operands");
+        }
+        exprTypes.put(ctx, "boolean");
+    }
+
+    @Override
+    public void exitEqvExpr(PerseusParser.EqvExprContext ctx) {
+        String leftType = exprTypes.get(ctx.expr(0));
+        String rightType = exprTypes.get(ctx.expr(1));
+        if (!"boolean".equals(leftType) || !"boolean".equals(rightType)) {
+            throw error(ctx, "PERS2007", "eqv operator requires boolean operands");
         }
         exprTypes.put(ctx, "boolean");
     }
