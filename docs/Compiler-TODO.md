@@ -727,11 +727,19 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Goal:** Close the remaining non-extension syntax gaps that affect real Modified Report examples, while still allowing Perseus's normalized grammar design.
 
-- [ ] Grammar: numeric labels
-- [ ] Grammar: dummy statements (empty statements used as label targets)
-- [ ] Grammar: elaborate parameter delimiters such as `Order:(n)` and `Result:(y)`
-- [ ] Decide and document which rarely used report notations remain normalized rather than accepted verbatim
-- [ ] Add focused parser/integration tests based on Modified Report examples for these forms
+**Status: PASSING** (Milestone 25 regressions and full suite green as of March 25, 2026).
+
+- [x] Grammar: numeric labels
+- [x] Grammar: dummy statements (empty statements used as label targets)
+- [x] Grammar: parameter delimiters such as `Order:(n)` and `Result:(y)`
+- [x] Document the compatibility policy from [Modified Report Compatibility.md](Modified%20Report%20Compatibility.md): accept numeric labels, dummy statements, and named parameter delimiters verbatim; keep simple parameter lists as the preferred style; continue normalizing report-only symbol/quoting variants rather than accepting them verbatim
+- [x] Add focused parser/integration tests based on Modified Report examples for these forms
+
+**Implementation notes:**
+- Numeric labels are now accepted in declarations and designational `goto` targets, and are normalized internally to legal Jasmin labels during code generation
+- Dummy statements are now accepted through the statement/compound-statement grammar without the ANTLR empty-match warning that appeared during the first draft of the rule
+- Named parameter delimiters now parse in both procedure declarations and calls by treating `) Name:(` as a parameter delimiter alongside `,`
+- Milestone 25 coverage is anchored by `numeric_labels_and_dummy_statements.alg` and `parameter_delimiters_absmax.alg`
 
 ## Milestone 26 — External Procedures
 

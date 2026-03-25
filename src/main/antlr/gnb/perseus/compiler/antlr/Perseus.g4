@@ -42,10 +42,13 @@ program: BEGIN compoundStatement END | '{' compoundStatement '}';
 
 // In Algol, semicolon is a statement separator, not a statement terminator.
 // The optional trailing ';' before 'end' is allowed (common in Algol style).
-compoundStatement: statement (';' statement)* ';'?;
+compoundStatement
+  : ';'+
+  | ';'* statement (';'+ statement)* ';'*
+  ;
 
 statement
-  : label? (procedureCall | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | block)
+  : label? (procedureCall | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | block)?
   ;
 
 block
@@ -89,7 +92,12 @@ paramSpecType
   ;
 
 paramList
-  : identifier (',' identifier)*
+  : identifier (parameterDelimiter identifier)*
+  ;
+
+parameterDelimiter
+  : ','
+  | ')' IDENT ':' '('
   ;
 
 varDecl
@@ -144,6 +152,7 @@ forElement
 
 label
   : identifier ':'
+  | unsignedInt ':'
   ;
 
 designationalExpr
@@ -154,6 +163,7 @@ designationalExpr
 simpleDesignationalExpr
   : identifier '[' expr ']'   # SwitchDesignatorExpr
   | identifier                # LabelDesignatorExpr
+  | unsignedInt               # NumericLabelDesignatorExpr
   | '(' designationalExpr ')' # ParenDesignatorExpr
   ;
 
@@ -184,7 +194,7 @@ procedureCall: identifier ('(' argList? ')')?;
 
 identifier: IDENT;
 
-argList : arg (',' arg)*;
+argList : arg (parameterDelimiter arg)*;
 
 arg : expr | string;
 

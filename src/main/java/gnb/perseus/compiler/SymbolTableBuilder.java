@@ -277,7 +277,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
     @Override
     public void enterLabel(PerseusParser.LabelContext ctx) {
-        labels.add(ctx.identifier().getText());
+        labels.add(ctx.getStart().getText());
     }
 }
 

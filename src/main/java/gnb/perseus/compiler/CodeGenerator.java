@@ -1466,8 +1466,8 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void enterLabel(PerseusParser.LabelContext ctx) {
-        String labelName = ctx.identifier().getText();
-        activeOutput.append(labelName).append(":\n");
+        String labelName = ctx.getStart().getText();
+        activeOutput.append(normalizeStatementLabel(labelName)).append(":\n");
     }
 
     @Override
@@ -1741,6 +1741,10 @@ public class CodeGenerator extends PerseusBaseListener {
         return prefix + "_" + (labelCounter++);
     }
 
+    private String normalizeStatementLabel(String rawLabel) {
+        return rawLabel.chars().allMatch(Character::isDigit) ? "L" + rawLabel : rawLabel;
+    }
+
     private void emitGotoDesignationalExpr(PerseusParser.DesignationalExprContext ctx) {
         if (ctx instanceof PerseusParser.DirectDesignationalExprContext simpleCtx) {
             emitGotoSimpleDesignationalExpr(simpleCtx.simpleDesignationalExpr());
@@ -1760,7 +1764,11 @@ public class CodeGenerator extends PerseusBaseListener {
 
     private void emitGotoSimpleDesignationalExpr(PerseusParser.SimpleDesignationalExprContext ctx) {
         if (ctx instanceof PerseusParser.LabelDesignatorExprContext labelCtx) {
-            activeOutput.append("goto ").append(labelCtx.identifier().getText()).append("\n");
+            activeOutput.append("goto ").append(normalizeStatementLabel(labelCtx.identifier().getText())).append("\n");
+            return;
+        }
+        if (ctx instanceof PerseusParser.NumericLabelDesignatorExprContext numericLabelCtx) {
+            activeOutput.append("goto ").append(normalizeStatementLabel(numericLabelCtx.unsignedInt().getText())).append("\n");
             return;
         }
         if (ctx instanceof PerseusParser.ParenDesignatorExprContext parenCtx) {

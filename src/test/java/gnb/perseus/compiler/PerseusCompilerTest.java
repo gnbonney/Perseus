@@ -394,6 +394,44 @@ public class PerseusCompilerTest {
 	}
 
 	@Test
+	public void numeric_labels_and_dummy_statements_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/numeric_labels_and_dummy_statements.alg", "gnb/perseus/programs", "NumericLabelsAndDummyStatementsTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== NUMERIC LABELS AND DUMMY STATEMENTS JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END NUMERIC LABELS AND DUMMY STATEMENTS ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.NumericLabelsAndDummyStatementsTest");
+		System.out.println("numeric_labels_and_dummy_statements output: [" + output + "]");
+		assertEquals("3", output.trim(),
+				"Numeric labels and dummy statements should support report-style goto control flow");
+	}
+
+	@Test
+	public void parameter_delimiters_absmax_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/parameter_delimiters_absmax.alg", "gnb/perseus/programs", "ParameterDelimitersAbsmaxTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== PARAMETER DELIMITERS ABSMAX JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END PARAMETER DELIMITERS ABSMAX ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ParameterDelimitersAbsmaxTest");
+		System.out.println("parameter_delimiters_absmax output: [" + output + "]");
+		assertEquals("4.5\n3", output.trim(),
+				"Named parameter delimiters should work in both procedure declarations and calls");
+	}
+
+	@Test
 	public void primer4() throws Exception {
 		// Compile Algol source to Jasmin (for loop with 1000 iterations)
 		Path jasminFile = PerseusCompiler.compileToFile(
