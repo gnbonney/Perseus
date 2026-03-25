@@ -53,8 +53,8 @@ test {
     }
 }
 
-// Add a Gradle task to compile Algol to Jasmin and then to class files
-task compileAlgol(type: JavaExec) {
+// Add a Gradle task to compile Perseus source to Jasmin and then to class files
+task compilePerseus(type: JavaExec) {
     classpath = files(sourceSets.main.runtimeClasspath)
     main = 'gnb.perseus.cli.PerseusCLI'
 

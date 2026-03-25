@@ -45,14 +45,14 @@ Use these commands to extract the actual state of the generated artifacts:
 
 ```bash
 # 1. Inspect the generated Jasmin for invalid indices or incorrect store instructions
-gradle compileAlgol -PinputFile=test/algol/proc_var.alg -PoutputDir=build/test-algol -PclassName=ProcVar
+gradle compilePerseus -PinputFile=test/algol/proc_var.alg -PoutputDir=build/test-algol -PclassName=ProcVar
 cat build/test-algol/ProcVar.j
 
 # 2. Check if the ProcRef companion classes are actually being written to the output directory
 ls build/test-algol/ProcVar$ProcRef*.j
 
 # 3. Run the compiler with stacktrace to see if internal exceptions are being swallowed
-gradle compileAlgol -PinputFile=test/algol/proc_var.alg -PoutputDir=build/test-algol -PclassName=ProcVar --stacktrace
+gradle compilePerseus -PinputFile=test/algol/proc_var.alg -PoutputDir=build/test-algol -PclassName=ProcVar --stacktrace
 ```
 
 ## 4. Expected Outcome

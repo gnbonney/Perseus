@@ -1,4 +1,0 @@
-Compiled from "ManOrBoy.java"
-interface ManOrBoy$Arg {
-  public abstract int run();
-}

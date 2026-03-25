@@ -25,9 +25,9 @@ Why create a new Algol-based language for the JVM?
 
 ## Project Status
 
-Perseus currently passes all 55 unit tests as of March 22, 2026, including Donald Knuth's classic Man-or-Boy test.
+Perseus development follows a test-driven, iterative approach built around a variety of sample programs, including Donald Knuth's classic Man-or-Boy test.
 
-In Knuth's old jargon, that makes this a "man" compiler: Perseus can compile and run `manboy.alg` correctly and produce the expected answer `-67.0`.
+The Man-or-Boy test is notable because it stresses exactly the sort of features that made Algol implementations difficult: recursion, nested procedures, procedure parameters, non-local variable access, and call-by-name behavior. Many older Algol compilers either did not implement those features fully or handled them incorrectly, so passing `manboy.alg` and producing the expected answer `-67.0` is a meaningful sign that Perseus is handling a demanding part of the Algol tradition rather than just its surface syntax.
 
 Today, the implemented feature set is still closest to an ALGOL 60 compiler with extensions. The broader direction, however, is for Perseus to become its own Algol-family language rather than remain only a historical reconstruction.
 
@@ -55,9 +55,9 @@ This project uses Gradle for build and dependency management. Below are the key 
 
 See [docs/Gradle-Build.md](docs/Gradle-Build.md) for more details.
 
-## Using the `compileAlgol` Gradle Task
+## Using the `compilePerseus` Gradle Task
 
-The `compileAlgol` Gradle task simplifies the process of compiling Algol-family source files into Jasmin assembly and then assembling the Jasmin files into JVM class files. This task performs the following steps:
+The `compilePerseus` Gradle task simplifies the process of compiling Perseus source files into Jasmin assembly and then assembling the Jasmin files into JVM class files. This task performs the following steps:
 
 1. **Compile source to Jasmin**:
    - The task uses the `PerseusCompiler` class to parse the source file and generate the main Jasmin `.j` file plus any needed companion `.j` files for thunks and procedure references.
@@ -66,10 +66,10 @@ The `compileAlgol` Gradle task simplifies the process of compiling Algol-family 
 
 ### Running the Task
 
-To use the `compileAlgol` task, you can specify the input file, output directory, and class name as parameters. For example:
+To use the `compilePerseus` task, you can specify the input file, output directory, and class name as parameters. For example:
 
 ```bash
-gradle compileAlgol -PinputFile=test/algol/myfile.alg -PoutputDir=build/output -PclassName=MyClass
+gradle compilePerseus -PinputFile=test/algol/myfile.alg -PoutputDir=build/output -PclassName=MyClass
 ```
 
 This will:
