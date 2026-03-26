@@ -6,12 +6,17 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
+import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
@@ -64,7 +69,7 @@ public class PerseusCompiler {
 		// Run the full pipeline so we can access the CodeGenerator for thunk outputs
 		CodeGenerator codegen;
 		try {
-			codegen = runPipeline(algolFile, packageName, className);
+			codegen = runPipeline(algolFile, packageName, className, outputDir);
 			if (codegen == null) {
 				throw new IOException("runPipeline returned null");
 			}
@@ -167,7 +172,7 @@ public class PerseusCompiler {
 	@SuppressWarnings("deprecation")
 	public static String compile(String fileName, String packageName, String className) {
 		try {
-			return runPipeline(fileName, packageName, className).getOutput();
+			return runPipeline(fileName, packageName, className, null).getOutput();
 		} catch (CompilationFailedException e) {
 			return String.join(System.lineSeparator(),
 					e.getDiagnostics().stream().map(CompilerDiagnostic::format).toList());
@@ -183,7 +188,7 @@ public class PerseusCompiler {
 	 * can access both the main Jasmin output and any generated thunk class outputs.
 	 */
 	@SuppressWarnings("deprecation")
-	static CodeGenerator runPipeline(String fileName, String packageName, String className) throws Exception {
+	static CodeGenerator runPipeline(String fileName, String packageName, String className, Path externalClassRoot) throws Exception {
 		ANTLRInputStream is = new ANTLRInputStream(new FileReader(fileName));
 		PerseusLexer lexer = new PerseusLexer(is);
 		CommonTokenStream tokens = new CommonTokenStream(lexer);
@@ -208,6 +213,7 @@ public class PerseusCompiler {
 		Map<String, java.util.List<int[]>> arrayBoundPairs = symBuilder.getArrayBoundPairs();
 		Map<String, SymbolTableBuilder.ProcInfo> procedures = symBuilder.getProcedures();
 		Map<String, PerseusParser.SwitchDeclContext> switchDeclarations = symBuilder.getSwitchDeclarations();
+		validateExternalProcedures(fileName, procedures, externalClassRoot);
 
         // Check for procedure variables (procedure names that are used in assignments or expressions)
         Set<String> procedureVariables = new LinkedHashSet<>();
@@ -332,6 +338,112 @@ public class PerseusCompiler {
 				symBuilder.getProcedures(), switchDeclarations, procVarSlotsMap);
 		walker.walk(codegen, programContext);
 		return codegen;
+	}
+
+	private static void validateExternalProcedures(String fileName,
+			Map<String, SymbolTableBuilder.ProcInfo> procedures,
+			Path externalClassRoot) throws CompilationFailedException {
+		java.util.ArrayList<CompilerDiagnostic> diagnostics = new java.util.ArrayList<>();
+		for (Map.Entry<String, SymbolTableBuilder.ProcInfo> entry : procedures.entrySet()) {
+			String procName = entry.getKey();
+			SymbolTableBuilder.ProcInfo info = entry.getValue();
+			if (!info.external) {
+				continue;
+			}
+			if (!supportsPhase26AExternalSignature(info)) {
+				diagnostics.add(CompilerDiagnostic.error("PERS3003", fileName, 1, 1,
+						"External procedure " + procName + " uses a signature outside the initial Phase 26A ABI"));
+				continue;
+			}
+			try {
+				Class<?> owner = loadExternalOwner(info.externalTargetClass, externalClassRoot);
+				Method target = owner.getMethod(procName, getExternalParameterTypes(info));
+				if (!Modifier.isStatic(target.getModifiers())) {
+					diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
+							"External procedure " + procName + " must resolve to a static method in " + info.externalTargetClass));
+					continue;
+				}
+				Class<?> expectedReturnType = getExternalReturnType(info);
+				if (!target.getReturnType().equals(expectedReturnType)) {
+					diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
+							"External procedure " + procName + " resolved in " + info.externalTargetClass
+									+ " but the return type did not match the declaration"));
+				}
+			} catch (ClassNotFoundException e) {
+				diagnostics.add(CompilerDiagnostic.error("PERS3001", fileName, 1, 1,
+						"External target class not found: " + info.externalTargetClass));
+			} catch (NoSuchMethodException e) {
+				diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
+						"External method not found: " + info.externalTargetClass + "." + procName));
+			} catch (IOException e) {
+				diagnostics.add(CompilerDiagnostic.error("PERS3001", fileName, 1, 1,
+						"Unable to inspect external target class " + info.externalTargetClass + ": " + e.getMessage()));
+			}
+		}
+		if (!diagnostics.isEmpty()) {
+			throw new CompilationFailedException(diagnostics);
+		}
+	}
+
+	private static boolean supportsPhase26AExternalSignature(SymbolTableBuilder.ProcInfo info) {
+		if (info == null) {
+			return false;
+		}
+		if (!isPhase26AType(info.returnType, info.externalKind)) {
+			return false;
+		}
+		for (String paramName : info.paramNames) {
+			String paramType = info.paramTypes.get(paramName);
+			if (!isPhase26AType(paramType, info.externalKind)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static boolean isPhase26AType(String type, String externalKind) {
+		if (type == null) {
+			return false;
+		}
+		return switch (type) {
+			case "void", "integer", "real", "string" -> true;
+			case "boolean" -> "java-static".equals(externalKind);
+			default -> false;
+		};
+	}
+
+	private static Class<?>[] getExternalParameterTypes(SymbolTableBuilder.ProcInfo info) {
+		return info.paramNames.stream()
+				.map(param -> mapExternalTypeToJvmClass(info.paramTypes.get(param), info.externalKind))
+				.toArray(Class<?>[]::new);
+	}
+
+	private static Class<?> getExternalReturnType(SymbolTableBuilder.ProcInfo info) {
+		return mapExternalTypeToJvmClass(info.returnType, info.externalKind);
+	}
+
+	private static Class<?> mapExternalTypeToJvmClass(String type, String externalKind) {
+		return switch (type) {
+			case "void" -> void.class;
+			case "integer" -> int.class;
+			case "real" -> double.class;
+			case "string" -> String.class;
+			case "boolean" -> "java-static".equals(externalKind) ? boolean.class : int.class;
+			default -> throw new IllegalArgumentException("Unsupported external type: " + type);
+		};
+	}
+
+	private static Class<?> loadExternalOwner(String className, Path externalClassRoot) throws ClassNotFoundException, IOException {
+		if (externalClassRoot != null) {
+			Path compiledClass = externalClassRoot.resolve(className.replace('.', java.io.File.separatorChar) + ".class");
+			if (Files.exists(compiledClass)) {
+				URL[] urls = new URL[] { externalClassRoot.toUri().toURL() };
+				try (URLClassLoader loader = new URLClassLoader(urls, PerseusCompiler.class.getClassLoader())) {
+					return Class.forName(className, false, loader);
+				}
+			}
+		}
+		return Class.forName(className);
 	}
 }
 

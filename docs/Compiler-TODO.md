@@ -747,14 +747,23 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Goal:** Introduce external procedures in phased form, starting with the simplest robust separate-compilation and JVM-static interop cases (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
-- [ ] Phase 26A: `external algol(TargetClass)` for exact-signature static procedure linkage across separately compiled Perseus units
-- [ ] Phase 26A: `external java static(TargetClass)` for explicit static JVM interop calls
-- [ ] CLI/compiler support for classpath-based resolution (`--classpath` / `-cp` or equivalent)
-- [ ] Compile-time diagnostics for class-not-found, method-not-found, and signature-mismatch cases
-- [ ] Document and enforce the initial ABI boundary clearly: scalar/string support first; arrays, procedure values, labels, switches, and call-by-name handled only when their ABI is documented
+**Status:** Phase 26A implemented and passing as of March 25, 2026.
 
-**Planned follow-on after Milestone 26:**
-- External Algol array parameters as a documented ABI case
+- [x] Phase 26A: `external algol(TargetClass)` for exact-signature static procedure linkage across separately compiled Perseus units
+- [x] Phase 26A: `external java static(TargetClass)` for explicit static JVM interop calls
+- [x] Compile-time diagnostics for class-not-found, method-not-found, and signature-mismatch cases
+- [x] Document and enforce the initial ABI boundary clearly: scalar/string support first; arrays, procedure values, labels, switches, and call-by-name handled only when their ABI is documented
+
+**Implementation notes:**
+- External procedure declarations now parse directly in the grammar and are tracked as ordinary declared procedures with external metadata
+- `external algol(...)` and `external java static(...)` both lower to explicit `invokestatic` calls with declaration-driven JVM descriptors
+- The current Phase 26A validation checks target class existence, static method existence, and declared signature compatibility at compile time
+- Current supported external ABI surface is intentionally narrow: `integer`, `real`, `string`, `void`, and `boolean` for Java static interop
+- Targeted regression coverage is provided by `external_algol_library.alg`, `external_algol_client.alg`, and `external_java_math.alg`
+
+**TBD: Planned follow-on after Milestone 26:**
+- Phase 26B: external Algol array parameters as a documented ABI case
+  Keep the first array-interoperability slice to one-dimensional arrays using Perseus's current array-plus-bounds calling convention, with historic library-style regression cases such as `INIVEC`
 - External Algol call-by-name only after the thunk ABI is frozen and documented
 - Java instance-method interop after the object/class story is clearer
 
@@ -807,6 +816,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 **Goal:** Turn the existing CLI into a real compiler front end suitable for everyday use.
 
 - [ ] `perseus` command mirroring `javac` for one or more `.alg` files
+- [ ] Classpath options such as `-cp` / `--classpath` for external Algol and Java resolution
 - [ ] Optional `-d <outdir>` and sensible output layout
 - [ ] Optional or default ASM post-processing/verification step after Jasmin assembly (for example via `FixLimits`) so CLI builds get the same class-family cleanup and verifier feedback used by the `manboy` tests
 - [ ] Stable exit codes and clearer user-facing error output

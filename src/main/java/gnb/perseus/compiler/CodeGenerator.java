@@ -2584,6 +2584,9 @@ public class CodeGenerator extends PerseusBaseListener {
         if (info == null) {
             return "; unknown procedure: " + name + "\n";
         }
+        if (info.external) {
+            return generateExternalProcedureInvocation(name, info, args, isStatement);
+        }
 
         StringBuilder sb = new StringBuilder();
         // Determine which parameters are call-by-name and collect variable
@@ -2905,6 +2908,19 @@ public class CodeGenerator extends PerseusBaseListener {
         return CodeGenUtils.scalarTypeToJvmDesc(scalarType);
     }
 
+    private static String externalTypeToJvmDesc(String type, String externalKind) {
+        if ("java-static".equals(externalKind)) {
+            return switch (type) {
+                case "void" -> "V";
+                case "real" -> "D";
+                case "string" -> "Ljava/lang/String;";
+                case "boolean" -> "Z";
+                default -> "I";
+            };
+        }
+        return CodeGenUtils.getReturnTypeDescriptor(type);
+    }
+
     /**
      * Looks up a variable's type in the current scope, falling back to main scope.
      *
@@ -3080,6 +3096,38 @@ public class CodeGenerator extends PerseusBaseListener {
         if (boundPair != null && boundPair[0] != 0) {
             sb.append("ldc ").append(boundPair[0]).append("\n");
             sb.append("isub\n");
+        }
+        return sb.toString();
+    }
+
+    private String generateExternalProcedureInvocation(String name, SymbolTableBuilder.ProcInfo info,
+            List<PerseusParser.ArgContext> args, boolean isStatement) {
+        StringBuilder sb = new StringBuilder();
+        for (int ai = 0; ai < args.size() && ai < info.paramNames.size(); ai++) {
+            PerseusParser.ArgContext arg = args.get(ai);
+            String paramType = getFormalBaseType(info, info.paramNames.get(ai));
+            if (arg.expr() != null) {
+                sb.append(generateExpr(arg.expr()));
+                String argType = exprTypes.getOrDefault(arg.expr(), "integer");
+                if ("real".equals(paramType) && "integer".equals(argType)) {
+                    sb.append("i2d\n");
+                }
+            } else {
+                sb.append("; ERROR: unsupported external argument form for ")
+                  .append(info.paramNames.get(ai)).append("\n");
+            }
+        }
+
+        String paramDesc = info.paramNames.stream()
+                .map(paramName -> externalTypeToJvmDesc(getFormalBaseType(info, paramName), info.externalKind))
+                .collect(Collectors.joining());
+        String retDesc = externalTypeToJvmDesc(info.returnType, info.externalKind);
+        sb.append("invokestatic ").append(info.externalTargetClass.replace('.', '/'))
+                .append("/").append(name)
+                .append("(").append(paramDesc).append(")").append(retDesc).append("\n");
+        if (isStatement && !"V".equals(retDesc)) {
+            if ("D".equals(retDesc)) sb.append("pop2\n");
+            else sb.append("pop\n");
         }
         return sb.toString();
     }

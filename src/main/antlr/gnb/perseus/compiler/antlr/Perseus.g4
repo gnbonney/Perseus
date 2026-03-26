@@ -48,7 +48,7 @@ compoundStatement
   ;
 
 statement
-  : label? (procedureCall | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | block)?
+  : label? (procedureCall | externalProcedureDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | block)?
   ;
 
 block
@@ -65,6 +65,35 @@ procedureDecl
     valueSpec?
     paramSpec*
     statement
+  ;
+
+externalProcedureDecl
+  : EXTERNAL externalProcSpec (INTEGER | REAL | STRING)? PROCEDURE identifier ('(' externalFormalList? ')')?
+  ;
+
+externalProcSpec
+  : ALGOL '(' qualifiedName ')'       # ExternalAlgolSpec
+  | JAVA STATIC '(' qualifiedName ')' # ExternalJavaStaticSpec
+  ;
+
+externalFormalList
+  : externalFormalGroup (';' externalFormalGroup)*
+  ;
+
+externalFormalGroup
+  : externalParamSpecType identifier (',' identifier)*
+  ;
+
+externalParamSpecType
+  : REAL ARRAY        # ExternalRealArrayParamType
+  | INTEGER ARRAY     # ExternalIntegerArrayParamType
+  | STRING ARRAY      # ExternalStringArrayParamType
+  | BOOLEAN ARRAY     # ExternalBooleanArrayParamType
+  | ARRAY             # ExternalDefaultArrayParamType
+  | REAL              # ExternalRealParamType
+  | INTEGER           # ExternalIntegerParamType
+  | STRING            # ExternalStringParamType
+  | BOOLEAN           # ExternalBooleanParamType
   ;
 
 valueSpec
@@ -194,6 +223,15 @@ procedureCall: identifier ('(' argList? ')')?;
 
 identifier: IDENT;
 
+qualifiedName
+  : qualifiedNamePart ('.' qualifiedNamePart)*
+  ;
+
+qualifiedNamePart
+  : IDENT
+  | JAVA
+  ;
+
 argList : arg (parameterDelimiter arg)*;
 
 arg : expr | string;
@@ -229,6 +267,10 @@ DO : 'do';
 GOTO : 'goto';
 SWITCH : 'switch';
 OWN : 'own';
+EXTERNAL : 'external';
+ALGOL : 'algol';
+JAVA : 'java';
+STATIC : 'static';
 TRUE : 'true';
 FALSE : 'false';
 

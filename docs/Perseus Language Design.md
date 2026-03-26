@@ -405,6 +405,12 @@ This matters because two separately compiled Perseus units may have source decla
 - document the array ABI explicitly
 - support one-dimensional array parameters across compilation units
 - verify bounds-passing conventions at compile time
+- keep the initial scope to one-dimensional arrays whose representation already matches Perseus's current formal-array passing model
+- treat an external Algol array parameter as a JVM array reference plus hidden lower/upper bound integers, just as current internal procedure calls do
+- require exact agreement on element type and array rank
+- defer multidimensional formal arrays until the compiler supports a stable documented external multidimensional array ABI
+
+Representative driver examples for this phase should come from historic Algol-style library procedures such as `INIVEC`, where a separately compiled procedure mutates a caller-supplied array through a formal array parameter.
 
 ### Later phases
 

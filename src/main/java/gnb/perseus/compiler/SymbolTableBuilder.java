@@ -46,6 +46,9 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         public final Set<String> ownVars = new LinkedHashSet<>();
         public final Set<String> ownArrays = new LinkedHashSet<>();
         public final List<String> nestedProcedures = new ArrayList<>();
+        public boolean external;
+        public String externalKind;
+        public String externalTargetClass;
 
         public ProcInfo(String returnType) {
             this.returnType = returnType;
@@ -83,13 +86,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
     @Override
     public void enterProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
-        // First token is INTEGER/REAL/STRING (typed) or PROCEDURE (void)
-        String firstToken = ctx.getStart().getText();
-        String returnType;
-        if ("integer".equals(firstToken)) returnType = "integer";
-        else if ("real".equals(firstToken)) returnType = "real";
-        else if ("string".equals(firstToken)) returnType = "string";
-        else returnType = "void";
+        String returnType = getDeclaredReturnType(ctx.getStart().getText());
         String name = ctx.identifier().getText();
 
         // Add to global symbol table so TypeInferencer knows the return type
@@ -114,6 +111,46 @@ public class SymbolTableBuilder extends PerseusBaseListener {
                 newProc.paramNames.add(id.getText());
             }
         }
+    }
+
+    @Override
+    public void enterExternalProcedureDecl(PerseusParser.ExternalProcedureDeclContext ctx) {
+        String returnType;
+        if (ctx.INTEGER() != null) returnType = "integer";
+        else if (ctx.REAL() != null) returnType = "real";
+        else if (ctx.STRING() != null) returnType = "string";
+        else returnType = "void";
+        String name = ctx.identifier().getText();
+
+        symbolTable.put(name, "procedure:" + returnType);
+
+        ProcInfo proc = new ProcInfo(returnType);
+        proc.external = true;
+        if (ctx.externalProcSpec() instanceof PerseusParser.ExternalAlgolSpecContext algolSpec) {
+            proc.externalKind = "algol";
+            proc.externalTargetClass = algolSpec.qualifiedName().getText();
+        } else if (ctx.externalProcSpec() instanceof PerseusParser.ExternalJavaStaticSpecContext javaSpec) {
+            proc.externalKind = "java-static";
+            proc.externalTargetClass = javaSpec.qualifiedName().getText();
+        }
+
+        if (ctx.externalFormalList() != null) {
+            for (PerseusParser.ExternalFormalGroupContext group : ctx.externalFormalList().externalFormalGroup()) {
+                String actualBaseType = mapExternalParamType(group.externalParamSpecType());
+                boolean isArrayType = actualBaseType.endsWith("[]");
+                for (PerseusParser.IdentifierContext id : group.identifier()) {
+                    String paramName = id.getText();
+                    proc.paramNames.add(paramName);
+                    proc.paramTypes.put(paramName, actualBaseType);
+                    proc.valueParams.add(paramName);
+                    if (isArrayType) {
+                        proc.arrayParams.add(paramName);
+                    }
+                }
+            }
+        }
+
+        procedures.put(name, proc);
     }
 
     @Override
@@ -278,6 +315,26 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     @Override
     public void enterLabel(PerseusParser.LabelContext ctx) {
         labels.add(ctx.getStart().getText());
+    }
+
+    private String getDeclaredReturnType(String firstToken) {
+        if ("integer".equals(firstToken)) return "integer";
+        if ("real".equals(firstToken)) return "real";
+        if ("string".equals(firstToken)) return "string";
+        return "void";
+    }
+
+    private String mapExternalParamType(PerseusParser.ExternalParamSpecTypeContext typeCtx) {
+        if (typeCtx instanceof PerseusParser.ExternalRealArrayParamTypeContext) return "real[]";
+        if (typeCtx instanceof PerseusParser.ExternalIntegerArrayParamTypeContext) return "integer[]";
+        if (typeCtx instanceof PerseusParser.ExternalStringArrayParamTypeContext) return "string[]";
+        if (typeCtx instanceof PerseusParser.ExternalBooleanArrayParamTypeContext) return "boolean[]";
+        if (typeCtx instanceof PerseusParser.ExternalDefaultArrayParamTypeContext) return "real[]";
+        if (typeCtx instanceof PerseusParser.ExternalRealParamTypeContext) return "real";
+        if (typeCtx instanceof PerseusParser.ExternalIntegerParamTypeContext) return "integer";
+        if (typeCtx instanceof PerseusParser.ExternalStringParamTypeContext) return "string";
+        if (typeCtx instanceof PerseusParser.ExternalBooleanParamTypeContext) return "boolean";
+        return "integer";
     }
 }
 
