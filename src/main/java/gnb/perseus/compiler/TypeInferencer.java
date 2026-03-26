@@ -2,26 +2,63 @@ package gnb.perseus.compiler;
 
 import gnb.perseus.compiler.antlr.PerseusBaseListener;
 import gnb.perseus.compiler.antlr.PerseusParser;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Pass 1.5: Type inference for expressions.
- * Walks the parse tree and annotates each ExprContext with its resolved type ("integer" or "real").
- * Uses the symbol table to look up variable types.
+ * Pass 1.5: infer expression types for code generation.
  */
 public class TypeInferencer extends PerseusBaseListener {
     private final String sourceName;
     private final Map<String, String> symbolTable;
+    private final Map<String, SymbolTableBuilder.ClassInfo> classes;
     private final Map<PerseusParser.ExprContext, String> exprTypes = new HashMap<>();
+    private final Deque<SymbolTableBuilder.ClassInfo> classStack = new ArrayDeque<>();
+    private final Deque<SymbolTableBuilder.MethodInfo> methodStack = new ArrayDeque<>();
 
-    public TypeInferencer(String sourceName, Map<String, String> symbolTable) {
+    public TypeInferencer(String sourceName, Map<String, String> symbolTable,
+            Map<String, SymbolTableBuilder.ClassInfo> classes) {
         this.sourceName = sourceName;
         this.symbolTable = symbolTable;
+        this.classes = classes != null ? classes : Map.of();
     }
 
     public Map<PerseusParser.ExprContext, String> getExprTypes() {
         return exprTypes;
+    }
+
+    @Override
+    public void enterClassDecl(PerseusParser.ClassDeclContext ctx) {
+        SymbolTableBuilder.ClassInfo cls = classes.get(ctx.identifier().getText());
+        if (cls != null) {
+            classStack.push(cls);
+        }
+    }
+
+    @Override
+    public void exitClassDecl(PerseusParser.ClassDeclContext ctx) {
+        if (!classStack.isEmpty()) {
+            classStack.pop();
+        }
+    }
+
+    @Override
+    public void enterProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
+        if (!classStack.isEmpty()) {
+            SymbolTableBuilder.MethodInfo method = classStack.peek().methods.get(ctx.identifier().getText());
+            if (method != null) {
+                methodStack.push(method);
+            }
+        }
+    }
+
+    @Override
+    public void exitProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
+        if (!methodStack.isEmpty()) {
+            methodStack.pop();
+        }
     }
 
     @Override
@@ -38,14 +75,11 @@ public class TypeInferencer extends PerseusBaseListener {
         if ("div".equals(op)) {
             resultType = "integer";
         } else if ("/".equals(op)) {
-            resultType = "real"; // / always real
+            resultType = "real";
+        } else if ("deferred".equals(leftType) || "deferred".equals(rightType)) {
+            resultType = "real";
         } else {
-            // deferred type means runtime-dispatch numeric type, so treat as real in arithmetic
-            if ("deferred".equals(leftType) || "deferred".equals(rightType)) {
-                resultType = "real";
-            } else {
-                resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
-            }
+            resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
         }
         exprTypes.put(ctx, resultType);
     }
@@ -54,12 +88,7 @@ public class TypeInferencer extends PerseusBaseListener {
     public void exitPowExpr(PerseusParser.PowExprContext ctx) {
         String leftType = exprTypes.get(ctx.expr(0));
         String rightType = exprTypes.get(ctx.expr(1));
-        String resultType;
-        if ("deferred".equals(leftType) || "deferred".equals(rightType)) {
-            resultType = "real";
-        } else {
-            resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
-        }
+        String resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
         exprTypes.put(ctx, resultType);
     }
 
@@ -67,53 +96,28 @@ public class TypeInferencer extends PerseusBaseListener {
     public void exitAddSubExpr(PerseusParser.AddSubExprContext ctx) {
         String leftType = exprTypes.get(ctx.expr(0));
         String rightType = exprTypes.get(ctx.expr(1));
-        String resultType;
-        if ("deferred".equals(leftType) || "deferred".equals(rightType)) {
-            resultType = "real";
-        } else {
-            resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
-        }
+        String resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
         exprTypes.put(ctx, resultType);
     }
 
     @Override
     public void exitAndExpr(PerseusParser.AndExprContext ctx) {
-        String leftType = exprTypes.get(ctx.expr(0));
-        String rightType = exprTypes.get(ctx.expr(1));
-        if (!"boolean".equals(leftType) || !"boolean".equals(rightType)) {
-            throw error(ctx, "PERS2003", "& operator requires boolean operands");
-        }
-        exprTypes.put(ctx, "boolean");
+        requireBooleanOperands(ctx.expr(0), ctx.expr(1), ctx, "PERS2003", "& operator requires boolean operands");
     }
 
     @Override
     public void exitOrExpr(PerseusParser.OrExprContext ctx) {
-        String leftType = exprTypes.get(ctx.expr(0));
-        String rightType = exprTypes.get(ctx.expr(1));
-        if (!"boolean".equals(leftType) || !"boolean".equals(rightType)) {
-            throw error(ctx, "PERS2004", "or operator requires boolean operands");
-        }
-        exprTypes.put(ctx, "boolean");
+        requireBooleanOperands(ctx.expr(0), ctx.expr(1), ctx, "PERS2004", "or operator requires boolean operands");
     }
 
     @Override
     public void exitImpExpr(PerseusParser.ImpExprContext ctx) {
-        String leftType = exprTypes.get(ctx.expr(0));
-        String rightType = exprTypes.get(ctx.expr(1));
-        if (!"boolean".equals(leftType) || !"boolean".equals(rightType)) {
-            throw error(ctx, "PERS2006", "imp operator requires boolean operands");
-        }
-        exprTypes.put(ctx, "boolean");
+        requireBooleanOperands(ctx.expr(0), ctx.expr(1), ctx, "PERS2006", "imp operator requires boolean operands");
     }
 
     @Override
     public void exitEqvExpr(PerseusParser.EqvExprContext ctx) {
-        String leftType = exprTypes.get(ctx.expr(0));
-        String rightType = exprTypes.get(ctx.expr(1));
-        if (!"boolean".equals(leftType) || !"boolean".equals(rightType)) {
-            throw error(ctx, "PERS2007", "eqv operator requires boolean operands");
-        }
-        exprTypes.put(ctx, "boolean");
+        requireBooleanOperands(ctx.expr(0), ctx.expr(1), ctx, "PERS2007", "eqv operator requires boolean operands");
     }
 
     @Override
@@ -128,40 +132,31 @@ public class TypeInferencer extends PerseusBaseListener {
     @Override
     public void exitVarExpr(PerseusParser.VarExprContext ctx) {
         String varName = ctx.identifier().getText();
-        
-        // Check for environmental constants
         if ("maxreal".equals(varName) || "minreal".equals(varName) || "epsilon".equals(varName)) {
             exprTypes.put(ctx, "real");
             return;
-        } else if ("maxint".equals(varName)) {
+        }
+        if ("maxint".equals(varName)) {
             exprTypes.put(ctx, "integer");
             return;
         }
-        
-        // Regular variable lookup
-        String type = symbolTable.get(varName);
+
+        String type = lookupType(varName);
         if (type == null) {
             throw error(ctx, "PERS2001", "Undeclared variable: " + varName);
         }
-        // call-by-name parameters are stored as "thunk:base" in the symbol table;
-        // for type inference we only care about the underlying base type.
         if (type.startsWith("thunk:")) {
             type = type.substring("thunk:".length());
         }
-        // Algol allows parameters without an explicit type (deferred typing).
-        // Keep deferred as 'deferred' in expression typing so codegen can do
-        // runtime dispatch instead of hard-casting to integer.
         exprTypes.put(ctx, type);
     }
 
     @Override
     public void exitArrayAccessExpr(PerseusParser.ArrayAccessExprContext ctx) {
         String arrName = ctx.identifier().getText();
-        String arrType = symbolTable.get(arrName);
+        String arrType = lookupType(arrName);
         if (arrType == null) throw error(ctx, "PERS2002", "Undeclared array: " + arrName);
-        // "integer[]" → "integer",  "real[]" → "real"
-        String elemType = arrType.endsWith("[]") ? arrType.substring(0, arrType.length() - 2) : arrType;
-        exprTypes.put(ctx, elemType);
+        exprTypes.put(ctx, arrType.endsWith("[]") ? arrType.substring(0, arrType.length() - 2) : arrType);
     }
 
     @Override
@@ -180,60 +175,101 @@ public class TypeInferencer extends PerseusBaseListener {
     }
 
     @Override
+    public void exitFalseLiteralExpr(PerseusParser.FalseLiteralExprContext ctx) {
+        exprTypes.put(ctx, "boolean");
+    }
+
+    @Override
     public void exitStringLiteralExpr(PerseusParser.StringLiteralExprContext ctx) {
         exprTypes.put(ctx, "string");
     }
 
     @Override
     public void exitUnaryMinusExpr(PerseusParser.UnaryMinusExprContext ctx) {
-        String innerType = exprTypes.get(ctx.expr());
-        exprTypes.put(ctx, innerType == null ? "integer" : innerType);
+        exprTypes.put(ctx, exprTypes.getOrDefault(ctx.expr(), "integer"));
     }
 
     @Override
     public void exitParenExpr(PerseusParser.ParenExprContext ctx) {
-        String innerType = exprTypes.get(ctx.expr());
-        exprTypes.put(ctx, innerType);
+        exprTypes.put(ctx, exprTypes.get(ctx.expr()));
     }
 
     @Override
     public void exitProcCallExpr(PerseusParser.ProcCallExprContext ctx) {
         String procName = ctx.identifier().getText();
-        
-        // Check for built-in math functions first
         String builtinType = getBuiltinFunctionType(procName);
         if (builtinType != null) {
             exprTypes.put(ctx, builtinType);
             return;
         }
-        
-        // Otherwise, look up user-defined procedure
-        String procType = symbolTable.get(procName);
+
+        String procType = lookupType(procName);
         if (procType != null && procType.startsWith("procedure:")) {
             exprTypes.put(ctx, procType.substring("procedure:".length()));
         }
     }
-    
-    @Override
-    public void exitFalseLiteralExpr(PerseusParser.FalseLiteralExprContext ctx) {
-        exprTypes.put(ctx, "boolean");
-    }
 
     @Override
     public void exitIfExpr(PerseusParser.IfExprContext ctx) {
-        // Result type is determined by the then-branch
-        String thenType = exprTypes.get(ctx.expr(1));
-        exprTypes.put(ctx, thenType != null ? thenType : "integer");
+        exprTypes.put(ctx, exprTypes.getOrDefault(ctx.expr(1), "integer"));
     }
 
-    /**
-     * Returns the return type of a built-in math function, or null if not recognized.
-     */
+    @Override
+    public void exitNewObjectExpr(PerseusParser.NewObjectExprContext ctx) {
+        exprTypes.put(ctx, "ref:" + ctx.identifier().getText());
+    }
+
+    @Override
+    public void exitMemberCallExpr(PerseusParser.MemberCallExprContext ctx) {
+        String receiverType = lookupType(ctx.identifier(0).getText());
+        if (receiverType == null || !receiverType.startsWith("ref:")) {
+            throw error(ctx, "PERS2008", "Member call requires an object reference: " + ctx.getText());
+        }
+        String className = receiverType.substring("ref:".length());
+        SymbolTableBuilder.ClassInfo cls = classes.get(className);
+        if (cls == null) {
+            throw error(ctx, "PERS2009", "Unknown class: " + className);
+        }
+        String memberName = ctx.identifier(1).getText();
+        SymbolTableBuilder.MethodInfo method = cls.methods.get(memberName);
+        if (method == null) {
+            throw error(ctx, "PERS2010", "Unknown class member: " + className + "." + memberName);
+        }
+        exprTypes.put(ctx, method.returnType);
+    }
+
+    private void requireBooleanOperands(PerseusParser.ExprContext left, PerseusParser.ExprContext right,
+            PerseusParser.ExprContext whole, String code, String message) {
+        if (!"boolean".equals(exprTypes.get(left)) || !"boolean".equals(exprTypes.get(right))) {
+            throw error(whole, code, message);
+        }
+        exprTypes.put(whole, "boolean");
+    }
+
+    private String lookupType(String name) {
+        SymbolTableBuilder.MethodInfo method = methodStack.peek();
+        if (method != null) {
+            String type = method.localVars.get(name);
+            if (type != null) return type;
+            type = method.paramTypes.get(name);
+            if (type != null) return type;
+        }
+
+        SymbolTableBuilder.ClassInfo cls = classStack.peek();
+        if (cls != null) {
+            String type = cls.fields.get(name);
+            if (type != null) return type;
+            type = cls.paramTypes.get(name);
+            if (type != null) return type;
+        }
+
+        return symbolTable.get(name);
+    }
+
     private String getBuiltinFunctionType(String name) {
         return switch (name) {
             case "sqrt", "abs", "sin", "cos", "arctan", "ln", "exp" -> "real";
-            case "iabs", "sign", "entier" -> "integer";
-            case "length" -> "integer";
+            case "iabs", "sign", "entier", "length" -> "integer";
             case "substring", "concat" -> "string";
             default -> null;
         };

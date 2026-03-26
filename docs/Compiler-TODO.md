@@ -773,11 +773,25 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Goal:** Add a class/object extension inspired by Simula 67, including a more natural model for external JVM classes (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
-- [ ] Design a minimal class syntax compatible with Algol/Simula style
-- [ ] Support instance fields, procedures, and object creation semantics
+- [x] Design and implement a minimal class syntax compatible with Algol/Simula style
+- [x] Support instance fields, procedures, and object creation semantics
+- [x] Support `ref(ClassName)` declarations, `new ClassName(...)`, and dotted member calls
+- [x] Add regression tests for simple object-oriented scenarios
 - [ ] Add external java class ... style declarations for imported JVM classes
 - [ ] Define how class-based interop relates to external procedures
-- [ ] Tests for simple object-oriented and Java interop scenarios
+- [ ] Add tests for class-based Java interop scenarios
+
+**Implementation notes:**
+- Basic class support now compiles class declarations into separate generated JVM classes that are assembled alongside the main program.
+- The current slice covers constructor-style class parameters, instance fields, instance procedures, `ref(...)` references, `new`, and dotted method calls.
+- Class procedures follow the Simula-style default of call-by-value.
+- Current regression drivers: `class_counter.alg`, `class_point.alg`, and `class_two_counters.alg`.
+
+**TBD: planned follow-on after Milestone 27**
+- External JVM class declarations and object interop
+- Inheritance/prefixing and virtual dispatch decisions
+- Richer member syntax such as explicit field selection versus zero-argument procedure calls
+- Exception-object/member access integration once Milestone 28 is in place
 
 ## Milestone 28 — Exceptions and Structured Recovery
 

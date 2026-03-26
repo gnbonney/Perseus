@@ -107,6 +107,13 @@ public class PerseusCompiler {
 			Files.writeString(procRefFile, procRef.getValue());
 		}
 
+		// Write each generated Perseus class as its own .j file
+		Map<String, String> classOutputs = codegen.getGeneratedClassOutputs();
+		for (Map.Entry<String, String> generatedClass : classOutputs.entrySet()) {
+			Path classFile = outputDir.resolve(generatedClass.getKey() + ".j");
+			Files.writeString(classFile, generatedClass.getValue());
+		}
+
 		// If there are any thunk classes, also emit the Thunk interface so the compiled
 		// program is self-contained and doesn't depend on the compiler's own class files.
 		if (!thunkOutputs.isEmpty()) {
@@ -147,6 +154,7 @@ public class PerseusCompiler {
 		if (java.nio.file.Files.exists(procIface)) {
 			assembleOne(procIface, classOutputDir);
 		}
+
 	}
 
 	private static void assembleOne(Path jasminFile, Path classOutputDir) throws IOException, InterruptedException {
@@ -212,6 +220,7 @@ public class PerseusCompiler {
 		Map<String, int[]> arrayBounds = symBuilder.getArrayBounds();
 		Map<String, java.util.List<int[]>> arrayBoundPairs = symBuilder.getArrayBoundPairs();
 		Map<String, SymbolTableBuilder.ProcInfo> procedures = symBuilder.getProcedures();
+		Map<String, SymbolTableBuilder.ClassInfo> classes = symBuilder.getClasses();
 		Map<String, PerseusParser.SwitchDeclContext> switchDeclarations = symBuilder.getSwitchDeclarations();
 		validateExternalProcedures(fileName, procedures, externalClassRoot);
 
@@ -323,7 +332,7 @@ public class PerseusCompiler {
 		int numLocals = Math.max(nextLocal, 1);
 
 		// Pass 1.5: type inference
-		TypeInferencer typeInf = new TypeInferencer(fileName, symbolTable);
+		TypeInferencer typeInf = new TypeInferencer(fileName, symbolTable, classes);
 		try {
 			walker.walk(typeInf, programContext);
 		} catch (DiagnosticException e) {
@@ -335,7 +344,7 @@ public class PerseusCompiler {
 		String source = Paths.get(fileName).getFileName().toString();
 		CodeGenerator codegen = new CodeGenerator(source, packageName, className,
 				mainSymbolTable, localIndex, numLocals, exprTypes, arrayBounds, arrayBoundPairs,
-				symBuilder.getProcedures(), switchDeclarations, procVarSlotsMap);
+				symBuilder.getProcedures(), classes, switchDeclarations, procVarSlotsMap);
 		walker.walk(codegen, programContext);
 		return codegen;
 	}

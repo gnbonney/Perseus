@@ -48,7 +48,18 @@ compoundStatement
   ;
 
 statement
-  : label? (procedureCall | externalProcedureDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | block)?
+  : label? (memberCall | procedureCall | classDecl | refDecl | externalProcedureDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | block)?
+  ;
+
+classDecl
+  : CLASS identifier ('(' paramList? ')')? ';'
+    valueSpec?
+    paramSpec*
+    block
+  ;
+
+refDecl
+  : REF '(' identifier ')' varList
   ;
 
 block
@@ -199,6 +210,8 @@ simpleDesignationalExpr
 expr
   : '-' expr                             # UnaryMinusExpr
   | ('~' | NOT) expr                     # NotExpr
+  | NEW identifier '(' argList? ')'      # NewObjectExpr
+  | identifier '.' identifier ('(' argList? ')')? # MemberCallExpr
   | expr op=('**'|'^') expr              # PowExpr
   | expr op=('*'|'/'|DIV_KW) expr        # MulDivExpr
   | expr op=('+'|'-') expr               # AddSubExpr
@@ -220,6 +233,8 @@ expr
   ;
 
 procedureCall: identifier ('(' argList? ')')?;
+
+memberCall: identifier '.' identifier ('(' argList? ')')?;
 
 identifier: IDENT;
 
@@ -271,6 +286,9 @@ EXTERNAL : 'external';
 ALGOL : 'algol';
 JAVA : 'java';
 STATIC : 'static';
+CLASS : 'class';
+REF : 'ref';
+NEW : 'new';
 TRUE : 'true';
 FALSE : 'false';
 

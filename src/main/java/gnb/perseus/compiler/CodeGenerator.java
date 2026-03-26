@@ -36,6 +36,7 @@ public class CodeGenerator extends PerseusBaseListener {
     private final String className;
     // Procedure definitions from SymbolTableBuilder (name → ProcInfo)
     private final Map<String, SymbolTableBuilder.ProcInfo> procedures;
+    private final Map<String, SymbolTableBuilder.ClassInfo> classes;
     // Switch declarations from SymbolTableBuilder (name -> parse context)
     private final Map<String, PerseusParser.SwitchDeclContext> switchDeclarations;
 
@@ -50,6 +51,7 @@ public class CodeGenerator extends PerseusBaseListener {
     private int procRefCounter = 0;
     // collects (shortClassName, jasminSource) for generated procedure reference classes
     private final List<Map.Entry<String,String>> procRefClassDefinitions = new ArrayList<>();
+    private final List<Map.Entry<String,String>> generatedClassDefinitions = new ArrayList<>();
 
     // --- Current context (swapped when entering/exiting procedures) ---
     private Map<String, String> currentSymbolTable;
@@ -82,6 +84,7 @@ public class CodeGenerator extends PerseusBaseListener {
     // Tracks whether the current procedure declaration is actually a procedure-variable declaration
     // (i.e., a `procedure p;` with no executable body) so we can skip generating a method for it.
     private final Deque<Boolean>              skipProcedureDeclStack = new LinkedList<>();
+    private int skippedClassDepth = 0;
 
     // Maps expression contexts to their inferred types ("integer" or "real")
     private final Map<PerseusParser.ExprContext, String> exprTypes;
@@ -131,6 +134,7 @@ public class CodeGenerator extends PerseusBaseListener {
                          Map<PerseusParser.ExprContext, String> exprTypes, Map<String, int[]> arrayBounds,
                          Map<String, List<int[]>> arrayBoundPairs,
                          Map<String, SymbolTableBuilder.ProcInfo> procedures,
+                         Map<String, SymbolTableBuilder.ClassInfo> classes,
                          Map<String, PerseusParser.SwitchDeclContext> switchDeclarations,
                          Map<String, Integer> procVarSlots) {
         this.source = source;
@@ -138,6 +142,7 @@ public class CodeGenerator extends PerseusBaseListener {
         this.className = className;
         this.exprTypes = exprTypes;
         this.procedures = procedures;
+        this.classes = classes != null ? classes : Map.of();
         this.switchDeclarations = switchDeclarations != null ? switchDeclarations : Map.of();
         this.procVarSlots = procVarSlots != null ? procVarSlots : Map.of();
         this.rootMainSymbolTable = symbolTable;
@@ -207,6 +212,37 @@ public class CodeGenerator extends PerseusBaseListener {
             result.put(e.getKey(), e.getValue());
         }
         return result;
+    }
+
+    public Map<String,String> getGeneratedClassOutputs() {
+        Map<String,String> result = new LinkedHashMap<>();
+        for (Map.Entry<String,String> e : generatedClassDefinitions) {
+            result.put(e.getKey(), e.getValue());
+        }
+        return result;
+    }
+
+    private boolean skippingClassSubtree() {
+        return skippedClassDepth > 0;
+    }
+
+    @Override
+    public void enterClassDecl(PerseusParser.ClassDeclContext ctx) {
+        skippedClassDepth++;
+    }
+
+    @Override
+    public void exitClassDecl(PerseusParser.ClassDeclContext ctx) {
+        String classDeclName = ctx.identifier().getText();
+        SymbolTableBuilder.ClassInfo cls = classes.get(classDeclName);
+        if (cls != null) {
+            generatedClassDefinitions.add(Map.entry(companionClassFileName(classDeclName), generateClassJasmin(cls)));
+        }
+        skippedClassDepth = Math.max(0, skippedClassDepth - 1);
+    }
+
+    private String companionClassFileName(String simpleClassName) {
+        return className + "$Class$" + simpleClassName;
     }
 
     @Override
@@ -334,6 +370,8 @@ public class CodeGenerator extends PerseusBaseListener {
                     mainCode.append("dconst_0\n");
                 } else if ("string".equals(type)) {
                     mainCode.append("ldc \"\"\n");
+                } else if (type != null && type.startsWith("ref:")) {
+                    mainCode.append("aconst_null\n");
                 }
                 mainCode.append("putstatic ").append(packageName).append("/").append(className)
                         .append("/").append(varName).append(" ").append(scalarTypeToJvmDesc(type)).append("\n");
@@ -406,6 +444,10 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void enterProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
+        if (skippingClassSubtree()) {
+            skipProcedureDeclStack.push(true);
+            return;
+        }
         String procName = ctx.identifier().getText();
         SymbolTableBuilder.ProcInfo info = procedures.get(procName);
 
@@ -862,6 +904,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitAssignment(PerseusParser.AssignmentContext ctx) {
+        if (skippingClassSubtree()) return;
         if (currentProcName == null) mainHadExecutableStatements = true;
         List<PerseusParser.LvalueContext> lvalues = ctx.lvalue();
 
@@ -952,6 +995,15 @@ public class CodeGenerator extends PerseusBaseListener {
             if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
             return "string".equals(vt);
         });
+        boolean anyRef = lvalues.stream().anyMatch(lv -> {
+            String lvName = lv.identifier().getText();
+            String vt = currentSymbolTable.get(lvName);
+            if (vt == null && mainSymbolTable != null) {
+                vt = mainSymbolTable.get(lvName);
+            }
+            if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
+            return vt != null && vt.startsWith("ref:");
+        });
         // A typed procedure name can denote either a procedure reference or the
         // procedure's implicit return variable. When the RHS is a procedure
         // reference, keep the existing procedure-variable behavior. Otherwise,
@@ -959,7 +1011,7 @@ public class CodeGenerator extends PerseusBaseListener {
         // return-value writes.
         boolean anyProcedure = lvalues.stream()
             .anyMatch(lv -> isProcedureVariableTarget(lv.identifier().getText(), rhsIsProcedureRef));
-        String storeType = anyProcedure ? "procedure" : anyReal ? "real" : anyString ? "string" : "integer";
+        String storeType = anyProcedure ? "procedure" : anyReal ? "real" : anyString ? "string" : anyRef ? "ref" : "integer";
 
         // Generate expression and widen if needed
         activeOutput.append(generateExpr(ctx.expr()));
@@ -975,7 +1027,7 @@ public class CodeGenerator extends PerseusBaseListener {
             tempSlot = allocateNewLocal("tmp");
             if ("real".equals(storeType)) {
                 emitStore("dstore", tempSlot);
-            } else if ("string".equals(storeType) || "procedure".equals(storeType)) {
+            } else if ("string".equals(storeType) || "procedure".equals(storeType) || "ref".equals(storeType)) {
                 emitStore("astore", tempSlot);
             } else {
                 emitStore("istore", tempSlot);
@@ -987,7 +1039,7 @@ public class CodeGenerator extends PerseusBaseListener {
             if (useTemp) {
                 if ("real".equals(storeType)) {
                     activeOutput.append("dload ").append(tempSlot).append("\n");
-                } else if ("string".equals(storeType) || "procedure".equals(storeType)) {
+                } else if ("string".equals(storeType) || "procedure".equals(storeType) || "ref".equals(storeType)) {
                     activeOutput.append("aload ").append(tempSlot).append("\n");
                 } else {
                     activeOutput.append("iload ").append(tempSlot).append("\n");
@@ -1159,7 +1211,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 // stack has the primitive/reference value; box it, then swap the thunk ref in
                 if ("real".equals(storeType)) {
                     activeOutput.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
-                } else if (!"string".equals(storeType)) {
+                } else if (!"string".equals(storeType) && !"ref".equals(storeType)) {
                     activeOutput.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
                 }
                 // push thunk ref (local if available, otherwise via env bridge), swap so order is: thunk, boxed_value
@@ -1195,14 +1247,15 @@ public class CodeGenerator extends PerseusBaseListener {
                                     .append("/").append(envThunkFieldName(currentProcName, name)).append(" D\n");
                     }
                 }
-            } else if ("string".equals(varType)) {
+            } else if ("string".equals(varType) || (varType != null && varType.startsWith("ref:"))) {
                 emitStore("astore", idx);
                 if (currentProcName != null && currentLocalIndex.containsKey(name)) {
                     SymbolTableBuilder.ProcInfo currInfo = procedures.get(currentProcName);
                     if (procedureNeedsLocalBridge(currInfo) && currInfo.localVars.containsKey(name) && !currInfo.ownVars.contains(name)) {
                         activeOutput.append("aload ").append(idx).append("\n");
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                    .append("/").append(envThunkFieldName(currentProcName, name)).append(" Ljava/lang/String;\n");
+                                    .append("/").append(envThunkFieldName(currentProcName, name)).append(" ")
+                                    .append(scalarTypeToJvmDesc(varType)).append("\n");
                     }
                 }
             } else if (isProcVar) {
@@ -1272,6 +1325,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitProcedureCall(PerseusParser.ProcedureCallContext ctx) {
+        if (skippingClassSubtree()) return;
         if (currentProcName == null) mainHadExecutableStatements = true;
         String name = ctx.identifier().getText();
         System.out.println("Processing procedure call: " + name);
@@ -1460,12 +1514,24 @@ public class CodeGenerator extends PerseusBaseListener {
         }
     }
 
+    @Override
+    public void exitMemberCall(PerseusParser.MemberCallContext ctx) {
+        if (skippingClassSubtree()) return;
+        if (currentProcName == null) mainHadExecutableStatements = true;
+        activeOutput.append(generateMemberInvocation(
+                ctx.identifier(0).getText(),
+                ctx.identifier(1).getText(),
+                ctx.argList() != null ? ctx.argList().arg() : List.of(),
+                true));
+    }
+
     // -------------------------------------------------------------------------
     // Labels and goto
     // -------------------------------------------------------------------------
 
     @Override
     public void enterLabel(PerseusParser.LabelContext ctx) {
+        if (skippingClassSubtree()) return;
         String labelName = ctx.getStart().getText();
         activeOutput.append(normalizeStatementLabel(labelName)).append(":\n");
     }
@@ -1477,6 +1543,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitGotoStatement(PerseusParser.GotoStatementContext ctx) {
+        if (skippingClassSubtree()) return;
         emitGotoDesignationalExpr(ctx.designationalExpr());
     }
 
@@ -1486,6 +1553,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void enterStatement(PerseusParser.StatementContext ctx) {
+        if (skippingClassSubtree()) return;
         if (ctx.getParent() instanceof PerseusParser.IfStatementContext ifCtx
                 && ifCtx.statement().size() > 1
                 && ctx == ifCtx.statement(1)) {
@@ -1518,6 +1586,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void enterIfStatement(PerseusParser.IfStatementContext ctx) {
+        if (skippingClassSubtree()) return;
         PerseusParser.ExprContext cond = ctx.expr();
         boolean hasElse = ctx.statement().size() > 1;
         String endLabel = generateUniqueLabel("endif");
@@ -1577,6 +1646,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitIfStatement(PerseusParser.IfStatementContext ctx) {
+        if (skippingClassSubtree()) return;
         String endLabel = ifEndLabelStack.pop();
         ifElseLabelStack.pop();
         activeOutput.append(endLabel).append(":\n");
@@ -1588,6 +1658,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void enterForStatement(PerseusParser.ForStatementContext ctx) {
+        if (skippingClassSubtree()) return;
         // Redirect all body code to a capture buffer; exitForStatement will
         // reconstruct the complete for-list structure with inline body duplication.
         forBodyStack.push(activeOutput);
@@ -1596,6 +1667,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitForStatement(PerseusParser.ForStatementContext ctx) {
+        if (skippingClassSubtree()) return;
         String bodyCode = activeOutput.toString();
         activeOutput = forBodyStack.pop();
 
@@ -2091,7 +2163,7 @@ public class CodeGenerator extends PerseusBaseListener {
             return "iload " + idx + "\n";
         } else if ("real".equals(type)) {
             return "dload " + idx + "\n";
-        } else if ("string".equals(type)) {
+        } else if ("string".equals(type) || (type != null && type.startsWith("ref:"))) {
             return "aload " + idx + "\n";
         } else if (type != null && type.endsWith("[]")) {
             return "aload " + idx + "\n";
@@ -3100,6 +3172,43 @@ public class CodeGenerator extends PerseusBaseListener {
         return sb.toString();
     }
 
+    private String generateMemberInvocation(String receiverName, String memberName,
+            List<PerseusParser.ArgContext> args, boolean isStatement) {
+        String receiverType = lookupVarType(receiverName);
+        if (receiverType == null || !receiverType.startsWith("ref:")) {
+            return "; ERROR: member call requires object reference " + receiverName + "\n";
+        }
+        String objectClass = receiverType.substring("ref:".length());
+        SymbolTableBuilder.ClassInfo cls = classes.get(objectClass);
+        SymbolTableBuilder.MethodInfo method = cls != null ? cls.methods.get(memberName) : null;
+        if (method == null) {
+            return "; ERROR: unknown class member " + objectClass + "." + memberName + "\n";
+        }
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(generateLoadVar(receiverName));
+        sb.append("checkcast ").append(packageName).append("/").append(objectClass).append("\n");
+        StringBuilder desc = new StringBuilder("(");
+        for (int i = 0; i < args.size(); i++) {
+            PerseusParser.ExprContext argExpr = args.get(i).expr();
+            String argType = exprTypes.getOrDefault(argExpr, "integer");
+            String paramName = i < method.paramNames.size() ? method.paramNames.get(i) : null;
+            String paramType = paramName != null ? method.paramTypes.getOrDefault(paramName, "integer") : argType;
+            sb.append(generateExpr(argExpr));
+            if ("real".equals(paramType) && "integer".equals(argType)) {
+                sb.append("i2d\n");
+            }
+            desc.append(CodeGenUtils.getReturnTypeDescriptor(paramType));
+        }
+        desc.append(")").append(CodeGenUtils.getReturnTypeDescriptor(method.returnType));
+        sb.append("invokevirtual ").append(packageName).append("/").append(objectClass)
+          .append("/").append(memberName).append(desc).append("\n");
+        if (isStatement && !"void".equals(method.returnType)) {
+            sb.append("real".equals(method.returnType) ? "pop2\n" : "pop\n");
+        }
+        return sb.toString();
+    }
+
     private String generateExternalProcedureInvocation(String name, SymbolTableBuilder.ProcInfo info,
             List<PerseusParser.ArgContext> args, boolean isStatement) {
         StringBuilder sb = new StringBuilder();
@@ -3433,6 +3542,35 @@ public class CodeGenerator extends PerseusBaseListener {
                 + "iconst_1\nixor\n";
         } else if (ctx instanceof PerseusParser.NotExprContext e) {
             return generateExpr(e.expr(), varToFieldIndex) + "iconst_1\nixor\n";
+        } else if (ctx instanceof PerseusParser.NewObjectExprContext e) {
+            String objectClass = e.identifier().getText();
+            SymbolTableBuilder.ClassInfo cls = classes.get(objectClass);
+            StringBuilder sb = new StringBuilder();
+            sb.append("new ").append(packageName).append("/").append(objectClass).append("\n");
+            sb.append("dup\n");
+            List<PerseusParser.ArgContext> args = e.argList() != null ? e.argList().arg() : List.of();
+            StringBuilder ctorDesc = new StringBuilder("(");
+            for (int i = 0; i < args.size(); i++) {
+                PerseusParser.ExprContext argExpr = args.get(i).expr();
+                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                String paramName = cls != null && i < cls.paramNames.size() ? cls.paramNames.get(i) : null;
+                String paramType = paramName != null ? cls.paramTypes.getOrDefault(paramName, "integer") : argType;
+                sb.append(generateExpr(argExpr, varToFieldIndex));
+                if ("real".equals(paramType) && "integer".equals(argType)) {
+                    sb.append("i2d\n");
+                }
+                ctorDesc.append(CodeGenUtils.getReturnTypeDescriptor(paramType));
+            }
+            ctorDesc.append(")V");
+            sb.append("invokespecial ").append(packageName).append("/").append(objectClass)
+              .append("/<init>").append(ctorDesc).append("\n");
+            return sb.toString();
+        } else if (ctx instanceof PerseusParser.MemberCallExprContext e) {
+            return generateMemberInvocation(
+                    e.identifier(0).getText(),
+                    e.identifier(1).getText(),
+                    e.argList() != null ? e.argList().arg() : List.of(),
+                    false);
         } else if (ctx instanceof PerseusParser.VarExprContext e) {
             String name = e.identifier().getText();
 
@@ -3941,6 +4079,331 @@ public class CodeGenerator extends PerseusBaseListener {
           .append(CodeGenUtils.getReturnTypeDescriptor(returnType))
           .append(" 2\n");
         return sb.toString();
+    }
+
+    private String generateClassJasmin(SymbolTableBuilder.ClassInfo cls) {
+        StringBuilder sb = new StringBuilder();
+        String internalName = packageName + "/" + cls.name;
+        sb.append(".source ").append(source).append("\n");
+        sb.append(".class public ").append(internalName).append("\n");
+        sb.append(".super java/lang/Object\n\n");
+
+        for (String paramName : cls.paramNames) {
+            String type = cls.paramTypes.getOrDefault(paramName, "integer");
+            sb.append(".field private ").append(paramName).append(" ")
+              .append(CodeGenUtils.scalarTypeToJvmDesc(type)).append("\n");
+        }
+        for (Map.Entry<String, String> field : cls.fields.entrySet()) {
+            sb.append(".field private ").append(field.getKey()).append(" ")
+              .append(CodeGenUtils.scalarTypeToJvmDesc(field.getValue())).append("\n");
+        }
+        sb.append("\n");
+
+        sb.append(generateClassConstructor(cls));
+        for (Map.Entry<String, SymbolTableBuilder.MethodInfo> methodEntry : cls.methods.entrySet()) {
+            sb.append(generateClassMethod(cls, methodEntry.getKey(), methodEntry.getValue()));
+        }
+        return sb.toString();
+    }
+
+    private String generateClassConstructor(SymbolTableBuilder.ClassInfo cls) {
+        StringBuilder sb = new StringBuilder();
+        Map<String, Integer> paramSlots = new LinkedHashMap<>();
+        int nextSlot = 1;
+        StringBuilder desc = new StringBuilder("(");
+        for (String paramName : cls.paramNames) {
+            String type = cls.paramTypes.getOrDefault(paramName, "integer");
+            paramSlots.put(paramName, nextSlot);
+            desc.append(CodeGenUtils.getReturnTypeDescriptor(type));
+            nextSlot += "real".equals(type) ? 2 : 1;
+        }
+        desc.append(")V");
+
+        sb.append(".method public <init>").append(desc).append("\n")
+          .append(".limit stack 64\n")
+          .append(".limit locals 64\n")
+          .append("aload_0\n")
+          .append("invokespecial java/lang/Object/<init>()V\n");
+
+        for (Map.Entry<String, String> field : cls.fields.entrySet()) {
+            String type = field.getValue();
+            sb.append("aload_0\n");
+            if ("real".equals(type)) {
+                sb.append("dconst_0\n");
+            } else if ("string".equals(type)) {
+                sb.append("ldc \"\"\n");
+            } else if (type != null && type.startsWith("ref:")) {
+                sb.append("aconst_null\n");
+            } else {
+                sb.append("iconst_0\n");
+            }
+            sb.append("putfield ").append(packageName).append("/").append(cls.name).append("/")
+              .append(field.getKey()).append(" ").append(CodeGenUtils.scalarTypeToJvmDesc(type)).append("\n");
+        }
+
+        for (String paramName : cls.paramNames) {
+            String type = cls.paramTypes.getOrDefault(paramName, "integer");
+            int slot = paramSlots.get(paramName);
+            sb.append("aload_0\n");
+            if ("real".equals(type)) {
+                sb.append("dload ").append(slot).append("\n");
+            } else if ("string".equals(type) || type.startsWith("ref:")) {
+                sb.append("aload ").append(slot).append("\n");
+            } else {
+                sb.append("iload ").append(slot).append("\n");
+            }
+            sb.append("putfield ").append(packageName).append("/").append(cls.name).append("/")
+              .append(paramName).append(" ").append(CodeGenUtils.scalarTypeToJvmDesc(type)).append("\n");
+        }
+
+        Map<String, Integer> noLocals = Map.of();
+        PerseusParser.BlockContext block = cls.parseContext.block();
+        if (block != null && block.compoundStatement() != null) {
+            for (PerseusParser.StatementContext stmt : block.compoundStatement().statement()) {
+                if (stmt.procedureDecl() != null) continue;
+                sb.append(generateClassStatement(cls, null, stmt, noLocals, -1));
+            }
+        }
+
+        sb.append("return\n")
+          .append(".end method\n\n");
+        return sb.toString();
+    }
+
+    private String generateClassMethod(SymbolTableBuilder.ClassInfo cls, String methodName, SymbolTableBuilder.MethodInfo method) {
+        Map<String, Integer> localSlots = new LinkedHashMap<>();
+        int nextSlot = 1;
+        StringBuilder desc = new StringBuilder("(");
+        for (String paramName : method.paramNames) {
+            String type = method.paramTypes.getOrDefault(paramName, "integer");
+            localSlots.put(paramName, nextSlot);
+            desc.append(CodeGenUtils.getReturnTypeDescriptor(type));
+            nextSlot += "real".equals(type) ? 2 : 1;
+        }
+        for (Map.Entry<String, String> local : method.localVars.entrySet()) {
+            localSlots.put(local.getKey(), nextSlot);
+            nextSlot += "real".equals(local.getValue()) ? 2 : 1;
+        }
+        int returnSlot = -1;
+        if (!"void".equals(method.returnType)) {
+            returnSlot = nextSlot;
+            nextSlot += "real".equals(method.returnType) ? 2 : 1;
+        }
+        desc.append(")").append(CodeGenUtils.getReturnTypeDescriptor(method.returnType));
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(".method public ").append(methodName).append(desc).append("\n")
+          .append(".limit stack 64\n")
+          .append(".limit locals 64\n");
+
+        for (Map.Entry<String, String> local : method.localVars.entrySet()) {
+            int slot = localSlots.get(local.getKey());
+            String type = local.getValue();
+            if ("real".equals(type)) {
+                sb.append("dconst_0\n").append("dstore ").append(slot).append("\n");
+            } else if ("string".equals(type)) {
+                sb.append("ldc \"\"\n").append("astore ").append(slot).append("\n");
+            } else if (type != null && type.startsWith("ref:")) {
+                sb.append("aconst_null\n").append("astore ").append(slot).append("\n");
+            } else {
+                sb.append("iconst_0\n").append("istore ").append(slot).append("\n");
+            }
+        }
+        if (returnSlot >= 0) {
+            if ("real".equals(method.returnType)) {
+                sb.append("dconst_0\n").append("dstore ").append(returnSlot).append("\n");
+            } else if ("string".equals(method.returnType) || method.returnType.startsWith("ref:")) {
+                sb.append("aconst_null\n").append("astore ").append(returnSlot).append("\n");
+            } else {
+                sb.append("iconst_0\n").append("istore ").append(returnSlot).append("\n");
+            }
+        }
+
+        sb.append(generateClassStatement(cls, method, method.parseContext != null ? method.parseContext.statement() : null, localSlots, returnSlot));
+
+        if ("void".equals(method.returnType)) {
+            sb.append("return\n");
+        } else if ("real".equals(method.returnType)) {
+            sb.append("dload ").append(returnSlot).append("\n").append("dreturn\n");
+        } else if ("string".equals(method.returnType) || method.returnType.startsWith("ref:")) {
+            sb.append("aload ").append(returnSlot).append("\n").append("areturn\n");
+        } else {
+            sb.append("iload ").append(returnSlot).append("\n").append("ireturn\n");
+        }
+        sb.append(".end method\n\n");
+        return sb.toString();
+    }
+
+    private String generateClassStatement(SymbolTableBuilder.ClassInfo cls, SymbolTableBuilder.MethodInfo method,
+            PerseusParser.StatementContext stmt, Map<String, Integer> localSlots, int returnSlot) {
+        if (stmt == null) return "";
+        if (stmt.block() != null && stmt.block().compoundStatement() != null) {
+            StringBuilder sb = new StringBuilder();
+            for (PerseusParser.StatementContext inner : stmt.block().compoundStatement().statement()) {
+                if (inner.procedureDecl() != null) continue;
+                sb.append(generateClassStatement(cls, method, inner, localSlots, returnSlot));
+            }
+            return sb.toString();
+        }
+        if (stmt.assignment() != null) {
+            return generateClassAssignment(cls, method, stmt.assignment(), localSlots, returnSlot);
+        }
+        if (stmt.memberCall() != null) {
+            return "";
+        }
+        return "";
+    }
+
+    private String generateClassAssignment(SymbolTableBuilder.ClassInfo cls, SymbolTableBuilder.MethodInfo method,
+            PerseusParser.AssignmentContext assignment, Map<String, Integer> localSlots, int returnSlot) {
+        if (assignment.lvalue().isEmpty()) return "";
+        PerseusParser.LvalueContext target = assignment.lvalue(0);
+        String targetName = target.identifier().getText();
+        String valueType = resolveClassType(cls, method, targetName);
+        String exprType = exprTypes.getOrDefault(assignment.expr(), "integer");
+        StringBuilder valueCode = new StringBuilder();
+        valueCode.append(generateClassExpr(cls, method, assignment.expr(), localSlots, returnSlot));
+        if ("real".equals(valueType) && "integer".equals(exprType)) {
+            valueCode.append("i2d\n");
+        }
+
+        if (method != null && targetName.equals(findMethodName(cls, method)) && returnSlot >= 0) {
+            StringBuilder sb = new StringBuilder(valueCode);
+            if ("real".equals(method.returnType)) {
+                sb.append("dstore ").append(returnSlot).append("\n");
+            } else if ("string".equals(method.returnType) || method.returnType.startsWith("ref:")) {
+                sb.append("astore ").append(returnSlot).append("\n");
+            } else {
+                sb.append("istore ").append(returnSlot).append("\n");
+            }
+            return sb.toString();
+        }
+
+        Integer localSlot = localSlots.get(targetName);
+        if (localSlot != null) {
+            StringBuilder sb = new StringBuilder(valueCode);
+            if ("real".equals(valueType)) {
+                sb.append("dstore ").append(localSlot).append("\n");
+            } else if ("string".equals(valueType) || (valueType != null && valueType.startsWith("ref:"))) {
+                sb.append("astore ").append(localSlot).append("\n");
+            } else {
+                sb.append("istore ").append(localSlot).append("\n");
+            }
+            return sb.toString();
+        }
+
+        StringBuilder sb = new StringBuilder();
+        if ("real".equals(valueType)) {
+            sb.append("aload_0\n");
+            sb.append(valueCode);
+            sb.append("putfield ").append(packageName).append("/").append(cls.name).append("/")
+              .append(targetName).append(" ").append(CodeGenUtils.scalarTypeToJvmDesc(valueType)).append("\n");
+        } else {
+            sb.append("aload_0\n");
+            sb.append(valueCode);
+            sb.append("putfield ").append(packageName).append("/").append(cls.name).append("/")
+              .append(targetName).append(" ").append(CodeGenUtils.scalarTypeToJvmDesc(valueType)).append("\n");
+        }
+        return sb.toString();
+    }
+
+    private String generateClassExpr(SymbolTableBuilder.ClassInfo cls, SymbolTableBuilder.MethodInfo method,
+            PerseusParser.ExprContext expr, Map<String, Integer> localSlots, int returnSlot) {
+        if (expr instanceof PerseusParser.RealLiteralExprContext e) {
+            return "ldc2_w " + e.realLiteral().getText() + "d\n";
+        }
+        if (expr instanceof PerseusParser.IntLiteralExprContext e) {
+            return "ldc " + e.unsignedInt().getText() + "\n";
+        }
+        if (expr instanceof PerseusParser.StringLiteralExprContext e) {
+            return "ldc " + e.string().getText() + "\n";
+        }
+        if (expr instanceof PerseusParser.VarExprContext e) {
+            String name = e.identifier().getText();
+            if (method != null && name.equals(findMethodName(cls, method)) && returnSlot >= 0) {
+                if ("real".equals(method.returnType)) return "dload " + returnSlot + "\n";
+                if ("string".equals(method.returnType) || method.returnType.startsWith("ref:")) return "aload " + returnSlot + "\n";
+                return "iload " + returnSlot + "\n";
+            }
+            Integer localSlot = localSlots.get(name);
+            String type = resolveClassType(cls, method, name);
+            if (localSlot != null) {
+                if ("real".equals(type)) return "dload " + localSlot + "\n";
+                if ("string".equals(type) || (type != null && type.startsWith("ref:"))) return "aload " + localSlot + "\n";
+                return "iload " + localSlot + "\n";
+            }
+            return "aload_0\ngetfield " + packageName + "/" + cls.name + "/" + name + " "
+                    + CodeGenUtils.scalarTypeToJvmDesc(type) + "\n";
+        }
+        if (expr instanceof PerseusParser.ParenExprContext e) {
+            return generateClassExpr(cls, method, e.expr(), localSlots, returnSlot);
+        }
+        if (expr instanceof PerseusParser.UnaryMinusExprContext e) {
+            String type = exprTypes.getOrDefault(expr, "integer");
+            return generateClassExpr(cls, method, e.expr(), localSlots, returnSlot)
+                    + ("real".equals(type) ? "dneg\n" : "ineg\n");
+        }
+        if (expr instanceof PerseusParser.AddSubExprContext e) {
+            String leftType = exprTypes.getOrDefault(e.expr(0), "integer");
+            String rightType = exprTypes.getOrDefault(e.expr(1), "integer");
+            String resultType = exprTypes.getOrDefault(expr, "integer");
+            String left = generateClassExpr(cls, method, e.expr(0), localSlots, returnSlot);
+            String right = generateClassExpr(cls, method, e.expr(1), localSlots, returnSlot);
+            if ("real".equals(resultType) && "integer".equals(leftType)) left += "i2d\n";
+            if ("real".equals(resultType) && "integer".equals(rightType)) right += "i2d\n";
+            return left + right + ("real".equals(resultType)
+                    ? ("+".equals(e.op.getText()) ? "dadd\n" : "dsub\n")
+                    : ("+".equals(e.op.getText()) ? "iadd\n" : "isub\n"));
+        }
+        if (expr instanceof PerseusParser.MulDivExprContext e) {
+            String leftType = exprTypes.getOrDefault(e.expr(0), "integer");
+            String rightType = exprTypes.getOrDefault(e.expr(1), "integer");
+            String resultType = exprTypes.getOrDefault(expr, "integer");
+            String left = generateClassExpr(cls, method, e.expr(0), localSlots, returnSlot);
+            String right = generateClassExpr(cls, method, e.expr(1), localSlots, returnSlot);
+            if ("real".equals(resultType) && "integer".equals(leftType)) left += "i2d\n";
+            if ("real".equals(resultType) && "integer".equals(rightType)) right += "i2d\n";
+            String op = e.op.getText();
+            return left + right + ("real".equals(resultType)
+                    ? ("*".equals(op) ? "dmul\n" : "ddiv\n")
+                    : ("*".equals(op) ? "imul\n" : "idiv\n"));
+        }
+        if (expr instanceof PerseusParser.ProcCallExprContext e) {
+            String name = e.identifier().getText();
+            List<PerseusParser.ArgContext> args = e.argList() != null ? e.argList().arg() : List.of();
+            if ("sqrt".equals(name) && args.size() == 1) {
+                String argType = exprTypes.getOrDefault(args.get(0).expr(), "integer");
+                String argCode = generateClassExpr(cls, method, args.get(0).expr(), localSlots, returnSlot);
+                if ("integer".equals(argType)) {
+                    argCode += "i2d\n";
+                }
+                return argCode + "invokestatic java/lang/Math/sqrt(D)D\n";
+            }
+        }
+        return "";
+    }
+
+    private String resolveClassType(SymbolTableBuilder.ClassInfo cls, SymbolTableBuilder.MethodInfo method, String name) {
+        if (method != null) {
+            String type = method.localVars.get(name);
+            if (type != null) return type;
+            type = method.paramTypes.get(name);
+            if (type != null) return type;
+        }
+        String type = cls.fields.get(name);
+        if (type != null) return type;
+        type = cls.paramTypes.get(name);
+        if (type != null) return type;
+        return "integer";
+    }
+
+    private String findMethodName(SymbolTableBuilder.ClassInfo cls, SymbolTableBuilder.MethodInfo method) {
+        for (Map.Entry<String, SymbolTableBuilder.MethodInfo> entry : cls.methods.entrySet()) {
+            if (entry.getValue() == method) {
+                return entry.getKey();
+            }
+        }
+        return null;
     }
 }
 

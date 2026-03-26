@@ -12,30 +12,34 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * First-pass listener: builds symbol table (variables, types, scopes).
- * Uses LinkedHashMap to preserve declaration order for stable local variable slot assignment.
+ * First-pass listener: builds symbol table metadata for main-scope variables,
+ * procedures, arrays, labels, and the first slice of Perseus classes.
  */
 public class SymbolTableBuilder extends PerseusBaseListener {
-    // Ordered symbol table: name → type for ALL scopes (used by TypeInferencer)
     private final Map<String, String> symbolTable = new LinkedHashMap<>();
-    // Main-scope only symbol table: name → type (used for JVM slot assignment in main method)
     private final Map<String, String> mainSymbolTable = new LinkedHashMap<>();
-    // Set of label names (for forward reference checking)
     private final Set<String> labels = new LinkedHashSet<>();
-    // Array bounds: name → [lowerBound, upperBound]
     private final Map<String, int[]> arrayBounds = new LinkedHashMap<>();
     private final Map<String, List<int[]>> arrayBoundPairs = new LinkedHashMap<>();
-    // Procedure definitions: name → ProcInfo
     private final Map<String, ProcInfo> procedures = new LinkedHashMap<>();
-    // Switch declarations: name → parse context
+    private final Map<String, ClassInfo> classes = new LinkedHashMap<>();
     private final Map<String, PerseusParser.SwitchDeclContext> switchDeclarations = new LinkedHashMap<>();
-    // Stack of currently-open procedure declarations (supports nested procedures like manboy)
     private final Deque<ProcInfo> procStack = new ArrayDeque<>();
+    private final Deque<ClassInfo> classStack = new ArrayDeque<>();
+    private final Deque<MethodInfo> methodStack = new ArrayDeque<>();
 
-    /** Convenience accessor: returns the innermost open procedure, or null if at top level. */
-    private ProcInfo currentProc() { return procStack.isEmpty() ? null : procStack.peek(); }
+    private ProcInfo currentProc() {
+        return procStack.isEmpty() ? null : procStack.peek();
+    }
 
-    /** Metadata for a declared procedure. */
+    private ClassInfo currentClass() {
+        return classStack.isEmpty() ? null : classStack.peek();
+    }
+
+    private MethodInfo currentMethod() {
+        return methodStack.isEmpty() ? null : methodStack.peek();
+    }
+
     public static class ProcInfo {
         public final String returnType;
         public final List<String> paramNames = new ArrayList<>();
@@ -55,11 +59,39 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         }
     }
 
+    public static class MethodInfo {
+        public final String returnType;
+        public final PerseusParser.ProcedureDeclContext parseContext;
+        public final List<String> paramNames = new ArrayList<>();
+        public final Map<String, String> paramTypes = new LinkedHashMap<>();
+        public final Set<String> valueParams = new LinkedHashSet<>();
+        public final Map<String, String> localVars = new LinkedHashMap<>();
+
+        public MethodInfo(String returnType, PerseusParser.ProcedureDeclContext parseContext) {
+            this.returnType = returnType;
+            this.parseContext = parseContext;
+        }
+    }
+
+    public static class ClassInfo {
+        public final String name;
+        public final PerseusParser.ClassDeclContext parseContext;
+        public final List<String> paramNames = new ArrayList<>();
+        public final Map<String, String> paramTypes = new LinkedHashMap<>();
+        public final Set<String> valueParams = new LinkedHashSet<>();
+        public final Map<String, String> fields = new LinkedHashMap<>();
+        public final Map<String, MethodInfo> methods = new LinkedHashMap<>();
+
+        public ClassInfo(String name, PerseusParser.ClassDeclContext parseContext) {
+            this.name = name;
+            this.parseContext = parseContext;
+        }
+    }
+
     public Map<String, String> getSymbolTable() {
         return symbolTable;
     }
 
-    /** Returns only main-scope variables (no procedure locals/params). Used for JVM slot assignment. */
     public Map<String, String> getMainSymbolTable() {
         return mainSymbolTable;
     }
@@ -80,21 +112,51 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         return procedures;
     }
 
+    public Map<String, ClassInfo> getClasses() {
+        return classes;
+    }
+
     public Map<String, PerseusParser.SwitchDeclContext> getSwitchDeclarations() {
         return switchDeclarations;
     }
 
     @Override
+    public void enterClassDecl(PerseusParser.ClassDeclContext ctx) {
+        String name = ctx.identifier().getText();
+        ClassInfo cls = new ClassInfo(name, ctx);
+        if (ctx.paramList() != null) {
+            for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
+                cls.paramNames.add(id.getText());
+            }
+        }
+        classes.put(name, cls);
+        classStack.push(cls);
+    }
+
+    @Override
+    public void exitClassDecl(PerseusParser.ClassDeclContext ctx) {
+        classStack.pop();
+    }
+
+    @Override
     public void enterProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
+        if (currentClass() != null) {
+            String returnType = getDeclaredReturnType(ctx.getStart().getText());
+            String name = ctx.identifier().getText();
+            MethodInfo method = new MethodInfo(returnType, ctx);
+            if (ctx.paramList() != null) {
+                for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
+                    method.paramNames.add(id.getText());
+                }
+            }
+            currentClass().methods.put(name, method);
+            methodStack.push(method);
+            return;
+        }
+
         String returnType = getDeclaredReturnType(ctx.getStart().getText());
         String name = ctx.identifier().getText();
-
-        // Add to global symbol table so TypeInferencer knows the return type
         symbolTable.put(name, "procedure:" + returnType);
-        
-        // Note: We used to add to mainSymbolTable here (which causes it to get a slot). 
-        // We now handle procedure variables (slots) through a manual scan in PerseusCompiler.
-        // mainSymbolTable.put(name, "procedure:" + returnType);
 
         ProcInfo outerProc = currentProc();
         if (outerProc != null) {
@@ -105,7 +167,6 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         procedures.put(name, newProc);
         procStack.push(newProc);
 
-        // Collect parameter names from formal-parameter-list
         if (ctx.paramList() != null) {
             for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
                 newProc.paramNames.add(id.getText());
@@ -155,13 +216,16 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
     @Override
     public void exitProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
-        // Add parameters to symbol table for type inference
+        if (currentMethod() != null) {
+            methodStack.pop();
+            return;
+        }
+
         ProcInfo proc = procStack.peek();
         if (proc != null) {
             for (String param : proc.paramNames) {
                 String baseType = proc.paramTypes.get(param);
                 if (baseType == null) baseType = proc.valueParams.contains(param) ? "integer" : "deferred";
-                // procedure-type params are value params (passed as ProcRef); others depend on valueParams set
                 if (baseType.startsWith("procedure:")) {
                     symbolTable.put(param, baseType);
                 } else {
@@ -175,6 +239,22 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
     @Override
     public void enterValueSpec(PerseusParser.ValueSpecContext ctx) {
+        MethodInfo method = currentMethod();
+        if (method != null) {
+            for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
+                method.valueParams.add(id.getText());
+            }
+            return;
+        }
+
+        ClassInfo cls = currentClass();
+        if (cls != null) {
+            for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
+                cls.valueParams.add(id.getText());
+            }
+            return;
+        }
+
         ProcInfo proc = currentProc();
         if (proc != null) {
             for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
@@ -185,54 +265,44 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
     @Override
     public void enterParamSpec(PerseusParser.ParamSpecContext ctx) {
+        MethodInfo method = currentMethod();
+        if (method != null) {
+            String actualBaseType = mapParamSpecType(ctx.paramSpecType());
+            for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
+                String paramName = id.getText();
+                method.paramTypes.put(paramName, actualBaseType);
+                method.valueParams.add(paramName);
+            }
+            return;
+        }
+
+        ClassInfo cls = currentClass();
+        if (cls != null) {
+            String actualBaseType = mapParamSpecType(ctx.paramSpecType());
+            for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
+                String paramName = id.getText();
+                cls.paramTypes.put(paramName, actualBaseType);
+                cls.valueParams.add(paramName);
+            }
+            return;
+        }
+
         ProcInfo proc = currentProc();
         if (proc != null) {
-            // Determine the type from the paramSpecType alternative
             PerseusParser.ParamSpecTypeContext typeCtx = ctx.paramSpecType();
-            String actualBaseType;
-            boolean isProcType = false;
-            boolean isArrayType = false;
-            if (typeCtx instanceof PerseusParser.RealProcedureParamTypeContext) {
-                actualBaseType = "procedure:real"; isProcType = true;
-            } else if (typeCtx instanceof PerseusParser.IntegerProcedureParamTypeContext) {
-                actualBaseType = "procedure:integer"; isProcType = true;
-            } else if (typeCtx instanceof PerseusParser.StringProcedureParamTypeContext) {
-                actualBaseType = "procedure:string"; isProcType = true;
-            } else if (typeCtx instanceof PerseusParser.VoidProcedureParamTypeContext) {
-                actualBaseType = "procedure:void"; isProcType = true;
-            } else if (typeCtx instanceof PerseusParser.RealArrayParamTypeContext) {
-                actualBaseType = "real[]"; isArrayType = true;
-            } else if (typeCtx instanceof PerseusParser.IntegerArrayParamTypeContext) {
-                actualBaseType = "integer[]"; isArrayType = true;
-            } else if (typeCtx instanceof PerseusParser.StringArrayParamTypeContext) {
-                actualBaseType = "string[]"; isArrayType = true;
-            } else if (typeCtx instanceof PerseusParser.BooleanArrayParamTypeContext) {
-                actualBaseType = "boolean[]"; isArrayType = true;
-            } else if (typeCtx instanceof PerseusParser.DefaultArrayParamTypeContext) {
-                actualBaseType = "real[]"; isArrayType = true;
-            } else if (typeCtx instanceof PerseusParser.RealParamTypeContext) {
-                actualBaseType = "real";
-            } else if (typeCtx instanceof PerseusParser.IntegerParamTypeContext) {
-                actualBaseType = "integer";
-            } else if (typeCtx instanceof PerseusParser.StringParamTypeContext) {
-                actualBaseType = "string";
-            } else if (typeCtx instanceof PerseusParser.BooleanParamTypeContext) {
-                actualBaseType = "boolean";
-            } else {
-                actualBaseType = "integer"; // fallback
-            }
+            String actualBaseType = mapParamSpecType(typeCtx);
+            boolean isProcType = actualBaseType.startsWith("procedure:");
+            boolean isArrayType = actualBaseType.endsWith("[]");
             for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
                 String paramName = id.getText();
                 proc.paramTypes.put(paramName, actualBaseType);
                 if (isProcType) {
-                    // Procedure parameters are passed as ProcRef objects (by value), not as thunks
                     proc.valueParams.add(paramName);
                 }
                 if (isArrayType) {
                     proc.valueParams.add(paramName);
                     proc.arrayParams.add(paramName);
                 }
-                // Add to global symbol table so TypeInferencer can resolve types of param uses
                 symbolTable.put(paramName, actualBaseType);
             }
         }
@@ -240,32 +310,42 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
     @Override
     public void enterVarDecl(PerseusParser.VarDeclContext ctx) {
-        // Check if this is a procedure variable declaration
         boolean isProcedure = ctx.PROCEDURE() != null;
         boolean isOwn = ctx.OWN() != null;
         String type;
         if (isProcedure) {
-            // Check if there's a return type specified
             if (ctx.REAL() != null) type = "procedure:real";
             else if (ctx.INTEGER() != null) type = "procedure:integer";
             else if (ctx.STRING() != null) type = "procedure:string";
-            else type = "procedure:void"; // untyped procedure variable
+            else type = "procedure:void";
         } else {
-            // Regular variable
             if (ctx.REAL() != null) type = "real";
             else if (ctx.INTEGER() != null) type = "integer";
             else if (ctx.BOOLEAN() != null) type = "boolean";
             else if (ctx.STRING() != null) type = "string";
-            else type = "integer"; // default
+            else type = "integer";
         }
-        
+
         for (PerseusParser.IdentifierContext idCtx : ctx.varList().identifier()) {
             String name = idCtx.getText();
+
+            MethodInfo method = currentMethod();
+            if (method != null) {
+                method.localVars.put(name, type);
+                symbolTable.put(name, type);
+                continue;
+            }
+
+            ClassInfo cls = currentClass();
+            if (cls != null) {
+                cls.fields.put(name, type);
+                continue;
+            }
+
             ProcInfo proc = currentProc();
-            System.out.println("DEBUG: Declaring variable " + name + " with type " + type + " in " + (proc == null ? "main" : proc.paramNames.contains(name) ? "params" : "locals"));
-            symbolTable.put(name, type); // always add to full table for TypeInferencer
+            symbolTable.put(name, type);
             if (proc == null) {
-                mainSymbolTable.put(name, type); // main scope only
+                mainSymbolTable.put(name, type);
             } else {
                 proc.localVars.put(name, type);
                 if (isOwn) {
@@ -277,6 +357,30 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     }
 
     @Override
+    public void enterRefDecl(PerseusParser.RefDeclContext ctx) {
+        String refType = "ref:" + ctx.identifier().getText();
+        for (PerseusParser.IdentifierContext idCtx : ctx.varList().identifier()) {
+            String name = idCtx.getText();
+
+            MethodInfo method = currentMethod();
+            if (method != null) {
+                method.localVars.put(name, refType);
+                symbolTable.put(name, refType);
+                continue;
+            }
+
+            ClassInfo cls = currentClass();
+            if (cls != null) {
+                cls.fields.put(name, refType);
+                continue;
+            }
+
+            symbolTable.put(name, refType);
+            mainSymbolTable.put(name, refType);
+        }
+    }
+
+    @Override
     public void enterArrayDecl(PerseusParser.ArrayDeclContext ctx) {
         boolean isOwn = ctx.OWN() != null;
         String elemType;
@@ -284,7 +388,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         else if (ctx.REAL() != null) elemType = "real";
         else if (ctx.STRING() != null) elemType = "string";
         else if (ctx.BOOLEAN() != null) elemType = "boolean";
-        else elemType = "real"; // bare 'array' defaults to real per Algol 60
+        else elemType = "real";
         String arrType = elemType + "[]";
         String name = ctx.identifier().getText();
         List<int[]> bounds = new ArrayList<>();
@@ -336,6 +440,21 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         if (typeCtx instanceof PerseusParser.ExternalBooleanParamTypeContext) return "boolean";
         return "integer";
     }
+
+    private String mapParamSpecType(PerseusParser.ParamSpecTypeContext typeCtx) {
+        if (typeCtx instanceof PerseusParser.RealProcedureParamTypeContext) return "procedure:real";
+        if (typeCtx instanceof PerseusParser.IntegerProcedureParamTypeContext) return "procedure:integer";
+        if (typeCtx instanceof PerseusParser.StringProcedureParamTypeContext) return "procedure:string";
+        if (typeCtx instanceof PerseusParser.VoidProcedureParamTypeContext) return "procedure:void";
+        if (typeCtx instanceof PerseusParser.RealArrayParamTypeContext) return "real[]";
+        if (typeCtx instanceof PerseusParser.IntegerArrayParamTypeContext) return "integer[]";
+        if (typeCtx instanceof PerseusParser.StringArrayParamTypeContext) return "string[]";
+        if (typeCtx instanceof PerseusParser.BooleanArrayParamTypeContext) return "boolean[]";
+        if (typeCtx instanceof PerseusParser.DefaultArrayParamTypeContext) return "real[]";
+        if (typeCtx instanceof PerseusParser.RealParamTypeContext) return "real";
+        if (typeCtx instanceof PerseusParser.IntegerParamTypeContext) return "integer";
+        if (typeCtx instanceof PerseusParser.StringParamTypeContext) return "string";
+        if (typeCtx instanceof PerseusParser.BooleanParamTypeContext) return "boolean";
+        return "integer";
+    }
 }
-
-

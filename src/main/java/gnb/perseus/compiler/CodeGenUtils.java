@@ -22,6 +22,7 @@ public class CodeGenUtils {
 
     public static String scalarTypeToJvmDesc(String type) {
         if (type == null) return "I";
+        if (type.startsWith("ref:")) return "Ljava/lang/Object;";
         return switch (type) {
             case "real"   -> "D";
             case "string" -> "Ljava/lang/String;";
@@ -31,6 +32,7 @@ public class CodeGenUtils {
 
     public static String getReturnTypeDescriptor(String type) {
         if (type == null) return "V";
+        if (type.startsWith("ref:")) return "Ljava/lang/Object;";
         return switch (type) {
             case "void"              -> "V";
             case "real"              -> "D";
@@ -42,6 +44,7 @@ public class CodeGenUtils {
 
     public static String getReturnInstruction(String type) {
         if (type == null) return "ireturn";
+        if (type.startsWith("ref:")) return "areturn";
         return switch (type) {
             case "real"   -> "dreturn";
             case "string" -> "areturn";
