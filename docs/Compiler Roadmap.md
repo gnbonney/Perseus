@@ -1,4 +1,4 @@
-# Compiler Development TODO
+# Compiler Roadmap
 
 This list follows an iterative, depth-first approach: get each sample program
 fully compiling and running before expanding to the next. Each milestone produces
@@ -40,74 +40,12 @@ Recent milestone wins:
 
 ---
 
-## Architecture: Two-Pass Compilation
+## Roadmap Scope
 
-The compiler will use (at minimum) two passes over the parse tree:
-
-**Pass 1 — Symbol table construction:** Walk the parse tree and collect all
-variable declarations, their types, and their scope (block nesting level).
-This is required before code generation because:
-- Jasmin requires `.limit locals N` *before* the method body — you must know
-  the total number of locals before emitting any instructions.
-- Forward `goto` references require knowing all labels in scope before emitting jumps.
-- Nested procedure declarations need to be lifted to static methods, which
-  requires knowing procedure signatures before their call sites are emitted.
-
-**Pass 1.5 — Type inference:** Walk the parse tree between symbol table construction and code generation, annotating every expression node with its resolved type. Required because `CodeGenerator` must select different JVM instructions depending on expression type (e.g. `iadd` vs. `dadd`).
-
-**Pass 2 — Code generation:** Walk the parse tree a third time using the symbol table from Pass 1 and the type annotations from Pass 1.5 to emit correct Jasmin instructions.
-
-The symbol table pass is not needed for Milestone 1 (no variables, no labels)
-but is required from **Milestone 2** onward. It should be designed and
-implemented as part of Milestone 2 before any variable codegen is attempted.
-
-See also: [Architecture.md](Architecture.md) and the
-ANTLR discussion linked there.
-
----
-
-### Design Decision: Separate Listener Classes for Two-Pass Compilation
-
-For Milestone 2 and beyond, we will use **separate listener classes**:
-- `SymbolTableBuilder`: First pass, walks the parse tree to build the symbol table (variables, types, scopes).
-- `CodeGenerator`: Second pass, walks the parse tree again to emit Jasmin code using the symbol table.
-
-**Rationale:**
-- Clear separation of concerns (symbol analysis vs. code generation)
-- Easier to test, debug, and extend each pass independently
-- Facilitates future expansion (adding IR, diagnostics, or more passes)
-- Symbol table logic can be reused for analysis, linting, or tooling
-- Aligns with best practices for modular, tool-friendly compiler design
-
-This approach may require more initial setup, but it will pay off as the compiler grows in complexity.
-
----
-
-### Design Decision: TypeInferencer Pass (Pass 1.5)
-
-Starting at **Milestone 4** (when `integer` variables are introduced alongside `real`), a third pass is required between `SymbolTableBuilder` and `CodeGenerator`:
-
-- `TypeInferencer`: Walks the parse tree, annotates every expression node with its resolved type (`integer` or `real`), and enforces the type rules of the Algol 60 Modified Report.
-
-**Why a separate pass?** The `CodeGenerator` must select different JVM instructions depending on expression type (e.g. `iadd` vs. `dadd`). Those types must be resolved before codegen begins, and the logic is complex enough to warrant its own class.
-
-**Type rules from §3.3.4 of the Modified Report:**
-
-| Expression | Operand types | Result type |
-|---|---|---|
-| `a + b`, `a - b`, `a × b` | both `integer` | `integer` |
-| `a + b`, `a - b`, `a × b` | either is `real` | `real` |
-| `a / b` | any combination | always `real` |
-| `a ÷ b` | must both be `integer` (type error otherwise) | `integer` |
-| `a ↑ b` | both `integer` | `integer` |
-| `a ↑ b` | either is `real` | `real` |
-| `if B then E1 else E2` | either branch is `real` | `real` |
-
-**Assignment coercion rules from §4.2.4:**
-- `integer` → `real`: silent widening
-- `real` → `integer`: automatic transfer function ⌊E + 0.5⌋ (round-half-up, **not** Java's truncating `(int)` cast — requires `Math.floor(E + 0.5)`)
-- `Boolean` ↔ arithmetic: **disallowed** (type error)
-- All destinations in a multiple-assignment (`a := b := expr`) must share the same type
+This document is intended to track milestones, status, and implementation
+priority. Architectural rationale such as the multi-pass compiler structure,
+the role of `TypeInferencer`, and JVM-lowering design decisions now lives in
+[Architecture.md](Architecture.md).
 
 ---
 
@@ -130,7 +68,7 @@ integer and string arguments.
 
 **Goal:** `primer1.alg` compiles and runs, producing correct real-valued results.
 
-**⚠ Requires symbol table pass (see Architecture section above)**
+**⚠ Requires the symbol-table pass described in [Architecture.md](Architecture.md).**
 
 **New features needed:**
 - [x] Grammar: `real` variable declarations (`real x, y, u;`)
@@ -163,7 +101,7 @@ integer and string arguments.
 
 **Goal:** `primer3.alg` compiles and terminates after 1000 iterations.
 
-**⚠ Introduces mixed `integer`/`real` types — requires TypeInferencer pass (see Architecture section above)**
+**⚠ Introduces mixed `integer`/`real` types — requires the `TypeInferencer` pass described in [Architecture.md](Architecture.md).**
 
 **New features needed:**
 - [x] Grammar: `integer` variable declarations
@@ -478,7 +416,7 @@ Algol allows formals without an explicit base type (deferred-typing). To handle 
 - [x] Fix runtime dispatch in deferred `Thunk.set/get` so integer vs real value conversions are handled without `ClassCastException`.
 - [x] Confirm `deferred_typing_test` passes after implementation.
 - [x] Add unit tests covering mixed-type name-parameters (integer ↔ real) and missing formal types (small focused sample and ManBoy reproduction cases).
-- [x] Update documentation: explain deferred-typing behavior in `docs/Algol.md` and `docs/Compiler-TODO.md`.
+- [x] Update documentation: explain deferred-typing behavior in `docs/Algol.md` and `docs/Compiler Roadmap.md`.
 
 **Regression coverage now includes:**
 - `deferred_typing_test`

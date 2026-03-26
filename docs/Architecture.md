@@ -93,6 +93,52 @@ sequenceDiagram
     JVM-->>User: Execute program
 ```
 
+## Why the Compiler Uses Multiple Passes
+
+Perseus uses a deliberately staged front end rather than trying to resolve names,
+types, and bytecode emission in a single parse-tree walk.
+
+### `SymbolTableBuilder`
+
+The first pass collects declarations, scopes, labels, procedure signatures, and
+other metadata that later stages need before code generation can begin.
+
+This is necessary because:
+
+- Jasmin needs `.limit locals N` before method-body instructions are emitted.
+- Forward `goto` targets must be known before jumps are emitted.
+- Nested procedures are lowered to separate JVM methods, so their signatures must
+  be known before call sites are generated.
+
+### `TypeInferencer`
+
+The type-inference pass runs after symbol discovery and before code generation.
+It annotates expression nodes with resolved types such as `integer`, `real`,
+`boolean`, `string`, and procedure/reference forms.
+
+Perseus keeps this as a separate pass because `CodeGenerator` must choose
+different JVM instructions based on resolved types, for example:
+
+- `iadd` vs `dadd`
+- integer vs real comparisons
+- widening and narrowing conversions in assignments
+- array element load/store instructions by element type
+
+Separating this logic keeps code generation focused on lowering already-resolved
+semantics rather than re-deriving types while emitting bytecode.
+
+### Why Not Merge the Passes?
+
+The separate-pass design keeps concerns clean:
+
+- `SymbolTableBuilder` answers what names exist and where.
+- `TypeInferencer` answers what expressions mean.
+- `CodeGenerator` answers how those resolved constructs lower to JVM bytecode.
+
+That separation has made it easier to grow the compiler incrementally, add new
+language features, and improve diagnostics without entangling analysis and
+emission logic in one listener.
+
 ## Output Class Files
 
 The compiler produces one or more `.class` files per source file:
@@ -267,7 +313,7 @@ Recent development has focused on the advanced call-by-name and nested-procedure
 
 For more detail on the debugging history, see:
 - [docs/ManBoy-Debugging.md](ManBoy-Debugging.md)
-- [docs/Compiler-TODO.md](Compiler-TODO.md)
+- [docs/Compiler Roadmap.md](Compiler%20Roadmap.md)
 
 
 ## Compiling Perseus Source to Jasmin
