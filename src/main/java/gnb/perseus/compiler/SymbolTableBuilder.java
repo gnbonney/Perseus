@@ -225,7 +225,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         if (proc != null) {
             for (String param : proc.paramNames) {
                 String baseType = proc.paramTypes.get(param);
-                if (baseType == null) baseType = proc.valueParams.contains(param) ? "integer" : "deferred";
+                if (baseType == null) baseType = "deferred";
                 if (baseType.startsWith("procedure:")) {
                     symbolTable.put(param, baseType);
                 } else {

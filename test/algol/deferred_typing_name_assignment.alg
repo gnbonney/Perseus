@@ -1,4 +1,4 @@
-comment Test: deferred-typing direct assignment in a typeless name param procedure.  
+comment Test: deferred-typing direct assignment in a typeless name param procedure.
 p(x) uses x := x + 1 and is called with integer and real to verify split behavior.;
 begin
   integer i;

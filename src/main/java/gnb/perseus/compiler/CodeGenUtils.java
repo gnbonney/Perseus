@@ -25,6 +25,7 @@ public class CodeGenUtils {
         if (type.startsWith("ref:")) return "Ljava/lang/Object;";
         return switch (type) {
             case "real"   -> "D";
+            case "deferred" -> "D";
             case "string" -> "Ljava/lang/String;";
             default -> "I";
         };
@@ -36,6 +37,7 @@ public class CodeGenUtils {
         return switch (type) {
             case "void"              -> "V";
             case "real"              -> "D";
+            case "deferred"          -> "D";
             case "string"            -> "Ljava/lang/String;";
             case "boolean", "integer" -> "I";
             default -> "I";
@@ -47,6 +49,7 @@ public class CodeGenUtils {
         if (type.startsWith("ref:")) return "areturn";
         return switch (type) {
             case "real"   -> "dreturn";
+            case "deferred" -> "dreturn";
             case "string" -> "areturn";
             default -> "ireturn";
         };

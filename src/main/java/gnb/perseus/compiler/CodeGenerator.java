@@ -308,7 +308,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 } else {
                     String pType = getFormalBaseType(pInfo, p);
                     if (pType.endsWith("[]")) continue;
-                    if ("real".equals(pType)) pDesc = "D";
+                    if ("real".equals(pType) || "deferred".equals(pType)) pDesc = "D";
                     else if ("string".equals(pType)) pDesc = "Ljava/lang/String;";
                     else if (pType.startsWith("procedure:")) {
                         pDesc = switch (pType.substring("procedure:".length())) {
@@ -520,7 +520,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 nextSlot += 3;
             } else {
                 // thunks and procedure refs are object references so occupy 1 slot, real still 2
-                nextSlot += (paramType.startsWith("thunk:") || paramType.startsWith("procedure:")) ? 1 : ("real".equals(paramType) ? 2 : 1);
+                nextSlot += (paramType.startsWith("thunk:") || paramType.startsWith("procedure:")) ? 1 : (("real".equals(paramType) || "deferred".equals(paramType)) ? 2 : 1);
             }
         }
         // Then locals
@@ -534,12 +534,12 @@ public class CodeGenerator extends PerseusBaseListener {
                 continue;
             }
             procLI.put(varName, nextSlot);
-            nextSlot += "real".equals(varType) ? 2 : 1;
+            nextSlot += ("real".equals(varType) || "deferred".equals(varType)) ? 2 : 1;
         }
         // Retval slot at end (only for typed function procedures, not void)
         if (!"void".equals(info.returnType)) {
             procRetvalSlot = nextSlot;
-            nextSlot += "real".equals(info.returnType) ? 2 : 1;
+            nextSlot += ("real".equals(info.returnType) || "deferred".equals(info.returnType)) ? 2 : 1;
         } else {
             procRetvalSlot = -1;
         }
@@ -568,7 +568,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 }
                 String type = getFormalBaseType(info, p);
                 if (type.endsWith("[]")) return arrayTypeToJvmDesc(type) + "II";
-                if ("real".equals(type)) return "D";
+                if ("real".equals(type) || "deferred".equals(type)) return "D";
                 if ("string".equals(type)) return "Ljava/lang/String;";
                 if (type.startsWith("procedure:")) {
                     return switch (type.substring("procedure:".length())) {
@@ -582,7 +582,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 return "I";
             })
             .collect(Collectors.joining());
-        String retDesc = "void".equals(info.returnType) ? "V" : "real".equals(info.returnType) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
+        String retDesc = "void".equals(info.returnType) ? "V" : ("real".equals(info.returnType) || "deferred".equals(info.returnType)) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
 
         activeOutput.append(".method public static ").append(procName)
                     .append("(").append(paramDesc).append(")").append(retDesc).append("\n")
@@ -598,7 +598,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 if (pType.endsWith("[]")) continue;
                 if (info.valueParams.contains(p)) {
                     // Only value parameters use static env fields
-                    if ("real".equals(pType)) {
+                    if ("real".equals(pType) || "deferred".equals(pType)) {
                         int saveSlot = currentNumLocals;
                         currentNumLocals += 2;
                         currentEnvParamSlots.put(p, saveSlot);
@@ -660,12 +660,12 @@ public class CodeGenerator extends PerseusBaseListener {
             }
         }
         if (useEnvBridge(procName) && !"void".equals(info.returnType) && procRetvalSlot >= 0) {
-            String rDesc = "real".equals(info.returnType) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
+            String rDesc = ("real".equals(info.returnType) || "deferred".equals(info.returnType)) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
             currentEnvRetSaveSlot = currentNumLocals;
-            currentNumLocals += "real".equals(info.returnType) ? 2 : 1;
+            currentNumLocals += ("real".equals(info.returnType) || "deferred".equals(info.returnType)) ? 2 : 1;
             activeOutput.append("getstatic ").append(packageName).append("/").append(className)
                         .append("/").append(envReturnFieldName(procName)).append(" ").append(rDesc).append("\n");
-            if ("real".equals(info.returnType)) emitStore("dstore", currentEnvRetSaveSlot);
+            if ("real".equals(info.returnType) || "deferred".equals(info.returnType)) emitStore("dstore", currentEnvRetSaveSlot);
             else if ("string".equals(info.returnType)) emitStore("astore", currentEnvRetSaveSlot);
             else emitStore("istore", currentEnvRetSaveSlot);
         }
@@ -707,7 +707,7 @@ public class CodeGenerator extends PerseusBaseListener {
             if (e.getKey().equals(procName)) continue; // self-ref slot initialized below
             String varType = procST.get(e.getKey());
             int slot = e.getValue();
-            if ("real".equals(varType)) {
+            if ("real".equals(varType) || "deferred".equals(varType)) {
                 activeOutput.append("dconst_0\n"); emitStore("dstore", slot);
             } else if ("string".equals(varType)) {
                 activeOutput.append("ldc \"\"\n"); emitStore("astore", slot);
@@ -723,14 +723,14 @@ public class CodeGenerator extends PerseusBaseListener {
         }
         // Initialize retval slot (only for typed functions)
         if (procRetvalSlot >= 0) {
-            if ("real".equals(info.returnType)) {
+            if ("real".equals(info.returnType) || "deferred".equals(info.returnType)) {
                 activeOutput.append("dconst_0\n"); emitStore("dstore", procRetvalSlot);
             } else {
                 activeOutput.append("iconst_0\n"); emitStore("istore", procRetvalSlot);
             }
             if (useEnvBridge(procName)) {
-                String rDesc = "real".equals(info.returnType) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
-                if ("real".equals(info.returnType)) {
+                String rDesc = ("real".equals(info.returnType) || "deferred".equals(info.returnType)) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
+                if ("real".equals(info.returnType) || "deferred".equals(info.returnType)) {
                     activeOutput.append("dload ").append(procRetvalSlot).append("\n");
                 } else if ("string".equals(info.returnType)) {
                     activeOutput.append("aload ").append(procRetvalSlot).append("\n");
@@ -780,7 +780,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 String pType = getFormalBaseType(info, p);
                 if (pType.endsWith("[]")) continue;
                 if (info.valueParams.contains(p)) {
-                    if ("real".equals(pType)) {
+                    if ("real".equals(pType) || "deferred".equals(pType)) {
                         activeOutput.append("dload ").append(saveSlot).append("\n");
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(envThunkFieldName(procName, p)).append(" D\n");
@@ -813,15 +813,15 @@ public class CodeGenerator extends PerseusBaseListener {
         }
 
         if (useEnvBridge(procName) && info != null && !"void".equals(info.returnType) && procRetvalSlot >= 0) {
-            String rDesc = "real".equals(info.returnType) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
+            String rDesc = ("real".equals(info.returnType) || "deferred".equals(info.returnType)) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
             activeOutput.append("getstatic ").append(packageName).append("/").append(className)
                         .append("/").append(envReturnFieldName(procName)).append(" ").append(rDesc).append("\n");
-            if ("real".equals(info.returnType)) emitStore("dstore", procRetvalSlot);
+            if ("real".equals(info.returnType) || "deferred".equals(info.returnType)) emitStore("dstore", procRetvalSlot);
             else if ("string".equals(info.returnType)) emitStore("astore", procRetvalSlot);
             else emitStore("istore", procRetvalSlot);
 
             if (currentEnvRetSaveSlot >= 0) {
-                if ("real".equals(info.returnType)) {
+                if ("real".equals(info.returnType) || "deferred".equals(info.returnType)) {
                     activeOutput.append("dload ").append(currentEnvRetSaveSlot).append("\n");
                 } else if ("string".equals(info.returnType)) {
                     activeOutput.append("aload ").append(currentEnvRetSaveSlot).append("\n");
@@ -862,7 +862,7 @@ public class CodeGenerator extends PerseusBaseListener {
         // Emit return instruction based on return type
         if ("void".equals(currentProcReturnType)) {
             activeOutput.append("return\n");
-        } else if ("real".equals(currentProcReturnType)) {
+        } else if ("real".equals(currentProcReturnType) || "deferred".equals(currentProcReturnType)) {
             activeOutput.append("dload ").append(procRetvalSlot).append("\n")
                         .append("dreturn\n");
         } else if ("string".equals(currentProcReturnType)) {
@@ -1050,7 +1050,7 @@ public class CodeGenerator extends PerseusBaseListener {
             // For void procedures (including those used as procedure variables), assignment to the
             // procedure name should be treated as a procedure-variable assignment, not a return value.
             if (name.equals(currentProcName) && isProcedureReturnTarget(name, rhsIsProcedureRef)) {
-                if ("real".equals(currentProcReturnType)) {
+                if ("real".equals(currentProcReturnType) || "deferred".equals(currentProcReturnType)) {
                     emitStore("dstore", procRetvalSlot);
                     if (useEnvBridge(currentProcName)) {
                         activeOutput.append("dload ").append(procRetvalSlot).append("\n");
@@ -2142,7 +2142,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     return "aload " + idx + "\n";
                 }
                 String desc;
-                if ("real".equals(pType)) desc = "D";
+                if ("real".equals(pType) || "deferred".equals(pType)) desc = "D";
                 else if ("string".equals(pType)) desc = "Ljava/lang/String;";
                 else if (pType.startsWith("procedure:")) {
                     desc = switch (pType.substring("procedure:".length())) {
@@ -2151,7 +2151,8 @@ public class CodeGenerator extends PerseusBaseListener {
                         case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
                         default -> "Lgnb/perseus/compiler/VoidProcedure;";
                     };
-                } else desc = "I";
+                } else if ("deferred".equals(pType)) desc = "D";
+                else desc = "I";
                 return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentProcName, name) + " " + desc + "\n";
             }
         }
@@ -2161,7 +2162,7 @@ public class CodeGenerator extends PerseusBaseListener {
         }
         if ("integer".equals(type) || "boolean".equals(type)) {
             return "iload " + idx + "\n";
-        } else if ("real".equals(type)) {
+        } else if ("real".equals(type) || "deferred".equals(type)) {
             return "dload " + idx + "\n";
         } else if ("string".equals(type) || (type != null && type.startsWith("ref:"))) {
             return "aload " + idx + "\n";
@@ -2739,7 +2740,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     sb.append(generateExpr(arg.expr()));
                     String paramType = getFormalBaseType(info, paramName);
                     String argType = exprTypes.getOrDefault(arg.expr(), "integer");
-                    if ("real".equals(paramType) && "integer".equals(argType)) {
+                    if (("real".equals(paramType) || "deferred".equals(paramType)) && "integer".equals(argType)) {
                         sb.append("i2d\n");
                     }
                 } else {
@@ -2852,7 +2853,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 }
                 String type = getFormalBaseType(info, p);
                 if (type.endsWith("[]")) return arrayTypeToJvmDesc(type) + "II";
-                if ("real".equals(type)) return "D";
+                if ("real".equals(type) || "deferred".equals(type)) return "D";
                 if ("string".equals(type)) return "Ljava/lang/String;";
                 if (type.startsWith("procedure:")) {
                     return switch (type.substring("procedure:".length())) {
@@ -2865,7 +2866,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 return "I";
             })
             .collect(Collectors.joining());
-        String retDesc = "void".equals(info.returnType) ? "V" : "real".equals(info.returnType) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
+        String retDesc = "void".equals(info.returnType) ? "V" : ("real".equals(info.returnType) || "deferred".equals(info.returnType)) ? "D" : "string".equals(info.returnType) ? "Ljava/lang/String;" : "I";
         sb.append("invokestatic ").append(packageName).append("/")
                     .append(className).append("/").append(name)
                     .append("(").append(paramDesc).append(")").append(retDesc).append("\n");
@@ -3111,7 +3112,7 @@ public class CodeGenerator extends PerseusBaseListener {
         if (baseType != null) {
             return baseType;
         }
-        return info.valueParams.contains(paramName) ? "integer" : "deferred";
+        return "deferred";
     }
 
     private boolean isCurrentArrayParameter(String name) {
@@ -3635,7 +3636,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     return generateProcedureVariableCall(name, selfType, List.of());
                 }
                 // Otherwise it's a return-value reference
-                if ("real".equals(currentProcReturnType)) {
+                if ("real".equals(currentProcReturnType) || "deferred".equals(currentProcReturnType)) {
                     return "dload " + procRetvalSlot + "\n";
                 } else if ("string".equals(currentProcReturnType)) {
                     return "aload " + procRetvalSlot + "\n";
@@ -3785,7 +3786,7 @@ public class CodeGenerator extends PerseusBaseListener {
                         return "aload " + idx + "\n";
                     }
                     String desc;
-                    if ("real".equals(pType)) desc = "D";
+                if ("real".equals(pType) || "deferred".equals(pType)) desc = "D";
                     else if ("string".equals(pType)) desc = "Ljava/lang/String;";
                     else if (pType.startsWith("procedure:")) {
                         desc = switch (pType.substring("procedure:".length())) {
@@ -3804,7 +3805,7 @@ public class CodeGenerator extends PerseusBaseListener {
             }
             if ("integer".equals(type) || "boolean".equals(type)) {
                 return "iload " + idx + "\n";
-            } else if ("real".equals(type)) {
+            } else if ("real".equals(type) || "deferred".equals(type)) {
                 return "dload " + idx + "\n";
             } else if ("string".equals(type)) {
                 return "aload " + idx + "\n";

@@ -180,10 +180,10 @@ end
     }
 
 	@Test
-	public void deferred_typing_test() throws Exception {
+	public void deferred_typing_name_assignment_test() throws Exception {
 		// Compile Algol source to Jasmin
 		Path jasminFile = PerseusCompiler.compileToFile(
-			"test/algol/deferred_typing_test.alg", "gnb/perseus/programs", "DeferredTypingTest", BUILD_DIR);
+			"test/algol/deferred_typing_name_assignment.alg", "gnb/perseus/programs", "DeferredTypingNameAssignmentTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 
 		System.out.println("=== DEFERRED TYPING JASMIN ===");
@@ -198,16 +198,41 @@ end
 
 		// Run FixLimits to verify and fix the generated class family.
 		try {
-			FixLimits.fixClassFamilyInPlace(BUILD_DIR.resolve("gnb/perseus/programs/DeferredTypingTest.class"));
+			FixLimits.fixClassFamilyInPlace(BUILD_DIR.resolve("gnb/perseus/programs/DeferredTypingNameAssignmentTest.class"));
 		} catch (Exception e) {
 			throw new AssertionError("ASM CheckClassAdapter verification failed: " + e.getMessage(), e);
 		}
 
 		// Run and capture output
-		String output = runClass(BUILD_DIR, "gnb.perseus.programs.DeferredTypingTest");
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.DeferredTypingNameAssignmentTest");
 		System.out.println("Deferred typing output: [" + output + "]");
 		assertTrue(output.contains("43"), "Expected output to contain 43");
 		assertTrue(output.contains("4.14"), "Expected output to contain 4.14");
+	}
+
+	@Test
+	public void deferred_typing_value_and_name_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+			"test/algol/deferred_typing_value_and_name.alg", "gnb/perseus/programs", "DeferredTypingValueAndNameTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		System.out.println("=== DEFERRED TYPING VALUE AND NAME JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END DEFERRED TYPING VALUE AND NAME ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+		try {
+			FixLimits.fixClassFamilyInPlace(BUILD_DIR.resolve("gnb/perseus/programs/DeferredTypingValueAndNameTest.class"));
+		} catch (Exception e) {
+			throw new AssertionError("ASM CheckClassAdapter verification failed: " + e.getMessage(), e);
+		}
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.DeferredTypingValueAndNameTest");
+		System.out.println("Deferred typing value and name output: [" + output + "]");
+		assertEquals("5.0 5.5 6.0 6.5", output.trim());
 	}
 
     @Test
