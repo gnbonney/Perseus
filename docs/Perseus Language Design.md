@@ -647,3 +647,69 @@ This makes the parameter-passing mechanism explicit and generalizes it to any co
 ## Summary
 - Church's lambda notation for arrays is a formal, functional way to generalize array and call-by-name parameters using anonymous functions.
 - It is the conceptual ancestor of lambda functions and closures in modern languages.
+
+## Simula-Style Classes
+
+Perseus should treat classes as a major language extension inspired by Simula, but not as a requirement to reproduce every historical Simula surface form verbatim. The design goal is to preserve the important Algol-to-Simula lineage while still allowing Perseus to adopt a cleaner JVM-oriented presentation where that is helpful.
+
+## General Direction
+
+- Perseus should borrow the core object model from Simula more than from Java.
+- Perseus does not need to copy every historical Simula syntax choice exactly.
+- The first class milestone should focus on fields, instance procedures, object creation, and method calls.
+- Inheritance, prefixing, and process/coroutine features should be deferred until the basic object model is stable.
+
+This means Perseus classes should be understood as Simula-inspired program units in an Algol-family language, not as a second copy of Java classes disguised with Algol keywords.
+
+## Call-by-Value Default for Class Procedures
+
+One important design decision should be made explicitly: procedures declared inside classes should default to call-by-value.
+
+That choice is attractive for several reasons:
+
+- It matches Simula's own direction rather than fighting it.
+- It fits naturally with JVM method-call expectations.
+- It makes object behavior easier to reason about in the presence of mutation and instance state.
+- It reduces friction if Perseus is later used to host or adapt Simula-style code.
+
+This also gives Perseus a useful semantic distinction:
+
+- ordinary Algol-style standalone procedures may continue to follow classic Algol parameter-passing defaults
+- class procedures may follow Simula-style method defaults
+
+That split is not a compromise born only of implementation convenience. It reflects the historical evolution from Algol toward Simula while also giving Perseus a cleaner and more practical object model.
+
+## Surface Syntax vs Semantics
+
+Perseus should separate semantic inheritance from surface imitation.
+
+- Semantically, classes should be close to Simula's idea of objects with fields and procedures.
+- Syntactically, Perseus may choose a simpler or more regular form if that makes the language easier to parse, teach, and interoperate with on the JVM.
+
+So the design question for classes is not "how can Perseus copy Simula exactly?" but rather:
+
+- which Simula semantics are essential,
+- which historical surface details are worth preserving,
+- and which parts should be expressed in a distinct Perseus style.
+
+## Recommended Initial Scope
+
+The first class milestone should aim for:
+
+- class declarations
+- instance fields
+- instance procedures
+- explicit object creation
+- dotted member/procedure access
+
+The following should be postponed until later design passes:
+
+- inheritance or prefixing
+- virtual override rules beyond the minimum needed for method dispatch
+- imported external class syntax beyond the basic roadmap hooks already planned
+- process or coroutine features
+- any attempt to make class methods participate in full classic Algol call-by-name semantics by default
+
+## Summary
+
+For Perseus, the best path is to make classes Simula-inspired in semantics, Perseus-specific in final surface syntax, and explicitly call-by-value by default inside the class world. That keeps the language aligned with its Algol-family history while supporting the broader project goal of evolving beyond a strict Algol 60 compiler.
