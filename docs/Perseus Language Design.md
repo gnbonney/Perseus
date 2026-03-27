@@ -466,11 +466,19 @@ begin
     ...
 exception
     when java(java.io.IOException) as ex do
-        outstring(0, ex.message)
+        outstring(0, exceptionmessage(ex))
 end
 ```
 
 This is especially useful for external Java interop, where the caller may want the exception message or specific exception-class discrimination.
+
+The first implementation of bound exception variables should keep the model modest:
+
+- `when ... as ex do ...` binds a catch variable for the duration of the handler
+- the bound value should be treated as an exception reference, not as an arbitrary user-defined class instance
+- the first useful operations should be helper-style inspection facilities such as `exceptionmessage(ex)` and `printexception(ex)`
+
+This gives Perseus practical exception introspection without requiring the full external-object/member-access story to be finished first.
 
 ## Proposed Exception Names
 
@@ -606,6 +614,12 @@ For example:
 
 This is straightforward, maps well to the JVM, and avoids inventing a continuation model.
 
+For bound exception variables, the first JVM-level implementation path should be:
+
+- store the caught exception object in a temporary handler-local reference
+- make helper operations such as `exceptionmessage(ex)` and `printexception(ex)` lower to ordinary JVM calls on that object
+- delay richer member-style syntax such as `ex.message` until exception objects and external-object access are better integrated with the broader class model
+
 ## Scope and Restrictions
 
 To keep the first version robust:
@@ -614,6 +628,7 @@ To keep the first version robust:
 - matching should be by exception name/class only, not arbitrary Boolean guard expressions
 - handlers should not resume execution at the throw site
 - the first implementation may omit `finally`/cleanup syntax
+- the first bound-variable implementation may expose exception inspection through helper procedures rather than full object-member syntax
 
 If a cleanup feature is desired later, it could be added in an Algol-flavored way such as:
 
@@ -634,6 +649,7 @@ but this should be a later layer, not part of the minimum design.
 - A block exception part (`begin ... exception ... end`) is the most Algol-like shape.
 - `when Name do ...` should handle language-level exceptions.
 - `when java(Fully.Qualified.Exception) as ex do ...` should handle precise Java interop failures.
+- `when ... as ex do ...` should first support practical inspection helpers such as `exceptionmessage(ex)` and `printexception(ex)`.
 - JVM lowering is natural through ordinary `try/catch`.
 - This extension would make external Java/class interop much safer and more expressive.
 

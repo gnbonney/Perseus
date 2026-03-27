@@ -742,7 +742,9 @@ Here, the channel parameter is left empty, but the argument list is still presen
 - [x] Support catching Java exceptions by explicit class name in `when java(...) do ...` clauses
 - [x] Lower exception blocks to JVM `try/catch`
 - [ ] Decide which existing runtime failures should remain fail-fast and which should become catchable exceptions
-- [ ] Bound exception-object/member-access syntax (`when ... as ex do ...`) remains deferred
+- [ ] Give `when ... as ex do ...` real semantic/runtime support by binding a catch variable inside the handler
+- [ ] Add initial exception-inspection helpers such as `exceptionmessage(ex)` and `printexception(ex)`
+- [ ] Decide later whether richer exception member syntax should use helpers only or eventually support object-style access such as `ex.message`
 - [x] Tests for `external java`, bounds handling, and `fault` recovery scenarios
 
 **Current passing slice:** basic structured recovery is now working end to end. The compiler accepts `begin ... exception ... end`, lowers handlers to JVM `.catch` regions, and passes end-to-end tests for:
@@ -751,7 +753,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 - `BoundsError`-style recovery for out-of-range array access
 - `FaultError`-style recovery for `fault(...)` inside an exception block
 
-**Current limitation:** this first slice still uses direct JVM exception mappings in code generation (`NumberFormatException`, `ArrayIndexOutOfBoundsException`, `RuntimeException`) rather than a full dedicated Perseus runtime exception hierarchy. Bound exception variables (`as ex`) are parsed but not yet given semantic/runtime support.
+**Current limitation:** this first slice still uses direct JVM exception mappings in code generation (`NumberFormatException`, `ArrayIndexOutOfBoundsException`, `RuntimeException`) rather than a full dedicated Perseus runtime exception hierarchy. Bound exception variables (`as ex`) are parsed but not yet given semantic/runtime support, and exception introspection helpers are not implemented yet.
 
 ## Milestone 29 — Dynamic Channels and File I/O
 
