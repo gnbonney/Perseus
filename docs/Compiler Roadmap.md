@@ -757,17 +757,24 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 ## Milestone 29 — Dynamic Channels and File I/O
 
-**Priority:** First post-core runtime milestone.
+**Priority:** Next runtime/library milestone.
 
-**Goal:** Move beyond channels 0/1 and support the modified-report style file/string channel model (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
+**Goal:** Move beyond channels 0/1 and support dynamic file and string channel mapping (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
-- [ ] Implement `openfile`, `closefile`, and channel-to-stream mapping for channels 2+
-- [ ] Extend input/output procedures to use dynamic stream dispatch instead of only `System.out` / `System.err`
-- [ ] Cover error-handling paths through `fault`
+**Status:** First slice passing.
+
+- [x] Implement initial support for `openfile`, `openstring`, `closefile`, and channel-to-stream mapping for channels 2+
+- [x] Extend key output/input procedures for the first dynamic-channel workflows: `outstring`, `outinteger`, `outreal`, `outterminator`, and `instring`
+- [x] Cover an initial file/channel error path through structured exceptions (`IOError`)
+- [ ] Generalize the runtime model beyond the current constant-channel / literal-path slice
+- [ ] Extend more input/output procedures to use dynamic stream dispatch instead of only `System.out` / `System.err`
+- [ ] Add explicit `EndOfFile` behavior and decide where `fault(...)` remains the compatibility fallback
+
+The current passing slice is intentionally narrow: it supports the new regression samples for file output/readback, string-channel accumulation, and recoverable `IOError`, while leaving a fuller runtime channel abstraction for follow-on work.
 
 ## Milestone 30 — Formatted I/O
 
-**Goal:** Implement `outformat` and `informat` with Algol-style format strings and channel-backed formatting workflows (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
+**Goal:** Implement `outformat` and `informat` with channel-backed formatting workflows (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
 - [ ] `outformat(channel, format, ...)`
 - [ ] `informat(channel, format, ...)`

@@ -416,4 +416,67 @@ end
 	assertEquals("Hello, world! 13 H world Hello, World! Hello, World!!!!", output.trim(),
 		"Should output all string operations correctly");
     }
+
+    @Test
+    public void file_channel_output_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/file_channel_output.alg", "gnb/perseus/programs",
+                "FileChannelOutput", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== FILE CHANNEL OUTPUT JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END FILE CHANNEL OUTPUT ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.FileChannelOutput");
+        assertEquals("Hello, file channel!", output.trim(),
+                "File channel support should write to a file, read it back, and print the recovered line");
+    }
+
+    @Test
+    public void string_channel_output_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/string_channel_output.alg", "gnb/perseus/programs",
+                "StringChannelOutput", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== STRING CHANNEL OUTPUT JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END STRING CHANNEL OUTPUT ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.StringChannelOutput");
+        assertEquals("[alpha 42]", output.trim(),
+                "String channel support should accumulate output into the target string variable");
+    }
+
+    @Test
+    public void file_channel_ioerror_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/file_channel_ioerror.alg", "gnb/perseus/programs",
+                "FileChannelIOError", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== FILE CHANNEL IOERROR JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END FILE CHANNEL IOERROR ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.FileChannelIOError");
+        assertEquals("1", output.trim(),
+                "Opening an invalid file channel should raise IOError and recover through the handler");
+    }
 }

@@ -6,6 +6,7 @@ import gnb.perseus.compiler.antlr.PerseusBaseListener;
 import gnb.perseus.compiler.antlr.PerseusParser;
 import gnb.perseus.compiler.antlr.PerseusParser.ExprContext;
 import gnb.perseus.compiler.codegen.BuiltinFunctionGenerator;
+import gnb.perseus.compiler.codegen.ChannelIOGenerator;
 import gnb.perseus.compiler.codegen.ClassGenerator;
 import gnb.perseus.compiler.codegen.ExceptionGenerator;
 import gnb.perseus.compiler.codegen.ProcedureGenerator;
@@ -123,6 +124,7 @@ public class CodeGenerator extends PerseusBaseListener {
     private final Deque<String> ifEndLabelStack  = new ArrayDeque<>();
     private final Deque<String> ifElseLabelStack = new ArrayDeque<>();
     private final ExceptionGenerator exceptionGen;
+    private final ChannelIOGenerator channelGen;
 
     // Map of procedure variable names to their main-method JVM slot indices
     private final Map<String, Integer> procVarSlots;
@@ -169,6 +171,7 @@ public class CodeGenerator extends PerseusBaseListener {
         this.procGen.setCurrentProcNameSupplier(() -> this.currentProcName);
         this.procGen.setProceduresSupplier(() -> this.procedures);
         this.exceptionGen = new ExceptionGenerator(this::generateUniqueLabel);
+        this.channelGen = new ChannelIOGenerator(packageName, className);
     }
 
     private int nextProcRefId() { return procRefCounter++; }
@@ -1336,24 +1339,10 @@ public class CodeGenerator extends PerseusBaseListener {
         String name = ctx.identifier().getText();
         System.out.println("Processing procedure call: " + name);
         List<PerseusParser.ArgContext> args = ctx.argList() != null ? ctx.argList().arg() : List.of();
-        if ("outstring".equals(name)) {
-            PerseusParser.ArgContext channelArg = args.size() > 1 ? args.get(0) : null;
-            String stream = getChannelStream(channelArg);
-            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
-                        .append(generateExpr(args.get(args.size() - 1).expr()))
-                        .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
-        } else if ("outreal".equals(name)) {
-            PerseusParser.ArgContext channelArg = args.size() > 1 ? args.get(0) : null;
-            String stream = getChannelStream(channelArg);
-            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
-                        .append(generateExpr(args.get(args.size() - 1).expr()))
-                        .append("invokevirtual java/io/PrintStream/print(D)V\n");
-        } else if ("outinteger".equals(name)) {
-            PerseusParser.ArgContext channelArg = args.size() > 1 ? args.get(0) : null;
-            String stream = getChannelStream(channelArg);
-            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
-                        .append(generateExpr(args.get(args.size() - 1).expr()))
-                        .append("invokevirtual java/io/PrintStream/print(I)V\n");
+        if (channelGen.tryEmitProcedureCall(name, args, activeOutput, currentLocalIndex, currentSymbolTable,
+                mainSymbolTable, this::generateExpr, this::allocateNewLocal, this::getChannelStream,
+                this::lookupVarType, this::staticFieldName)) {
+            return;
         } else if ("outchar".equals(name)) {
             // outchar(channel, str, position) - outputs character at position in string
             String stream = getChannelStream(args.get(0));
@@ -1362,12 +1351,6 @@ public class CodeGenerator extends PerseusBaseListener {
                         .append(generateExpr(args.get(2).expr()))
                         .append("invokevirtual java/lang/String/charAt(I)C\n")
                         .append("invokevirtual java/io/PrintStream/print(C)V\n");
-        } else if ("outterminator".equals(name)) {
-            // outterminator(channel) - outputs a space separator
-            String stream = getChannelStream(args.size() > 0 ? args.get(0) : null);
-            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
-                        .append("ldc \" \"\n")
-                        .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
         } else if ("ininteger".equals(name)) {
             // ininteger(channel, var) - reads an integer from System.in and stores in var
             PerseusParser.ExprContext varExpr = args.get(1).expr();
@@ -1454,31 +1437,6 @@ public class CodeGenerator extends PerseusBaseListener {
                 }
             } else {
                 activeOutput.append("; ERROR: inchar requires a variable as third argument\n");
-            }
-        } else if ("instring".equals(name)) {
-            // instring(channel, var) - reads a string from System.in and stores in var
-            PerseusParser.ExprContext varExpr = args.get(1).expr();
-            if (varExpr instanceof PerseusParser.VarExprContext) {
-                String varName = ((PerseusParser.VarExprContext) varExpr).identifier().getText();
-                Integer varSlot = currentLocalIndex.get(varName);
-                String varType = currentSymbolTable.get(varName);
-                if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
-                    // Static scalar
-                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                                .append("/__scanner Ljava/util/Scanner;\n")
-                                .append("invokevirtual java/util/Scanner/nextLine()Ljava/lang/String;\n")
-                                .append("putstatic ").append(packageName).append("/").append(className)
-                                .append("/").append(varName).append(" Ljava/lang/String;\n");
-                } else if (varSlot == null) {
-                    activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
-                } else {
-                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                                .append("/__scanner Ljava/util/Scanner;\n")
-                                .append("invokevirtual java/util/Scanner/nextLine()Ljava/lang/String;\n")
-                                .append("astore ").append(varSlot).append("\n");
-                }
-            } else {
-                activeOutput.append("; ERROR: instring requires a variable as second argument\n");
             }
         } else if ("stop".equals(name)) {
             // stop - terminates the program normally
