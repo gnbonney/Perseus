@@ -489,6 +489,47 @@ Perseus should distinguish between:
 
 The language-level names give Perseus code a portable vocabulary. The `java(...)` form gives precise control when interoperating with external JVM code.
 
+The initial language-level exception names should mean:
+
+- `IOError`
+  - Raised for file, channel, stream, or other I/O failures that are not better described as end-of-file.
+- `EndOfFile`
+  - Raised when an input operation reaches end-of-file in a context where the caller is expected to handle it explicitly.
+- `ArithmeticError`
+  - Raised for arithmetic failures such as division by zero or similar runtime numeric errors that Perseus chooses to expose as catchable conditions.
+- `BoundsError`
+  - Raised for array-subscript or similar bounds violations. On the JVM this should normally lower to a small Perseus runtime exception class rather than exposing raw JVM array exceptions directly.
+- `FaultError`
+  - Raised when Perseus code triggers `fault(...)` in a catchable context, allowing structured recovery instead of immediate process termination when exception handling is in effect.
+
+These names should be treated as part of the source-language contract even if the runtime implementation uses small JVM exception classes underneath.
+
+### Initial JVM Mapping
+
+The first implementation should use small Perseus runtime exception classes where
+that gives a cleaner and more stable language contract, while still translating
+relevant Java exceptions when appropriate.
+
+- `IOError`
+  - Usually raised from translated Java I/O failures such as `java.io.IOException`
+  - May also be represented by a dedicated Perseus runtime `IOErrorException`
+- `EndOfFile`
+  - Usually raised by Perseus input/runtime logic rather than by one universal Java exception type
+  - Should map to a dedicated Perseus runtime `EndOfFileException`
+- `ArithmeticError`
+  - May be raised from translated `java.lang.ArithmeticException`
+  - May also be raised directly by Perseus runtime checks
+  - Should map to a dedicated Perseus runtime `ArithmeticErrorException`
+- `BoundsError`
+  - Should normally map to a dedicated Perseus runtime `BoundsErrorException`
+  - May also be translated from low-level JVM failures such as `ArrayIndexOutOfBoundsException`
+- `FaultError`
+  - Should map to a dedicated Perseus runtime `FaultErrorException`
+  - Raised when `fault(...)` is treated as a catchable condition instead of immediate termination
+
+This split keeps the source language stable while still letting the compiler and
+runtime build on ordinary JVM exception machinery.
+
 ## Suggested Semantics
 
 - `begin ... exception ... end` establishes a protected block.

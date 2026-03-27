@@ -63,8 +63,21 @@ refDecl
   ;
 
 block
-  : BEGIN compoundStatement END endComment?
+  : BEGIN compoundStatement exceptionPart? END endComment?
   | '{' compoundStatement '}'
+  ;
+
+exceptionPart
+  : EXCEPTION exceptionHandler+
+  ;
+
+exceptionHandler
+  : WHEN exceptionPattern (AS identifier)? DO statement
+  ;
+
+exceptionPattern
+  : identifier
+  | JAVA '(' qualifiedName ')'
   ;
 
 endComment
@@ -291,6 +304,9 @@ REF : 'ref';
 NEW : 'new';
 TRUE : 'true';
 FALSE : 'false';
+EXCEPTION : 'exception';
+WHEN : 'when';
+AS : 'as';
 
 NOT : 'not';
 AND_KW : 'and';

@@ -120,6 +120,24 @@ public class CodeGenerator extends PerseusBaseListener {
     // Stacks for if/then/else label management (supports nesting)
     private final Deque<String> ifEndLabelStack  = new ArrayDeque<>();
     private final Deque<String> ifElseLabelStack = new ArrayDeque<>();
+    private final Deque<ExceptionBlockInfo> exceptionBlockStack = new ArrayDeque<>();
+
+    private static final class ExceptionBlockInfo {
+        final PerseusParser.BlockContext blockCtx;
+        final String startLabel;
+        final String endLabel;
+        final String afterLabel;
+        final Map<PerseusParser.ExceptionHandlerContext, String> handlerLabels;
+
+        ExceptionBlockInfo(PerseusParser.BlockContext blockCtx, String startLabel, String endLabel, String afterLabel,
+                Map<PerseusParser.ExceptionHandlerContext, String> handlerLabels) {
+            this.blockCtx = blockCtx;
+            this.startLabel = startLabel;
+            this.endLabel = endLabel;
+            this.afterLabel = afterLabel;
+            this.handlerLabels = handlerLabels;
+        }
+    }
 
     // Map of procedure variable names to their main-method JVM slot indices
     private final Map<String, Integer> procVarSlots;
@@ -1479,12 +1497,20 @@ public class CodeGenerator extends PerseusBaseListener {
             activeOutput.append("iconst_0\n")
                         .append("invokestatic java/lang/System/exit(I)V\n");
         } else if ("fault".equals(name)) {
-            // fault(str, r) - prints error message to System.err then exits with code 1
-            activeOutput.append("getstatic java/lang/System/err Ljava/io/PrintStream;\n")
-                        .append(generateExpr(args.get(0).expr()))
-                        .append("invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V\n")
-                        .append("iconst_1\n")
-                        .append("invokestatic java/lang/System/exit(I)V\n");
+            if (!exceptionBlockStack.isEmpty()) {
+                activeOutput.append("new java/lang/RuntimeException\n")
+                            .append("dup\n")
+                            .append(generateExpr(args.get(0).expr()))
+                            .append("invokespecial java/lang/RuntimeException/<init>(Ljava/lang/String;)V\n")
+                            .append("athrow\n");
+            } else {
+                // fault(str, r) - prints error message to System.err then exits with code 1
+                activeOutput.append("getstatic java/lang/System/err Ljava/io/PrintStream;\n")
+                            .append(generateExpr(args.get(0).expr()))
+                            .append("invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V\n")
+                            .append("iconst_1\n")
+                            .append("invokestatic java/lang/System/exit(I)V\n");
+            }
         } else {
             // Check if it's a call through a procedure variable (local or outer scope).
             String varType = currentSymbolTable.get(name);
@@ -1566,12 +1592,32 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void enterBlock(PerseusParser.BlockContext ctx) {
-        // Blocks are just containers for statements - no special handling needed
+        if (ctx.exceptionPart() == null) return;
+        String startLabel = generateUniqueLabel("try_start");
+        String endLabel = generateUniqueLabel("try_end");
+        String afterLabel = generateUniqueLabel("try_after");
+        Map<PerseusParser.ExceptionHandlerContext, String> handlerLabels = new LinkedHashMap<>();
+        for (PerseusParser.ExceptionHandlerContext handler : ctx.exceptionPart().exceptionHandler()) {
+            handlerLabels.put(handler, generateUniqueLabel("catch"));
+        }
+        ExceptionBlockInfo info = new ExceptionBlockInfo(ctx, startLabel, endLabel, afterLabel, handlerLabels);
+        exceptionBlockStack.push(info);
+        for (PerseusParser.ExceptionHandlerContext handler : ctx.exceptionPart().exceptionHandler()) {
+            activeOutput.append(".catch ")
+                        .append(exceptionPatternToJvmType(handler.exceptionPattern()))
+                        .append(" from ").append(startLabel)
+                        .append(" to ").append(endLabel)
+                        .append(" using ").append(handlerLabels.get(handler))
+                        .append("\n");
+        }
+        activeOutput.append(startLabel).append(":\n");
     }
 
     @Override
     public void exitBlock(PerseusParser.BlockContext ctx) {
-        // Blocks are just containers for statements - no special handling needed
+        if (ctx.exceptionPart() == null) return;
+        ExceptionBlockInfo info = exceptionBlockStack.pop();
+        activeOutput.append(info.afterLabel).append(":\n");
     }
 
     @Override
@@ -1581,7 +1627,32 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitCompoundStatement(PerseusParser.CompoundStatementContext ctx) {
-        // Compound statements are just containers for statements - no special handling needed
+        if (ctx.getParent() instanceof PerseusParser.BlockContext blockCtx
+                && blockCtx.exceptionPart() != null
+                && !exceptionBlockStack.isEmpty()
+                && exceptionBlockStack.peek().blockCtx == blockCtx) {
+            ExceptionBlockInfo info = exceptionBlockStack.peek();
+            activeOutput.append("goto ").append(info.afterLabel).append("\n");
+            activeOutput.append(info.endLabel).append(":\n");
+        }
+    }
+
+    @Override
+    public void enterExceptionHandler(PerseusParser.ExceptionHandlerContext ctx) {
+        if (exceptionBlockStack.isEmpty()) return;
+        ExceptionBlockInfo info = exceptionBlockStack.peek();
+        String handlerLabel = info.handlerLabels.get(ctx);
+        if (handlerLabel != null) {
+            activeOutput.append(handlerLabel).append(":\n");
+            activeOutput.append("pop\n");
+        }
+    }
+
+    @Override
+    public void exitExceptionHandler(PerseusParser.ExceptionHandlerContext ctx) {
+        if (exceptionBlockStack.isEmpty()) return;
+        ExceptionBlockInfo info = exceptionBlockStack.peek();
+        activeOutput.append("goto ").append(info.afterLabel).append("\n");
     }
 
     @Override
@@ -1815,6 +1886,24 @@ public class CodeGenerator extends PerseusBaseListener {
 
     private String normalizeStatementLabel(String rawLabel) {
         return rawLabel.chars().allMatch(Character::isDigit) ? "L" + rawLabel : rawLabel;
+    }
+
+    private String exceptionPatternToJvmType(PerseusParser.ExceptionPatternContext ctx) {
+        if (ctx == null) return "java/lang/RuntimeException";
+        if (ctx.qualifiedName() != null) {
+            return ctx.qualifiedName().getText().replace('.', '/');
+        }
+        if (ctx.identifier() != null) {
+            return switch (ctx.identifier().getText()) {
+                case "BoundsError" -> "java/lang/ArrayIndexOutOfBoundsException";
+                case "FaultError" -> "java/lang/RuntimeException";
+                case "ArithmeticError" -> "java/lang/ArithmeticException";
+                case "IOError" -> "java/io/IOException";
+                case "EndOfFile" -> "java/io/EOFException";
+                default -> "java/lang/RuntimeException";
+            };
+        }
+        return "java/lang/RuntimeException";
     }
 
     private void emitGotoDesignationalExpr(PerseusParser.DesignationalExprContext ctx) {

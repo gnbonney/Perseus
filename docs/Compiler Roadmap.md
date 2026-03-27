@@ -737,13 +737,21 @@ Here, the channel parameter is left empty, but the argument list is still presen
 
 **Goal:** Add an Algol-flavored exception mechanism for structured recovery, especially around `external java` interop and modern I/O extensions (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
-- [ ] Grammar: `begin ... exception ... end` block form with `when ... do ...` clauses
-- [ ] Define initial language-level exception names such as `IOError`, `EndOfFile`, `ArithmeticError`, `BoundsError`, and `FaultError`
-- [ ] Support catching Java exceptions by explicit class name in `when java(...) do ...` clauses
-- [ ] Lower exception blocks to JVM `try/catch`
+- [x] Grammar: `begin ... exception ... end` block form with `when ... do ...` clauses
+- [x] Define initial language-level exception names such as `IOError`, `EndOfFile`, `ArithmeticError`, `BoundsError`, and `FaultError` in `Perseus Language Design.md`
+- [x] Support catching Java exceptions by explicit class name in `when java(...) do ...` clauses
+- [x] Lower exception blocks to JVM `try/catch`
 - [ ] Decide which existing runtime failures should remain fail-fast and which should become catchable exceptions
-- [ ] Defer bound exception-object/member-access syntax until class/object support is in place
-- [ ] Tests for file I/O, `external java`, and runtime error handling scenarios
+- [ ] Bound exception-object/member-access syntax (`when ... as ex do ...`) remains deferred
+- [x] Tests for `external java`, bounds handling, and `fault` recovery scenarios
+
+**Current passing slice:** basic structured recovery is now working end to end. The compiler accepts `begin ... exception ... end`, lowers handlers to JVM `.catch` regions, and passes end-to-end tests for:
+
+- Java exception recovery through `external java`
+- `BoundsError`-style recovery for out-of-range array access
+- `FaultError`-style recovery for `fault(...)` inside an exception block
+
+**Current limitation:** this first slice still uses direct JVM exception mappings in code generation (`NumberFormatException`, `ArrayIndexOutOfBoundsException`, `RuntimeException`) rather than a full dedicated Perseus runtime exception hierarchy. Bound exception variables (`as ex`) are parsed but not yet given semantic/runtime support.
 
 ## Milestone 29 — Dynamic Channels and File I/O
 
