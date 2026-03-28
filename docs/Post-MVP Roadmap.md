@@ -59,7 +59,9 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 ## Milestone 37 - Label and Switch Parameters / Designational Exits
 
-**Priority:** Standards-completeness milestone that may be less important for a JVM-practical MVP than classes and exceptions.
+**Status:** Not currently planned.
+
+**Priority:** Optional standards-completeness milestone that may never be implemented if Perseus continues to prefer structured exceptions and other more modern control-flow mechanisms.
 
 **Goal:** Allow labels and switches to be passed as parameters and used for procedure-mediated exits, matching real Algol 60 designational-expression semantics more closely.
 

@@ -2,6 +2,14 @@
 
 This document collects design notes for language features that extend, reinterpret, or modernize Perseus's Algol heritage. Some of these features are inspired by historical Algol-family compilers; others are new directions intended to make Perseus more practical on the JVM.
 
+## Standards Scope and Intentional Omissions
+
+Perseus is rooted in the Algol 60 tradition, but it is not committed to implementing every standard feature if a different design direction makes better sense for the language on the JVM.
+
+One important example is **label and switch parameters with designational exits**. These are part of the Algol 60 standard, but they are also one of the least natural features to carry forward into a modern JVM-oriented language. With structured exceptions now part of Perseus, the language has a clearer and more practical mechanism for many non-local control-flow situations that older Algol code handled through passed labels and designational exits.
+
+For that reason, Perseus may intentionally leave this part of the standard unimplemented. That should be understood as a conscious scope decision, not an accidental gap. The Algol standards themselves leave room for different implementation levels and representations, and Perseus can remain an Algol-derived language without treating every standards-completeness milestone as equally important to its long-term identity.
+
 ## Arrays
 
 Perseus arrays follow Algol-family conventions rather than Java's array syntax and semantics.
