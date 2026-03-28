@@ -792,10 +792,10 @@ The current passing slice supports the `I`, `F`, and `A` format families used by
 - [ ] Classpath options such as `-cp` / `--classpath` for external Algol and Java resolution
 - [x] Optional `-d <outdir>` and sensible output layout
 - [x] Optional `--jar <file>` packaging for runnable output
-- [ ] Optional or default ASM post-processing/verification step after Jasmin assembly (for example via `FixLimits`) so CLI builds get the same class-family cleanup and verifier feedback used by the `manboy` tests
+- [x] Default ASM post-processing/verification step after Jasmin assembly via `FixLimits`, so CLI builds get the same class-family cleanup and verifier feedback as the test pipeline
 - [x] Clearer user-facing error output for diagnostics vs internal compiler failures
 
-The current passing slice includes a real Gradle-distributed `perseus` launcher, javac-style `-d` handling, inferred class names from source files, and optional runnable JAR packaging. Remaining Milestone 31 work is mainly about classpath options, broader multi-file workflows, ASM post-processing, and any further refinement of exit-code policy.
+The current passing slice includes a real Gradle-distributed `perseus` launcher, javac-style `-d` handling, inferred class names from source files, optional runnable JAR packaging, and default ASM post-processing across the generated class family. Remaining Milestone 31 work is mainly about classpath options, broader multi-file workflows, and any further refinement of exit-code policy.
 
 ## Milestone 32 — Lambda Notation
 
