@@ -14,6 +14,7 @@ The goal is not to maximize parser nostalgia. The goal is to preserve the most v
 |---|---|---|---|---|
 | Numeric labels | `10 x := x + 1` | Accept verbatim | Accept verbatim | Common in historical Algol code and useful for source compatibility, especially around `goto` examples. |
 | Dummy statements | `L:` followed by nothing, or empty statement between separators | Accept verbatim | Accept verbatim | Needed so labeled empty targets and some report-style control-flow examples compile naturally. |
+| Label and switch parameters / designational exits | `procedure p(label L); goto L` or passed `switch` targets | Not currently planned | Do not support | Even though this is part of standard Algol, Perseus now treats structured exceptions and more modern control-flow mechanisms as the preferred direction. Ordinary labels remain supported, but passed labels/switches and their non-local exit semantics are intentionally outside the current language scope. |
 | Named parameter delimiters | `procedure Spur (a) Order:(n) Result:(s);` | Accept verbatim, but normalize internally to an ordinary parameter list | Accept verbatim | Historically important, appears in well-known examples, and is best understood as user-defined parameter delimiters rather than a different kind of procedure declaration. |
 | Simple parameter lists | `procedure f(x, y); value x; integer x, y;` | Preferred spelling in docs and most tests | Normalize/prefer | Clearer for modern readers and already matches most of the current compiler structure. |
 | Lowercase reserved words | `begin`, `end`, `if`, `then` | Preferred and accepted | Normalize/prefer | Already the project convention; avoids stropping and typography issues. |
@@ -33,3 +34,4 @@ Until a stronger reason appears, Perseus should follow these rules:
 1. Accept verbatim forms when they are both historically important and still readable enough to justify permanent parser support.
 2. Prefer normalized Perseus spellings in project docs, examples, and new tests even when a rarer historical spelling is accepted.
 3. Decline syntax that mainly recreates hardware, typography, or vendor quirks without improving source compatibility for examples we actually care about.
+4. Distinguish between ordinary historical surface syntax that Perseus accepts and deeper standard semantics that Perseus may intentionally leave out when they do not fit the language's current direction.
