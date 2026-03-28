@@ -31,114 +31,99 @@ The Man-or-Boy test is notable because it stresses exactly the sort of features 
 
 Today, the implemented feature set is still closest to an ALGOL 60 compiler with extensions. The broader direction, however, is for Perseus to become its own Algol-family language rather than remain only a historical reconstruction.
 
-## Building the Project
+## Installing and Running Perseus
+
+### Build the Launcher Distribution
+
+From the project root:
+
+```bash
+gradle installDist
+```
+
+On Windows this produces:
+
+```text
+build/install/perseus/bin/perseus.bat
+```
+
+On macOS and Linux this produces:
+
+```text
+build/install/perseus/bin/perseus
+```
+
+### Compile a Program
+
+Example:
+
+```bash
+perseus test/algol/hello.alg -d build/output
+```
+
+This compiles and assembles the program into JVM class files under the requested output directory.
+
+### Override the Main Class Name
+
+Example:
+
+```bash
+perseus test/algol/hello.alg -d build/output --class-name HelloDemo
+```
+
+This is useful when you want the generated main program class to use a specific name instead of the default name inferred from the source filename.
+
+### Package a Runnable JAR
+
+Example:
+
+```bash
+perseus test/algol/hello.alg -d build/output --jar build/output/hello.jar
+```
+
+This compiles the program, assembles the class family, and packages a runnable JAR.
+
+### Current CLI Options
+
+- `-d <outdir>` selects the output directory for generated artifacts
+- `--jar <file>` creates a runnable JAR after compilation
+- `--class-name <name>` overrides the inferred main class name when needed
+
+## Developer Workflow
 
 This project uses Gradle for build and dependency management.
+
+Common commands:
 
 ```bash
 gradle build
 gradle test
 gradle clean
+gradle generateGrammarSource
 ```
 
 See [docs/Gradle-Build.md](docs/Gradle-Build.md) for more details.
 
-## Gradle Targets
+### The `compilePerseus` Gradle Task
 
-This project uses Gradle for build and dependency management. Below are the key Gradle targets available:
+The `compilePerseus` task remains useful for compiler development and debugging. It compiles a source file to Jasmin and then assembles the generated `.j` family into `.class` files.
 
-- **`gradle build`**: Compiles the source code, generates the ANTLR parser and lexer, and packages the project.
-- **`gradle test`**: Runs all unit tests using JUnit 5.
-- **`gradle clean`**: Cleans the build directory, removing all generated files.
-- **`gradle generateGrammarSource`**: Regenerates the ANTLR parser and lexer from the grammar file (`Perseus.g4`).
-- **`gradle build -x test`**: Compiles the source code, generates the ANTLR parser and lexer, and packages the project, skipping all unit tests.
-
-See [docs/Gradle-Build.md](docs/Gradle-Build.md) for more details.
-
-## Using the `compilePerseus` Gradle Task
-
-The `compilePerseus` Gradle task simplifies the process of compiling Perseus source files into Jasmin assembly and then assembling the Jasmin files into JVM class files. This task performs the following steps:
-
-1. **Compile source to Jasmin**:
-   - The task uses the `PerseusCompiler` class to parse the source file and generate the main Jasmin `.j` file plus any needed companion `.j` files for thunks and procedure references.
-2. **Assemble Jasmin to class files**:
-   - The task invokes the Jasmin assembler to convert the main `.j` file, its generated companion `.j` files, and any emitted support interfaces into `.class` files.
-
-### Running the Task
-
-To use the `compilePerseus` task, you can specify the input file, output directory, and class name as parameters. For example:
+Example:
 
 ```bash
 gradle compilePerseus -PinputFile=test/algol/myfile.alg -PoutputDir=build/output -PclassName=MyClass
 ```
 
-This will:
+This is primarily a developer convenience task. End users should generally prefer the `perseus` launcher workflow above.
 
-1. Compile the source file located at `test/algol/myfile.alg`.
-2. Generate the main Jasmin file (`MyClass.j`) and any needed companion `.j` files in the `build/output` directory.
-3. Assemble that Jasmin family into JVM class files in the same directory.
+### Typical Development Outputs
 
-### Default Behavior
+Depending on the program, compilation may produce:
 
-If no parameters are provided, the task defaults to:
-
-- **Input File**: `test/algol/hello.alg`
-- **Output Directory**: `build/test-algol`
-- **Class Name**: `Hello`
-
-### Output
-
-After running the task, you can find the following files in the specified output directory:
-
-- `MyClass.j`: The generated main Jasmin assembly file.
-- `MyClass.class`: The compiled main JVM class file.
-- `MyClass$ThunkN.j` / `MyClass$ThunkN.class`: Generated when call-by-name thunks are needed.
-- `MyClass$ProcRefN.j` / `MyClass$ProcRefN.class`: Generated when procedure references are needed.
-- `Thunk.j` / `Thunk.class` and `ProcedureInterfaces.j` / companion interface `.class` files when the program needs those runtime support interfaces.
-
-You can then run the compiled class file using the `java` command:
-
-```bash
-java -cp build/output gnb.perseus.programs.MyClass
-```
-
-## Using the Perseus CLI
-
-In addition to the Gradle task, you can use the `PerseusCLI` directly to compile source files. The CLI provides a simple interface for specifying the input file, output directory, and class name.
-
-### Running the CLI
-
-To use the CLI, run the following command:
-
-```bash
-java -cp build/classes/java/main gnb.perseus.cli.PerseusCLI <inputFile> <outputDir> <className>
-```
-
-For example:
-
-```bash
-java -cp build/classes/java/main gnb.perseus.cli.PerseusCLI test/algol/hello.alg build/output Hello
-```
-
-This will:
-
-1. Compile the source file located at `test/algol/hello.alg`.
-2. Generate the main Jasmin file (`Hello.j`) and any needed companion `.j` files in the `build/output` directory.
-3. Assemble that Jasmin family into JVM class files in the same directory.
-
-### Output
-
-After running the CLI, you can find the following files in the specified output directory:
-
-- `Hello.j`: The generated main Jasmin assembly file.
-- `Hello.class`: The compiled main JVM class file.
-- `Hello$ThunkN.*` and `Hello$ProcRefN.*` companions when the program uses call-by-name parameters or procedure references.
-
-You can then run the compiled class file using the `java` command:
-
-```bash
-java -cp build/output gnb.perseus.programs.Hello
-```
+- `MyClass.j` and `MyClass.class`
+- `MyClass$ThunkN.*` for call-by-name support
+- `MyClass$ProcRefN.*` for procedure references
+- `Thunk.*` and `ProcedureInterfaces.*` support artifacts when needed
 
 For VS Code users, the [Algol 60 syntax highlighter](https://marketplace.visualstudio.com/items?itemName=TrisTOON.language-algol60) by TrisTOON is a useful extension for editing `.alg` files.
 

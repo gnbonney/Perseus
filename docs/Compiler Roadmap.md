@@ -776,19 +776,26 @@ The current passing slice is intentionally narrow: it supports the new regressio
 
 **Goal:** Implement `outformat` and `informat` with channel-backed formatting workflows (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
-- [ ] `outformat(channel, format, ...)`
-- [ ] `informat(channel, format, ...)`
-- [ ] String-channel formatting scenarios (`openstring`, `closefile`, sprintf-like usage)
+**Status:** Passing.
+
+- [x] `outformat(channel, format, ...)`
+- [x] `informat(channel, format, ...)`
+- [x] String-channel formatting scenarios (`openstring`, `closefile`, sprintf-like usage)
+
+The current passing slice supports the `I`, `F`, and `A` format families used by the new regression samples, including formatted stdout output, string-channel accumulation, file-channel formatted output with readback, and basic `informat` parsing.
 
 ## Milestone 31 — CLI and Compiler UX
 
-**Goal:** Turn the existing CLI into a real compiler front end suitable for everyday use.
+**Goal:** Turn the existing CLI into a real compiler front end suitable for everyday use (see [CLI Design.md](CLI%20Design.md)).
 
-- [ ] `perseus` command mirroring `javac` for one or more `.alg` files
+- [x] `perseus` command mirroring `javac` for the current single-file `.alg` workflow
 - [ ] Classpath options such as `-cp` / `--classpath` for external Algol and Java resolution
-- [ ] Optional `-d <outdir>` and sensible output layout
+- [x] Optional `-d <outdir>` and sensible output layout
+- [x] Optional `--jar <file>` packaging for runnable output
 - [ ] Optional or default ASM post-processing/verification step after Jasmin assembly (for example via `FixLimits`) so CLI builds get the same class-family cleanup and verifier feedback used by the `manboy` tests
-- [ ] Stable exit codes and clearer user-facing error output
+- [x] Clearer user-facing error output for diagnostics vs internal compiler failures
+
+The current passing slice includes a real Gradle-distributed `perseus` launcher, javac-style `-d` handling, inferred class names from source files, and optional runnable JAR packaging. Remaining Milestone 31 work is mainly about classpath options, broader multi-file workflows, ASM post-processing, and any further refinement of exit-code policy.
 
 ## Milestone 32 — Lambda Notation
 

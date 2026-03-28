@@ -1340,7 +1340,7 @@ public class CodeGenerator extends PerseusBaseListener {
         System.out.println("Processing procedure call: " + name);
         List<PerseusParser.ArgContext> args = ctx.argList() != null ? ctx.argList().arg() : List.of();
         if (channelGen.tryEmitProcedureCall(name, args, activeOutput, currentLocalIndex, currentSymbolTable,
-                mainSymbolTable, this::generateExpr, this::allocateNewLocal, this::getChannelStream,
+                mainSymbolTable, this::generateExpr, e -> exprTypes.getOrDefault(e, "integer"), this::allocateNewLocal, this::getChannelStream,
                 this::lookupVarType, this::staticFieldName)) {
             return;
         } else if ("outchar".equals(name)) {

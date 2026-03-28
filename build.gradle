@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'antlr'
+    id 'application'
 }
 
 group = 'org.perseus'
@@ -53,17 +54,22 @@ test {
     }
 }
 
+application {
+    mainClass = 'gnb.perseus.cli.PerseusCLI'
+    applicationName = 'perseus'
+}
+
 // Add a Gradle task to compile Perseus source to Jasmin and then to class files
 task compilePerseus(type: JavaExec) {
     classpath = files(sourceSets.main.runtimeClasspath)
-    main = 'gnb.perseus.cli.PerseusCLI'
+    mainClass = 'gnb.perseus.cli.PerseusCLI'
 
     // Define parameters for the task
     def inputFile = project.hasProperty('inputFile') ? project.inputFile : 'test/algol/hello.alg'
     def outputDir = project.hasProperty('outputDir') ? project.outputDir : 'build/test-algol'
     def className = project.hasProperty('className') ? project.className : 'Hello'
 
-    args inputFile, outputDir, className
+    args inputFile, "-d", outputDir, "--class-name", className
 
     doLast {
         // Assemble the generated Jasmin file into a .class file

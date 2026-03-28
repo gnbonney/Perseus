@@ -1,0 +1,104 @@
+package gnb.perseus.compiler;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+import org.junit.jupiter.api.Test;
+
+public class FormattedIOTest extends CompilerTest {
+
+    @Test
+    public void outformat_basic_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/outformat_basic.alg",
+                "gnb/perseus/programs",
+                "OutformatBasic",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== OUTFORMAT BASIC JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END OUTFORMAT BASIC ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.OutformatBasic");
+        assertEquals("   42     3.14      Algol", output,
+                "outformat should produce width-aware formatted stdout output");
+    }
+
+    @Test
+    public void outformat_string_channel_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/outformat_string_channel.alg",
+                "gnb/perseus/programs",
+                "OutformatStringChannel",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== OUTFORMAT STRING CHANNEL JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END OUTFORMAT STRING CHANNEL ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.OutformatStringChannel");
+        assertEquals("[  42   3.14     Hi]", output.trim(),
+                "outformat should support sprintf-style formatting through openstring");
+    }
+
+    @Test
+    public void outformat_file_channel_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/outformat_file_channel.alg",
+                "gnb/perseus/programs",
+                "OutformatFileChannel",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== OUTFORMAT FILE CHANNEL JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END OUTFORMAT FILE CHANNEL ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.OutformatFileChannel");
+        assertEquals("  27 Perseus", output,
+                "outformat should support formatted output through file-backed channels");
+    }
+
+    @Test
+    public void informat_basic_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/informat_basic.alg",
+                "gnb/perseus/programs",
+                "InformatBasic",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== INFORMAT BASIC JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END INFORMAT BASIC ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClassWithInput(BUILD_DIR, "gnb.perseus.programs.InformatBasic", " 42  3.1 Hello\n");
+        assertEquals("42 3.1 Hello", output.trim(),
+                "informat should parse formatted input into integer, real, and string variables");
+    }
+}

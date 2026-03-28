@@ -31,6 +31,7 @@ import gnb.perseus.compiler.antlr.PerseusBaseListener;
 import gnb.perseus.compiler.antlr.PerseusLexer;
 import gnb.perseus.compiler.antlr.PerseusParser;
 import gnb.perseus.compiler.antlr.PerseusParser.ProgramContext;
+import gnb.perseus.postprocess.FixLimits;
 
 /**
  * Facade for the Perseus-to-Jasmin compiler pipeline.
@@ -155,6 +156,25 @@ public class PerseusCompiler {
 			assembleOne(procIface, classOutputDir);
 		}
 
+		try {
+			FixLimits.fixClassFamilyInPlace(resolveMainClassFile(jasminFile, classOutputDir));
+		} catch (Exception e) {
+			throw new IOException("ASM post-processing failed for " + jasminFile + ": " + e.getMessage(), e);
+		}
+
+	}
+
+	private static Path resolveMainClassFile(Path jasminFile, Path classOutputDir) throws IOException {
+		for (String line : Files.readAllLines(jasminFile)) {
+			String trimmed = line.trim();
+			if (!trimmed.startsWith(".class ")) {
+				continue;
+			}
+			String[] parts = trimmed.split("\\s+");
+			String internalName = parts[parts.length - 1];
+			return classOutputDir.resolve(internalName.replace('/', java.io.File.separatorChar) + ".class");
+		}
+		throw new IOException("Could not resolve main class name from Jasmin source: " + jasminFile);
 	}
 
 	private static void assembleOne(Path jasminFile, Path classOutputDir) throws IOException, InterruptedException {
