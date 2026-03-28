@@ -14,7 +14,7 @@ public class ClassesTest extends CompilerTest {
     @Test
     public void class_counter_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/class_counter.alg", "gnb/perseus/programs", "ClassCounterTest", BUILD_DIR);
+                "test/algol/classes/class_counter.alg", "gnb/perseus/programs", "ClassCounterTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== CLASS COUNTER JASMIN ===");
@@ -36,7 +36,7 @@ public class ClassesTest extends CompilerTest {
     @Test
     public void class_point_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/class_point.alg", "gnb/perseus/programs", "ClassPointTest", BUILD_DIR);
+                "test/algol/classes/class_point.alg", "gnb/perseus/programs", "ClassPointTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== CLASS POINT JASMIN ===");
@@ -58,7 +58,7 @@ public class ClassesTest extends CompilerTest {
     @Test
     public void class_two_counters_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/class_two_counters.alg", "gnb/perseus/programs", "ClassTwoCountersTest", BUILD_DIR);
+                "test/algol/classes/class_two_counters.alg", "gnb/perseus/programs", "ClassTwoCountersTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== CLASS TWO COUNTERS JASMIN ===");

@@ -17,7 +17,7 @@ public class HistoricalStressTest extends CompilerTest {
     @Test
 	public void primes_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/primes.alg", "gnb/perseus/programs", "PrimesTest", BUILD_DIR);
+				"test/algol/historical/primes.alg", "gnb/perseus/programs", "PrimesTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.err.println("=== PRIMES JASMIN ===");
 		System.err.println(jasminSource);
@@ -48,7 +48,7 @@ public class HistoricalStressTest extends CompilerTest {
 	@Test
 	public void pi_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/pi.alg", "gnb/perseus/programs", "PiTest", BUILD_DIR);
+				"test/algol/historical/pi.alg", "gnb/perseus/programs", "PiTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 
 		assertFalse(jasminSource.startsWith("ERROR"),
@@ -72,7 +72,7 @@ public class HistoricalStressTest extends CompilerTest {
 	@Test
 	public void pi2_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/pi2.alg", "gnb/perseus/programs", "Pi2Test", BUILD_DIR);
+				"test/algol/historical/pi2.alg", "gnb/perseus/programs", "Pi2Test", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 
 		assertFalse(jasminSource.startsWith("ERROR"),
@@ -97,7 +97,7 @@ public class HistoricalStressTest extends CompilerTest {
     public void pi_programs_test() throws Exception {
         // Test that pi_simple.alg (Archimedes pi approximation) compiles and runs from Milestone 11F
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/pi_simple.alg", "gnb/perseus/programs",
+                "test/algol/historical/pi_simple.alg", "gnb/perseus/programs",
                 "PiTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -127,7 +127,7 @@ public class HistoricalStressTest extends CompilerTest {
     public void manboy_test() throws Exception {
 		// Compile Algol source to Jasmin
 		Path jasminFile = PerseusCompiler.compileToFile(
-			"test/algol/manboy.alg", "gnb/perseus/programs", "ManBoy", BUILD_DIR);
+			"test/algol/historical/manboy.alg", "gnb/perseus/programs", "ManBoy", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 
 		System.out.println("=== MANBOY JASMIN ===");
@@ -157,7 +157,7 @@ public class HistoricalStressTest extends CompilerTest {
     @Test
     public void recursion_euler_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/recursion_euler.alg", "gnb/perseus/programs", "RecursionEuler", BUILD_DIR);
+                "test/algol/historical/recursion_euler.alg", "gnb/perseus/programs", "RecursionEuler", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== RECURSION_EULER JASMIN ===");

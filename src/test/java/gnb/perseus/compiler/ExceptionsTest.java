@@ -14,7 +14,7 @@ public class ExceptionsTest extends CompilerTest {
     @Test
     public void exception_java_number_format_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/exception_java_number_format.alg",
+                "test/algol/exceptions/exception_java_number_format.alg",
                 "gnb/perseus/programs",
                 "ExceptionJavaNumberFormat",
                 BUILD_DIR);
@@ -37,7 +37,7 @@ public class ExceptionsTest extends CompilerTest {
     @Test
     public void exception_bounds_error_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/exception_bounds_error.alg",
+                "test/algol/exceptions/exception_bounds_error.alg",
                 "gnb/perseus/programs",
                 "ExceptionBoundsError",
                 BUILD_DIR);
@@ -60,7 +60,7 @@ public class ExceptionsTest extends CompilerTest {
     @Test
     public void exception_fault_error_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/exception_fault_error.alg",
+                "test/algol/exceptions/exception_fault_error.alg",
                 "gnb/perseus/programs",
                 "ExceptionFaultError",
                 BUILD_DIR);

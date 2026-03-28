@@ -160,7 +160,7 @@ end
     public void proc_typed_simple_test() throws Exception {
         // Compile Algol source to Jasmin
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/procedures/proc_typed_simple.alg", "gnb/perseus/programs", "ProcTypedSimple", BUILD_DIR);
+                "test/algol/procedures/_simple.alg", "gnb/perseus/programs", "ProcTypedSimple", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== PROC_TYPED_SIMPLE JASMIN ===");
