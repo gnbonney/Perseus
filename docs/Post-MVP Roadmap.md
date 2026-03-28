@@ -76,6 +76,17 @@ Possible JVM strategy for passed labels: lower non-local label exits to tagged e
 
 Possible JVM strategy for passed switches: lower a switch parameter to an indexed collection of label-exit descriptors (or thunks that resolve to them), reusing the same non-local escape machinery as passed labels when `goto sw[i]` selects a non-local target.
 
+## Milestone 38 - Compiled Standard Environment
+
+**Goal:** Move more of the environmental block out of compiler hardcoding and into a real always-available compiled standard environment.
+
+- [ ] Define the shape of the always-available standard environment / prelude
+- [ ] Decide which environmental identifiers remain true compiler intrinsics
+- [ ] Move selected environmental procedures into compiled Perseus source where practical
+- [ ] Use supporting Perseus classes where implementation-heavy features need them
+- [ ] Ensure the standard environment is automatically available to all Perseus programs without explicit imports
+- [ ] Add tests showing that migrated environmental procedures work through the compiled standard environment rather than only through compiler-recognized names
+
 ## Future Direction Milestones
 
 These milestones are not just deferred implementation cleanup. They represent larger possible directions for Perseus after the MVP and the most important follow-on work are in place.

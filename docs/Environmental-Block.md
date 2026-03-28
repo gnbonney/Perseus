@@ -181,3 +181,26 @@ closefile(5);
 
 For rationale and historical context, see Perseus Language Design.md.
 
+---
+
+## Future Direction: Compiled Standard Environment
+
+Today, most environmental identifiers are still recognized directly by the compiler and lowered to known JVM calls or runtime patterns. That has been a practical way to get the language working, but it does not have to remain the long-term shape of the environmental block.
+
+A likely future direction is to move more of the environmental block into a real compiled standard environment that is always available to Perseus programs. In modern language terms, this would function like a prelude: standard code and declarations that are implicitly present for every program without requiring an explicit import.
+
+That standard environment would not need to be one giant source file. It could be made up of:
+
+- one or more Perseus source files that define the user-facing environmental procedures,
+- supporting Perseus classes for implementation-heavy features such as channels, formatting, and exception helpers,
+- and a much smaller compiler-recognized intrinsic subset for operations that truly need special treatment.
+
+This direction would make the environmental block:
+
+- more testable as ordinary Perseus code,
+- less dependent on hardcoded name recognition in the compiler,
+- easier to document as a real library interface,
+- and more consistent with Perseus's growing support for external procedures, classes, and standard classpath-based linkage.
+
+The likely migration path is incremental rather than all at once: keep a small intrinsic core, then move environmental procedures into compiled Perseus code feature by feature as the runtime and external-linkage model become strong enough to support them cleanly.
+
