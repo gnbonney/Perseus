@@ -1,4 +1,7 @@
-# Compiler Roadmap
+# MVP Roadmap
+
+This document covers the path to Perseus's minimum viable product through Milestone 31. For later follow-on and future-direction work, see [Post-MVP Roadmap.md](Post-MVP%20Roadmap.md).
+
 
 This list follows an iterative, depth-first approach: get each sample program
 fully compiling and running before expanding to the next. Each milestone produces
@@ -312,6 +315,7 @@ integer and string arguments.
 - [x] `PerseusCompiler`: `assemble()` picks up all `ClassName$ThunkN.j` and `Thunk.j` companion files automatically
 - [x] Test: `jen_test()` — `sumof(1,10,i,i)` = 55.0 and `sumof(-5,5,j,j*j)` = 110.0
 - [x] Test: `callByNameUpdateTest()` — `inc(i)` updates caller's `i` from 5 to 6
+- [ ] Follow-up regression: Jensen's Device with array-element actuals such as `A[i]`
 
 **Implementation notes:**
 - Each call-by-name argument creates one `Object[1]` box in the caller; multiple name args referencing the same variable share the same box (enabling Jensen's Device)
@@ -796,88 +800,4 @@ The current passing slice supports the `I`, `F`, and `A` format families used by
 - [x] Clearer user-facing error output for diagnostics vs internal compiler failures
 
 The current passing slice includes a real Gradle-distributed `perseus` launcher, javac-style `-d` handling, inferred class names from source files, optional runnable JAR packaging, and default ASM post-processing across the generated class family. Remaining Milestone 31 work is mainly about classpath options, broader multi-file workflows, and any further refinement of exit-code policy.
-
-## Milestone 32 — Lambda Notation
-
-**Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
-
-- [ ] Syntax and parsing for lambda-style procedure literals
-- [ ] Lowering strategy onto existing procedure-reference infrastructure
-- [ ] Tests for higher-order procedure use cases
-
-## Milestone 33 — Label and Switch Parameters / Designational Exits
-
-**Priority:** Standards-completeness milestone that may be less important for a JVM-practical MVP than classes and exceptions.
-
-**Goal:** Allow labels and switches to be passed as parameters and used for procedure-mediated exits, matching real Algol 60 designational-expression semantics more closely.
-
-- [ ] Grammar: `label` and `switch` formal parameter specifiers
-- [ ] Grammar: `Boolean procedure` declarations and `Boolean procedure` formal parameter specifiers
-- [ ] Codegen/runtime: Boolean-valued procedure calls and Boolean procedure references/parameters
-- [ ] Procedure calls: pass labels and switches as actual parameters
-- [ ] Codegen: support designational exits through passed labels/switches where legal
-- [ ] Enforce or document the goto-scope restrictions that still apply
-
-Possible JVM strategy for passed labels: lower non-local label exits to tagged exceptions (or an equivalent non-local escape mechanism) and catch them in the block/procedure activation that owns the real target labels. This would avoid requiring impossible cross-method JVM jumps while still giving a plausible implementation path for Algol-style designational exits.
-
-Possible JVM strategy for passed switches: lower a switch parameter to an indexed collection of label-exit descriptors (or thunks that resolve to them), reusing the same non-local escape machinery as passed labels when `goto sw[i]` selects a non-local target.
-
-## Notes on Prioritization
-
-The order above is intentional:
-1. Keep the currently-working **core Algol 60** implementation stable while closing the most valuable remaining semantic gaps (`21`–`25`).
-2. Then prioritize the most useful **JVM-practical interop features** (`26`–`28`) to reach a minimum viable product sooner.
-3. After that, continue with **runtime/library work, tooling, and longer-horizon extensions** (`29`–`33`).
-
-This keeps the roadmap aligned with the current goal of reaching a JVM-practical minimum viable product sooner, while still preserving the remaining Modified Report completeness work as explicit milestones rather than dropping it.
-# Completed from previous Future Milestones:
-# - Standard math functions (`abs`, `sqrt`, `sin`, `cos`, `ln`, `exp`, etc.) — ✅ Milestone 11A
-# - `pi.alg` — `real` procedures; `sqrt` standard function — ✅ Milestone 11F
-# - Standard I/O (`ininteger`, `inreal`, `inchar`) — ✅ Milestone 11C.1
-# - String variables (M11C.2) — ✅ Milestone 18 (implemented; concat/length/substring built-ins done)
-# - Standard I/O (`instring`) (M11C.3) — ✅ Milestone 18 (implemented; Scanner.nextLine())
-# - Error handling (`fault` procedure) — ✅ Milestone 11D
-# - `jen.alg` (call-by-name) — Milestone 12
-# - `manboy.alg` (deep recursion + procedure refs) - completed in Milestone 13E
-# - `recursion_euler.alg` (procedure parameters + real arrays) — Milestone 14
-# - `pi2.alg` (non-local scalar access) — Milestone 15
-# - `boolean_operators.alg` — Milestone 16
-# - `real_array.alg` — Milestone 17
-# - `string_output.alg` — ✅ Milestone 18
-# - `own_variables.alg` — ✅ Milestone 19
-# - `switch_declaration.alg` — ✅ Milestone 20
-
----
-
-## Infrastructure TODOs (any milestone)
-
-- [ ] Replace deprecated `ANTLRInputStream` with `CharStreams.fromReader()`
-- [ ] Write `.j` Jasmin files to a configurable output directory (not hardcoded)
-- [x] Add integration test helper to invoke Jasmin and run the resulting `.class`
-- [ ] Decide on output directory structure for compiled classes
-
----
-
-# Tool-Friendly Compiler Design: Implementation Priorities
-
-To ensure long-term maintainability and enable advanced tooling workflows, the following improvements are tracked below. Items marked ✅ have been addressed; remaining items can be added incrementally.
-
-## Completed
-- ✅ Modular multi-pass architecture: `SymbolTableBuilder` → `TypeInferencer` → `CodeGenerator` — clear separation of concerns, implemented from Milestone 2 onward.
-- ✅ Deterministic Jasmin output: canonical label naming, stable method/field ordering (sufficient for current milestones).
-
-## Still Relevant (Can Be Added Any Time)
-- Extend the current structured diagnostics work beyond parse/type inference: add more phases, collect multiple independent errors per run where practical, and keep stable file/line/column/code reporting.
-- Snapshot/golden tests: verify Jasmin output and diagnostics are stable and deterministic across compiler changes.
-- Full structured JSON diagnostics: machine-readable output, fix-it suggestions, deterministic ordering.
-- CLI options to emit AST, IR, or JVM IR for inspection/tooling.
-- Compile-time stack analysis and mapping of JVM verifier errors to Algol source.
-- Consistent debug metadata: line number tables, local variable tables, source-to-bytecode mapping.
-- Modern CLI commands: `check`, `emit-jasmin`, `emit-ast`, `emit-jvmir`, etc.
-- Versioned diagnostic schemas, stable IR formats, and LSP (Language Server Protocol) integration.
-
-
-
-
-
 
