@@ -45,7 +45,8 @@ public class PerseusCLI {
                 options.inputFile().toString(),
                 "gnb/perseus/programs",
                 className,
-                options.outputDir());
+                options.outputDir(),
+                effectiveClasspath(options));
 
         PerseusCompiler.assemble(jasminFile, options.outputDir());
 
@@ -70,6 +71,7 @@ public class PerseusCLI {
         Path outputDir = Paths.get("build/perseus-out");
         Path jarFile = null;
         String className = null;
+        List<Path> classpathEntries = new ArrayList<>();
 
         List<String> positional = new ArrayList<>();
         for (int i = 0; i < args.length; i++) {
@@ -89,7 +91,12 @@ public class PerseusCLI {
                 }
                 case "-cp", "--classpath" -> {
                     if (i + 1 >= args.length) throw new IllegalArgumentException("Missing value for " + arg);
-                    i++;
+                    String value = args[++i];
+                    for (String entry : value.split(java.util.regex.Pattern.quote(java.io.File.pathSeparator))) {
+                        if (!entry.isBlank()) {
+                            classpathEntries.add(Paths.get(entry));
+                        }
+                    }
                 }
                 default -> positional.add(arg);
             }
@@ -103,7 +110,14 @@ public class PerseusCLI {
         }
 
         inputFile = Paths.get(positional.get(0));
-        return new CliOptions(inputFile, outputDir, jarFile, className);
+        return new CliOptions(inputFile, outputDir, jarFile, className, classpathEntries);
+    }
+
+    private static List<Path> effectiveClasspath(CliOptions options) {
+        List<Path> roots = new ArrayList<>();
+        roots.add(options.outputDir());
+        roots.addAll(options.classpathEntries());
+        return roots;
     }
 
     private static String inferClassName(Path inputFile) {
@@ -155,5 +169,5 @@ public class PerseusCLI {
         }
     }
 
-    private record CliOptions(Path inputFile, Path outputDir, Path jarFile, String className) {}
+    private record CliOptions(Path inputFile, Path outputDir, Path jarFile, String className, List<Path> classpathEntries) {}
 }

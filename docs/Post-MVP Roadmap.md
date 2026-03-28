@@ -1,6 +1,6 @@
 # Post-MVP Roadmap
 
-This document covers follow-on milestones and larger future directions after the MVP path in [MVP Roadmap.md](MVP%20Roadmap.md).
+This document covers the active roadmap after the largely implemented MVP path in [MVP Roadmap.md](MVP%20Roadmap.md). It tracks follow-on milestones and larger future directions for Perseus going forward.
 
 ---
 
@@ -12,7 +12,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Goal:** Extend the first working external-procedure slice into a richer and better documented interop model.
 
-- [ ] Real CLI classpath support for `-cp` / `--classpath`
+- [ ] Broader classpath and library-resolution workflows beyond the initial CLI `-cp` / `--classpath` support
 - [ ] External Algol array parameters as a documented ABI case
 - [ ] Additional compile-time external signature validation and diagnostics
 - [ ] Decide whether and when to support call-by-name across external Algol boundaries
@@ -52,7 +52,6 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Goal:** Extend the working CLI into a broader tool suitable for multi-file and interop-heavy workflows.
 
-- [ ] Classpath options such as `-cp` / `--classpath` for external Algol and Java resolution
 - [ ] Broader multi-file compilation workflows
 - [ ] Optional installer/distribution packaging beyond `installDist`
 - [ ] Further exit-code and machine-facing CLI refinements

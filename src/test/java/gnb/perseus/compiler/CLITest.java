@@ -172,4 +172,59 @@ public class CLITest extends CompilerTest {
         assertTrue(mainMaxStack > 0 && mainMaxStack < 64,
                 "ASM post-processing should recompute max stack from the compiler's conservative default; found " + mainMaxStack);
     }
+
+    @Test
+    public void cli_classpath_support_for_external_algol_test() throws Exception {
+        Path libraryOutDir = BUILD_DIR.resolve("cli-cp-lib");
+        Path clientOutDir = BUILD_DIR.resolve("cli-cp-client");
+        Files.createDirectories(libraryOutDir);
+        Files.createDirectories(clientOutDir);
+
+        ProcessResult libraryResult = runCli(List.of(
+                "test/algol/external_algol_library.alg",
+                "-d",
+                libraryOutDir.toString(),
+                "--class-name",
+                "ExternalAlgolLibrary"));
+
+        assertEquals(0, libraryResult.exitCode(),
+                "CLI should compile the external Algol library successfully");
+
+        ProcessResult clientResult = runCli(List.of(
+                "test/algol/external_algol_client.alg",
+                "-d",
+                clientOutDir.toString(),
+                "-cp",
+                libraryOutDir.toString(),
+                "--class-name",
+                "ExternalAlgolClient"));
+
+        assertEquals(0, clientResult.exitCode(),
+                "CLI should use -cp to resolve separately compiled external Algol code");
+
+        Path clientClassFile = clientOutDir.resolve("gnb/perseus/programs/ExternalAlgolClient.class");
+        assertTrue(Files.exists(clientClassFile),
+                "CLI should emit the client class file when classpath resolution succeeds");
+
+        String combinedClasspath = clientOutDir + java.io.File.pathSeparator + libraryOutDir;
+        List<String> cmd = List.of("java", "-cp", combinedClasspath, "gnb.perseus.programs.ExternalAlgolClient");
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        pb.redirectErrorStream(false);
+        Process p = pb.start();
+        p.getOutputStream().close();
+        String stdout;
+        String stderr;
+        try (var out = p.getInputStream(); var err = p.getErrorStream()) {
+            stdout = new String(out.readAllBytes());
+            stderr = new String(err.readAllBytes());
+        }
+        int exitCode = p.waitFor();
+
+        assertEquals(0, exitCode,
+                "Client compiled with -cp should run successfully against the separately compiled library");
+        assertEquals("5.0", stdout.trim(),
+                "Client should call the external Algol library through the CLI classpath");
+        assertEquals("", stderr.trim(),
+                "Client run should not emit unexpected stderr");
+    }
 }

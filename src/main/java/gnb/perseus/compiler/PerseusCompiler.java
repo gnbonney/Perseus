@@ -67,10 +67,15 @@ public class PerseusCompiler {
 
 	public static Path compileToFile(String algolFile, String packageName, String className, Path outputDir)
 			throws IOException {
+		return compileToFile(algolFile, packageName, className, outputDir, java.util.List.of(outputDir));
+	}
+
+	public static Path compileToFile(String algolFile, String packageName, String className, Path outputDir,
+			List<Path> externalClassRoots) throws IOException {
 		// Run the full pipeline so we can access the CodeGenerator for thunk outputs
 		CodeGenerator codegen;
 		try {
-			codegen = runPipeline(algolFile, packageName, className, outputDir);
+			codegen = runPipeline(algolFile, packageName, className, externalClassRoots);
 			if (codegen == null) {
 				throw new IOException("runPipeline returned null");
 			}
@@ -216,7 +221,7 @@ public class PerseusCompiler {
 	 * can access both the main Jasmin output and any generated thunk class outputs.
 	 */
 	@SuppressWarnings("deprecation")
-	static CodeGenerator runPipeline(String fileName, String packageName, String className, Path externalClassRoot) throws Exception {
+	static CodeGenerator runPipeline(String fileName, String packageName, String className, List<Path> externalClassRoots) throws Exception {
 		ANTLRInputStream is = new ANTLRInputStream(new FileReader(fileName));
 		PerseusLexer lexer = new PerseusLexer(is);
 		CommonTokenStream tokens = new CommonTokenStream(lexer);
@@ -242,7 +247,7 @@ public class PerseusCompiler {
 		Map<String, SymbolTableBuilder.ProcInfo> procedures = symBuilder.getProcedures();
 		Map<String, SymbolTableBuilder.ClassInfo> classes = symBuilder.getClasses();
 		Map<String, PerseusParser.SwitchDeclContext> switchDeclarations = symBuilder.getSwitchDeclarations();
-		validateExternalProcedures(fileName, procedures, externalClassRoot);
+		validateExternalProcedures(fileName, procedures, externalClassRoots);
 
         // Check for procedure variables (procedure names that are used in assignments or expressions)
         Set<String> procedureVariables = new LinkedHashSet<>();
@@ -371,7 +376,7 @@ public class PerseusCompiler {
 
 	private static void validateExternalProcedures(String fileName,
 			Map<String, SymbolTableBuilder.ProcInfo> procedures,
-			Path externalClassRoot) throws CompilationFailedException {
+			List<Path> externalClassRoots) throws CompilationFailedException {
 		java.util.ArrayList<CompilerDiagnostic> diagnostics = new java.util.ArrayList<>();
 		for (Map.Entry<String, SymbolTableBuilder.ProcInfo> entry : procedures.entrySet()) {
 			String procName = entry.getKey();
@@ -385,7 +390,7 @@ public class PerseusCompiler {
 				continue;
 			}
 			try {
-				Class<?> owner = loadExternalOwner(info.externalTargetClass, externalClassRoot);
+				Class<?> owner = loadExternalOwner(info.externalTargetClass, externalClassRoots);
 				Method target = owner.getMethod(procName, getExternalParameterTypes(info));
 				if (!Modifier.isStatic(target.getModifiers())) {
 					diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
@@ -462,12 +467,20 @@ public class PerseusCompiler {
 		};
 	}
 
-	private static Class<?> loadExternalOwner(String className, Path externalClassRoot) throws ClassNotFoundException, IOException {
-		if (externalClassRoot != null) {
-			Path compiledClass = externalClassRoot.resolve(className.replace('.', java.io.File.separatorChar) + ".class");
-			if (Files.exists(compiledClass)) {
-				URL[] urls = new URL[] { externalClassRoot.toUri().toURL() };
-				try (URLClassLoader loader = new URLClassLoader(urls, PerseusCompiler.class.getClassLoader())) {
+	private static Class<?> loadExternalOwner(String className, List<Path> externalClassRoots) throws ClassNotFoundException, IOException {
+		if (externalClassRoots != null && !externalClassRoots.isEmpty()) {
+			java.util.ArrayList<URL> urls = new java.util.ArrayList<>();
+			for (Path root : externalClassRoots) {
+				if (root == null) {
+					continue;
+				}
+				Path compiledClass = root.resolve(className.replace('.', java.io.File.separatorChar) + ".class");
+				if (Files.exists(compiledClass)) {
+					urls.add(root.toUri().toURL());
+				}
+			}
+			if (!urls.isEmpty()) {
+				try (URLClassLoader loader = new URLClassLoader(urls.toArray(URL[]::new), PerseusCompiler.class.getClassLoader())) {
 					return Class.forName(className, false, loader);
 				}
 			}

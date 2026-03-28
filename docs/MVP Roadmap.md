@@ -1,6 +1,6 @@
 # MVP Roadmap
 
-This document covers the path to Perseus's minimum viable product through Milestone 31. For later follow-on and future-direction work, see [Post-MVP Roadmap.md](Post-MVP%20Roadmap.md).
+This document covers the path to Perseus's minimum viable product through Milestone 31. That path is now largely implemented. Ongoing roadmap work is tracked in [Post-MVP Roadmap.md](Post-MVP%20Roadmap.md).
 
 
 This list follows an iterative, depth-first approach: get each sample program
@@ -14,6 +14,8 @@ a real, executable class file — not just a parse tree or a Jasmin text skeleto
 
 **55/55 tests passing as of March 22, 2026.**
 
+Perseus has now reached the point where the MVP roadmap is largely complete: the compiler has a substantial core language, external procedures, classes, exceptions, file and string channels, formatted I/O, structured diagnostics, a real launcher, default ASM post-processing, and working CLI classpath support.
+
 Recent milestone wins:
 
 - `PerseusCompilerTest.manboy_test()` now passes. Perseus compiles and runs Knuth's Man-or-Boy test correctly and returns `-67.0`.
@@ -21,10 +23,10 @@ Recent milestone wins:
 - `FixLimits` now verifies generated class families (`Main.class` plus `Main$*.class`), not just the main class.
 - The Jasmin pipeline is cleaner: `compileToFile()` writes the `.j` family, `assemble()` assembles that family, and tests can post-process the resulting class family in place.
 
-**Near-term next steps:**
-1. Keep the current core-language implementation stable while moving toward a JVM-practical MVP.
-2. Prioritize interop-enabling extensions such as external procedures, classes, and exceptions.
-3. Continue standard-compliance milestones incrementally, especially where classic Algol 60 examples expose concrete gaps.
+**Current direction:**
+1. Keep the current MVP implementation stable.
+2. Use [Post-MVP Roadmap.md](Post-MVP%20Roadmap.md) as the active roadmap for follow-on milestones and future directions.
+3. Continue standards-completeness and language-growth work from that post-MVP plan.
 
 ### Resolved Issues
 
@@ -793,11 +795,11 @@ The current passing slice supports the `I`, `F`, and `A` format families used by
 **Goal:** Turn the existing CLI into a real compiler front end suitable for everyday use (see [CLI Design.md](CLI%20Design.md)).
 
 - [x] `perseus` command mirroring `javac` for the current single-file `.alg` workflow
-- [ ] Classpath options such as `-cp` / `--classpath` for external Algol and Java resolution
+- [x] Classpath options such as `-cp` / `--classpath` for external Algol and Java resolution
 - [x] Optional `-d <outdir>` and sensible output layout
 - [x] Optional `--jar <file>` packaging for runnable output
 - [x] Default ASM post-processing/verification step after Jasmin assembly via `FixLimits`, so CLI builds get the same class-family cleanup and verifier feedback as the test pipeline
 - [x] Clearer user-facing error output for diagnostics vs internal compiler failures
 
-The current passing slice includes a real Gradle-distributed `perseus` launcher, javac-style `-d` handling, inferred class names from source files, optional runnable JAR packaging, and default ASM post-processing across the generated class family. Remaining Milestone 31 work is mainly about classpath options, broader multi-file workflows, and any further refinement of exit-code policy.
+The current passing slice includes a real Gradle-distributed `perseus` launcher, javac-style `-d` handling, inferred class names from source files, optional runnable JAR packaging, default ASM post-processing across the generated class family, and working `-cp` / `--classpath` support for external Algol and Java resolution. Any remaining Milestone 31 work is mainly about broader multi-file workflows and further refinement of CLI behavior and exit-code policy.
 
