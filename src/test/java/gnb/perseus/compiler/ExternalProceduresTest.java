@@ -20,7 +20,7 @@ public class ExternalProceduresTest extends CompilerTest {
     @Test
 	public void external_algol_client_test() throws Exception {
 		Path libraryJasminFile = PerseusCompiler.compileToFile(
-				"test/algol/external_algol_library.alg", "gnb/perseus/programs", "ExternalAlgolLibrary", BUILD_DIR);
+				"test/algol/external/external_algol_library.alg", "gnb/perseus/programs", "ExternalAlgolLibrary", BUILD_DIR);
 		String libraryJasminSource = Files.readString(libraryJasminFile);
 		System.out.println("=== EXTERNAL ALGOL LIBRARY JASMIN ===");
 		System.out.println(libraryJasminSource);
@@ -31,7 +31,7 @@ public class ExternalProceduresTest extends CompilerTest {
 		PerseusCompiler.assemble(libraryJasminFile, BUILD_DIR);
 
 		Path clientJasminFile = PerseusCompiler.compileToFile(
-				"test/algol/external_algol_client.alg", "gnb/perseus/programs", "ExternalAlgolClient", BUILD_DIR);
+				"test/algol/external/external_algol_client.alg", "gnb/perseus/programs", "ExternalAlgolClient", BUILD_DIR);
 		String clientJasminSource = Files.readString(clientJasminFile);
 		System.out.println("=== EXTERNAL ALGOL CLIENT JASMIN ===");
 		System.out.println(clientJasminSource);
@@ -52,7 +52,7 @@ public class ExternalProceduresTest extends CompilerTest {
 	@Test
 	public void external_java_static_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/external_java_math.alg", "gnb/perseus/programs", "ExternalJavaMath", BUILD_DIR);
+				"test/algol/external/external_java_math.alg", "gnb/perseus/programs", "ExternalJavaMath", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== EXTERNAL JAVA STATIC JASMIN ===");
 		System.out.println(jasminSource);

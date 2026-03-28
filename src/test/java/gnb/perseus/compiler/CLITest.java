@@ -181,7 +181,7 @@ public class CLITest extends CompilerTest {
         Files.createDirectories(clientOutDir);
 
         ProcessResult libraryResult = runCli(List.of(
-                "test/algol/external_algol_library.alg",
+                "test/algol/external/external_algol_library.alg",
                 "-d",
                 libraryOutDir.toString(),
                 "--class-name",
@@ -191,7 +191,7 @@ public class CLITest extends CompilerTest {
                 "CLI should compile the external Algol library successfully");
 
         ProcessResult clientResult = runCli(List.of(
-                "test/algol/external_algol_client.alg",
+                "test/algol/external/external_algol_client.alg",
                 "-d",
                 clientOutDir.toString(),
                 "-cp",
