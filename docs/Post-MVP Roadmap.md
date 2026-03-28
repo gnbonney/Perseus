@@ -8,7 +8,7 @@ This document covers follow-on milestones and larger future directions after the
 
 The milestones below collect follow-on work that was intentionally deferred while pushing toward the MVP path through Milestone 31. They are still important, but they are no longer mixed into the mainline milestones as scattered notes.
 
-## Milestone 32 — External Procedure Follow-On
+## Milestone 32 - External Procedure Follow-On
 
 **Goal:** Extend the first working external-procedure slice into a richer and better documented interop model.
 
@@ -18,7 +18,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Decide whether and when to support call-by-name across external Algol boundaries
 - [ ] Decide whether and when to support procedure-valued external parameters
 
-## Milestone 33 — Class Model Follow-On
+## Milestone 33 - Class Model Follow-On
 
 **Goal:** Extend the basic Simula-inspired class model beyond the first working slice.
 
@@ -28,7 +28,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Exception-object/member access integration once richer exception binding exists
 - [ ] Add tests for class-based Java interop scenarios
 
-## Milestone 34 — Exception Follow-On
+## Milestone 34 - Exception Follow-On
 
 **Goal:** Finish the parts of the exception design that were deferred after the first working slice.
 
@@ -38,7 +38,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Decide later whether richer exception member syntax should use helpers only or eventually support object-style access such as `ex.message`
 - [ ] Decide how much of the current JVM exception mapping should be replaced with a dedicated Perseus runtime exception hierarchy
 
-## Milestone 35 — Dynamic Channels and Formatted I/O Follow-On
+## Milestone 35 - Dynamic Channels and Formatted I/O Follow-On
 
 **Goal:** Generalize the first working dynamic I/O slice into a broader runtime channel model.
 
@@ -48,7 +48,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Extend formatted I/O beyond the current `I`, `F`, and `A` subset
 - [ ] Add more file/string-channel regression programs that combine unformatted and formatted I/O
 
-## Milestone 36 — CLI Follow-On
+## Milestone 36 - CLI Follow-On
 
 **Goal:** Extend the working CLI into a broader tool suitable for multi-file and interop-heavy workflows.
 
@@ -58,7 +58,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Further exit-code and machine-facing CLI refinements
 - [ ] Additional commands such as `check` or `emit-jasmin` if they remain desirable after the MVP
 
-## Milestone 37 — Label and Switch Parameters / Designational Exits
+## Milestone 37 - Label and Switch Parameters / Designational Exits
 
 **Priority:** Standards-completeness milestone that may be less important for a JVM-practical MVP than classes and exceptions.
 
@@ -79,7 +79,7 @@ Possible JVM strategy for passed switches: lower a switch parameter to an indexe
 
 These milestones are not just deferred implementation cleanup. They represent larger possible directions for Perseus after the MVP and the most important follow-on work are in place.
 
-## Milestone 40 — Lambda Notation
+## Milestone 40 - Lambda Notation
 
 **Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
@@ -87,7 +87,7 @@ These milestones are not just deferred implementation cleanup. They represent la
 - [ ] Lowering strategy onto existing procedure-reference infrastructure
 - [ ] Tests for higher-order procedure use cases
 
-## Milestone 41 — Actors
+## Milestone 41 - Actors
 
 **Goal:** Explore actors as a distinctive future direction for Perseus once the MVP and key follow-on milestones are in place (see [Actors Design Spec.md](Actors%20Design%20Spec.md)).
 
@@ -96,16 +96,19 @@ These milestones are not just deferred implementation cleanup. They represent la
 - [ ] Decide how actors should relate to existing classes, exceptions, and external Java interop
 - [ ] Add focused actor sample programs and a phased implementation plan
 
-## Notes on Prioritization
+## Toward a General-Purpose Product
 
-The order above is intentional:
-1. Keep the currently-working **core Algol 60** implementation stable while closing the most valuable remaining semantic gaps (`21`–`25`).
-2. Then prioritize the most useful **JVM-practical interop features** (`26`–`28`) to reach a minimum viable product sooner.
-3. Then complete the **runtime/library work and tooling** needed for an MVP (`29`–`31`).
-4. After that, address the most important **follow-on milestones** that were intentionally deferred while reaching the MVP.
-5. Treat larger features such as **lambda notation** and **actors** as explicit future directions rather than bolting them impulsively into the MVP sequence.
+Beyond the follow-on milestones above, a more polished general-purpose Perseus product would likely also need:
 
-This keeps the roadmap aligned with the current goal of reaching a JVM-practical minimum viable product sooner, while still preserving follow-on standards-completeness work and larger future directions explicitly.
+- Easier installation and distribution beyond `installDist`, especially for Windows and macOS.
+- A clearer standard-library story beyond the current environmental procedures and extensions.
+- More user-facing documentation such as tutorials, getting-started material, interop guides, and worked examples.
+- Release/versioning discipline, including compatibility expectations and clearer release notes.
+- Broader user-workflow testing, including multi-file builds, library use, packaging, and install-level smoke tests.
+- Better late-phase diagnostics coverage beyond the current parser/type-focused structured diagnostics.
+- Clearer source and ABI stability policies as the language continues to evolve.
+- Continued attention to performance and code-quality issues once the language surface stabilizes.
+
 ---
 
 ## Infrastructure TODOs (any milestone)
@@ -119,11 +122,11 @@ This keeps the roadmap aligned with the current goal of reaching a JVM-practical
 
 # Tool-Friendly Compiler Design: Implementation Priorities
 
-To ensure long-term maintainability and enable advanced tooling workflows, the following improvements are tracked below. Items marked âœ… have been addressed; remaining items can be added incrementally.
+To ensure long-term maintainability and enable advanced tooling workflows, the following improvements are tracked below. Items marked `[x]` have been addressed; remaining items can be added incrementally.
 
 ## Completed
-- âœ… Modular multi-pass architecture: `SymbolTableBuilder` â†’ `TypeInferencer` â†’ `CodeGenerator` â€” clear separation of concerns, implemented from Milestone 2 onward.
-- âœ… Deterministic Jasmin output: canonical label naming, stable method/field ordering (sufficient for current milestones).
+- [x] Modular multi-pass architecture: `SymbolTableBuilder` -> `TypeInferencer` -> `CodeGenerator` -- clear separation of concerns, implemented from Milestone 2 onward.
+- [x] Deterministic Jasmin output: canonical label naming, stable method/field ordering (sufficient for current milestones).
 
 ## Still Relevant (Can Be Added Any Time)
 - Extend the current structured diagnostics work beyond parse/type inference: add more phases, collect multiple independent errors per run where practical, and keep stable file/line/column/code reporting.
@@ -134,9 +137,4 @@ To ensure long-term maintainability and enable advanced tooling workflows, the f
 ## Longer-Term Tooling Ideas
 - Improve JVM verifier feedback so bytecode verification failures can be explained more clearly in terms of Perseus source and compiler phases.
 - Versioned diagnostic schemas, stable IR formats, and LSP (Language Server Protocol) integration.
-
-
-
-
-
 
