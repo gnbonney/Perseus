@@ -135,7 +135,7 @@ end
 """;
         
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/output_test.alg", "gnb/perseus/programs",
+                "test/algol/io/output_test.alg", "gnb/perseus/programs",
                 "OutputTestM11B", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
         
@@ -159,7 +159,7 @@ end
         // Test channel-aware stream selection for output procedures
         // Channel 0 -> System.err, Channel 1 -> System.out
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/channel_test.alg", "gnb/perseus/programs",
+                "test/algol/io/channel_test.alg", "gnb/perseus/programs",
                 "ChannelTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
         
@@ -202,7 +202,7 @@ end
     public void string_test() throws Exception {
         // Test string variable support from Milestone 11C.2
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/string_test.alg", "gnb/perseus/programs",
+                "test/algol/io/string_test.alg", "gnb/perseus/programs",
                 "StringTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -243,7 +243,7 @@ end
     public void instring_test() throws Exception {
         // Test instring procedure from Milestone 11C.3
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/instring_test.alg", "gnb/perseus/programs",
+                "test/algol/io/instring_test.alg", "gnb/perseus/programs",
                 "InstringTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -274,7 +274,7 @@ end
     public void stop_fault_test() throws Exception {
         // Test stop and fault procedures from Milestone 11D
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/stop_fault_test.alg", "gnb/perseus/programs",
+                "test/algol/io/stop_fault_test.alg", "gnb/perseus/programs",
                 "StopFaultTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -311,7 +311,7 @@ end
     public void constants_test() throws Exception {
         // Test environmental constants from Milestone 11E
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/constants_test.alg", "gnb/perseus/programs",
+                "test/algol/io/constants_test.alg", "gnb/perseus/programs",
                 "ConstantsTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -351,7 +351,7 @@ end
     public void sqrt_negative_test() throws Exception {
         // Test that sqrt of negative number returns NaN (documented choice) from Milestone 11F
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/sqrt_negative_test.alg", "gnb/perseus/programs",
+                "test/algol/io/sqrt_negative_test.alg", "gnb/perseus/programs",
                 "SqrtNegativeTest", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -380,7 +380,7 @@ end
     public void string_output_test() throws Exception {
 	// Milestone 18: string variable declaration, assignment, length, substring, concat, s[i] access, s[i] := mutation
 	Path jasminFile = PerseusCompiler.compileToFile(
-		"test/algol/string_output.alg", "gnb/perseus/programs", "StringOutput", BUILD_DIR);
+		"test/algol/io/string_output.alg", "gnb/perseus/programs", "StringOutput", BUILD_DIR);
 	String jasminSource = Files.readString(jasminFile);
 
 	System.out.println("=== STRING OUTPUT JASMIN ===");
@@ -420,7 +420,7 @@ end
     @Test
     public void file_channel_output_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/file_channel_output.alg", "gnb/perseus/programs",
+                "test/algol/io/file_channel_output.alg", "gnb/perseus/programs",
                 "FileChannelOutput", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -441,7 +441,7 @@ end
     @Test
     public void string_channel_output_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/string_channel_output.alg", "gnb/perseus/programs",
+                "test/algol/io/string_channel_output.alg", "gnb/perseus/programs",
                 "StringChannelOutput", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -462,7 +462,7 @@ end
     @Test
     public void file_channel_ioerror_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/file_channel_ioerror.alg", "gnb/perseus/programs",
+                "test/algol/io/file_channel_ioerror.alg", "gnb/perseus/programs",
                 "FileChannelIOError", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 

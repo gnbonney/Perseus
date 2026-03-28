@@ -13,7 +13,7 @@ public class FormattedIOTest extends CompilerTest {
     @Test
     public void outformat_basic_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/outformat_basic.alg",
+                "test/algol/io/outformat_basic.alg",
                 "gnb/perseus/programs",
                 "OutformatBasic",
                 BUILD_DIR);
@@ -36,7 +36,7 @@ public class FormattedIOTest extends CompilerTest {
     @Test
     public void outformat_string_channel_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/outformat_string_channel.alg",
+                "test/algol/io/outformat_string_channel.alg",
                 "gnb/perseus/programs",
                 "OutformatStringChannel",
                 BUILD_DIR);
@@ -59,7 +59,7 @@ public class FormattedIOTest extends CompilerTest {
     @Test
     public void outformat_file_channel_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/outformat_file_channel.alg",
+                "test/algol/io/outformat_file_channel.alg",
                 "gnb/perseus/programs",
                 "OutformatFileChannel",
                 BUILD_DIR);
@@ -82,7 +82,7 @@ public class FormattedIOTest extends CompilerTest {
     @Test
     public void informat_basic_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/informat_basic.alg",
+                "test/algol/io/informat_basic.alg",
                 "gnb/perseus/programs",
                 "InformatBasic",
                 BUILD_DIR);
