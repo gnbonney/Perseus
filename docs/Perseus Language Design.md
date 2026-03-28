@@ -399,16 +399,16 @@ This matters because two separately compiled Perseus units may have source decla
 - Emit `invokestatic`, `invokevirtual`, or `invokeinterface` as appropriate.
 - Apply only documented coercions at the boundary.
 
-## Suggested Implementation Phases
+## External Procedure Scope
 
-### Phase 26A: External Algol and Java Static Methods
+### Initial External Scope
 
 - `external algol(TargetClass)` for scalar/string procedures with exact signature matching
 - `external java static(TargetClass)` with explicit Algol-to-Java type mapping
 - compile-time classpath-based resolution and diagnostics
 - no procedure values, no call-by-name, no labels, no switches
 
-### Phase 26B: External Algol Arrays
+### External Algol Arrays
 
 - document the array ABI explicitly
 - support one-dimensional array parameters across compilation units
@@ -418,9 +418,9 @@ This matters because two separately compiled Perseus units may have source decla
 - require exact agreement on element type and array rank
 - defer multidimensional formal arrays until the compiler supports a stable documented external multidimensional array ABI
 
-Representative driver examples for this phase should come from historic Algol-style library procedures such as `INIVEC`, where a separately compiled procedure mutates a caller-supplied array through a formal array parameter.
+Representative driver examples for this work come from historic Algol-style library procedures such as `INIVEC`, where a separately compiled procedure mutates a caller-supplied array through a formal array parameter.
 
-### Later phases
+### Later External Work
 
 - external Algol call-by-name once the thunk ABI is frozen and documented
 - Java instance methods
@@ -546,7 +546,7 @@ relevant Java exceptions when appropriate.
 This split keeps the source language stable while still letting the compiler and
 runtime build on ordinary JVM exception machinery.
 
-## Suggested Semantics
+## Semantics
 
 - `begin ... exception ... end` establishes a protected block.
 - Normal completion skips the exception part entirely.
@@ -757,7 +757,7 @@ So the design question for classes is not "how can Perseus copy Simula exactly?"
 - which historical surface details are worth preserving,
 - and which parts should be expressed in a distinct Perseus style.
 
-## Recommended Initial Scope
+## Initial Scope
 
 The first class milestone should aim for:
 

@@ -44,17 +44,17 @@ This mirrors the general feel of `javac` while still leaving room for Perseus-sp
 
 ## Default Output Behavior
 
-The default behavior should be:
+The default behavior is:
 
 - compile one or more `.alg` files
 - emit `.class` files into a sensible output directory
 - preserve package layout under that directory
 
-Recommended default:
+Default:
 
 - if no `-d` is provided, write output to a generated build-oriented directory rather than beside the source files
 
-Recommended option:
+Option:
 
 ```bash
 -d <outdir>
@@ -66,9 +66,9 @@ This should control where generated `.j`, `.class`, and related artifacts go.
 
 ## Optional JAR Packaging
 
-The CLI should support optional JAR packaging, but JAR creation should not replace ordinary classfile output.
+The CLI supports optional JAR packaging, but JAR creation does not replace ordinary classfile output.
 
-Recommended option:
+Option:
 
 ```bash
 --jar <file>
@@ -80,7 +80,7 @@ Example:
 perseus hello.alg --jar hello.jar
 ```
 
-This should:
+This flow:
 
 - compile the program normally
 - gather the generated class family
@@ -92,25 +92,25 @@ This is useful for:
 - testing external procedure libraries
 - giving users a familiar JVM artifact when they want one
 
-Ordinary classfile output should remain the default because it is simpler and also useful for library-style workflows.
+Ordinary classfile output remains the default because it is simpler and also useful for library-style workflows.
 
 ---
 
 ## Classpath Handling
 
-The CLI should expose the ordinary JVM classpath model for:
+The CLI exposes the ordinary JVM classpath model for:
 
 - `external algol(...)`
 - `external java ...`
 
-Recommended options:
+Options:
 
 ```bash
 -cp <path>
 --classpath <path>
 ```
 
-These should behave like the JVM and `javac`:
+These behave like the JVM and `javac`:
 
 - directories and JARs on the classpath are used for external resolution
 - Perseus does not invent a separate import or search-path mechanism
@@ -121,9 +121,9 @@ This keeps external procedure behavior aligned with the broader JVM ecosystem.
 
 ## Launcher Strategy
 
-The first milestone should hide Java by shipping a real launcher command.
+The first milestone hides Java by shipping a real launcher command.
 
-Recommended initial approach:
+Initial approach:
 
 - use Gradle application/distribution support
 - generate:
@@ -142,9 +142,9 @@ Even though these launch scripts still run on the JVM, users no longer need to t
 
 ## Installation and Distribution
 
-Perseus should eventually be installable as a normal command-line tool on Windows and macOS.
+Perseus is intended to be installable as a normal command-line tool on Windows and macOS.
 
-Recommended phased approach:
+Phased approach:
 
 ### Phase 1
 
@@ -171,15 +171,15 @@ The goal is for users to install and run `perseus` as a normal tool, without bei
 
 ## Error Reporting and Exit Behavior
 
-The CLI should expose compiler diagnostics in a user-facing way rather than dumping Java stack traces for ordinary compile failures.
+The CLI exposes compiler diagnostics in a user-facing way rather than dumping Java stack traces for ordinary compile failures.
 
-Recommended behavior:
+Behavior:
 
 - syntax and semantic diagnostics print normally with file, line, column, and code
 - internal compiler errors may still print a stack trace
 - exit codes should be stable and documented
 
-Suggested categories:
+Exit code categories:
 
 - `0` success
 - non-zero for compilation failure
