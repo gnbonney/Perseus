@@ -45,7 +45,7 @@ public class LauncherTest extends CompilerTest {
 
         ProcessResult runResult = runProcess(List.of(
                 launcher.toAbsolutePath().toString(),
-                "test/algol/hello.alg",
+                "test/algol/core/hello.alg",
                 "-d",
                 outDir.toString()));
 

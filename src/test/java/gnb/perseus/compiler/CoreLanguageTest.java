@@ -21,7 +21,7 @@ public class CoreLanguageTest extends CompilerTest{
 	public void hello() throws Exception {
 		// Compile Algol source to Jasmin
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/hello.alg", "gnb/perseus/programs", "Hello", BUILD_DIR);
+				"test/algol/core/hello.alg", "gnb/perseus/programs", "Hello", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println(jasminSource);
 
@@ -46,7 +46,7 @@ public class CoreLanguageTest extends CompilerTest{
 	public void primer1() throws Exception {
 		// Compile Algol source to Jasmin
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/primer1.alg", "gnb/perseus/programs", "Primer1", BUILD_DIR);
+				"test/algol/core/primer1.alg", "gnb/perseus/programs", "Primer1", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println(jasminSource);
 
@@ -72,7 +72,7 @@ public class CoreLanguageTest extends CompilerTest{
 	public void primer2() throws Exception {
 		// Compile Algol source to Jasmin (infinite loop � run briefly to confirm no crash)
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/primer2.alg", "gnb/perseus/programs", "Primer2", BUILD_DIR);
+				"test/algol/core/primer2.alg", "gnb/perseus/programs", "Primer2", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== PRIMER2 JASMIN ===");
 		System.out.println(jasminSource);
@@ -102,7 +102,7 @@ public class CoreLanguageTest extends CompilerTest{
 	public void primer3() throws Exception {
 		// Compile Algol source to Jasmin (loops 1000 times then stops)
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/primer3.alg", "gnb/perseus/programs", "Primer3", BUILD_DIR);
+				"test/algol/core/primer3.alg", "gnb/perseus/programs", "Primer3", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== PRIMER3 JASMIN ===");
 		System.out.println(jasminSource);
@@ -132,7 +132,7 @@ public class CoreLanguageTest extends CompilerTest{
 	public void primer4() throws Exception {
 		// Compile Algol source to Jasmin (for loop with 1000 iterations)
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/primer4.alg", "gnb/perseus/programs", "Primer4", BUILD_DIR);
+				"test/algol/core/primer4.alg", "gnb/perseus/programs", "Primer4", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== PRIMER4 JASMIN ===");
 		System.out.println(jasminSource);
@@ -161,7 +161,7 @@ public class CoreLanguageTest extends CompilerTest{
 	public void primer5() throws Exception {
 		// Compile Algol source to Jasmin (approximation of e via Taylor series)
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/primer5.alg", "gnb/perseus/programs", "Primer5", BUILD_DIR);
+				"test/algol/core/primer5.alg", "gnb/perseus/programs", "Primer5", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== PRIMER5 JASMIN ===");
 		System.out.println(jasminSource);
@@ -183,7 +183,7 @@ public class CoreLanguageTest extends CompilerTest{
 	@Test
 	public void boolean_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/boolean.alg", "gnb/perseus/programs", "Boolean", BUILD_DIR);
+				"test/algol/core/boolean.alg", "gnb/perseus/programs", "Boolean", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== BOOLEAN JASMIN ===");
 		System.out.println(jasminSource);
@@ -204,7 +204,7 @@ public class CoreLanguageTest extends CompilerTest{
     @Test
 	public void array_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/array.alg", "gnb/perseus/programs", "ArrayTest", BUILD_DIR);
+				"test/algol/core/array.alg", "gnb/perseus/programs", "ArrayTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== ARRAY JASMIN ===");
 		System.out.println(jasminSource);
@@ -225,7 +225,7 @@ public class CoreLanguageTest extends CompilerTest{
 	@Test
 	public void real_array_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/real_array.alg", "gnb/perseus/programs", "RealArrayTest", BUILD_DIR);
+				"test/algol/core/real_array.alg", "gnb/perseus/programs", "RealArrayTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== REAL ARRAY JASMIN ===");
 		System.out.println(jasminSource);
@@ -249,7 +249,7 @@ public class CoreLanguageTest extends CompilerTest{
 	@Test
 	public void array_param_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/array_param.alg", "gnb/perseus/programs", "ArrayParamTest", BUILD_DIR);
+				"test/algol/core/array_param.alg", "gnb/perseus/programs", "ArrayParamTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== ARRAY PARAM JASMIN ===");
 		System.out.println(jasminSource);
@@ -271,7 +271,7 @@ public class CoreLanguageTest extends CompilerTest{
 	@Test
 	public void multidimensional_array_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/matrix_trace.alg", "gnb/perseus/programs", "MatrixTraceTest", BUILD_DIR);
+				"test/algol/core/matrix_trace.alg", "gnb/perseus/programs", "MatrixTraceTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== MULTIDIM ARRAY JASMIN ===");
 		System.out.println(jasminSource);
@@ -302,7 +302,7 @@ public class CoreLanguageTest extends CompilerTest{
 	@Test
 	public void modified_division_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/modified_division.alg", "gnb/perseus/programs", "ModifiedDivisionTest", BUILD_DIR);
+				"test/algol/core/modified_division.alg", "gnb/perseus/programs", "ModifiedDivisionTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== MODIFIED DIVISION JASMIN ===");
 		System.out.println(jasminSource);
@@ -321,7 +321,7 @@ public class CoreLanguageTest extends CompilerTest{
 	@Test
 	public void power_associativity_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/power_associativity.alg", "gnb/perseus/programs", "PowerAssociativityTest", BUILD_DIR);
+				"test/algol/core/power_associativity.alg", "gnb/perseus/programs", "PowerAssociativityTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== POWER ASSOCIATIVITY JASMIN ===");
 		System.out.println(jasminSource);
@@ -340,7 +340,7 @@ public class CoreLanguageTest extends CompilerTest{
 	@Test
 	public void boolean_imp_eqv_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/boolean_imp_eqv.alg", "gnb/perseus/programs", "BooleanImpEqvTest", BUILD_DIR);
+				"test/algol/core/boolean_imp_eqv.alg", "gnb/perseus/programs", "BooleanImpEqvTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== BOOLEAN IMP EQV JASMIN ===");
 		System.out.println(jasminSource);
@@ -359,7 +359,7 @@ public class CoreLanguageTest extends CompilerTest{
 	@Test
 	public void representation_synonyms_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/representation_synonyms.alg", "gnb/perseus/programs", "RepresentationSynonymsTest", BUILD_DIR);
+				"test/algol/core/representation_synonyms.alg", "gnb/perseus/programs", "RepresentationSynonymsTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== REPRESENTATION SYNONYMS JASMIN ===");
 		System.out.println(jasminSource);
@@ -378,7 +378,7 @@ public class CoreLanguageTest extends CompilerTest{
     @Test
 	public void brace_blocks_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/brace_blocks.alg", "gnb/perseus/programs", "BraceBlocksTest", BUILD_DIR);
+				"test/algol/core/brace_blocks.alg", "gnb/perseus/programs", "BraceBlocksTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== BRACE BLOCKS JASMIN ===");
 		System.out.println(jasminSource);
@@ -397,7 +397,7 @@ public class CoreLanguageTest extends CompilerTest{
 	@Test
 	public void numeric_labels_and_dummy_statements_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/numeric_labels_and_dummy_statements.alg", "gnb/perseus/programs", "NumericLabelsAndDummyStatementsTest", BUILD_DIR);
+				"test/algol/core/numeric_labels_and_dummy_statements.alg", "gnb/perseus/programs", "NumericLabelsAndDummyStatementsTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== NUMERIC LABELS AND DUMMY STATEMENTS JASMIN ===");
 		System.out.println(jasminSource);
@@ -416,7 +416,7 @@ public class CoreLanguageTest extends CompilerTest{
 	@Test
 	public void parameter_delimiters_absmax_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/parameter_delimiters_absmax.alg", "gnb/perseus/programs", "ParameterDelimitersAbsmaxTest", BUILD_DIR);
+				"test/algol/core/parameter_delimiters_absmax.alg", "gnb/perseus/programs", "ParameterDelimitersAbsmaxTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== PARAMETER DELIMITERS ABSMAX JASMIN ===");
 		System.out.println(jasminSource);
@@ -435,7 +435,7 @@ public class CoreLanguageTest extends CompilerTest{
     @Test
     public void boolean_operators_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/boolean_operators.alg", "gnb/perseus/programs",
+                "test/algol/core/boolean_operators.alg", "gnb/perseus/programs",
                 "BooleanOperators", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
@@ -458,7 +458,7 @@ public class CoreLanguageTest extends CompilerTest{
     @Test
     public void own_variables_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/own_variables.alg", "gnb/perseus/programs", "OwnVariables", BUILD_DIR);
+                "test/algol/core/own_variables.alg", "gnb/perseus/programs", "OwnVariables", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== OWN VARIABLES JASMIN ===");
@@ -488,7 +488,7 @@ public class CoreLanguageTest extends CompilerTest{
     @Test
     public void switch_declaration_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/switch_declaration.alg", "gnb/perseus/programs", "SwitchDeclaration", BUILD_DIR);
+                "test/algol/core/switch_declaration.alg", "gnb/perseus/programs", "SwitchDeclaration", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== SWITCH DECLARATION JASMIN ===");

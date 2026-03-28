@@ -24,7 +24,7 @@ public class PerseusParserTest {
 	@Test
 	public void parse() {
 		try {
-			ANTLRInputStream is = new ANTLRInputStream(new FileReader("test/algol/hello.alg"));
+			ANTLRInputStream is = new ANTLRInputStream(new FileReader("test/algol/core/hello.alg"));
 			PerseusLexer lexer = new PerseusLexer(is);
 			CommonTokenStream tokens = new CommonTokenStream(lexer);
 			PerseusParser parser = new PerseusParser(tokens);
@@ -62,7 +62,7 @@ public class PerseusParserTest {
 	public void parsePrimer4Test() {
 		try {
 			System.out.println("Starting parsePrimer4");
-			ANTLRInputStream is = new ANTLRInputStream(new FileReader("test/algol/primer4.alg"));
+			ANTLRInputStream is = new ANTLRInputStream(new FileReader("test/algol/core/primer4.alg"));
 			PerseusLexer lexer = new PerseusLexer(is);
 			CommonTokenStream tokens = new CommonTokenStream(lexer);
 			PerseusParser parser = new PerseusParser(tokens);

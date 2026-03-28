@@ -70,7 +70,7 @@ public class CLITest extends CompilerTest {
         Files.createDirectories(outDir);
 
         ProcessResult result = runCli(List.of(
-                "test/algol/hello.alg",
+                "test/algol/core/hello.alg",
                 "-d",
                 outDir.toString()));
 
@@ -93,7 +93,7 @@ public class CLITest extends CompilerTest {
         Path jarFile = outDir.resolve("hello.jar");
 
         ProcessResult result = runCli(List.of(
-                "test/algol/hello.alg",
+                "test/algol/core/hello.alg",
                 "-d",
                 outDir.toString(),
                 "--jar",
@@ -131,7 +131,7 @@ public class CLITest extends CompilerTest {
         Files.createDirectories(outDir);
 
         ProcessResult result = runCli(List.of(
-                "test/algol/own_variables.alg",
+                "test/algol/core/own_variables.alg",
                 "-d",
                 outDir.toString(),
                 "--class-name",
@@ -155,7 +155,7 @@ public class CLITest extends CompilerTest {
         Files.createDirectories(outDir);
 
         ProcessResult result = runCli(List.of(
-                "test/algol/hello.alg",
+                "test/algol/core/hello.alg",
                 "-d",
                 outDir.toString(),
                 "--class-name",
