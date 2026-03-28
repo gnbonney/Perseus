@@ -18,7 +18,7 @@ public class ProceduresTest extends CompilerTest {
     @Test
 	public void thunkIsolation_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/thunk_isolation.alg", "gnb/perseus/programs", "ThunkIsolation", BUILD_DIR);
+				"test/algol/procedures/thunk_isolation.alg", "gnb/perseus/programs", "ThunkIsolation", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== THUNK ISOLATION JASMIN ===");
 		System.out.println(jasminSource);
@@ -38,7 +38,7 @@ public class ProceduresTest extends CompilerTest {
     @Test
 	public void oneton_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/oneton.alg", "gnb/perseus/programs", "OnetonTest", BUILD_DIR);
+				"test/algol/procedures/oneton.alg", "gnb/perseus/programs", "OnetonTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		System.out.println("=== ONETON JASMIN ===");
 		System.out.println(jasminSource);
@@ -63,7 +63,7 @@ public class ProceduresTest extends CompilerTest {
     @Test
 	public void jen_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/jen.alg", "gnb/perseus/programs", "JenTest", BUILD_DIR);
+				"test/algol/procedures/jen.alg", "gnb/perseus/programs", "JenTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not error: " + jasminSource);
 
@@ -114,7 +114,7 @@ end
     public void proc_var_test() throws Exception {
         // Compile Algol source to Jasmin
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/proc_var.alg", "gnb/perseus/programs", "ProcVar", BUILD_DIR);
+                "test/algol/procedures/proc_var.alg", "gnb/perseus/programs", "ProcVar", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== PROC_VAR JASMIN ===");
@@ -137,7 +137,7 @@ end
     public void proc_param_test() throws Exception {
         // Compile Algol source to Jasmin
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/proc_param.alg", "gnb/perseus/programs", "ProcParam", BUILD_DIR);
+                "test/algol/procedures/proc_param.alg", "gnb/perseus/programs", "ProcParam", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== PROC_PARAM JASMIN ===");
@@ -160,7 +160,7 @@ end
     public void proc_typed_simple_test() throws Exception {
         // Compile Algol source to Jasmin
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/proc_typed_simple.alg", "gnb/perseus/programs", "ProcTypedSimple", BUILD_DIR);
+                "test/algol/procedures/proc_typed_simple.alg", "gnb/perseus/programs", "ProcTypedSimple", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== PROC_TYPED_SIMPLE JASMIN ===");
@@ -183,7 +183,7 @@ end
 	public void deferred_typing_name_assignment_test() throws Exception {
 		// Compile Algol source to Jasmin
 		Path jasminFile = PerseusCompiler.compileToFile(
-			"test/algol/deferred_typing_name_assignment.alg", "gnb/perseus/programs", "DeferredTypingNameAssignmentTest", BUILD_DIR);
+			"test/algol/procedures/deferred_typing_name_assignment.alg", "gnb/perseus/programs", "DeferredTypingNameAssignmentTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 
 		System.out.println("=== DEFERRED TYPING JASMIN ===");
@@ -213,7 +213,7 @@ end
 	@Test
 	public void deferred_typing_value_and_name_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-			"test/algol/deferred_typing_value_and_name.alg", "gnb/perseus/programs", "DeferredTypingValueAndNameTest", BUILD_DIR);
+			"test/algol/procedures/deferred_typing_value_and_name.alg", "gnb/perseus/programs", "DeferredTypingValueAndNameTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
 
 		System.out.println("=== DEFERRED TYPING VALUE AND NAME JASMIN ===");
@@ -238,7 +238,7 @@ end
     @Test
     public void deferred_name_params_mixed_type_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-            "test/algol/deferred_name_params_mixed_type.alg", "gnb/perseus/programs", "DeferredNameParamsMixedType", BUILD_DIR);
+            "test/algol/procedures/deferred_name_params_mixed_type.alg", "gnb/perseus/programs", "DeferredNameParamsMixedType", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== DEFERRED NAME PARAMS MIXED TYPE JASMIN ===");
@@ -259,7 +259,7 @@ end
     @Test
     public void deferred_missing_formal_types_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-            "test/algol/deferred_missing_formal_types.alg", "gnb/perseus/programs", "DeferredMissingFormalTypes", BUILD_DIR);
+            "test/algol/procedures/deferred_missing_formal_types.alg", "gnb/perseus/programs", "DeferredMissingFormalTypes", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== DEFERRED MISSING FORMAL TYPES JASMIN ===");
@@ -280,7 +280,7 @@ end
     @Test
     public void nested_scope_access_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/nested_scope_access.alg", "gnb/perseus/programs", "NestedScopeAccess", BUILD_DIR);
+                "test/algol/procedures/nested_scope_access.alg", "gnb/perseus/programs", "NestedScopeAccess", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== NESTED_SCOPE_ACCESS JASMIN ===");
@@ -300,7 +300,7 @@ end
     @Test
     public void nested_digits_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/nested_digits.alg", "gnb/perseus/programs", "NestedDigits", BUILD_DIR);
+                "test/algol/procedures/nested_digits.alg", "gnb/perseus/programs", "NestedDigits", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== NESTED_DIGITS JASMIN ===");
@@ -327,7 +327,7 @@ end
     @Test
     public void thunk_closure_isolation_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/thunk_closure_isolation.alg", "gnb/perseus/programs", "ThunkClosureIsolation", BUILD_DIR);
+                "test/algol/procedures/thunk_closure_isolation.alg", "gnb/perseus/programs", "ThunkClosureIsolation", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
         System.out.println("=== THUNK_CLOSURE_ISOLATION JASMIN ===");
