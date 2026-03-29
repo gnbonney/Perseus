@@ -1,215 +1,66 @@
-The project has a number of Algol code samples in the test/algol folder.
+# Sample Programs
 
-### Hello World
+Perseus now has a broad set of sample Algol programs under [`test/algol`](../test/algol). They are organized by purpose rather than kept in one flat directory.
 
-* hello.alg
+## Folder Layout
 
-This is just the simplest Algol program.
+- [`test/algol/core`](../test/algol/core)
+  Core language coverage: `hello`, the Dijkstra `primer` programs, arrays, boolean expressions, hardware-representation syntax, numeric labels, named parameter delimiters, `own`, and switch declarations.
+- [`test/algol/procedures`](../test/algol/procedures)
+  Procedure semantics: value parameters, call-by-name, Jensen's Device, deferred typing, nested procedures, procedure variables, procedure parameters, and thunk-isolation cases.
+- [`test/algol/io`](../test/algol/io)
+  Environmental procedures, strings, channels, file and string I/O, formatted I/O, constants, and input/output behavior.
+- [`test/algol/external`](../test/algol/external)
+  External Algol and external Java interop samples.
+- [`test/algol/classes`](../test/algol/classes)
+  Simula-style class and object samples.
+- [`test/algol/exceptions`](../test/algol/exceptions)
+  Structured exception-handling samples.
+- [`test/algol/historical`](../test/algol/historical)
+  Larger historic and stress-oriented examples such as `manboy`, `primes`, and the `pi` programs.
+- [`test/algol/misc`](../test/algol/misc)
+  Samples that are not currently part of the active regression suite and need follow-up review.
 
-### E.W. Dijkstra, A Primer for Algol Programming by 
+## Source Background
 
-I found this book on archive.org.  It is apparently in the public domain, so I included it in the doc folder of this project.  The following files in test/algol are from this book:
-* primer1.alg
-* primer2.alg
-* primer3.alg
-* etc.
+Many of the samples are adapted from historically important Algol material, including:
 
-### Juliet Kemp's Examples
+- A. N. Habermann and other introductory Algol material
+- E. W. Dijkstra, especially the `primer` programs
+- Juliet Kemp's Algol examples
+- Donald Knuth's Man-or-Boy test
+- The Revised and Modified Reports on Algol 60
+- Rutishauser's *Description of Algol*
 
-These files are from an article by Juliet Kemp, ALGOL: THE LANGUAGE OF ACADEMIA, https://www.linuxvoice.com/algol-the-language-of-academia/:
+Other samples are Perseus-specific regression drivers added to pin down implementation choices, extensions, and bug fixes.
 
-* oneton.alg
-* pi.alg
-* pi2.alg
+## Coverage
 
-### Mississippi College cs 404
+The sample suite now exercises most of the implemented language surface, including:
 
-The following are from Dr. Bennet's Programming Language Structures course web site, http://sandbox.mc.edu/~bennet/cs404/doc/index.html:
-* jen.alg - pretty much the same as at http://wiki.c2.com/?JensensDevice (the answer is 5.187378)
-* primes.alg
+- basic program structure and nested blocks
+- arithmetic, assignment, and scalar variables
+- `goto`, labels, numeric labels, and switch declarations
+- `if`, `if ... else`, and `for`
+- integer, real, boolean, string, and array features
+- one-dimensional and multidimensional arrays
+- procedures, procedure variables, and procedure parameters
+- call-by-name, Jensen's Device, deferred typing, and nested procedure access
+- `own` variables
+- environmental output and much of the current input/output model
+- string channels, file channels, and formatted I/O
+- external Algol and Java static interop
+- classes and objects
+- structured exceptions
+- historically difficult recursive and thunk-heavy programs such as `manboy`
 
-Dr. Bennet also provides some C code to go with jen.alg demonstrating how pass-by-name can be implemented with thunks.
+## Current Follow-On Samples
 
-```
-double Sum(int * (*k)(void), int low, int hi, double * (*ak)(void)) 
-{
-	double S = 0;
+Two samples currently remain outside the active regression suite and point to follow-on work:
 
-	for(*k() = low; *k() <= hi; ++(*k())) {
-		S = S + *ak();
-	}
-	return S;
-}
+- [`test/algol/io/input_procedures.alg`](../test/algol/io/input_procedures.alg)
+  This appears to be a valid sample for `ininteger`, `inreal`, and `inchar`, but current exploratory runs suggest those input procedures were marked complete too optimistically. This now maps to post-MVP cleanup work.
+- [`test/algol/misc/thunk_recursion.alg`](../test/algol/misc/thunk_recursion.alg)
+  This appears to expose a recursive thunk / passed-procedure edge case that is not yet handled correctly. It should become a focused post-MVP regression once the intended semantics are nailed down.
 
-int i;
-double arr[100];
-int *thunk1(void)
-{
-	return &i;
-}
-double *thunk2(void)
-{
-	return &arr[i];
-}
-Sum(thunk1, 1, 10, thunk2);
-
-int j;
-int *thunk3(void)
-{
-	return &j;
-}
-double *thunk4(void)
-{
-	static double res;
-	res = j*j - 4*j + 2;
-	return &res;
-}
-Sum(thunk3, -20, 20, thunk4);
-```
-
-### Man or Boy Test
-
-* manboy.alg
-
-The file manboy.alg contains the Algol code for Donald Knuth's "man or boy test" (http://archive.computerhistory.org/resources/text/algol/algol_bulletin/A17/P24.HTM).  Knuth stated, "I have written the following simple routine, which may separate the 'man-compilers' from the 'boy-compilers'."  The test makes use of call-by-name, procedure references, and recursion.  
-
-The correct answer that should be generated by this code is -67.
-
-There is a web site (https://rosettacode.org/wiki/Man_or_boy_test) with code posted in numerous programming languages written to imitate Knuth's man-or-boy code.  The Java code replaces all the pass-by-name calls with an interface called Arg and uses anonymous classes to new up objects of type Arg with a run method. Declaring the arguments as final is key to getting this to work.  Without that you cannot refer to them in the enclosed anonymous class.  This introduces another problem, because a variable declared final cannot be changed.  This demonstrates the difficulty of emulating call-by-name in Java.
-
-### Guennadi Levkine, "Hello Algol 60" Collection
-
-Programs from a collection of short introductory Algol 60 programs at https://algol60.org/5shortIntro.htm:
-
-* boolean.alg — demonstrates `if`/`then`/`else` and boolean variables
-* array.alg — demonstrates integer array declaration and subscript access
-
-### Heinz Rutishauser, Handbook for Automatic Computation - Description of Algol
-
-This book (available at https://algol60.org/docs/Rutishauser_Description_of_ALGOL_60_1967.pdf) has lots of code samples, especially in Chapter V Miscellaneous Applications, which includes many mathematical examples and some discussion of how to implement "pseudostrings" as an array of integers (similar to how C implements strings).  Chapter VIII has a good discussion of Algol standard i/o including i/o for "pseudostrings".  The book also contains a lengthy explanation of the Jensen's Device with examples.
-
-The following files in test/algol are from Rutishauser:
-* TBD
-
----
-
-## Language Feature Coverage
-
-The following table summarizes which Algol 60 language features are exercised by the current sample programs.
-
-| Feature | Covered by |
-|---|---|
-| Basic program structure, `begin`/`end` | hello.alg |
-| Output (`outstring`, `outinteger`, `outreal`) | hello.alg, oneton.alg, pi.alg, jen.alg |
-| Variables, assignment, arithmetic | primer1–5 |
-| `goto` and labels | primer2, primer3 |
-| `if`/`then` (no else) | primer3, primes |
-| `for` loop — step/until | primer4, primer5, oneton.alg, primes |
-| `for` loop — while clause | primes |
-| Value-parameter procedures | oneton.alg, pi.alg, pi2.alg |
-| Call-by-name parameters | pi2.alg, jen.alg, manboy.alg |
-| Nested procedures | manboy.alg |
-| Procedure references as parameters | manboy.alg |
-| Deep recursion | manboy.alg |
-| Boolean arrays | primes.alg |
-| Integer arrays, subscript access | array.alg |
-| `if`/`then`/`else` | boolean.alg |
-| Boolean variables, boolean expressions | boolean.alg |
-| Nested `begin`/`end` blocks | oneton.alg, pi.alg |
-| Mathematical functions (`sqrt`) | pi.alg, pi2.alg |
-
-## Gaps
-
-The following features are not yet covered by any sample program and should be added before or when the compiler is extended to support them:
-
-- **Simple recursion** — `manboy.alg` is too complex to use for initial recursion development. A factorial or Fibonacci program would allow recursion to be tested in isolation.
-- **`or`/`not` boolean operators** — `primes.alg` uses `&` (`and`) once but `or` and `not` are untested.
-- **Real arrays** — only integer and boolean arrays are tested; real array subscript access is untested.
-- **String output with variables** — current samples only print literals or numbers, not formatted output mixing text and values.
-- **`own` variables** — static/persistent local variables; a significant Algol 60 feature not yet represented.
-- **Switch declarations** — Algol's multi-way branch mechanism; not present in any sample.
-
----
-
-## Filling the Gaps: Samples from the Modified Report
-
-The following examples are drawn from the [Modified Report on the Algorithmic Language Algol 60](algol60_mr.md) to illustrate features not yet covered by the current sample programs:
-
-### Simple Recursion
-
-Example: Recursive procedure (from Section 5.4.2)
-
-```
-real procedure euler(fct, eps, tim);
-    value eps, tim;
-    real procedure fct; real eps; integer tim;
-    begin
-    integer i, k, n, r;
-    array m[0:15];
-    real mn, mp, ds, sum;
-    n := t := 0;
-    m[0] := fct(0); sum := m[0]/2;
-    for i := 1, i + 1 while t < tim do
-        begin
-        mn := fct(i);
-        for k := 0 step 1 until n do
-            begin
-            mp := (mn + m[k])/2;
-            m[k] := mn; mn := mp
-            end;
-        if abs(mn) < abs(m[n]) and n < 15 then
-            begin
-            ds := mn/2; n := n + 1;
-            m[n] := mn
-            end
-        else
-            ds := mn;
-        sum := sum + ds;
-        t := if abs(ds) < eps then t + 1 else 0
-        end;
-    euler := sum
-    end euler
-```
-
-### Boolean Operators (`or`, `not`)
-
-Example: Boolean expressions (from Section 3.4.2)
-
-```
-g and not a or b or not c or d or e or not f
-```
-
-### Real Arrays
-
-Example: Array declaration (from Section 5.2.2)
-
-```
-real array q [-7: if c < 0 then 2 else 1]
-```
-
-### String Output with Variables
-
-Example: Procedure call (from Section 4.7.2)
-
-```
-outstring("Result is: ", V)
-```
-
-### Own Variables
-
-Example: Own variable declaration (from Section 5.1.2)
-
-```
-own boolean Acryl, n
-own integer array A[2:20]
-```
-
-### Switch Declarations
-
-Example: Switch declaration (from Section 5.3.2)
-
-```
-switch S := S1, S2, Q[m], if v > -5 then S3 else S4
-```
-
-For more details and additional examples, see the [Modified Report on the Algorithmic Language Algol 60](algol60_mr.md).
+An older experimental sample, `proc_typed.alg`, was removed after review because it did not appear to be a valid Algol program.
