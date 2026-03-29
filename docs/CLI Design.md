@@ -34,6 +34,7 @@ Examples:
 perseus hello.alg
 perseus src\\main.alg src\\util.alg
 perseus hello.alg -d out
+perseus hello.alg --package mylib.numeric
 perseus app.alg --jar app.jar
 perseus app.alg -cp libs\\mylib.jar
 ```
@@ -61,6 +62,20 @@ Option:
 ```
 
 This should control where generated `.j`, `.class`, and related artifacts go.
+
+Option:
+
+```bash
+--package <name>
+```
+
+This should control the generated JVM package for the compiled Perseus unit.
+
+This is especially important for:
+
+- separate compilation
+- external procedure linkage
+- building reusable Perseus libraries with stable class names
 
 ---
 
@@ -100,7 +115,7 @@ Ordinary classfile output remains the default because it is simpler and also use
 
 The CLI exposes the ordinary JVM classpath model for:
 
-- `external algol(...)`
+- `external(...)`
 - `external java ...`
 
 Options:

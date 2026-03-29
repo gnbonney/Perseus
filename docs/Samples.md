@@ -11,7 +11,7 @@ Perseus now has a broad set of sample Algol programs under [`test/algol`](../tes
 - [`test/algol/io`](../test/algol/io)
   Environmental procedures, strings, channels, file and string I/O, formatted I/O, constants, and input/output behavior.
 - [`test/algol/external`](../test/algol/external)
-  External Algol and external Java interop samples.
+  External Perseus and external Java interop samples.
 - [`test/algol/classes`](../test/algol/classes)
   Simula-style class and object samples.
 - [`test/algol/exceptions`](../test/algol/exceptions)

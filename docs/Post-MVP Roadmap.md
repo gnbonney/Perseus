@@ -12,10 +12,12 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Goal:** Extend the first working external-procedure slice into a richer and better documented interop model.
 
-- [ ] Broader classpath and library-resolution workflows beyond the initial CLI `-cp` / `--classpath` support
-- [ ] External Algol array parameters as a documented ABI case
+- [ ] Broader external-library and separate-compilation workflows beyond the initial CLI `-cp` / `--classpath` support
+- [ ] Replace the older `external algol(...)` wording in docs and remaining design notes with the default `external(...)` Perseus-to-Perseus model
+- [ ] Add a user-facing way to choose the generated JVM package/class path for separately compiled Perseus units instead of always assuming `gnb/perseus/programs`
+- [ ] External Perseus array parameters as a documented ABI case
 - [ ] Additional compile-time external signature validation and diagnostics
-- [ ] Decide whether and when to support call-by-name across external Algol boundaries
+- [ ] Decide whether and when to support call-by-name across external Perseus boundaries
 - [ ] Decide whether and when to support procedure-valued external parameters
 
 ## Milestone 33 - Class Model Follow-On
