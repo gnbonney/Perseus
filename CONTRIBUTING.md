@@ -11,7 +11,7 @@ Contributions are welcome! Here are some guidelines to help you get started.
 
 ## Development Workflow
 
-- Use the iterative, test-driven approach described in [docs/Development.md](docs/Development.md).
+- Use the iterative, test-driven approach described in [docs/MVP Roadmap.md](docs/MVP%20Roadmap.md) and [docs/Post-MVP Roadmap.md](docs/Post-MVP%20Roadmap.md).
 - Add or update Algol grammar rules in `src/main/antlr/gnb/perseus/compiler/antlr/Perseus.g4`.
 - Add corresponding test cases in `src/test/java/` and sample Algol programs in `test/algol/`.
 - Run `gradle build` to regenerate the ANTLR parser and compile the project.
