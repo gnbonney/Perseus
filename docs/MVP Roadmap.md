@@ -262,6 +262,8 @@ integer and string arguments.
 - [x] Codegen: `inreal(channel, var)` → `Scanner.nextDouble()` (reads from `System.in`; shared `Scanner` instance)
 - [x] Codegen: `inchar(channel, str, var)` — read one character; find its position in `str`
 
+**Later note:** A later exploratory run of `input_procedures.alg` suggested that this slice was marked complete too optimistically. The compiler recognizes these procedures well enough to compile the sample, but the combined runtime behavior does not yet appear to be fully validated end to end. Follow-on cleanup for `ininteger`, `inreal`, and `inchar` now lives in [Post-MVP Roadmap.md](Post-MVP%20Roadmap.md).
+
 **11C.2 — String Variable Support (prerequisite for string I/O):** ✅
 - [x] Grammar: string variable declarations and assignment
 - [x] SymbolTableBuilder: track string variables and scope
@@ -802,4 +804,5 @@ The current passing slice supports the `I`, `F`, and `A` format families used by
 - [x] Clearer user-facing error output for diagnostics vs internal compiler failures
 
 The current passing slice includes a real Gradle-distributed `perseus` launcher, javac-style `-d` handling, inferred class names from source files, optional runnable JAR packaging, default ASM post-processing across the generated class family, and working `-cp` / `--classpath` support for external Algol and Java resolution. Any remaining Milestone 31 work is mainly about broader multi-file workflows and further refinement of CLI behavior and exit-code policy.
+
 

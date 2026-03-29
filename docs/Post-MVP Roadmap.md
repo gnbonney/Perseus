@@ -87,11 +87,32 @@ Possible JVM strategy for passed switches: lower a switch parameter to an indexe
 - [ ] Ensure the standard environment is automatically available to all Perseus programs without explicit imports
 - [ ] Add tests showing that migrated environmental procedures work through the compiled standard environment rather than only through compiler-recognized names
 
+## Milestone 39 - Input Procedures Cleanup
+
+**Goal:** Revisit the input-side environmental procedures that were marked complete during the MVP path and confirm that they really work end to end in realistic programs.
+
+- [ ] Add a real regression around [`input_procedures.alg`](../test/algol/io/input_procedures.alg)
+- [ ] Verify and, if necessary, fix ininteger(channel, var) runtime behavior
+- [ ] Verify and, if necessary, fix inreal(channel, var) runtime behavior
+- [ ] Verify and, if necessary, fix inchar(channel, str, var) runtime behavior
+- [ ] Decide whether the current scanner/channel model for input procedures matches the intended environmental-block semantics closely enough
+- [ ] Update the MVP and environmental-block documentation once the behavior is confirmed
+
+## Milestone 40 - Recursive Thunk and Procedure-Parameter Cleanup
+
+**Goal:** Revisit recursive call-by-name and passed-procedure edge cases that appear to go beyond the currently validated thunk machinery.
+
+- [ ] Add a real regression around [`thunk_recursion.alg`](../test/algol/misc/thunk_recursion.alg)
+- [ ] Decide whether `thunk_recursion.alg` represents intended Algol semantics exactly as written, and tighten the sample if needed without removing the recursive thunk edge case
+- [ ] Fix the recursive thunk / passed-procedure lowering so the generated thunk getter and return shape are verifier-correct
+- [ ] Verify that the fix does not regress existing call-by-name coverage such as `jen.alg`, `nested_digits.alg`, and `manboy.alg`
+- [ ] Add focused non-regression tests for recursive procedure parameters and re-entrant thunk refresh behavior
+
 ## Future Direction Milestones
 
 These milestones are not just deferred implementation cleanup. They represent larger possible directions for Perseus after the MVP and the most important follow-on work are in place.
 
-## Milestone 40 - Lambda Notation
+## Milestone 41 - Lambda Notation
 
 **Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
@@ -99,7 +120,7 @@ These milestones are not just deferred implementation cleanup. They represent la
 - [ ] Lowering strategy onto existing procedure-reference infrastructure
 - [ ] Tests for higher-order procedure use cases
 
-## Milestone 41 - Actors
+## Milestone 42 - Actors
 
 **Goal:** Explore actors as a distinctive future direction for Perseus once the MVP and key follow-on milestones are in place (see [Actors Design Spec.md](Actors%20Design%20Spec.md)).
 
@@ -149,4 +170,5 @@ To ensure long-term maintainability and enable advanced tooling workflows, the f
 ## Longer-Term Tooling Ideas
 - Improve JVM verifier feedback so bytecode verification failures can be explained more clearly in terms of Perseus source and compiler phases.
 - Versioned diagnostic schemas, stable IR formats, and LSP (Language Server Protocol) integration.
+
 
