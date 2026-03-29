@@ -424,7 +424,7 @@ Algol allows formals without an explicit base type (deferred-typing). To handle 
 - [x] Fix runtime dispatch in deferred `Thunk.set/get` so integer vs real value conversions are handled without `ClassCastException`.
 - [x] Confirm `deferred_typing_test` passes after implementation.
 - [x] Add unit tests covering mixed-type name-parameters (integer ↔ real) and missing formal types (small focused sample and ManBoy reproduction cases).
-- [x] Update documentation: explain deferred-typing behavior in `docs/Algol.md` and `docs/Compiler Roadmap.md`.
+- [x] Update documentation: explain deferred-typing behavior in `docs/Algol Notes.md` and `docs/Compiler Roadmap.md`.
 
 **Regression coverage now includes:**
 - `deferred_typing_test`
