@@ -41,9 +41,10 @@ public class PerseusCLI {
         Files.createDirectories(options.outputDir());
 
         String className = options.className() != null ? options.className() : inferClassName(options.inputFile());
+        String packageName = normalizePackageName(options.packageName());
         Path jasminFile = PerseusCompiler.compileToFile(
                 options.inputFile().toString(),
-                "gnb/perseus/programs",
+                packageName,
                 className,
                 options.outputDir(),
                 effectiveClasspath(options));
@@ -51,7 +52,7 @@ public class PerseusCLI {
         PerseusCompiler.assemble(jasminFile, options.outputDir());
 
         if (options.jarFile() != null) {
-            createJar(options.outputDir(), options.jarFile(), "gnb.perseus.programs." + className);
+            createJar(options.outputDir(), options.jarFile(), toBinaryClassName(packageName, className));
             System.out.println("Compilation successful. JAR generated at: " + options.jarFile());
         } else {
             System.out.println("Compilation successful. Classes generated in: " + options.outputDir());
@@ -59,7 +60,7 @@ public class PerseusCLI {
     }
 
     private static void printUsage() {
-        System.err.println("Usage: perseus <inputFile> [-d <outputDir>] [--jar <jarFile>] [--class-name <name>]");
+        System.err.println("Usage: perseus <inputFile> [-d <outputDir>] [--jar <jarFile>] [--class-name <name>] [--package <name>]");
     }
 
     private static CliOptions parseArgs(String[] args) {
@@ -71,6 +72,7 @@ public class PerseusCLI {
         Path outputDir = Paths.get("build/perseus-out");
         Path jarFile = null;
         String className = null;
+        String packageName = "gnb.perseus.programs";
         List<Path> classpathEntries = new ArrayList<>();
 
         List<String> positional = new ArrayList<>();
@@ -88,6 +90,10 @@ public class PerseusCLI {
                 case "--class-name" -> {
                     if (i + 1 >= args.length) throw new IllegalArgumentException("Missing value for --class-name");
                     className = args[++i];
+                }
+                case "--package" -> {
+                    if (i + 1 >= args.length) throw new IllegalArgumentException("Missing value for --package");
+                    packageName = args[++i];
                 }
                 case "-cp", "--classpath" -> {
                     if (i + 1 >= args.length) throw new IllegalArgumentException("Missing value for " + arg);
@@ -110,7 +116,7 @@ public class PerseusCLI {
         }
 
         inputFile = Paths.get(positional.get(0));
-        return new CliOptions(inputFile, outputDir, jarFile, className, classpathEntries);
+        return new CliOptions(inputFile, outputDir, jarFile, className, packageName, classpathEntries);
     }
 
     private static List<Path> effectiveClasspath(CliOptions options) {
@@ -138,6 +144,17 @@ public class PerseusCLI {
             return "Program";
         }
         return result.toString();
+    }
+
+    private static String normalizePackageName(String packageName) {
+        return packageName.replace('.', '/').replace('\\', '/');
+    }
+
+    private static String toBinaryClassName(String internalPackageName, String className) {
+        if (internalPackageName == null || internalPackageName.isBlank()) {
+            return className;
+        }
+        return internalPackageName.replace('/', '.') + "." + className;
     }
 
     private static void createJar(Path classRoot, Path jarFile, String mainClass) throws IOException {
@@ -169,5 +186,5 @@ public class PerseusCLI {
         }
     }
 
-    private record CliOptions(Path inputFile, Path outputDir, Path jarFile, String className, List<Path> classpathEntries) {}
+    private record CliOptions(Path inputFile, Path outputDir, Path jarFile, String className, String packageName, List<Path> classpathEntries) {}
 }

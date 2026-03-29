@@ -96,7 +96,8 @@ externalProcedureDecl
   ;
 
 externalProcSpec
-  : ALGOL '(' qualifiedName ')'       # ExternalAlgolSpec
+  : '(' qualifiedName ')'             # ExternalPerseusSpec
+  | ALGOL '(' qualifiedName ')'       # ExternalAlgolSpec
   | JAVA STATIC '(' qualifiedName ')' # ExternalJavaStaticSpec
   ;
 

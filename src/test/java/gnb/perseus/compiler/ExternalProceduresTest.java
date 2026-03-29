@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 public class ExternalProceduresTest extends CompilerTest {
 
     @Test
-	public void external_algol_client_test() throws Exception {
+	public void external_perseus_client_test() throws Exception {
 		Path libraryJasminFile = PerseusCompiler.compileToFile(
 				"test/algol/external/external_algol_library.alg", "gnb/perseus/programs", "ExternalAlgolLibrary", BUILD_DIR);
 		String libraryJasminSource = Files.readString(libraryJasminFile);
@@ -46,7 +46,7 @@ public class ExternalProceduresTest extends CompilerTest {
 		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalAlgolClient");
 		System.out.println("external_algol_client output: [" + output + "]");
 		assertEquals("5.0", output.trim(),
-				"External Algol linkage should call the separately compiled library procedure");
+				"External Perseus linkage should call the separately compiled library procedure");
 	}
 
 	@Test
@@ -70,6 +70,38 @@ public class ExternalProceduresTest extends CompilerTest {
 		System.out.println("external_java_static output: [" + output + "]");
 		assertEquals("42 1.0", output.trim(),
 				"External Java static interop should support mapped integer, string, and real signatures");
+	}
+
+	@Test
+	public void external_perseus_array_client_test() throws Exception {
+		Path libraryJasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_algol_array_library.alg", "gnb/perseus/programs", "ExternalAlgolArrayLibrary", BUILD_DIR);
+		String libraryJasminSource = Files.readString(libraryJasminFile);
+		System.out.println("=== EXTERNAL ALGOL ARRAY LIBRARY JASMIN ===");
+		System.out.println(libraryJasminSource);
+		System.out.println("=== END EXTERNAL ALGOL ARRAY LIBRARY ===");
+
+		assertFalse(libraryJasminSource.startsWith("ERROR"), "Array library compilation should not produce an error");
+
+		PerseusCompiler.assemble(libraryJasminFile, BUILD_DIR);
+
+		Path clientJasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_algol_array_client.alg", "gnb/perseus/programs", "ExternalAlgolArrayClient", BUILD_DIR);
+		String clientJasminSource = Files.readString(clientJasminFile);
+		System.out.println("=== EXTERNAL ALGOL ARRAY CLIENT JASMIN ===");
+		System.out.println(clientJasminSource);
+		System.out.println("=== END EXTERNAL ALGOL ARRAY CLIENT ===");
+
+		assertFalse(clientJasminSource.startsWith("ERROR"), "Array client compilation should not produce an error");
+		assertTrue(clientJasminSource.contains("invokestatic gnb/perseus/programs/ExternalAlgolArrayLibrary/sum3"),
+				"Client should link against the separately compiled external Algol array procedure");
+
+		PerseusCompiler.assemble(clientJasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalAlgolArrayClient");
+		System.out.println("external_algol_array_client output: [" + output + "]");
+		assertEquals("6.0", output.trim(),
+				"External Perseus linkage should support one-dimensional real array parameters");
 	}
 
     

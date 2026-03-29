@@ -174,7 +174,7 @@ public class CLITest extends CompilerTest {
     }
 
     @Test
-    public void cli_classpath_support_for_external_algol_test() throws Exception {
+    public void cli_classpath_support_for_external_perseus_test() throws Exception {
         Path libraryOutDir = BUILD_DIR.resolve("cli-cp-lib");
         Path clientOutDir = BUILD_DIR.resolve("cli-cp-client");
         Files.createDirectories(libraryOutDir);
@@ -200,7 +200,7 @@ public class CLITest extends CompilerTest {
                 "ExternalAlgolClient"));
 
         assertEquals(0, clientResult.exitCode(),
-                "CLI should use -cp to resolve separately compiled external Algol code");
+                "CLI should use -cp to resolve separately compiled external Perseus code");
 
         Path clientClassFile = clientOutDir.resolve("gnb/perseus/programs/ExternalAlgolClient.class");
         assertTrue(Files.exists(clientClassFile),
@@ -223,8 +223,148 @@ public class CLITest extends CompilerTest {
         assertEquals(0, exitCode,
                 "Client compiled with -cp should run successfully against the separately compiled library");
         assertEquals("5.0", stdout.trim(),
-                "Client should call the external Algol library through the CLI classpath");
+                "Client should call the external Perseus library through the CLI classpath");
         assertEquals("", stderr.trim(),
                 "Client run should not emit unexpected stderr");
+    }
+
+    @Test
+    public void cli_compile_with_package_option_test() throws Exception {
+        Path outDir = BUILD_DIR.resolve("cli-package-out");
+        Files.createDirectories(outDir);
+
+        ProcessResult result = runCli(List.of(
+                "test/algol/core/hello.alg",
+                "-d",
+                outDir.toString(),
+                "--package",
+                "mylib.demo",
+                "--class-name",
+                "HelloPackaged"));
+
+        assertEquals(0, result.exitCode(),
+                "CLI should support --package for choosing the generated JVM package");
+
+        Path classFile = outDir.resolve("mylib/demo/HelloPackaged.class");
+        assertTrue(Files.exists(classFile),
+                "CLI should emit class files under the requested package layout");
+
+        String output = runClass(outDir, "mylib.demo.HelloPackaged");
+        assertEquals("Hello World", output.trim(),
+                "CLI should produce runnable packaged output when --package is used");
+    }
+
+    @Test
+    public void cli_classpath_support_for_external_perseus_array_test() throws Exception {
+        Path libraryOutDir = BUILD_DIR.resolve("cli-cp-array-lib");
+        Path clientOutDir = BUILD_DIR.resolve("cli-cp-array-client");
+        Files.createDirectories(libraryOutDir);
+        Files.createDirectories(clientOutDir);
+
+        ProcessResult libraryResult = runCli(List.of(
+                "test/algol/external/external_algol_array_library.alg",
+                "-d",
+                libraryOutDir.toString(),
+                "--class-name",
+                "ExternalAlgolArrayLibrary"));
+
+        assertEquals(0, libraryResult.exitCode(),
+                "CLI should compile the external Perseus array library successfully");
+
+        ProcessResult clientResult = runCli(List.of(
+                "test/algol/external/external_algol_array_client.alg",
+                "-d",
+                clientOutDir.toString(),
+                "-cp",
+                libraryOutDir.toString(),
+                "--class-name",
+                "ExternalAlgolArrayClient"));
+
+        assertEquals(0, clientResult.exitCode(),
+                "CLI should use -cp to resolve separately compiled external Perseus code with array parameters");
+
+        Path clientClassFile = clientOutDir.resolve("gnb/perseus/programs/ExternalAlgolArrayClient.class");
+        assertTrue(Files.exists(clientClassFile),
+                "CLI should emit the client class file when external array linkage succeeds");
+
+        String combinedClasspath = clientOutDir + java.io.File.pathSeparator + libraryOutDir;
+        List<String> cmd = List.of("java", "-cp", combinedClasspath, "gnb.perseus.programs.ExternalAlgolArrayClient");
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        pb.redirectErrorStream(false);
+        Process p = pb.start();
+        p.getOutputStream().close();
+        String stdout;
+        String stderr;
+        try (var out = p.getInputStream(); var err = p.getErrorStream()) {
+            stdout = new String(out.readAllBytes());
+            stderr = new String(err.readAllBytes());
+        }
+        int exitCode = p.waitFor();
+
+        assertEquals(0, exitCode,
+                "Client compiled with -cp should run successfully against the separately compiled array library");
+        assertEquals("6.0", stdout.trim(),
+                "Client should call the external Perseus array library through the CLI classpath");
+        assertEquals("", stderr.trim(),
+                "Client run should not emit unexpected stderr");
+    }
+
+    @Test
+    public void cli_classpath_support_for_packaged_external_perseus_test() throws Exception {
+        Path libraryOutDir = BUILD_DIR.resolve("cli-cp-packaged-lib");
+        Path clientOutDir = BUILD_DIR.resolve("cli-cp-packaged-client");
+        Files.createDirectories(libraryOutDir);
+        Files.createDirectories(clientOutDir);
+
+        ProcessResult libraryResult = runCli(List.of(
+                "test/algol/external/external_algol_library.alg",
+                "-d",
+                libraryOutDir.toString(),
+                "--package",
+                "mylib.numeric",
+                "--class-name",
+                "ExternalAlgolLibrary"));
+
+        assertEquals(0, libraryResult.exitCode(),
+                "CLI should compile the packaged external Perseus library successfully");
+
+        ProcessResult clientResult = runCli(List.of(
+                "test/algol/external/external_perseus_packaged_client.alg",
+                "-d",
+                clientOutDir.toString(),
+                "-cp",
+                libraryOutDir.toString(),
+                "--package",
+                "mylib.client",
+                "--class-name",
+                "ExternalAlgolClient"));
+
+        assertEquals(0, clientResult.exitCode(),
+                "CLI should support packaged separate compilation together with -cp");
+
+        Path clientClassFile = clientOutDir.resolve("mylib/client/ExternalAlgolClient.class");
+        assertTrue(Files.exists(clientClassFile),
+                "CLI should emit the client class file in the requested package");
+
+        String combinedClasspath = clientOutDir + java.io.File.pathSeparator + libraryOutDir;
+        List<String> cmd = List.of("java", "-cp", combinedClasspath, "mylib.client.ExternalAlgolClient");
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        pb.redirectErrorStream(false);
+        Process p = pb.start();
+        p.getOutputStream().close();
+        String stdout;
+        String stderr;
+        try (var out = p.getInputStream(); var err = p.getErrorStream()) {
+            stdout = new String(out.readAllBytes());
+            stderr = new String(err.readAllBytes());
+        }
+        int exitCode = p.waitFor();
+
+        assertEquals(0, exitCode,
+                "Packaged client should run successfully against the packaged external library");
+        assertEquals("5.0", stdout.trim(),
+                "Packaged client should call the external Perseus library through the CLI classpath");
+        assertEquals("", stderr.trim(),
+                "Packaged client run should not emit unexpected stderr");
     }
 }

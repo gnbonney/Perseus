@@ -58,7 +58,7 @@ build/install/perseus/bin/perseus
 Example:
 
 ```bash
-perseus test/algol/hello.alg -d build/output
+perseus test/algol/core/hello.alg -d build/output
 ```
 
 This compiles and assembles the program into JVM class files under the requested output directory.
@@ -68,7 +68,7 @@ This compiles and assembles the program into JVM class files under the requested
 Example:
 
 ```bash
-perseus test/algol/hello.alg -d build/output --class-name HelloDemo
+perseus test/algol/core/hello.alg -d build/output --class-name HelloDemo
 ```
 
 This is useful when you want the generated main program class to use a specific name instead of the default name inferred from the source filename.
@@ -78,16 +78,38 @@ This is useful when you want the generated main program class to use a specific 
 Example:
 
 ```bash
-perseus test/algol/hello.alg -d build/output --jar build/output/hello.jar
+perseus test/algol/core/hello.alg -d build/output --jar build/output/hello.jar
 ```
 
 This compiles the program, assembles the class family, and packages a runnable JAR.
+
+### Choose a JVM Package
+
+Example:
+
+```bash
+perseus test/algol/core/hello.alg -d build/output --package mylib.demo --class-name HelloDemo
+```
+
+This is useful when you want stable package and class names for separate compilation, library-style workflows, or external procedure linkage.
+
+### Compile Against External Libraries
+
+Example:
+
+```bash
+perseus test/algol/external/external_algol_client.alg -d build/output -cp build/libs
+```
+
+This lets the compiler resolve separately compiled Perseus libraries and external Java classes on the ordinary JVM classpath.
 
 ### Current CLI Options
 
 - `-d <outdir>` selects the output directory for generated artifacts
 - `--jar <file>` creates a runnable JAR after compilation
 - `--class-name <name>` overrides the inferred main class name when needed
+- `--package <name>` chooses the generated JVM package name
+- `-cp <path>` / `--classpath <path>` adds directories or JARs for external resolution
 
 ## Developer Workflow
 

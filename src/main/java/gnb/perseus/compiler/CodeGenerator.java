@@ -2973,6 +2973,9 @@ public class CodeGenerator extends PerseusBaseListener {
                 default -> "I";
             };
         }
+        if (type != null && type.endsWith("[]")) {
+            return arrayTypeToJvmDesc(type) + "II";
+        }
         return CodeGenUtils.getReturnTypeDescriptor(type);
     }
 
@@ -3200,6 +3203,14 @@ public class CodeGenerator extends PerseusBaseListener {
             String paramType = getFormalBaseType(info, info.paramNames.get(ai));
             if (arg.expr() != null) {
                 sb.append(generateExpr(arg.expr()));
+                if (paramType.endsWith("[]")) {
+                    if (arg.expr() instanceof PerseusParser.VarExprContext varExpr) {
+                        sb.append(generatePushArrayBounds(varExpr.identifier().getText()));
+                    } else {
+                        sb.append("; ERROR: unsupported external array argument form for ")
+                          .append(info.paramNames.get(ai)).append("\n");
+                    }
+                }
                 String argType = exprTypes.getOrDefault(arg.expr(), "integer");
                 if ("real".equals(paramType) && "integer".equals(argType)) {
                     sb.append("i2d\n");

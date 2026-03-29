@@ -187,8 +187,11 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
         ProcInfo proc = new ProcInfo(returnType);
         proc.external = true;
-        if (ctx.externalProcSpec() instanceof PerseusParser.ExternalAlgolSpecContext algolSpec) {
-            proc.externalKind = "algol";
+        if (ctx.externalProcSpec() instanceof PerseusParser.ExternalPerseusSpecContext perseusSpec) {
+            proc.externalKind = "perseus";
+            proc.externalTargetClass = perseusSpec.qualifiedName().getText();
+        } else if (ctx.externalProcSpec() instanceof PerseusParser.ExternalAlgolSpecContext algolSpec) {
+            proc.externalKind = "perseus";
             proc.externalTargetClass = algolSpec.qualifiedName().getText();
         } else if (ctx.externalProcSpec() instanceof PerseusParser.ExternalJavaStaticSpecContext javaSpec) {
             proc.externalKind = "java-static";

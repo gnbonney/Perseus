@@ -1,4 +1,4 @@
-comment Separately compiled Algol library for Milestone 26A external procedure tests;
+comment Separately compiled Perseus library for external procedure tests;
 begin
     real procedure hypot2(a, b);
         value a, b;

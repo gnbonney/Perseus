@@ -708,7 +708,7 @@ Here, the channel parameter is left empty, but the argument list is still presen
 - Targeted regression coverage is provided by `external_algol_library.alg`, `external_algol_client.alg`, and `external_java_math.alg`
 
 **TBD: Planned follow-on after Milestone 26:**
-- Phase 26B: external Algol array parameters as a documented ABI case
+- Phase 26B: external Perseus array parameters as a documented ABI case
   Keep the first array-interoperability slice to one-dimensional arrays using Perseus's current array-plus-bounds calling convention, with historic library-style regression cases such as `INIVEC`
 - External Perseus call-by-name only after the thunk ABI is frozen and documented
 - Java instance-method interop after the object/class story is clearer

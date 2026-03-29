@@ -384,31 +384,27 @@ public class PerseusCompiler {
 			if (!info.external) {
 				continue;
 			}
-			if (!supportsPhase26AExternalSignature(info)) {
+			if (!supportsInitialExternalSignature(info)) {
 				diagnostics.add(CompilerDiagnostic.error("PERS3003", fileName, 1, 1,
-						"External procedure " + procName + " uses a signature outside the initial Phase 26A ABI"));
+						"External procedure " + procName + " uses a signature outside the currently supported external ABI"));
 				continue;
 			}
 			try {
 				Class<?> owner = loadExternalOwner(info.externalTargetClass, externalClassRoots);
-				Method target = owner.getMethod(procName, getExternalParameterTypes(info));
+				Method target = findMatchingExternalMethod(owner, procName, info);
+				if (target == null) {
+					diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
+							"External method not found: " + info.externalTargetClass + "." + procName));
+					continue;
+				}
 				if (!Modifier.isStatic(target.getModifiers())) {
 					diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
 							"External procedure " + procName + " must resolve to a static method in " + info.externalTargetClass));
 					continue;
 				}
-				Class<?> expectedReturnType = getExternalReturnType(info);
-				if (!target.getReturnType().equals(expectedReturnType)) {
-					diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
-							"External procedure " + procName + " resolved in " + info.externalTargetClass
-									+ " but the return type did not match the declaration"));
-				}
 			} catch (ClassNotFoundException e) {
 				diagnostics.add(CompilerDiagnostic.error("PERS3001", fileName, 1, 1,
 						"External target class not found: " + info.externalTargetClass));
-			} catch (NoSuchMethodException e) {
-				diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
-						"External method not found: " + info.externalTargetClass + "." + procName));
 			} catch (IOException e) {
 				diagnostics.add(CompilerDiagnostic.error("PERS3001", fileName, 1, 1,
 						"Unable to inspect external target class " + info.externalTargetClass + ": " + e.getMessage()));
@@ -419,25 +415,28 @@ public class PerseusCompiler {
 		}
 	}
 
-	private static boolean supportsPhase26AExternalSignature(SymbolTableBuilder.ProcInfo info) {
+	private static boolean supportsInitialExternalSignature(SymbolTableBuilder.ProcInfo info) {
 		if (info == null) {
 			return false;
 		}
-		if (!isPhase26AType(info.returnType, info.externalKind)) {
+		if (!isSupportedExternalType(info.returnType, info.externalKind, true)) {
 			return false;
 		}
 		for (String paramName : info.paramNames) {
 			String paramType = info.paramTypes.get(paramName);
-			if (!isPhase26AType(paramType, info.externalKind)) {
+			if (!isSupportedExternalType(paramType, info.externalKind, false)) {
 				return false;
 			}
 		}
 		return true;
 	}
 
-	private static boolean isPhase26AType(String type, String externalKind) {
+	private static boolean isSupportedExternalType(String type, String externalKind, boolean isReturnType) {
 		if (type == null) {
 			return false;
+		}
+		if (type.endsWith("[]")) {
+			return !isReturnType && !"java-static".equals(externalKind);
 		}
 		return switch (type) {
 			case "void", "integer", "real", "string" -> true;
@@ -446,25 +445,71 @@ public class PerseusCompiler {
 		};
 	}
 
-	private static Class<?>[] getExternalParameterTypes(SymbolTableBuilder.ProcInfo info) {
-		return info.paramNames.stream()
-				.map(param -> mapExternalTypeToJvmClass(info.paramTypes.get(param), info.externalKind))
-				.toArray(Class<?>[]::new);
+	private static Method findMatchingExternalMethod(Class<?> owner, String procName, SymbolTableBuilder.ProcInfo info) {
+		String expectedDescriptor = getExpectedExternalMethodDescriptor(info);
+		for (Method method : owner.getMethods()) {
+			if (!method.getName().equals(procName)) {
+				continue;
+			}
+			if (!Modifier.isStatic(method.getModifiers())) {
+				continue;
+			}
+			if (getMethodDescriptor(method).equals(expectedDescriptor)) {
+				return method;
+			}
+		}
+		return null;
 	}
 
-	private static Class<?> getExternalReturnType(SymbolTableBuilder.ProcInfo info) {
-		return mapExternalTypeToJvmClass(info.returnType, info.externalKind);
+	private static String getExpectedExternalMethodDescriptor(SymbolTableBuilder.ProcInfo info) {
+		StringBuilder desc = new StringBuilder("(");
+		for (String paramName : info.paramNames) {
+			desc.append(externalTypeToJvmDescriptor(info.paramTypes.get(paramName), info.externalKind));
+		}
+		desc.append(")").append(externalTypeToJvmDescriptor(info.returnType, info.externalKind));
+		return desc.toString();
 	}
 
-	private static Class<?> mapExternalTypeToJvmClass(String type, String externalKind) {
-		return switch (type) {
-			case "void" -> void.class;
-			case "integer" -> int.class;
-			case "real" -> double.class;
-			case "string" -> String.class;
-			case "boolean" -> "java-static".equals(externalKind) ? boolean.class : int.class;
-			default -> throw new IllegalArgumentException("Unsupported external type: " + type);
-		};
+	private static String getMethodDescriptor(Method method) {
+		StringBuilder desc = new StringBuilder("(");
+		for (Class<?> paramType : method.getParameterTypes()) {
+			desc.append(toJvmDescriptor(paramType));
+		}
+		desc.append(")").append(toJvmDescriptor(method.getReturnType()));
+		return desc.toString();
+	}
+
+	private static String externalTypeToJvmDescriptor(String type, String externalKind) {
+		if (type == null) {
+			return "V";
+		}
+		if ("java-static".equals(externalKind)) {
+			return switch (type) {
+				case "void" -> "V";
+				case "real" -> "D";
+				case "string" -> "Ljava/lang/String;";
+				case "boolean" -> "Z";
+				default -> "I";
+			};
+		}
+		if (type.endsWith("[]")) {
+			return CodeGenUtils.arrayTypeToJvmDesc(type) + "II";
+		}
+		return CodeGenUtils.getReturnTypeDescriptor(type);
+	}
+
+	private static String toJvmDescriptor(Class<?> type) {
+		if (type == void.class) return "V";
+		if (type == boolean.class) return "Z";
+		if (type == byte.class) return "B";
+		if (type == char.class) return "C";
+		if (type == short.class) return "S";
+		if (type == int.class) return "I";
+		if (type == long.class) return "J";
+		if (type == float.class) return "F";
+		if (type == double.class) return "D";
+		if (type.isArray()) return type.getName().replace('.', '/');
+		return "L" + type.getName().replace('.', '/') + ";";
 	}
 
 	private static Class<?> loadExternalOwner(String className, List<Path> externalClassRoots) throws ClassNotFoundException, IOException {

@@ -276,10 +276,12 @@ Even for external Perseus linkage, the first version should stay conservative:
 - No label parameters.
 - No switch parameters.
 - No non-local `goto` across compilation-unit boundaries.
-- No procedure-value parameters in the first version.
+- No procedure-value parameters across `external(...)` boundaries.
 - No call-by-name interop in the first version unless the callee signature can be described exactly in Perseus terms.
 
-That last point matters because Perseus's current call-by-name lowering depends on generated `Thunk` classes and environment-bridging conventions. It is possible to support cross-file Perseus call-by-name eventually, but only if the external declaration can fully describe the callee's thunk-based ABI. For an initial design, external Perseus procedures should therefore default to value-compatible signatures.
+Procedure-valued external parameters are not planned. Perseus procedure references rely on generated interfaces, wrapper classes, and calling conventions that are reasonable for internal compilation but too implementation-specific to treat as a stable external ABI.
+
+The call-by-name point matters because Perseus's current lowering depends on generated `Thunk` classes and environment-bridging conventions. It is possible to support cross-file Perseus call-by-name eventually, but only if the external declaration can fully describe the callee's thunk-based ABI. For an initial design, external Perseus procedures should therefore default to value-compatible signatures.
 
 Arrays deserve to be called out separately. Historic Algol procedure libraries clearly used formal array parameters, and Perseus should support that style of separate compilation too. However, array parameters are still ABI-bearing rather than simple scalar value parameters, because the callee must agree with the caller about the JVM array representation, bounds metadata, and dimensionality. Perseus should therefore treat external Perseus arrays as a documented ABI case of their own rather than silently lumping them into "ordinary value passing".
 
