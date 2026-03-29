@@ -1,6 +1,6 @@
 # Third-Party Licenses
 
-This project uses the following third-party libraries:
+This project uses or distributes the following third-party libraries:
 
 ---
 
@@ -23,11 +23,12 @@ Copyright (c) 2012-2022 The ANTLR Project. All rights reserved.
 
 ---
 
-## Soot
-**License:** GNU Lesser General Public License (LGPL) v2.1  
-**Website:** https://github.com/soot-oss/soot  
+## ASM
+**License:** BSD 3-Clause  
+**Website:** https://asm.ow2.io/  
+Copyright (c) 2000-2011 INRIA, France Telecom.
 
-Soot is distributed under the LGPL. You may use and distribute this software in compliance with the LGPL. See the full license at: https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+Perseus uses ASM for bytecode verification and post-processing (`FixLimits`) after Jasmin assembly.
 
 ---
 
@@ -36,3 +37,35 @@ Soot is distributed under the LGPL. You may use and distribute this software in 
 **Website:** https://junit.org/junit5/  
 
 See full license at: https://www.eclipse.org/legal/epl-v20.html
+
+---
+
+## StringTemplate 4 (ST4)
+**License:** BSD 3-Clause  
+**Website:** https://www.stringtemplate.org/  
+
+ST4 is distributed as a transitive ANTLR dependency.
+
+---
+
+## ANTLR Runtime 3
+**License:** BSD 3-Clause  
+**Website:** https://www.antlr3.org/  
+
+The ANTLR 3 runtime is distributed as a transitive dependency of StringTemplate.
+
+---
+
+## abego TreeLayout Core
+**License:** BSD 3-Clause  
+**Website:** https://treelayout.googlecode.com/  
+
+`org.abego.treelayout.core` is distributed as a transitive ANTLR dependency.
+
+---
+
+## ICU4J
+**License:** Unicode License  
+**Website:** https://icu.unicode.org/  
+
+ICU4J is distributed as a transitive ANTLR dependency.
