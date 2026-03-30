@@ -143,6 +143,8 @@ That separation has made it easier to grow the compiler incrementally, add new
 language features, and improve diagnostics without entangling analysis and
 emission logic in one listener.
 
+For future Java-class and Java-interface inheritance, the same staged design suggests a clear validation point: after `SymbolTableBuilder` has collected class metadata and external type names, and before `CodeGenerator` emits bytecode. That is the right stage to verify that a Perseus class actually matches the Java superclass or interface it claims to extend or implement, including required methods, constructor chaining rules, and abstract-method obligations. JVM and ASM verification should remain a safety net, not the first place users discover those mistakes.
+
 ## Output Class Files
 
 The compiler produces one or more `.class` files per source file:

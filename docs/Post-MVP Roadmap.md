@@ -36,7 +36,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Simula-style prefix inheritance and its initial construction rules
 - [x] Dynamic dispatch for overridden procedures in the initial prefix model
 - [x] External JVM class declarations and initial object interop
-- [ ] Decide whether Perseus classes may extend external Java classes, or whether external Java classes remain reference/interoperability targets only
+- [ ] Allow Perseus classes to extend external Java classes where meaningful JVM interop requires it
 - [ ] Richer member syntax such as explicit field selection versus zero-argument procedure calls
 - [ ] Exception-object/member access integration once richer exception binding exists
 - [ ] Add tests for class-based Java interop scenarios
@@ -47,6 +47,9 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - Prefix declarations now compile and run in the form `Base class Derived(...)`, with JVM subclass emission and inherited method availability
 - Dynamic dispatch now works for overridden procedures when a derived object is held through a base-class `ref(...)`
 - `external java class ...` now supports a first working slice of object creation and instance method calls for imported JVM classes
+- External Java subclassing is now the intended direction for meaningful Java interop, because many Java APIs accept or return specific framework base classes rather than generic objects
+- That follow-on work will need explicit rules for Java-constructor chaining, method overriding, abstract Java base classes, Java interfaces, and the boundary between Simula-style Perseus prefixing and Java-style superclass/interface conformance
+- Conformance to extended Java classes and implemented Java interfaces should be checked during semantic validation before code generation, with JVM/ASM verification left as a later safety net
 - The current generated JVM naming scheme is acceptable for the MVP class slice, but Milestone 33 should move toward stable class identities suitable for reusable libraries and separate compilation
 
 ## Milestone 34 - Exception Follow-On
