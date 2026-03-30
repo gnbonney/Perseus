@@ -37,7 +37,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Dynamic dispatch for overridden procedures in the initial prefix model
 - [x] External JVM class declarations and initial object interop
 - [ ] Allow Perseus classes to extend external Java classes where meaningful JVM interop requires it
-- [ ] Richer member syntax such as explicit field selection versus zero-argument procedure calls
+- [ ] Richer member syntax with `obj.name` as field selection, `obj.name()` as explicit procedure/method call, and bare zero-argument shorthand allowed only when unambiguous
 - [ ] Exception-object/member access integration once richer exception binding exists
 - [ ] Add tests for class-based Java interop scenarios
 
@@ -49,6 +49,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - `external java class ...` now supports a first working slice of object creation and instance method calls for imported JVM classes
 - External Java subclassing is now the intended direction for meaningful Java interop, because many Java APIs accept or return specific framework base classes rather than generic objects
 - That follow-on work will need explicit rules for Java-constructor chaining, method overriding, abstract Java base classes, Java interfaces, and the boundary between Simula-style Perseus prefixing and Java-style superclass/interface conformance
+- The intended member-resolution rule is `obj.name` for fields and `obj.name()` for explicit calls, while preserving bare zero-argument shorthand only in unambiguous cases
 - Conformance to extended Java classes and implemented Java interfaces should be checked during semantic validation before code generation, with JVM/ASM verification left as a later safety net
 - The current generated JVM naming scheme is acceptable for the MVP class slice, but Milestone 33 should move toward stable class identities suitable for reusable libraries and separate compilation
 

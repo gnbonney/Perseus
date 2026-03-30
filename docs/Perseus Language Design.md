@@ -815,6 +815,43 @@ The safer design direction is:
 
 This keeps the language design clearer and avoids forcing the Perseus class model to mirror the JVM object model too early.
 
+## Member Selection and Zero-Argument Procedures
+
+As Perseus classes grow richer and Java interop deepens, member-selection syntax needs a clearer rule than the current first-slice dotted shorthand.
+
+The intended direction is:
+
+- `obj.name` means field selection
+- `obj.name()` means procedure or method call
+- bare zero-argument shorthand such as `obj.name` may continue to work only when there is no conflicting field with the same name
+- if both a field `name` and a zero-argument procedure or method `name()` are visible, the bare form should be treated as ambiguous and rejected
+
+For example, if a class declares:
+
+```algol
+class Point;
+begin
+    real x, y;
+
+    real procedure length;
+        length := sqrt(x * x + y * y)
+end;
+```
+
+then both of these may be accepted while there is no conflicting field named `length`:
+
+```algol
+outreal(1, p.length);
+outreal(1, p.length());
+```
+
+But if a field `length` also becomes visible on the same object, the bare form `p.length` should no longer be accepted as a shorthand method call. In that case:
+
+- `p.length` should mean field selection
+- `p.length()` should mean the zero-argument procedure call
+
+This keeps historical Algol/Simula-style shorthand available in unambiguous cases while still allowing Perseus to interoperate sensibly with Java classes, where fields and zero-argument methods commonly coexist and are syntactically distinguished.
+
 ## Initial Scope
 
 The first class milestone should aim for:
