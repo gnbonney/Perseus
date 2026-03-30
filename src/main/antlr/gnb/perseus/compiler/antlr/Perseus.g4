@@ -52,10 +52,16 @@ statement
   ;
 
 classDecl
-  : (CLASS | identifier CLASS) identifier ('(' paramList? ')')? ';'
+  : (CLASS | parentClass=identifier CLASS) className=identifier ('(' paramList? ')')?
+    (IMPLEMENTS interfaceList)?
+    ';'
     valueSpec?
     paramSpec*
     block
+  ;
+
+interfaceList
+  : identifier (',' identifier)*
   ;
 
 externalClassDecl
@@ -305,6 +311,7 @@ ALGOL : 'algol';
 JAVA : 'java';
 STATIC : 'static';
 CLASS : 'class';
+IMPLEMENTS : 'implements';
 REF : 'ref';
 NEW : 'new';
 TRUE : 'true';

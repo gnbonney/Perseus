@@ -130,4 +130,76 @@ public class ClassesTest extends CompilerTest {
         assertEquals("Hello World", output.trim(),
                 "External Java class declarations should support object creation and method calls");
     }
+
+    @Test
+    public void class_extends_external_java_random_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/classes/class_extends_external_java_random.alg",
+                "gnb/perseus/programs",
+                "ClassExtendsExternalJavaRandomTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ClassExtendsExternalJavaRandomTest").trim();
+        assertTrue(output.matches("[1-6]"),
+                "A Perseus subclass of java.util.Random should be able to call inherited Java methods");
+    }
+
+    @Test
+    public void class_extends_external_java_abstract_outputstream_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/classes/class_extends_external_java_abstract_outputstream.alg",
+                "gnb/perseus/programs",
+                "ClassExtendsExternalJavaAbstractOutputStreamTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ClassExtendsExternalJavaAbstractOutputStreamTest");
+        assertEquals("2", output.trim(),
+                "A Perseus subclass of an abstract Java class should be able to satisfy required methods");
+    }
+
+    @Test
+    public void class_implements_external_java_runnable_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/classes/class_implements_external_java_runnable.alg",
+                "gnb/perseus/programs",
+                "ClassImplementsExternalJavaRunnableTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ClassImplementsExternalJavaRunnableTest");
+        assertEquals("hello from thread", output.trim(),
+                "A Perseus class should be able to satisfy a Java interface and be passed to Java code");
+    }
+
+    @Test
+    public void class_implements_external_java_two_interfaces_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/classes/class_implements_external_java_two_interfaces.alg",
+                "gnb/perseus/programs",
+                "ClassImplementsExternalJavaTwoInterfacesTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ClassImplementsExternalJavaTwoInterfacesTest");
+        assertEquals("hello closed", output.trim(),
+                "A Perseus class should be able to satisfy multiple Java interfaces and be used through each");
+    }
 }

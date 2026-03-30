@@ -80,6 +80,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         public final String parentName;
         public final boolean externalJava;
         public final String externalJavaQualifiedName;
+        public final List<String> interfaces = new ArrayList<>();
         public final List<String> paramNames = new ArrayList<>();
         public final Map<String, String> paramTypes = new LinkedHashMap<>();
         public final Set<String> valueParams = new LinkedHashSet<>();
@@ -134,14 +135,19 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
     @Override
     public void enterClassDecl(PerseusParser.ClassDeclContext ctx) {
-        String parentName = ctx.identifier().size() > 1 ? ctx.identifier(0).getText() : null;
-        String name = ctx.identifier(ctx.identifier().size() - 1).getText();
+        String parentName = ctx.parentClass != null ? ctx.parentClass.getText() : null;
+        String name = ctx.className.getText();
         ClassInfo cls = new ClassInfo(name, ctx, parentName, false, null);
         if (parentName != null) {
             ClassInfo parent = classes.get(parentName);
             if (parent != null) {
                 cls.paramTypes.putAll(parent.paramTypes);
                 cls.valueParams.addAll(parent.valueParams);
+            }
+        }
+        if (ctx.interfaceList() != null) {
+            for (PerseusParser.IdentifierContext id : ctx.interfaceList().identifier()) {
+                cls.interfaces.add(id.getText());
             }
         }
         if (ctx.paramList() != null) {

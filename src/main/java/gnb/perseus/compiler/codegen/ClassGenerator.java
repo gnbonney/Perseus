@@ -3,6 +3,7 @@ package gnb.perseus.compiler.codegen;
 import gnb.perseus.compiler.CodeGenUtils;
 import gnb.perseus.compiler.SymbolTableBuilder;
 import gnb.perseus.compiler.antlr.PerseusParser;
+import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +30,16 @@ public class ClassGenerator {
         String internalName = packageName + "/" + cls.name;
         sb.append(".source ").append(source).append("\n");
         sb.append(".class public ").append(internalName).append("\n");
-        sb.append(".super ").append(getSuperInternalName(cls)).append("\n\n");
+        sb.append(".super ").append(getSuperInternalName(cls)).append("\n");
+        for (String interfaceName : cls.interfaces) {
+            SymbolTableBuilder.ClassInfo iface = classes.get(interfaceName);
+            if (iface != null && iface.externalJava && iface.externalJavaQualifiedName != null) {
+                sb.append(".implements ").append(iface.externalJavaQualifiedName.replace('.', '/')).append("\n");
+            } else {
+                sb.append(".implements ").append(packageName).append("/").append(interfaceName).append("\n");
+            }
+        }
+        sb.append("\n");
 
         for (String paramName : ownParamNames(cls)) {
             String type = cls.paramTypes.getOrDefault(paramName, "integer");
@@ -183,7 +193,8 @@ public class ClassGenerator {
             }
         }
 
-        sb.append(generateClassStatement(cls, method, method.parseContext != null ? method.parseContext.statement() : null, localSlots, returnSlot));
+        sb.append(generateClassStatement(cls, method, method.parseContext != null ? method.parseContext.statement() : null,
+                localSlots, returnSlot));
 
         if ("void".equals(method.returnType)) {
             sb.append("return\n");
@@ -211,6 +222,12 @@ public class ClassGenerator {
         }
         if (stmt.assignment() != null) {
             return generateClassAssignment(cls, method, stmt.assignment(), localSlots, returnSlot);
+        }
+        if (stmt.procedureCall() != null) {
+            return generateClassProcedureCallStatement(cls, method, stmt.procedureCall(), localSlots, returnSlot);
+        }
+        if (stmt.memberCall() != null) {
+            return generateClassMemberCallStatement(cls, method, stmt.memberCall(), localSlots, returnSlot);
         }
         return "";
     }
@@ -333,8 +350,225 @@ public class ClassGenerator {
                 }
                 return argCode + "invokestatic java/lang/Math/sqrt(D)D\n";
             }
+            SymbolTableBuilder.MethodInfo classMethod = findMethodInHierarchy(cls, name);
+            if (classMethod != null) {
+                return generateClassMethodInvocation(cls, method, cls, name, classMethod, args, localSlots, returnSlot);
+            }
+            Method javaMethod = findJavaMethodInHierarchy(cls, name, args.size());
+            if (javaMethod != null) {
+                return generateJavaMethodInvocation(cls, method, ownerClassInfo(javaMethod.getDeclaringClass()), name, javaMethod,
+                        args, localSlots, returnSlot);
+            }
+        }
+        if (expr instanceof PerseusParser.MemberCallExprContext e) {
+            String receiverName = e.identifier(0).getText();
+            String receiverType = resolveClassType(cls, method, receiverName);
+            if (receiverType != null && receiverType.startsWith("ref:")) {
+                String className = receiverType.substring("ref:".length());
+                SymbolTableBuilder.ClassInfo receiverClass = classes.get(className);
+                if (receiverClass != null) {
+                    List<PerseusParser.ArgContext> args = e.argList() != null ? e.argList().arg() : List.of();
+                    String memberName = e.identifier(1).getText();
+                    SymbolTableBuilder.MethodInfo classMethod = findMethodInHierarchy(receiverClass, memberName);
+                    if (classMethod != null) {
+                        return generateClassMemberInvocation(cls, method, receiverName, receiverClass, memberName, classMethod,
+                                args, localSlots, returnSlot);
+                    }
+                    Method javaMethod = findJavaMethodInHierarchy(receiverClass, memberName, args.size());
+                    if (javaMethod != null) {
+                        return generateJavaMemberInvocation(cls, method, receiverName, receiverClass, memberName, javaMethod,
+                                args, localSlots, returnSlot);
+                    }
+                }
+            }
         }
         return "";
+    }
+
+    private String generateClassProcedureCallStatement(SymbolTableBuilder.ClassInfo cls, SymbolTableBuilder.MethodInfo method,
+            PerseusParser.ProcedureCallContext call, Map<String, Integer> localSlots, int returnSlot) {
+        String name = call.identifier().getText();
+        List<PerseusParser.ArgContext> args = call.argList() != null ? call.argList().arg() : List.of();
+        if ("outstring".equals(name) && args.size() == 2) {
+            return generatePrintCall(cls, method, args.get(1).expr(), localSlots, returnSlot, "string");
+        }
+        if ("outinteger".equals(name) && args.size() == 2) {
+            return generatePrintCall(cls, method, args.get(1).expr(), localSlots, returnSlot, "integer");
+        }
+        if ("outreal".equals(name) && args.size() == 2) {
+            return generatePrintCall(cls, method, args.get(1).expr(), localSlots, returnSlot, "real");
+        }
+
+        SymbolTableBuilder.MethodInfo classMethod = findMethodInHierarchy(cls, name);
+        if (classMethod != null) {
+            StringBuilder sb = new StringBuilder(generateClassMethodInvocation(cls, method, cls, name, classMethod, args,
+                    localSlots, returnSlot));
+            if (!"void".equals(classMethod.returnType)) {
+                sb.append("real".equals(classMethod.returnType) ? "pop2\n" : "pop\n");
+            }
+            return sb.toString();
+        }
+        Method javaMethod = findJavaMethodInHierarchy(cls, name, args.size());
+        if (javaMethod != null) {
+            StringBuilder sb = new StringBuilder(generateJavaMethodInvocation(cls, method,
+                    ownerClassInfo(javaMethod.getDeclaringClass()), name, javaMethod, args, localSlots, returnSlot));
+            if (javaMethod.getReturnType() != void.class) {
+                sb.append(javaMethod.getReturnType() == double.class ? "pop2\n" : "pop\n");
+            }
+            return sb.toString();
+        }
+        return "";
+    }
+
+    private String generateClassMemberCallStatement(SymbolTableBuilder.ClassInfo cls, SymbolTableBuilder.MethodInfo method,
+            PerseusParser.MemberCallContext call, Map<String, Integer> localSlots, int returnSlot) {
+        String receiverName = call.identifier(0).getText();
+        String memberName = call.identifier(1).getText();
+        String receiverType = resolveClassType(cls, method, receiverName);
+        if (receiverType == null || !receiverType.startsWith("ref:")) {
+            return "";
+        }
+        SymbolTableBuilder.ClassInfo receiverClass = classes.get(receiverType.substring("ref:".length()));
+        if (receiverClass == null) {
+            return "";
+        }
+        List<PerseusParser.ArgContext> args = call.argList() != null ? call.argList().arg() : List.of();
+        SymbolTableBuilder.MethodInfo classMethod = findMethodInHierarchy(receiverClass, memberName);
+        if (classMethod != null) {
+            StringBuilder sb = new StringBuilder(generateClassMemberInvocation(cls, method, receiverName, receiverClass, memberName,
+                    classMethod, args, localSlots, returnSlot));
+            if (!"void".equals(classMethod.returnType)) {
+                sb.append("real".equals(classMethod.returnType) ? "pop2\n" : "pop\n");
+            }
+            return sb.toString();
+        }
+        Method javaMethod = findJavaMethodInHierarchy(receiverClass, memberName, args.size());
+        if (javaMethod != null) {
+            StringBuilder sb = new StringBuilder(generateJavaMemberInvocation(cls, method, receiverName, receiverClass, memberName,
+                    javaMethod, args, localSlots, returnSlot));
+            if (javaMethod.getReturnType() != void.class) {
+                sb.append(javaMethod.getReturnType() == double.class ? "pop2\n" : "pop\n");
+            }
+            return sb.toString();
+        }
+        return "";
+    }
+
+    private String generatePrintCall(SymbolTableBuilder.ClassInfo cls, SymbolTableBuilder.MethodInfo method,
+            PerseusParser.ExprContext valueExpr, Map<String, Integer> localSlots, int returnSlot, String type) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n");
+        sb.append(generateClassExpr(cls, method, valueExpr, localSlots, returnSlot));
+        if ("string".equals(type)) {
+            sb.append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
+        } else if ("real".equals(type)) {
+            sb.append("invokevirtual java/io/PrintStream/print(D)V\n");
+        } else {
+            sb.append("invokevirtual java/io/PrintStream/print(I)V\n");
+        }
+        return sb.toString();
+    }
+
+    private String generateClassMethodInvocation(SymbolTableBuilder.ClassInfo currentClass, SymbolTableBuilder.MethodInfo currentMethod,
+            SymbolTableBuilder.ClassInfo receiverClass, String methodName, SymbolTableBuilder.MethodInfo targetMethod,
+            List<PerseusParser.ArgContext> args, Map<String, Integer> localSlots, int returnSlot) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("aload_0\n");
+        sb.append("checkcast ").append(ownerInternalName(receiverClass)).append("\n");
+        StringBuilder desc = new StringBuilder("(");
+        for (int i = 0; i < args.size(); i++) {
+            PerseusParser.ExprContext argExpr = args.get(i).expr();
+            String argType = exprTypes.getOrDefault(argExpr, "integer");
+            String paramName = i < targetMethod.paramNames.size() ? targetMethod.paramNames.get(i) : null;
+            String paramType = paramName != null ? targetMethod.paramTypes.getOrDefault(paramName, "integer") : argType;
+            sb.append(generateClassExpr(currentClass, currentMethod, argExpr, localSlots, returnSlot));
+            if ("real".equals(paramType) && "integer".equals(argType)) {
+                sb.append("i2d\n");
+            }
+            desc.append(CodeGenUtils.getReturnTypeDescriptor(paramType));
+        }
+        desc.append(")").append(CodeGenUtils.getReturnTypeDescriptor(targetMethod.returnType));
+        SymbolTableBuilder.ClassInfo ownerClass = findMethodOwnerClass(receiverClass, methodName);
+        sb.append("invokevirtual ").append(ownerInternalName(ownerClass)).append("/").append(methodName).append(desc).append("\n");
+        return sb.toString();
+    }
+
+    private String generateClassMemberInvocation(SymbolTableBuilder.ClassInfo currentClass, SymbolTableBuilder.MethodInfo currentMethod,
+            String receiverName, SymbolTableBuilder.ClassInfo receiverClass, String methodName, SymbolTableBuilder.MethodInfo targetMethod,
+            List<PerseusParser.ArgContext> args, Map<String, Integer> localSlots, int returnSlot) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(loadReferenceValue(currentClass, currentMethod, receiverName, localSlots));
+        sb.append("checkcast ").append(ownerInternalName(receiverClass)).append("\n");
+        StringBuilder desc = new StringBuilder("(");
+        for (int i = 0; i < args.size(); i++) {
+            PerseusParser.ExprContext argExpr = args.get(i).expr();
+            String argType = exprTypes.getOrDefault(argExpr, "integer");
+            String paramName = i < targetMethod.paramNames.size() ? targetMethod.paramNames.get(i) : null;
+            String paramType = paramName != null ? targetMethod.paramTypes.getOrDefault(paramName, "integer") : argType;
+            sb.append(generateClassExpr(currentClass, currentMethod, argExpr, localSlots, returnSlot));
+            if ("real".equals(paramType) && "integer".equals(argType)) {
+                sb.append("i2d\n");
+            }
+            desc.append(CodeGenUtils.getReturnTypeDescriptor(paramType));
+        }
+        desc.append(")").append(CodeGenUtils.getReturnTypeDescriptor(targetMethod.returnType));
+        SymbolTableBuilder.ClassInfo ownerClass = findMethodOwnerClass(receiverClass, methodName);
+        sb.append("invokevirtual ").append(ownerInternalName(ownerClass)).append("/").append(methodName).append(desc).append("\n");
+        return sb.toString();
+    }
+
+    private String generateJavaMethodInvocation(SymbolTableBuilder.ClassInfo currentClass, SymbolTableBuilder.MethodInfo currentMethod,
+            SymbolTableBuilder.ClassInfo receiverClass, String methodName, Method javaMethod, List<PerseusParser.ArgContext> args,
+            Map<String, Integer> localSlots, int returnSlot) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("aload_0\n");
+        sb.append("checkcast ").append(ownerInternalName(receiverClass)).append("\n");
+        appendJavaCall(sb, currentClass, currentMethod, javaMethod, methodName, args, localSlots, returnSlot);
+        return sb.toString();
+    }
+
+    private String generateJavaMemberInvocation(SymbolTableBuilder.ClassInfo currentClass, SymbolTableBuilder.MethodInfo currentMethod,
+            String receiverName, SymbolTableBuilder.ClassInfo receiverClass, String methodName, Method javaMethod,
+            List<PerseusParser.ArgContext> args, Map<String, Integer> localSlots, int returnSlot) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(loadReferenceValue(currentClass, currentMethod, receiverName, localSlots));
+        sb.append("checkcast ").append(ownerInternalName(receiverClass)).append("\n");
+        appendJavaCall(sb, currentClass, currentMethod, javaMethod, methodName, args, localSlots, returnSlot);
+        return sb.toString();
+    }
+
+    private void appendJavaCall(StringBuilder sb, SymbolTableBuilder.ClassInfo currentClass, SymbolTableBuilder.MethodInfo currentMethod,
+            Method javaMethod, String methodName, List<PerseusParser.ArgContext> args, Map<String, Integer> localSlots,
+            int returnSlot) {
+        StringBuilder desc = new StringBuilder("(");
+        Class<?>[] parameterTypes = javaMethod.getParameterTypes();
+        for (int i = 0; i < args.size(); i++) {
+            PerseusParser.ExprContext argExpr = args.get(i).expr();
+            String argType = exprTypes.getOrDefault(argExpr, "integer");
+            sb.append(generateClassExpr(currentClass, currentMethod, argExpr, localSlots, returnSlot));
+            if (parameterTypes[i] == double.class && "integer".equals(argType)) {
+                sb.append("i2d\n");
+            }
+            desc.append(toJvmDescriptor(parameterTypes[i]));
+        }
+        desc.append(")").append(toJvmDescriptor(javaMethod.getReturnType()));
+        if (javaMethod.getDeclaringClass().isInterface()) {
+            sb.append("invokeinterface ").append(javaMethod.getDeclaringClass().getName().replace('.', '/'))
+                    .append("/").append(methodName).append(desc).append(" ").append(args.size() + 1).append("\n");
+        } else {
+            sb.append("invokevirtual ").append(javaMethod.getDeclaringClass().getName().replace('.', '/'))
+                    .append("/").append(methodName).append(desc).append("\n");
+        }
+    }
+
+    private String loadReferenceValue(SymbolTableBuilder.ClassInfo cls, SymbolTableBuilder.MethodInfo method,
+            String name, Map<String, Integer> localSlots) {
+        Integer localSlot = localSlots.get(name);
+        if (localSlot != null) {
+            return "aload " + localSlot + "\n";
+        }
+        return "aload_0\ngetfield " + packageName + "/" + findFieldOwner(cls, name) + "/" + name + " "
+                + CodeGenUtils.scalarTypeToJvmDesc(resolveClassType(cls, method, name)) + "\n";
     }
 
     private String resolveClassType(SymbolTableBuilder.ClassInfo cls, SymbolTableBuilder.MethodInfo method, String name) {
@@ -366,6 +600,29 @@ public class ClassGenerator {
             current = parentClass(current);
         }
         return null;
+    }
+
+    private SymbolTableBuilder.MethodInfo findMethodInHierarchy(SymbolTableBuilder.ClassInfo cls, String memberName) {
+        SymbolTableBuilder.ClassInfo current = cls;
+        while (current != null) {
+            SymbolTableBuilder.MethodInfo method = current.methods.get(memberName);
+            if (method != null) {
+                return method;
+            }
+            current = parentClass(current);
+        }
+        return null;
+    }
+
+    private SymbolTableBuilder.ClassInfo findMethodOwnerClass(SymbolTableBuilder.ClassInfo cls, String memberName) {
+        SymbolTableBuilder.ClassInfo current = cls;
+        while (current != null) {
+            if (current.methods.containsKey(memberName)) {
+                return current;
+            }
+            current = parentClass(current);
+        }
+        return cls;
     }
 
     private SymbolTableBuilder.ClassInfo parentClass(SymbolTableBuilder.ClassInfo cls) {
@@ -403,5 +660,65 @@ public class ClassGenerator {
             current = parentClass(current);
         }
         return cls.name;
+    }
+
+    private Method findJavaMethodInHierarchy(SymbolTableBuilder.ClassInfo cls, String methodName, int argCount) {
+        SymbolTableBuilder.ClassInfo current = cls;
+        while (current != null) {
+            if (current.externalJava && current.externalJavaQualifiedName != null) {
+                Method method = findJavaMethod(current.externalJavaQualifiedName, methodName, argCount);
+                if (method != null) {
+                    return method;
+                }
+            }
+            current = parentClass(current);
+        }
+        return null;
+    }
+
+    private Method findJavaMethod(String qualifiedName, String methodName, int argCount) {
+        try {
+            Class<?> owner = Class.forName(qualifiedName);
+            for (Method method : owner.getMethods()) {
+                if (method.getName().equals(methodName) && method.getParameterCount() == argCount) {
+                    return method;
+                }
+            }
+        } catch (ClassNotFoundException ignored) {
+        }
+        return null;
+    }
+
+    private String ownerInternalName(SymbolTableBuilder.ClassInfo cls) {
+        if (cls == null) {
+            return packageName + "/UnknownClass";
+        }
+        if (cls.externalJava && cls.externalJavaQualifiedName != null) {
+            return cls.externalJavaQualifiedName.replace('.', '/');
+        }
+        return packageName + "/" + cls.name;
+    }
+
+    private SymbolTableBuilder.ClassInfo ownerClassInfo(Class<?> ownerClass) {
+        String simpleName = ownerClass.getSimpleName();
+        SymbolTableBuilder.ClassInfo known = classes.get(simpleName);
+        if (known != null) {
+            return known;
+        }
+        return new SymbolTableBuilder.ClassInfo(simpleName, null, null, true, ownerClass.getName());
+    }
+
+    private String toJvmDescriptor(Class<?> type) {
+        if (type == void.class) return "V";
+        if (type == boolean.class) return "Z";
+        if (type == byte.class) return "B";
+        if (type == char.class) return "C";
+        if (type == short.class) return "S";
+        if (type == int.class) return "I";
+        if (type == long.class) return "J";
+        if (type == float.class) return "F";
+        if (type == double.class) return "D";
+        if (type.isArray()) return type.getName().replace('.', '/');
+        return "L" + type.getName().replace('.', '/') + ";";
     }
 }

@@ -749,6 +749,106 @@ As the class model grows, Perseus should move toward stable class naming that wo
 - external procedure and class linkage
 - inheritance across compilation-unit boundaries
 
+The intended design direction is more specific than just "better names." It should mean:
+
+- every reusable Perseus class has a predictable JVM class name
+- that name is derived from an explicit package/unit naming policy rather than from temporary code-generator conventions
+- separately compiled Perseus code can refer to that class name intentionally
+- other JVM languages can also refer to it without depending on hidden implementation details
+
+### Naming Policy
+
+The long-term naming policy should be:
+
+- the CLI or source-level package mechanism determines the JVM package
+- each Perseus class contributes its own simple class name
+- the resulting JVM identity is the combination of those two parts
+
+So if a user compiles with:
+
+```text
+--package mylib.geometry
+```
+
+and the source defines:
+
+```algol
+class Point;
+class ColoredPoint;
+```
+
+then the intended stable JVM names are:
+
+- `mylib.geometry.Point`
+- `mylib.geometry.ColoredPoint`
+
+not temporary names derived from the enclosing generated main-program class.
+
+### Multiple Classes Per Source File
+
+Perseus should continue to allow multiple classes in one source file.
+
+That should not force those classes to become JVM inner classes or synthetic companions of one generated top-level wrapper. Instead:
+
+- each declared Perseus class should still receive its own stable JVM class identity
+- the source file acts as a compilation unit, not as the permanent owner name of every class inside it
+
+This is important for:
+
+- prefix inheritance across files
+- reusable libraries
+- external Java interop
+- separate compilation of class-based code
+
+### Main Program Versus Reusable Classes
+
+Perseus should distinguish between:
+
+- the compiled main program entry class, when a source file is being built as an executable program
+- reusable class definitions declared in that same compilation unit
+
+Those are related outputs, but they should not be treated as the same identity.
+
+In particular:
+
+- the executable entry class may still have its own generated JVM name
+- reusable Perseus classes should keep their own stable JVM names independent of that entry-class name
+
+This avoids making library class identity depend on the incidental name chosen for a runnable program wrapper.
+
+### Stable Versus Internal Names
+
+Perseus should also distinguish between:
+
+- stable class names that are part of the intended reusable/library surface
+- internal generated names used only for compiler support
+
+Stable names include things like:
+
+- ordinary Perseus classes intended for separate compilation
+- classes meant to participate in inheritance
+- classes meant to be referenced from other Perseus units
+- classes meant to interoperate with Java/Kotlin or other JVM languages
+
+Internal names include things like:
+
+- thunk helper classes
+- procedure-reference helper classes
+- other compiler-generated support artifacts
+
+Those internal names may remain implementation-specific even if reusable class names become stable.
+
+### Design Consequences
+
+Once Perseus adopts stable JVM naming for reusable classes:
+
+- `ref(ClassName)` should resolve to a class identity that is stable across separate compilation
+- external procedure and class linkage can rely on deliberate names instead of temporary wrapper names
+- inheritance across compilation units becomes much easier to specify
+- Java/JVM interop becomes more natural because Perseus classes look like ordinary named JVM classes
+
+That is why stable JVM naming is not merely a code-generation cleanup. It is part of the language design for reusable classes.
+
 ## Call-by-Value Default for Class Procedures
 
 One important design decision should be made explicitly: procedures declared inside classes should default to call-by-value.

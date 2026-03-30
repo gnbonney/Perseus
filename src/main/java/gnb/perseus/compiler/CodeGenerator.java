@@ -244,7 +244,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitClassDecl(PerseusParser.ClassDeclContext ctx) {
-        String classDeclName = ctx.identifier(ctx.identifier().size() - 1).getText();
+        String classDeclName = ctx.className.getText();
         SymbolTableBuilder.ClassInfo cls = classes.get(classDeclName);
         if (cls != null && !cls.externalJava) {
             generatedClassDefinitions.add(Map.entry(companionClassFileName(classDeclName), classGen.generateClassJasmin(cls)));
@@ -3312,8 +3312,13 @@ public class CodeGenerator extends PerseusBaseListener {
                 desc.append(toJvmDescriptor(parameterTypes[i]));
             }
             desc.append(")").append(toJvmDescriptor(javaMethod.getReturnType()));
-            sb.append("invokevirtual ").append(ownerInternalName(cls))
-              .append("/").append(memberName).append(desc).append("\n");
+            if (javaMethod.getDeclaringClass().isInterface()) {
+                sb.append("invokeinterface ").append(javaMethod.getDeclaringClass().getName().replace('.', '/'))
+                  .append("/").append(memberName).append(desc).append(" ").append(args.size() + 1).append("\n");
+            } else {
+                sb.append("invokevirtual ").append(javaMethod.getDeclaringClass().getName().replace('.', '/'))
+                  .append("/").append(memberName).append(desc).append("\n");
+            }
             if (isStatement && javaMethod.getReturnType() != void.class) {
                 sb.append(javaMethod.getReturnType() == double.class ? "pop2\n" : "pop\n");
             }
