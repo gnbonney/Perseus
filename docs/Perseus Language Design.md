@@ -726,9 +726,28 @@ Perseus should treat classes as a major language extension inspired by Simula, b
 - Perseus should borrow the core object model from Simula more than from Java.
 - Perseus does not need to copy every historical Simula syntax choice exactly.
 - The first class milestone should focus on fields, instance procedures, object creation, and method calls.
-- Inheritance, prefixing, and process/coroutine features should be deferred until the basic object model is stable.
+- Inheritance, prefixing, and process/coroutine features should be added only after the basic object model is stable.
 
 This means Perseus classes should be understood as Simula-inspired program units in an Algol-family language, not as a second copy of Java classes disguised with Algol keywords.
+
+## Class Identity and Compilation Units
+
+Perseus should allow more than one class to appear in a single source file, but class identity should not be tied permanently to the temporary JVM naming scheme used by the first implementation.
+
+The long-term design should be:
+
+- a source file may define multiple Perseus classes
+- each class should have its own stable JVM identity
+- the compiled-unit name and the class name should be related, but not collapsed into one temporary implementation detail
+
+The current MVP implementation emits classes under the enclosing compiled program class name. That is acceptable as an implementation strategy for the first slice, but it is not the right long-term semantic model for reusable class libraries, prefix inheritance, or external class interop.
+
+As the class model grows, Perseus should move toward stable class naming that works naturally with:
+
+- separate compilation
+- reusable libraries
+- external procedure and class linkage
+- inheritance across compilation-unit boundaries
 
 ## Call-by-Value Default for Class Procedures
 
@@ -761,6 +780,41 @@ So the design question for classes is not "how can Perseus copy Simula exactly?"
 - which historical surface details are worth preserving,
 - and which parts should be expressed in a distinct Perseus style.
 
+## Prefix Inheritance
+
+Perseus should adopt Simula-style single inheritance through prefixing rather than trying to imitate Java's `extends` model directly.
+
+The important design points are:
+
+- inheritance should be single, not multiple
+- the model should be understood as prefix inheritance in the Simula tradition
+- inherited fields and procedures should become part of the prefixed class object
+- object initialization order should follow the prefix chain
+- virtual dispatch rules should be designed together with prefixing rather than bolted on separately
+
+The exact surface syntax can still be settled later, but the semantic direction should now be explicit: Perseus class inheritance should be prefix-style.
+
+This is a better fit for the language's history and gives a clearer identity than simply importing Java-style subclass syntax into an Algol-family language.
+
+## External Classes
+
+External classes should be treated as a separate design problem from Perseus prefix inheritance.
+
+There are really two different cases:
+
+- Perseus classes inheriting from other Perseus classes
+- Perseus code referencing or interoperating with external JVM classes, especially Java classes
+
+Those should not be conflated. A future `external java class ...` design may allow imported JVM classes to be named and used more naturally in Perseus source, but that does not automatically imply that Perseus classes should inherit from arbitrary Java classes in the same way they prefix other Perseus classes.
+
+The safer design direction is:
+
+- prefix inheritance for Perseus-defined classes
+- explicit external-class declarations for imported JVM classes
+- any decision about extending external Java classes should come only after the ordinary Perseus class model is stable
+
+This keeps the language design clearer and avoids forcing the Perseus class model to mirror the JVM object model too early.
+
 ## Initial Scope
 
 The first class milestone should aim for:
@@ -773,12 +827,14 @@ The first class milestone should aim for:
 
 The following should be postponed until later design passes:
 
-- inheritance or prefixing
+- prefix inheritance and its initialization rules
 - virtual override rules beyond the minimum needed for method dispatch
+- stable JVM naming for reusable separately compiled classes
 - imported external class syntax beyond the basic roadmap hooks already planned
+- decisions about whether Perseus classes may extend external Java classes
 - process or coroutine features
 - any attempt to make class methods participate in full classic Algol call-by-name semantics by default
 
 ## Summary
 
-For Perseus, the best path is to make classes Simula-inspired in semantics, Perseus-specific in final surface syntax, and explicitly call-by-value by default inside the class world. That keeps the language aligned with its Algol-family history while supporting the broader project goal of evolving beyond a strict Algol 60 compiler.
+For Perseus, the best path is to make classes Simula-inspired in semantics, Perseus-specific in final surface syntax, and explicitly call-by-value by default inside the class world. Prefix inheritance should be the intended long-term inheritance model, while external JVM classes should be handled through a separate interop design rather than treated as if they were ordinary Perseus prefixes. That keeps the language aligned with its Algol-family history while supporting the broader project goal of evolving beyond a strict Algol 60 compiler.

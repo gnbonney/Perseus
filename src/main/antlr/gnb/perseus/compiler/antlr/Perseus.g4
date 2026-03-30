@@ -48,14 +48,18 @@ compoundStatement
   ;
 
 statement
-  : label? (memberCall | procedureCall | classDecl | refDecl | externalProcedureDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | block)?
+  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalProcedureDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | block)?
   ;
 
 classDecl
-  : CLASS identifier ('(' paramList? ')')? ';'
+  : (CLASS | identifier CLASS) identifier ('(' paramList? ')')? ';'
     valueSpec?
     paramSpec*
     block
+  ;
+
+externalClassDecl
+  : EXTERNAL JAVA CLASS qualifiedName
   ;
 
 refDecl
@@ -224,7 +228,7 @@ simpleDesignationalExpr
 expr
   : '-' expr                             # UnaryMinusExpr
   | ('~' | NOT) expr                     # NotExpr
-  | NEW identifier '(' argList? ')'      # NewObjectExpr
+  | NEW identifier ('(' argList? ')')?   # NewObjectExpr
   | identifier '.' identifier ('(' argList? ')')? # MemberCallExpr
   | expr op=('**'|'^') expr              # PowExpr
   | expr op=('*'|'/'|DIV_KW) expr        # MulDivExpr

@@ -2,6 +2,7 @@ package gnb.perseus.compiler;
 
 import gnb.perseus.compiler.antlr.PerseusBaseListener;
 import gnb.perseus.compiler.antlr.PerseusParser;
+import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
@@ -31,7 +32,8 @@ public class TypeInferencer extends PerseusBaseListener {
 
     @Override
     public void enterClassDecl(PerseusParser.ClassDeclContext ctx) {
-        SymbolTableBuilder.ClassInfo cls = classes.get(ctx.identifier().getText());
+        String className = ctx.identifier(ctx.identifier().size() - 1).getText();
+        SymbolTableBuilder.ClassInfo cls = classes.get(className);
         if (cls != null) {
             classStack.push(cls);
         }
@@ -231,11 +233,20 @@ public class TypeInferencer extends PerseusBaseListener {
             throw error(ctx, "PERS2009", "Unknown class: " + className);
         }
         String memberName = ctx.identifier(1).getText();
-        SymbolTableBuilder.MethodInfo method = cls.methods.get(memberName);
-        if (method == null) {
-            throw error(ctx, "PERS2010", "Unknown class member: " + className + "." + memberName);
+        SymbolTableBuilder.MethodInfo method = findMethodInHierarchy(cls, memberName);
+        if (method != null) {
+            exprTypes.put(ctx, method.returnType);
+            return;
         }
-        exprTypes.put(ctx, method.returnType);
+        if (cls.externalJava) {
+            Method javaMethod = findJavaMethod(cls.externalJavaQualifiedName, memberName,
+                    ctx.argList() != null ? ctx.argList().arg().size() : 0);
+            if (javaMethod != null) {
+                exprTypes.put(ctx, mapJavaType(javaMethod.getReturnType()));
+                return;
+            }
+        }
+        throw error(ctx, "PERS2010", "Unknown class member: " + className + "." + memberName);
     }
 
     private void requireBooleanOperands(PerseusParser.ExprContext left, PerseusParser.ExprContext right,
@@ -264,6 +275,40 @@ public class TypeInferencer extends PerseusBaseListener {
         }
 
         return symbolTable.get(name);
+    }
+
+    private SymbolTableBuilder.MethodInfo findMethodInHierarchy(SymbolTableBuilder.ClassInfo cls, String memberName) {
+        SymbolTableBuilder.ClassInfo current = cls;
+        while (current != null) {
+            SymbolTableBuilder.MethodInfo method = current.methods.get(memberName);
+            if (method != null) {
+                return method;
+            }
+            current = current.parentName != null ? classes.get(current.parentName) : null;
+        }
+        return null;
+    }
+
+    private Method findJavaMethod(String qualifiedName, String memberName, int argCount) {
+        try {
+            Class<?> owner = Class.forName(qualifiedName);
+            for (Method method : owner.getMethods()) {
+                if (method.getName().equals(memberName) && method.getParameterCount() == argCount) {
+                    return method;
+                }
+            }
+        } catch (ClassNotFoundException ignored) {
+        }
+        return null;
+    }
+
+    private String mapJavaType(Class<?> type) {
+        if (type == void.class) return "void";
+        if (type == double.class || type == float.class) return "real";
+        if (type == int.class || type == short.class || type == long.class || type == byte.class || type == char.class) return "integer";
+        if (type == boolean.class) return "boolean";
+        if (type == String.class) return "string";
+        return "ref:" + type.getSimpleName();
     }
 
     private String getBuiltinFunctionType(String name) {

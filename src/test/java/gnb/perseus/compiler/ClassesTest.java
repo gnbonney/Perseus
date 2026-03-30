@@ -76,4 +76,58 @@ public class ClassesTest extends CompilerTest {
         assertEquals("5 17", output.trim(),
                 "Distinct objects should keep distinct instance state");
     }
+
+    @Test
+    public void class_prefix_point_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/classes/class_prefix_point.alg",
+                "gnb/perseus/programs",
+                "ClassPrefixPointTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ClassPrefixPointTest");
+        assertEquals("7.211102550927978", output.trim(),
+                "Prefix inheritance should preserve inherited fields and procedures");
+    }
+
+    @Test
+    public void class_dynamic_dispatch_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/classes/class_dynamic_dispatch.alg",
+                "gnb/perseus/programs",
+                "ClassDynamicDispatchTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ClassDynamicDispatchTest");
+        assertEquals("dog", output.trim(),
+                "Dynamic dispatch should select the overriding procedure from the runtime class");
+    }
+
+    @Test
+    public void class_external_java_stringbuilder_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/classes/class_external_java_stringbuilder.alg",
+                "gnb/perseus/programs",
+                "ClassExternalJavaStringBuilderTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ClassExternalJavaStringBuilderTest");
+        assertEquals("Hello World", output.trim(),
+                "External Java class declarations should support object creation and method calls");
+    }
 }

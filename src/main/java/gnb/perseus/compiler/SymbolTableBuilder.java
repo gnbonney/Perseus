@@ -23,6 +23,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     private final Map<String, List<int[]>> arrayBoundPairs = new LinkedHashMap<>();
     private final Map<String, ProcInfo> procedures = new LinkedHashMap<>();
     private final Map<String, ClassInfo> classes = new LinkedHashMap<>();
+    private final Map<String, String> externalJavaClasses = new LinkedHashMap<>();
     private final Map<String, PerseusParser.SwitchDeclContext> switchDeclarations = new LinkedHashMap<>();
     private final Deque<ProcInfo> procStack = new ArrayDeque<>();
     private final Deque<ClassInfo> classStack = new ArrayDeque<>();
@@ -76,15 +77,22 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     public static class ClassInfo {
         public final String name;
         public final PerseusParser.ClassDeclContext parseContext;
+        public final String parentName;
+        public final boolean externalJava;
+        public final String externalJavaQualifiedName;
         public final List<String> paramNames = new ArrayList<>();
         public final Map<String, String> paramTypes = new LinkedHashMap<>();
         public final Set<String> valueParams = new LinkedHashSet<>();
         public final Map<String, String> fields = new LinkedHashMap<>();
         public final Map<String, MethodInfo> methods = new LinkedHashMap<>();
 
-        public ClassInfo(String name, PerseusParser.ClassDeclContext parseContext) {
+        public ClassInfo(String name, PerseusParser.ClassDeclContext parseContext, String parentName,
+                boolean externalJava, String externalJavaQualifiedName) {
             this.name = name;
             this.parseContext = parseContext;
+            this.parentName = parentName;
+            this.externalJava = externalJava;
+            this.externalJavaQualifiedName = externalJavaQualifiedName;
         }
     }
 
@@ -116,14 +124,26 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         return classes;
     }
 
+    public Map<String, String> getExternalJavaClasses() {
+        return externalJavaClasses;
+    }
+
     public Map<String, PerseusParser.SwitchDeclContext> getSwitchDeclarations() {
         return switchDeclarations;
     }
 
     @Override
     public void enterClassDecl(PerseusParser.ClassDeclContext ctx) {
-        String name = ctx.identifier().getText();
-        ClassInfo cls = new ClassInfo(name, ctx);
+        String parentName = ctx.identifier().size() > 1 ? ctx.identifier(0).getText() : null;
+        String name = ctx.identifier(ctx.identifier().size() - 1).getText();
+        ClassInfo cls = new ClassInfo(name, ctx, parentName, false, null);
+        if (parentName != null) {
+            ClassInfo parent = classes.get(parentName);
+            if (parent != null) {
+                cls.paramTypes.putAll(parent.paramTypes);
+                cls.valueParams.addAll(parent.valueParams);
+            }
+        }
         if (ctx.paramList() != null) {
             for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
                 cls.paramNames.add(id.getText());
@@ -215,6 +235,15 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         }
 
         procedures.put(name, proc);
+    }
+
+    @Override
+    public void enterExternalClassDecl(PerseusParser.ExternalClassDeclContext ctx) {
+        String qualifiedName = ctx.qualifiedName().getText();
+        String simpleName = ctx.qualifiedName().qualifiedNamePart(
+                ctx.qualifiedName().qualifiedNamePart().size() - 1).getText();
+        externalJavaClasses.put(simpleName, qualifiedName);
+        classes.put(simpleName, new ClassInfo(simpleName, null, null, true, qualifiedName));
     }
 
     @Override

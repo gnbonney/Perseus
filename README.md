@@ -8,28 +8,30 @@ The long-term goal is not merely to reproduce every corner of historical ALGOL 6
 
 Algol is "...the common ancestor of C, Pascal, Algol-68, Modula, Ada, and most other conventional languages that aren't BASIC, FORTRAN, or COBOL."[http://www.catb.org/retro/] Edsger Dijkstra quoted C.A.R. Hoare as saying Algol 60 was, "a major improvement on most of its successors." [https://www.cs.utexas.edu/users/EWD/transcriptions/EWD12xx/EWD1284.html]
 
-Algol 68 was not a new version of Algol 60 but "a completely new language". Many people who already had a big investment in writing Algol compilers were very disappointed in the decision of the international committee to abandon previous work and go off in a new direction. Dijkstra said of Algol 68, "The more I see of it, the more unhappy I become." Niklaus Wirth, disillusioned with the committee process, created his own series of Algol-based languages, including Pascal.
-
-Meanwhile, Algol 60 continued a life of its own. In 1976 the Modified Report on the Algorithmic Language ALGOL 60 was published by IFIP Working Group 2.1. The modified report gives some details on standard I/O procedures not addressed in previous versions of the report. This became the basis for ISO1538 in 1984. Several web sites say that the standard was later withdrawn, but when I checked the ISO web site it says, "This standard was last reviewed and confirmed in 2003. Therefore this version remains current."
-
 ## Motivation
 
-Why create a new Algol-based language for the JVM?
-
-* **A Strong Historical Foundation:** ALGOL 60 remains one of the most influential languages ever designed. Its block structure, procedural abstraction, and emphasis on clarity still make it a valuable starting point for language design.
-* **A Bridge Between Classic and Modern Ideas:** Perseus provides a path from classic ALGOL-style programming to modern features such as classes, exceptions, richer libraries, and improved tooling without abandoning the language family entirely.
-* **Modern JVM Ecosystem:** Targeting the JVM means Perseus programs can run anywhere Java runs and can benefit from mature tooling, packaging, debugging, profiling, and deployment options.
-* **Access to the Java Ecosystem:** A language on the JVM can eventually interoperate with Java libraries and frameworks, making it more practical than a purely historical implementation.
-* **A Platform for Experimentation:** Perseus is not limited to strict language preservation. It is also a place to explore thoughtful extensions in the spirit of Algol, much as Simula and Pascal grew from the same lineage.
-* **Readable, Structured Code:** ALGOL's block-oriented design still encourages code that is explicit, disciplined, and approachable for teaching, experimentation, and long-term maintenance.
+Perseus exists to carry the Algol tradition into a practical JVM-based language: preserving block structure, procedural clarity, and call-by-name semantics where they remain valuable, while also supporting classes, exceptions, interoperation with Java, and experimentation with later Algol-family ideas in a compiler that can run in modern toolchains and deployment environments.
 
 ## Project Status
 
-Perseus development follows a test-driven, iterative approach built around a variety of sample programs, including Donald Knuth's classic Man-or-Boy test.
+Perseus development follows a test-driven, iterative approach built around a broad set of sample programs and regression tests.
 
-The Man-or-Boy test is notable because it stresses exactly the sort of features that made Algol implementations difficult: recursion, nested procedures, procedure parameters, non-local variable access, and call-by-name behavior. Many older Algol compilers either did not implement those features fully or handled them incorrectly, so passing `manboy.alg` and producing the expected answer `-67.0` is a meaningful sign that Perseus is handling a demanding part of the Algol tradition rather than just its surface syntax.
+That set includes Donald Knuth's classic Man-or-Boy test. It stresses exactly the sort of features that made Algol implementations difficult: recursion, nested procedures, procedure parameters, non-local variable access, and call-by-name behavior. Producing the expected answer `-67.0` is a meaningful sign that Perseus handles a demanding part of the Algol tradition rather than only its surface syntax.
 
-Today, the implemented feature set is still closest to an ALGOL 60 compiler with extensions. The broader direction, however, is for Perseus to become its own Algol-family language rather than remain only a historical reconstruction.
+The implemented feature set remains closest to an ALGOL 60 compiler with extensions, while the broader direction is for Perseus to become its own Algol-family language rather than remain only a historical reconstruction.
+
+## Language Features
+
+Perseus supports a growing Algol-family feature set, including:
+
+- classic Algol-style block structure, procedures, arrays, and call-by-name semantics
+- procedure parameters and procedure variables
+- structured exceptions
+- object-oriented features through Simula-inspired classes with `ref(...)`, `new`, instance procedures, and prefix-style inheritance
+- dynamic dispatch for overridden procedures
+- external procedure linkage and external Java class interop
+- file I/O and string-backed output buffers
+- formatted I/O through `outformat` and `informat`
 
 ## Installing and Running Perseus
 
@@ -169,17 +171,6 @@ The `test/algol/` directory contains sample Algol-family programs used for testi
 - **ANTLR 4**: Managed via Gradle.
 - **JUnit 5**: Managed via Gradle for unit testing.
 
-## Why an Algol-Superset on the JVM?
-
-An Algol-superset language on the JVM offers a combination that is hard to find elsewhere:
-
-* **Classic language design with modern runtime support:** Perseus can preserve ALGOL's strengths while relying on the JVM for portability, garbage collection, runtime services, and a mature execution environment.
-* **Room for pragmatic extensions:** Features such as classes, exceptions, modules, or improved standard libraries can be added without needing to abandon the language's Algol roots.
-* **A path to real-world usability:** JVM deployment makes it easier to package, test, run, and eventually integrate Perseus code into existing systems.
-* **A useful research and education platform:** Perseus can serve both as an implementation of important historical ideas and as a sandbox for exploring how those ideas evolve in a modern setting.
-
-The inspiration here is less "strictly preserve every historical detail" and more "carry the best ideas of the Algol tradition forward into a language that can still grow."
-
 ## Design Goals
 
 Perseus aims to balance several goals:
@@ -187,7 +178,5 @@ Perseus aims to balance several goals:
 * Preserve the clarity, structure, and procedural strengths of ALGOL-family languages
 * Support historical ALGOL programs where practical
 * Introduce modern features deliberately rather than as ad hoc additions
-* Fit naturally into the JVM ecosystem and eventually interoperate well with Java
+* Fit naturally into the JVM ecosystem and interoperate well with Java
 * Remain a useful platform for education, experimentation, and language-design research
-
-

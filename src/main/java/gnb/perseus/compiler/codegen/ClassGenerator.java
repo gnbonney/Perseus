@@ -8,17 +8,20 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Generates JVM companion classes for the current Perseus class feature slice.
+ * Generates JVM classes for the current Perseus class feature slice.
  */
 public class ClassGenerator {
     private final String source;
     private final String packageName;
     private final Map<PerseusParser.ExprContext, String> exprTypes;
+    private final Map<String, SymbolTableBuilder.ClassInfo> classes;
 
-    public ClassGenerator(String source, String packageName, Map<PerseusParser.ExprContext, String> exprTypes) {
+    public ClassGenerator(String source, String packageName, Map<PerseusParser.ExprContext, String> exprTypes,
+            Map<String, SymbolTableBuilder.ClassInfo> classes) {
         this.source = source;
         this.packageName = packageName;
         this.exprTypes = exprTypes;
+        this.classes = classes != null ? classes : Map.of();
     }
 
     public String generateClassJasmin(SymbolTableBuilder.ClassInfo cls) {
@@ -26,15 +29,15 @@ public class ClassGenerator {
         String internalName = packageName + "/" + cls.name;
         sb.append(".source ").append(source).append("\n");
         sb.append(".class public ").append(internalName).append("\n");
-        sb.append(".super java/lang/Object\n\n");
+        sb.append(".super ").append(getSuperInternalName(cls)).append("\n\n");
 
-        for (String paramName : cls.paramNames) {
+        for (String paramName : ownParamNames(cls)) {
             String type = cls.paramTypes.getOrDefault(paramName, "integer");
-            sb.append(".field private ").append(paramName).append(" ")
+            sb.append(".field protected ").append(paramName).append(" ")
               .append(CodeGenUtils.scalarTypeToJvmDesc(type)).append("\n");
         }
         for (Map.Entry<String, String> field : cls.fields.entrySet()) {
-            sb.append(".field private ").append(field.getKey()).append(" ")
+            sb.append(".field protected ").append(field.getKey()).append(" ")
               .append(CodeGenUtils.scalarTypeToJvmDesc(field.getValue())).append("\n");
         }
         sb.append("\n");
@@ -62,8 +65,29 @@ public class ClassGenerator {
         sb.append(".method public <init>").append(desc).append("\n")
           .append(".limit stack 64\n")
           .append(".limit locals 64\n")
-          .append("aload_0\n")
-          .append("invokespecial java/lang/Object/<init>()V\n");
+          .append("aload_0\n");
+
+        SymbolTableBuilder.ClassInfo parent = parentClass(cls);
+        if (parent != null) {
+            StringBuilder superDesc = new StringBuilder("(");
+            for (String paramName : parent.paramNames) {
+                String type = cls.paramTypes.getOrDefault(paramName, "integer");
+                int slot = paramSlots.get(paramName);
+                if ("real".equals(type)) {
+                    sb.append("dload ").append(slot).append("\n");
+                } else if ("string".equals(type) || type.startsWith("ref:")) {
+                    sb.append("aload ").append(slot).append("\n");
+                } else {
+                    sb.append("iload ").append(slot).append("\n");
+                }
+                superDesc.append(CodeGenUtils.getReturnTypeDescriptor(type));
+            }
+            superDesc.append(")V");
+            sb.append("invokespecial ").append(getSuperInternalName(cls))
+              .append("/<init>").append(superDesc).append("\n");
+        } else {
+            sb.append("invokespecial java/lang/Object/<init>()V\n");
+        }
 
         for (Map.Entry<String, String> field : cls.fields.entrySet()) {
             String type = field.getValue();
@@ -81,7 +105,7 @@ public class ClassGenerator {
               .append(field.getKey()).append(" ").append(CodeGenUtils.scalarTypeToJvmDesc(type)).append("\n");
         }
 
-        for (String paramName : cls.paramNames) {
+        for (String paramName : ownParamNames(cls)) {
             String type = cls.paramTypes.getOrDefault(paramName, "integer");
             int slot = paramSlots.get(paramName);
             sb.append("aload_0\n");
@@ -97,7 +121,7 @@ public class ClassGenerator {
         }
 
         Map<String, Integer> noLocals = Map.of();
-        PerseusParser.BlockContext block = cls.parseContext.block();
+        PerseusParser.BlockContext block = cls.parseContext != null ? cls.parseContext.block() : null;
         if (block != null && block.compoundStatement() != null) {
             for (PerseusParser.StatementContext stmt : block.compoundStatement().statement()) {
                 if (stmt.procedureDecl() != null) continue;
@@ -188,9 +212,6 @@ public class ClassGenerator {
         if (stmt.assignment() != null) {
             return generateClassAssignment(cls, method, stmt.assignment(), localSlots, returnSlot);
         }
-        if (stmt.memberCall() != null) {
-            return "";
-        }
         return "";
     }
 
@@ -235,7 +256,7 @@ public class ClassGenerator {
         return new StringBuilder()
                 .append("aload_0\n")
                 .append(valueCode)
-                .append("putfield ").append(packageName).append("/").append(cls.name).append("/")
+                .append("putfield ").append(packageName).append("/").append(findFieldOwner(cls, targetName)).append("/")
                 .append(targetName).append(" ").append(CodeGenUtils.scalarTypeToJvmDesc(valueType)).append("\n")
                 .toString();
     }
@@ -265,7 +286,7 @@ public class ClassGenerator {
                 if ("string".equals(type) || (type != null && type.startsWith("ref:"))) return "aload " + localSlot + "\n";
                 return "iload " + localSlot + "\n";
             }
-            return "aload_0\ngetfield " + packageName + "/" + cls.name + "/" + name + " "
+            return "aload_0\ngetfield " + packageName + "/" + findFieldOwner(cls, name) + "/" + name + " "
                     + CodeGenUtils.scalarTypeToJvmDesc(type) + "\n";
         }
         if (expr instanceof PerseusParser.ParenExprContext e) {
@@ -323,19 +344,64 @@ public class ClassGenerator {
             type = method.paramTypes.get(name);
             if (type != null) return type;
         }
-        String type = cls.fields.get(name);
-        if (type != null) return type;
-        type = cls.paramTypes.get(name);
-        if (type != null) return type;
+        SymbolTableBuilder.ClassInfo current = cls;
+        while (current != null) {
+            String type = current.fields.get(name);
+            if (type != null) return type;
+            type = current.paramTypes.get(name);
+            if (type != null) return type;
+            current = parentClass(current);
+        }
         return "integer";
     }
 
     private String findMethodName(SymbolTableBuilder.ClassInfo cls, SymbolTableBuilder.MethodInfo method) {
-        for (Map.Entry<String, SymbolTableBuilder.MethodInfo> entry : cls.methods.entrySet()) {
-            if (entry.getValue() == method) {
-                return entry.getKey();
+        SymbolTableBuilder.ClassInfo current = cls;
+        while (current != null) {
+            for (Map.Entry<String, SymbolTableBuilder.MethodInfo> entry : current.methods.entrySet()) {
+                if (entry.getValue() == method) {
+                    return entry.getKey();
+                }
             }
+            current = parentClass(current);
         }
         return null;
+    }
+
+    private SymbolTableBuilder.ClassInfo parentClass(SymbolTableBuilder.ClassInfo cls) {
+        if (cls == null || cls.parentName == null) {
+            return null;
+        }
+        return classes.get(cls.parentName);
+    }
+
+    private String getSuperInternalName(SymbolTableBuilder.ClassInfo cls) {
+        SymbolTableBuilder.ClassInfo parent = parentClass(cls);
+        if (parent == null) {
+            return "java/lang/Object";
+        }
+        if (parent.externalJava) {
+            return parent.externalJavaQualifiedName.replace('.', '/');
+        }
+        return packageName + "/" + parent.name;
+    }
+
+    private List<String> ownParamNames(SymbolTableBuilder.ClassInfo cls) {
+        SymbolTableBuilder.ClassInfo parent = parentClass(cls);
+        if (parent == null) {
+            return cls.paramNames;
+        }
+        return cls.paramNames.subList(parent.paramNames.size(), cls.paramNames.size());
+    }
+
+    private String findFieldOwner(SymbolTableBuilder.ClassInfo cls, String fieldName) {
+        SymbolTableBuilder.ClassInfo current = cls;
+        while (current != null) {
+            if (current.fields.containsKey(fieldName) || current.paramTypes.containsKey(fieldName)) {
+                return current.name;
+            }
+            current = parentClass(current);
+        }
+        return cls.name;
     }
 }

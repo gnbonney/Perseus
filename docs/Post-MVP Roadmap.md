@@ -32,11 +32,22 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Goal:** Extend the basic Simula-inspired class model beyond the first working slice.
 
-- [ ] External JVM class declarations and object interop
-- [ ] Inheritance/prefixing and virtual dispatch decisions
+- [ ] Stable JVM naming and separate-compilation identity for reusable Perseus classes
+- [x] Simula-style prefix inheritance and its initial construction rules
+- [x] Dynamic dispatch for overridden procedures in the initial prefix model
+- [x] External JVM class declarations and initial object interop
+- [ ] Decide whether Perseus classes may extend external Java classes, or whether external Java classes remain reference/interoperability targets only
 - [ ] Richer member syntax such as explicit field selection versus zero-argument procedure calls
 - [ ] Exception-object/member access integration once richer exception binding exists
 - [ ] Add tests for class-based Java interop scenarios
+
+**Implementation notes:**
+- The long-term inheritance direction is now prefix-style in the Simula tradition rather than Java-style subclass syntax
+- External Java classes should be treated as a separate interop design problem, not as ordinary Perseus prefixes
+- Prefix declarations now compile and run in the form `Base class Derived(...)`, with JVM subclass emission and inherited method availability
+- Dynamic dispatch now works for overridden procedures when a derived object is held through a base-class `ref(...)`
+- `external java class ...` now supports a first working slice of object creation and instance method calls for imported JVM classes
+- The current generated JVM naming scheme is acceptable for the MVP class slice, but Milestone 33 should move toward stable class identities suitable for reusable libraries and separate compilation
 
 ## Milestone 34 - Exception Follow-On
 
