@@ -391,12 +391,13 @@ public class PerseusCompiler {
 			}
 			try {
 				Class<?> owner = loadExternalOwner(info.externalTargetClass, externalClassRoots);
-				Method target = findMatchingExternalMethod(owner, procName, info);
-				if (target == null) {
+				ExternalMethodMatch match = findMatchingExternalMethod(owner, procName, info);
+				if (match.method() == null) {
 					diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
-							"External method not found: " + info.externalTargetClass + "." + procName));
+							match.message()));
 					continue;
 				}
+				Method target = match.method();
 				if (!Modifier.isStatic(target.getModifiers())) {
 					diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
 							"External procedure " + procName + " must resolve to a static method in " + info.externalTargetClass));
@@ -445,20 +446,66 @@ public class PerseusCompiler {
 		};
 	}
 
-	private static Method findMatchingExternalMethod(Class<?> owner, String procName, SymbolTableBuilder.ProcInfo info) {
+	private record ExternalMethodMatch(Method method, String message) {}
+
+	private static ExternalMethodMatch findMatchingExternalMethod(Class<?> owner, String procName, SymbolTableBuilder.ProcInfo info) {
 		String expectedDescriptor = getExpectedExternalMethodDescriptor(info);
+		Method firstSameName = null;
+		Method sameNameStatic = null;
+		Method sameNameArity = null;
+		Method sameParamsDifferentReturn = null;
 		for (Method method : owner.getMethods()) {
 			if (!method.getName().equals(procName)) {
 				continue;
+			}
+			if (firstSameName == null) {
+				firstSameName = method;
+			}
+			if (Modifier.isStatic(method.getModifiers()) && sameNameStatic == null) {
+				sameNameStatic = method;
 			}
 			if (!Modifier.isStatic(method.getModifiers())) {
 				continue;
 			}
 			if (getMethodDescriptor(method).equals(expectedDescriptor)) {
-				return method;
+				return new ExternalMethodMatch(method, null);
+			}
+			if (method.getParameterCount() == info.paramNames.size() && sameNameArity == null) {
+				sameNameArity = method;
+			}
+			if (parameterDescriptor(method).equals(expectedParameterDescriptor(info)) && sameParamsDifferentReturn == null) {
+				sameParamsDifferentReturn = method;
 			}
 		}
-		return null;
+		String qualifiedName = info.externalTargetClass + "." + procName;
+		if (sameParamsDifferentReturn != null) {
+			return new ExternalMethodMatch(null,
+					"External procedure " + procName + " resolved in " + info.externalTargetClass
+							+ " but the return type did not match the declaration; expected "
+							+ externalTypeToJvmDescriptor(info.returnType, info.externalKind)
+							+ " but found " + toJvmDescriptor(sameParamsDifferentReturn.getReturnType()));
+		}
+		if (sameNameArity != null) {
+			String expectedParams = expectedParameterDescriptor(info);
+			String actualParams = parameterDescriptor(sameNameArity);
+			String kind = (expectedParams.contains("[") || actualParams.contains("[")) ? "array parameter ABI" : "parameter types";
+			return new ExternalMethodMatch(null,
+					"External procedure " + procName + " resolved in " + info.externalTargetClass
+							+ " but the " + kind + " did not match the declaration; expected "
+							+ expectedParams + " but found " + actualParams);
+		}
+		if (sameNameStatic != null) {
+			return new ExternalMethodMatch(null,
+					"External procedure " + procName + " resolved in " + info.externalTargetClass
+							+ " but the parameter count did not match the declaration; expected "
+							+ info.paramNames.size() + " but found " + sameNameStatic.getParameterCount());
+		}
+		if (firstSameName != null) {
+			return new ExternalMethodMatch(null,
+					"External procedure " + procName + " exists in " + info.externalTargetClass
+							+ " but not as a static method with the declared signature");
+		}
+		return new ExternalMethodMatch(null, "External method not found: " + qualifiedName);
 	}
 
 	private static String getExpectedExternalMethodDescriptor(SymbolTableBuilder.ProcInfo info) {
@@ -470,12 +517,25 @@ public class PerseusCompiler {
 		return desc.toString();
 	}
 
+	private static String expectedParameterDescriptor(SymbolTableBuilder.ProcInfo info) {
+		StringBuilder desc = new StringBuilder("(");
+		for (String paramName : info.paramNames) {
+			desc.append(externalTypeToJvmDescriptor(info.paramTypes.get(paramName), info.externalKind));
+		}
+		desc.append(")");
+		return desc.toString();
+	}
+
 	private static String getMethodDescriptor(Method method) {
+		return parameterDescriptor(method) + toJvmDescriptor(method.getReturnType());
+	}
+
+	private static String parameterDescriptor(Method method) {
 		StringBuilder desc = new StringBuilder("(");
 		for (Class<?> paramType : method.getParameterTypes()) {
 			desc.append(toJvmDescriptor(paramType));
 		}
-		desc.append(")").append(toJvmDescriptor(method.getReturnType()));
+		desc.append(")");
 		return desc.toString();
 	}
 

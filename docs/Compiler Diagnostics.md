@@ -69,13 +69,35 @@ The currently implemented codes are:
 | `PERS2003` | type inference | `&` used with non-boolean operands |
 | `PERS2004` | type inference | `or` used with non-boolean operands |
 | `PERS2005` | type inference | `not` used with a non-boolean operand |
+| `PERS3001` | external linkage | external target class could not be found or inspected |
+| `PERS3002` | external linkage | external method could not be matched to the declared procedure |
+| `PERS3003` | external linkage | external declaration uses a signature outside the currently supported ABI |
 
 The current numbering convention is intentionally simple:
 
 - `PERS1xxx` for parse/front-end syntax diagnostics
 - `PERS2xxx` for semantic/type diagnostics
+- `PERS3xxx` for external-procedure linkage diagnostics
 
 Additional ranges can be introduced later for code generation, assembly, verifier, or runtime-facing diagnostics.
+
+## External Procedure Diagnostics
+
+Perseus now emits a first structured diagnostics layer for `external(...)` and `external java ...` declarations.
+
+Current behavior:
+
+- External linkage is validated during compilation rather than left entirely to JVM runtime linkage errors.
+- Missing target classes and unreadable target classes report `PERS3001`.
+- Method-shape mismatches report `PERS3002`.
+- Declarations outside the currently supported external ABI report `PERS3003`.
+
+The current messages are still fairly compact. The next refinement should make them more specific about:
+
+- expected versus actual signature shape
+- static versus non-static mismatch
+- scalar versus array-plus-bounds ABI mismatch
+- the exact target class and method descriptor Perseus attempted to resolve
 
 ## Current Compiler Behavior
 

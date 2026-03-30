@@ -16,7 +16,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Replace the older `external algol(...)` wording in docs and remaining design notes with the default `external(...)` Perseus-to-Perseus model
 - [x] Add a user-facing way to choose the generated JVM package/class path for separately compiled Perseus units instead of always assuming `gnb/perseus/programs`
 - [x] External Perseus array parameters as a documented ABI case
-- [ ] Additional compile-time external signature validation and diagnostics
+- [x] Additional compile-time external signature validation and diagnostics
 - [ ] Decide whether and when to support call-by-name across external Perseus boundaries for separately compiled translations of historical Algol libraries
 - [x] Keep procedure-valued external parameters out of scope unless Perseus later adopts a stable external ABI for procedure references
 
@@ -24,6 +24,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - `external(...)` is now the default Perseus-to-Perseus syntax, while `external algol(...)` remains accepted as a compatibility spelling
 - The CLI now supports `--package` so separately compiled Perseus units can choose stable JVM package/class names intentionally
 - External one-dimensional array parameters now use the documented `array + lower + upper` calling convention in both direct compiler flow and CLI `-cp` workflows
+- External compile-time diagnostics now distinguish missing classes, missing methods, return-type mismatches, parameter-signature mismatches, and array ABI mismatches
 - Procedure-valued external parameters are intentionally out of scope rather than an open implementation gap
 - External call-by-name remains a follow-on item because translated historical Algol libraries may need it, but it still depends on a documented stable thunk ABI
 

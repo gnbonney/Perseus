@@ -2,20 +2,25 @@ package gnb.perseus.compiler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-
-import gnb.perseus.postprocess.FixLimits;
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 public class ExternalProceduresTest extends CompilerTest {
+
+    private CompilationFailedException expectExternalCompilationFailure(String sourceFile, String className) throws Exception {
+		try {
+			PerseusCompiler.compileToFile(sourceFile, "gnb/perseus/programs", className, BUILD_DIR);
+			fail("Expected compilation to fail for " + sourceFile);
+			return null;
+		} catch (CompilationFailedException e) {
+			return e;
+		}
+    }
 
     @Test
 	public void external_perseus_client_test() throws Exception {
@@ -102,6 +107,57 @@ public class ExternalProceduresTest extends CompilerTest {
 		System.out.println("external_algol_array_client output: [" + output + "]");
 		assertEquals("6.0", output.trim(),
 				"External Perseus linkage should support one-dimensional real array parameters");
+	}
+
+	@Test
+	public void external_wrong_return_type_diagnostic_test() throws Exception {
+		Path libraryJasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_algol_library.alg", "gnb/perseus/programs", "ExternalAlgolLibrary", BUILD_DIR);
+		PerseusCompiler.assemble(libraryJasminFile, BUILD_DIR);
+
+		CompilationFailedException e = expectExternalCompilationFailure(
+				"test/algol/external/external_wrong_return_type.alg",
+				"ExternalWrongReturnType");
+
+		assertEquals("PERS3002", e.getDiagnostics().get(0).code());
+		assertTrue(e.getDiagnostics().get(0).message().contains("return type"),
+				"Diagnostic should explain that the return type does not match the external target");
+		assertTrue(e.getDiagnostics().get(0).message().contains("hypot2"),
+				"Diagnostic should name the external procedure");
+	}
+
+	@Test
+	public void external_wrong_parameter_type_diagnostic_test() throws Exception {
+		Path libraryJasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_algol_library.alg", "gnb/perseus/programs", "ExternalAlgolLibrary", BUILD_DIR);
+		PerseusCompiler.assemble(libraryJasminFile, BUILD_DIR);
+
+		CompilationFailedException e = expectExternalCompilationFailure(
+				"test/algol/external/external_wrong_parameter_type.alg",
+				"ExternalWrongParameterType");
+
+		assertEquals("PERS3002", e.getDiagnostics().get(0).code());
+		assertTrue(e.getDiagnostics().get(0).message().contains("parameter"),
+				"Diagnostic should explain that a parameter type does not match the external target");
+		assertTrue(e.getDiagnostics().get(0).message().contains("hypot2"),
+				"Diagnostic should name the external procedure");
+	}
+
+	@Test
+	public void external_array_signature_mismatch_diagnostic_test() throws Exception {
+		Path libraryJasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_algol_array_library.alg", "gnb/perseus/programs", "ExternalAlgolArrayLibrary", BUILD_DIR);
+		PerseusCompiler.assemble(libraryJasminFile, BUILD_DIR);
+
+		CompilationFailedException e = expectExternalCompilationFailure(
+				"test/algol/external/external_array_signature_mismatch.alg",
+				"ExternalArraySignatureMismatch");
+
+		assertEquals("PERS3002", e.getDiagnostics().get(0).code());
+		assertTrue(e.getDiagnostics().get(0).message().toLowerCase().contains("array"),
+				"Diagnostic should explain that the external array ABI shape does not match");
+		assertTrue(e.getDiagnostics().get(0).message().contains("sum3"),
+				"Diagnostic should name the external procedure");
 	}
 
     
