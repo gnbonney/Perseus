@@ -12,12 +12,10 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Goal:** Extend the first working external-procedure slice into a richer and better documented interop model.
 
-- [ ] Broader external-library and separate-compilation workflows beyond the initial CLI `-cp` / `--classpath` support
 - [x] Replace the older `external algol(...)` wording in docs and remaining design notes with the default `external(...)` Perseus-to-Perseus model
 - [x] Add a user-facing way to choose the generated JVM package/class path for separately compiled Perseus units instead of always assuming `gnb/perseus/programs`
 - [x] External Perseus array parameters as a documented ABI case
 - [x] Additional compile-time external signature validation and diagnostics
-- [ ] Decide whether and when to support call-by-name across external Perseus boundaries for separately compiled translations of historical Algol libraries
 - [x] Keep procedure-valued external parameters out of scope unless Perseus later adopts a stable external ABI for procedure references
 
 **Implementation notes:**
@@ -26,7 +24,6 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - External one-dimensional array parameters now use the documented `array + lower + upper` calling convention in both direct compiler flow and CLI `-cp` workflows
 - External compile-time diagnostics now distinguish missing classes, missing methods, return-type mismatches, parameter-signature mismatches, and array ABI mismatches
 - Procedure-valued external parameters are intentionally out of scope rather than an open implementation gap
-- External call-by-name remains a follow-on item because translated historical Algol libraries may need it, but it still depends on a documented stable thunk ABI
 
 ## Milestone 33 - Class Model Follow-On
 
@@ -77,7 +74,10 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Goal:** Extend the working CLI into a broader tool suitable for multi-file and interop-heavy workflows.
 
-- [ ] Broader multi-file compilation workflows
+- [ ] Support compiling multiple Perseus source files in one CLI invocation
+- [ ] Define clearer output conventions for reusable separately compiled Perseus libraries
+- [ ] Improve handling of external inputs from both directories and JAR files in library-oriented workflows
+- [ ] Decide whether the CLI should support more explicit library-oriented packaging or commands beyond raw class-file output
 - [ ] Optional installer/distribution packaging beyond `installDist`
 - [ ] Further exit-code and machine-facing CLI refinements
 - [ ] Additional commands such as `check` or `emit-jasmin` if they remain desirable after the MVP
@@ -176,6 +176,20 @@ These milestones are not just deferred implementation cleanup. They represent la
 - [ ] Decide how collection libraries fit into the standard environment / standard library story
 - [ ] Add sample programs and regression tests for collection use cases
 - [ ] Decide how iterator pipelines such as `map` and `filter` should depend on Milestone 41 lambda notation
+
+## Milestone 45 - External Call-by-Name ABI
+
+**Goal:** Add a documented and stable Perseus-to-Perseus thunk ABI for the narrower case of separately compiled translations of historical Algol libraries.
+
+- [ ] Define the external thunk ABI for call-by-name parameters across separately compiled Perseus boundaries
+- [ ] Decide which generated support types must become stable shared runtime contracts
+- [ ] Add focused external call-by-name regressions based on translated historical Algol library patterns
+- [ ] Keep this as a specialized Perseus-to-Perseus compatibility feature rather than the default public JVM library surface
+
+**Implementation notes:**
+- This work is intentionally separated from Milestone 32 because it depends on a stabilized thunk ABI rather than the first external procedure slice
+- The strongest motivation is historical Algol library translation, not general JVM-facing library design
+- Public JVM-facing reuse should prefer value-oriented Perseus classes and methods where possible, while external call-by-name remains a narrower compatibility feature
 
 ## Toward a General-Purpose Product
 

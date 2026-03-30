@@ -370,7 +370,7 @@ This first table intentionally covers the scalar/string cases that already map c
 - one-dimensional array parameters, including hidden bounds
 - multidimensional arrays if and when formal multidimensional arrays are supported
 - procedure references
-- call-by-name parameters via a stable thunk ABI
+- call-by-name parameters for translated historical Algol libraries, via a stable thunk ABI
 
 Those cases should not be promised until the ABI is documented and tested.
 
