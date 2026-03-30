@@ -153,6 +153,29 @@ These milestones are not just deferred implementation cleanup. They represent la
 - [ ] Decide how actors should relate to existing classes, exceptions, and external Java interop
 - [ ] Add focused actor sample programs and a phased implementation plan
 
+## Milestone 43 - Looping Extensions
+
+**Goal:** Extend Perseus with more modern looping forms while preserving the original Algol `for` statement for compatibility (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
+
+- [ ] Add `for ... in ... do` iteration over ranges and existing array forms
+- [ ] Add a general `loop ... end` construct
+- [ ] Add `break` and `continue`
+- [ ] Define range syntax such as `..` and `..<`
+- [ ] Define scope and evaluation rules for loop-local iteration variables
+- [ ] Add focused sample programs and regression tests for the new loop forms
+
+## Milestone 44 - Collections and Iterators
+
+**Goal:** Add higher-level collection types and iteration protocols suitable for more general-purpose programming (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
+
+- [ ] Add collection types such as `vector`, `map`, and `set`
+- [ ] Add collection literals and basic collection operations
+- [ ] Extend `for ... in ... do` from ranges/arrays to collection and iterator-protocol-based iteration
+- [ ] Define an iterator protocol that works with `for ... in ... do`
+- [ ] Decide how collection libraries fit into the standard environment / standard library story
+- [ ] Add sample programs and regression tests for collection use cases
+- [ ] Decide how iterator pipelines such as `map` and `filter` should depend on Milestone 41 lambda notation
+
 ## Toward a General-Purpose Product
 
 Beyond the follow-on milestones above, a more polished general-purpose Perseus product would likely also need:
