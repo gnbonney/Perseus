@@ -42,7 +42,7 @@ public class SlotAssignmentTest {
         
         // Create CodeGenerator with these results
         CodeGenerator codegen = new CodeGenerator(
-            "test.alg", "test", "Test",
+            "test.alg", "test", null, "Test",
             symbolTable, localIndex, nextLocal,
             new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(),
             procVarSlots

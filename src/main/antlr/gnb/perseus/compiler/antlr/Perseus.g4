@@ -37,8 +37,14 @@ UNTERMINATED_STRING_LITERAL
   ;
   
 
-// extension: optional BCPL style curly brackets
-program: BEGIN compoundStatement END | '{' compoundStatement '}';
+// extension: optional source-level namespace header for reusable classes
+program
+  : namespaceDecl? (BEGIN compoundStatement END endComment? | '{' compoundStatement '}' | compoundStatement)
+  ;
+
+namespaceDecl
+  : NAMESPACE qualifiedName ';'
+  ;
 
 // In Algol, semicolon is a statement separator, not a statement terminator.
 // The optional trailing ';' before 'end' is allowed (common in Algol style).
@@ -309,6 +315,7 @@ OWN : 'own';
 EXTERNAL : 'external';
 ALGOL : 'algol';
 JAVA : 'java';
+NAMESPACE : 'namespace';
 STATIC : 'static';
 CLASS : 'class';
 IMPLEMENTS : 'implements';

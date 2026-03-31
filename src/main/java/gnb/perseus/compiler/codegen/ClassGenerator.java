@@ -13,21 +13,21 @@ import java.util.Map;
  */
 public class ClassGenerator {
     private final String source;
-    private final String packageName;
+    private final String classPackageName;
     private final Map<PerseusParser.ExprContext, String> exprTypes;
     private final Map<String, SymbolTableBuilder.ClassInfo> classes;
 
-    public ClassGenerator(String source, String packageName, Map<PerseusParser.ExprContext, String> exprTypes,
+    public ClassGenerator(String source, String classPackageName, Map<PerseusParser.ExprContext, String> exprTypes,
             Map<String, SymbolTableBuilder.ClassInfo> classes) {
         this.source = source;
-        this.packageName = packageName;
+        this.classPackageName = classPackageName;
         this.exprTypes = exprTypes;
         this.classes = classes != null ? classes : Map.of();
     }
 
     public String generateClassJasmin(SymbolTableBuilder.ClassInfo cls) {
         StringBuilder sb = new StringBuilder();
-        String internalName = packageName + "/" + cls.name;
+        String internalName = classPackageName + "/" + cls.name;
         sb.append(".source ").append(source).append("\n");
         sb.append(".class public ").append(internalName).append("\n");
         sb.append(".super ").append(getSuperInternalName(cls)).append("\n");
@@ -36,7 +36,7 @@ public class ClassGenerator {
             if (iface != null && iface.externalJava && iface.externalJavaQualifiedName != null) {
                 sb.append(".implements ").append(iface.externalJavaQualifiedName.replace('.', '/')).append("\n");
             } else {
-                sb.append(".implements ").append(packageName).append("/").append(interfaceName).append("\n");
+                sb.append(".implements ").append(classPackageName).append("/").append(interfaceName).append("\n");
             }
         }
         sb.append("\n");
@@ -111,7 +111,7 @@ public class ClassGenerator {
             } else {
                 sb.append("iconst_0\n");
             }
-            sb.append("putfield ").append(packageName).append("/").append(cls.name).append("/")
+            sb.append("putfield ").append(classPackageName).append("/").append(cls.name).append("/")
               .append(field.getKey()).append(" ").append(CodeGenUtils.scalarTypeToJvmDesc(type)).append("\n");
         }
 
@@ -126,7 +126,7 @@ public class ClassGenerator {
             } else {
                 sb.append("iload ").append(slot).append("\n");
             }
-            sb.append("putfield ").append(packageName).append("/").append(cls.name).append("/")
+            sb.append("putfield ").append(classPackageName).append("/").append(cls.name).append("/")
               .append(paramName).append(" ").append(CodeGenUtils.scalarTypeToJvmDesc(type)).append("\n");
         }
 
@@ -273,7 +273,7 @@ public class ClassGenerator {
         return new StringBuilder()
                 .append("aload_0\n")
                 .append(valueCode)
-                .append("putfield ").append(packageName).append("/").append(findFieldOwner(cls, targetName)).append("/")
+                .append("putfield ").append(classPackageName).append("/").append(findFieldOwner(cls, targetName)).append("/")
                 .append(targetName).append(" ").append(CodeGenUtils.scalarTypeToJvmDesc(valueType)).append("\n")
                 .toString();
     }
@@ -303,7 +303,7 @@ public class ClassGenerator {
                 if ("string".equals(type) || (type != null && type.startsWith("ref:"))) return "aload " + localSlot + "\n";
                 return "iload " + localSlot + "\n";
             }
-            return "aload_0\ngetfield " + packageName + "/" + findFieldOwner(cls, name) + "/" + name + " "
+            return "aload_0\ngetfield " + classPackageName + "/" + findFieldOwner(cls, name) + "/" + name + " "
                     + CodeGenUtils.scalarTypeToJvmDesc(type) + "\n";
         }
         if (expr instanceof PerseusParser.ParenExprContext e) {
@@ -567,7 +567,7 @@ public class ClassGenerator {
         if (localSlot != null) {
             return "aload " + localSlot + "\n";
         }
-        return "aload_0\ngetfield " + packageName + "/" + findFieldOwner(cls, name) + "/" + name + " "
+        return "aload_0\ngetfield " + classPackageName + "/" + findFieldOwner(cls, name) + "/" + name + " "
                 + CodeGenUtils.scalarTypeToJvmDesc(resolveClassType(cls, method, name)) + "\n";
     }
 
@@ -640,7 +640,7 @@ public class ClassGenerator {
         if (parent.externalJava) {
             return parent.externalJavaQualifiedName.replace('.', '/');
         }
-        return packageName + "/" + parent.name;
+        return classPackageName + "/" + parent.name;
     }
 
     private List<String> ownParamNames(SymbolTableBuilder.ClassInfo cls) {
@@ -691,12 +691,12 @@ public class ClassGenerator {
 
     private String ownerInternalName(SymbolTableBuilder.ClassInfo cls) {
         if (cls == null) {
-            return packageName + "/UnknownClass";
+            return classPackageName + "/UnknownClass";
         }
         if (cls.externalJava && cls.externalJavaQualifiedName != null) {
             return cls.externalJavaQualifiedName.replace('.', '/');
         }
-        return packageName + "/" + cls.name;
+        return classPackageName + "/" + cls.name;
     }
 
     private SymbolTableBuilder.ClassInfo ownerClassInfo(Class<?> ownerClass) {

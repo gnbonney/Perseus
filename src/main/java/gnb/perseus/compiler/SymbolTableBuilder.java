@@ -25,6 +25,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     private final Map<String, ClassInfo> classes = new LinkedHashMap<>();
     private final Map<String, String> externalJavaClasses = new LinkedHashMap<>();
     private final Map<String, PerseusParser.SwitchDeclContext> switchDeclarations = new LinkedHashMap<>();
+    private String namespaceName;
     private final Deque<ProcInfo> procStack = new ArrayDeque<>();
     private final Deque<ClassInfo> classStack = new ArrayDeque<>();
     private final Deque<MethodInfo> methodStack = new ArrayDeque<>();
@@ -131,6 +132,15 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
     public Map<String, PerseusParser.SwitchDeclContext> getSwitchDeclarations() {
         return switchDeclarations;
+    }
+
+    public String getNamespaceName() {
+        return namespaceName;
+    }
+
+    @Override
+    public void enterNamespaceDecl(PerseusParser.NamespaceDeclContext ctx) {
+        namespaceName = ctx.qualifiedName().getText();
     }
 
     @Override

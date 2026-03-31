@@ -38,6 +38,7 @@ import java.util.stream.Collectors;
 public class CodeGenerator extends PerseusBaseListener {
     private final String source;
     private final String packageName;
+    private final String classPackageName;
     private final String className;
     // Procedure definitions from SymbolTableBuilder (name → ProcInfo)
     private final Map<String, SymbolTableBuilder.ProcInfo> procedures;
@@ -137,7 +138,7 @@ public class CodeGenerator extends PerseusBaseListener {
     // Delegate for generating procedure reference and procedure-variable call code
     private final ProcedureGenerator procGen;
 
-    public CodeGenerator(String source, String packageName, String className,
+    public CodeGenerator(String source, String packageName, String classPackageName, String className,
                          Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
                          Map<PerseusParser.ExprContext, String> exprTypes, Map<String, int[]> arrayBounds,
                          Map<String, List<int[]>> arrayBoundPairs,
@@ -147,6 +148,7 @@ public class CodeGenerator extends PerseusBaseListener {
                          Map<String, Integer> procVarSlots) {
         this.source = source;
         this.packageName = packageName;
+        this.classPackageName = classPackageName != null && !classPackageName.isBlank() ? classPackageName : packageName;
         this.className = className;
         this.exprTypes = exprTypes;
         this.procedures = procedures;
@@ -161,7 +163,7 @@ public class CodeGenerator extends PerseusBaseListener {
         this.currentArrayBounds = arrayBounds;
         this.currentArrayBoundPairs = arrayBoundPairs;
         this.builtinGen = new BuiltinFunctionGenerator(exprTypes);
-        this.classGen = new ClassGenerator(source, packageName, exprTypes, this.classes);
+        this.classGen = new ClassGenerator(source, this.classPackageName, exprTypes, this.classes);
         this.builtinGen.setExprCodeGen(e -> generateExpr(e));
         this.procGen = new ProcedureGenerator(
             packageName, className,
@@ -3047,12 +3049,12 @@ public class CodeGenerator extends PerseusBaseListener {
 
     private String ownerInternalName(SymbolTableBuilder.ClassInfo cls) {
         if (cls == null) {
-            return packageName + "/UnknownClass";
+            return classPackageName + "/UnknownClass";
         }
         if (cls.externalJava && cls.externalJavaQualifiedName != null) {
             return cls.externalJavaQualifiedName.replace('.', '/');
         }
-        return packageName + "/" + cls.name;
+        return classPackageName + "/" + cls.name;
     }
 
     private Method findJavaMethod(String qualifiedName, String methodName, List<PerseusParser.ArgContext> args) {
@@ -3343,7 +3345,7 @@ public class CodeGenerator extends PerseusBaseListener {
             desc.append(CodeGenUtils.getReturnTypeDescriptor(paramType));
         }
         desc.append(")").append(CodeGenUtils.getReturnTypeDescriptor(method.returnType));
-        sb.append("invokevirtual ").append(packageName).append("/").append(ownerName)
+        sb.append("invokevirtual ").append(classPackageName).append("/").append(ownerName)
           .append("/").append(memberName).append(desc).append("\n");
         if (isStatement && !"void".equals(method.returnType)) {
             sb.append("real".equals(method.returnType) ? "pop2\n" : "pop\n");

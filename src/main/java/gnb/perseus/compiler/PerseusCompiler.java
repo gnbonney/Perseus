@@ -247,6 +247,7 @@ public class PerseusCompiler {
 		Map<String, SymbolTableBuilder.ProcInfo> procedures = symBuilder.getProcedures();
 		Map<String, SymbolTableBuilder.ClassInfo> classes = symBuilder.getClasses();
 		Map<String, PerseusParser.SwitchDeclContext> switchDeclarations = symBuilder.getSwitchDeclarations();
+		String classPackageName = normalizeInternalPackageName(symBuilder.getNamespaceName());
 		validateExternalProcedures(fileName, procedures, externalClassRoots);
 
         // Check for procedure variables (procedure names that are used in assignments or expressions)
@@ -367,11 +368,18 @@ public class PerseusCompiler {
 
 		// Pass 2: code generation
 		String source = Paths.get(fileName).getFileName().toString();
-		CodeGenerator codegen = new CodeGenerator(source, packageName, className,
+		CodeGenerator codegen = new CodeGenerator(source, packageName, classPackageName, className,
 				mainSymbolTable, localIndex, numLocals, exprTypes, arrayBounds, arrayBoundPairs,
 				symBuilder.getProcedures(), classes, switchDeclarations, procVarSlotsMap);
 		walker.walk(codegen, programContext);
 		return codegen;
+	}
+
+	private static String normalizeInternalPackageName(String packageName) {
+		if (packageName == null || packageName.isBlank()) {
+			return null;
+		}
+		return packageName.replace('.', '/').replace('\\', '/');
 	}
 
 	private static void validateExternalProcedures(String fileName,

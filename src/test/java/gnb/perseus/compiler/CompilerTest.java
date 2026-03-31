@@ -30,6 +30,26 @@ public class CompilerTest {
     	return stdout;
     }
 
+    static String runClassWithClasspath(Path classDir, String className, Path extraClassDir) throws Exception {
+        String classpath = classDir + java.io.File.pathSeparator + extraClassDir;
+        List<String> cmd = java.util.Arrays.asList("java", "-cp", classpath, className);
+        System.out.println("runClassWithClasspath: " + cmd);
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        pb.redirectErrorStream(false);
+        Process p = pb.start();
+        p.getOutputStream().close();
+        String stdout;
+        String stderr;
+        try (var out = p.getInputStream(); var err = p.getErrorStream()) {
+            stdout = new String(out.readAllBytes());
+            stderr = new String(err.readAllBytes());
+        }
+        int exitCode = p.waitFor();
+        System.out.println("runClassWithClasspath: exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
+        assertEquals(0, exitCode, "Process failed for " + className + ": exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
+        return stdout;
+    }
+
     record TimedRunResult(String stdout, String stderr, int exitCode, boolean timedOut) {}
 
 	static TimedRunResult runClassForAtMost(Path classDir, String className, long timeoutMs) throws Exception {
