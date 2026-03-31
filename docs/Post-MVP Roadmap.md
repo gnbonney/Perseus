@@ -63,6 +63,25 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - Perseus will use the keyword `namespace` for a source-level naming declaration for reusable classes and libraries.
 - This is preferred over `package`, `module`, or `library` because it describes naming and identity without implying a physical bundle or reusing a term that already has a different established meaning in the language.
 
+**Options for multi-file library workflows on top of `namespace`:**
+
+1. Keep the current single-file compilation model and treat `namespace` only as a naming declaration.
+   - This is the smallest implementation step.
+   - Separate compilation still works, but multi-file libraries remain a user-managed workflow built out of repeated CLI invocations and classpaths.
+
+2. Allow multiple Perseus source files in one CLI invocation, requiring them to agree on the `namespace`.
+   - This would make it easier to compile one logical library from several source files without adding a heavier project model.
+   - It preserves the current lightweight CLI feel while giving `namespace` a more practical library workflow.
+
+3. Add a fuller library-oriented build mode around `namespace`, with explicit conventions for multi-file library roots, outputs, and possibly packaging.
+   - This is the strongest long-term workflow.
+   - It would also overlap more with Milestone 36 CLI/product work and would likely require broader tooling decisions at the same time.
+
+**Recommendation:**
+- Option 2 is probably the best next step.
+- It gives `namespace` a real multi-file library workflow without forcing Perseus into a much heavier build/package model too early.
+- Option 3 may still become attractive later, but it fits better once the broader CLI and product-facing tooling story is more mature.
+
 ## Milestone 34 - Exception Follow-On
 
 **Goal:** Finish the parts of the exception design that were deferred after the first working slice.
