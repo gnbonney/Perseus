@@ -36,8 +36,8 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Support abstract Java superclasses and Java interfaces in the class interop model
 - [x] Add initial semantic validation for Java superclass/interface conformance before code generation
 - [x] Add tests for Java subclassing, abstract-class, interface, and override scenarios
-- [ ] Stable JVM naming and separate-compilation identity for reusable Perseus classes, so compiled class names are predictable, deliberate, and suitable for interop
-- [ ] Exception-object/member access integration once richer exception binding exists
+- [ ] Decide how separate-compilation and multi-file library conventions should build on the existing package-and-class naming model for reusable Perseus classes
+- [ ] Decide whether caught exception values should later expose an object-style interface in Perseus source, and if so what its initial surface should be
 
 **Implementation notes:**
 - The long-term inheritance direction is now prefix-style in the Simula tradition rather than Java-style subclass syntax
@@ -51,7 +51,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - External Java subclassing is now the intended direction for meaningful Java interop, because many Java APIs accept or return specific framework base classes rather than generic objects
 - The next concrete compiler work in this milestone is Java-constructor chaining, method overriding, abstract Java base classes, Java interfaces, and the boundary between Simula-style Perseus prefixing and Java-style superclass/interface conformance
 - Conformance to extended Java classes and implemented Java interfaces should be checked during semantic validation before code generation, with JVM/ASM verification left as a later safety net
-- Stable JVM naming remains a later structural cleanup once those more immediate interop and semantic-resolution pieces are in place
+- Broader reusable-class naming conventions and any richer source-level exception interface remain later language-design questions rather than immediate compiler blockers
 
 ## Milestone 34 - Exception Follow-On
 
