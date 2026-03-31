@@ -35,7 +35,6 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Allow Perseus classes to extend external Java classes where meaningful JVM interop requires it
 - [x] Support abstract Java superclasses and Java interfaces in the class interop model
 - [x] Add initial semantic validation for Java superclass/interface conformance before code generation
-- [ ] Richer member syntax with `obj.name` as field selection, `obj.name()` as explicit procedure/method call, and bare zero-argument shorthand allowed only when unambiguous
 - [x] Add tests for Java subclassing, abstract-class, interface, and override scenarios
 - [ ] Stable JVM naming and separate-compilation identity for reusable Perseus classes, so compiled class names are predictable, deliberate, and suitable for interop
 - [ ] Exception-object/member access integration once richer exception binding exists
@@ -51,7 +50,6 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - The current semantic-validation slice now covers the cases exercised by those class and interface regressions before JVM/ASM verification
 - External Java subclassing is now the intended direction for meaningful Java interop, because many Java APIs accept or return specific framework base classes rather than generic objects
 - The next concrete compiler work in this milestone is Java-constructor chaining, method overriding, abstract Java base classes, Java interfaces, and the boundary between Simula-style Perseus prefixing and Java-style superclass/interface conformance
-- The intended member-resolution rule is `obj.name` for fields and `obj.name()` for explicit calls, while preserving bare zero-argument shorthand only in unambiguous cases
 - Conformance to extended Java classes and implemented Java interfaces should be checked during semantic validation before code generation, with JVM/ASM verification left as a later safety net
 - Stable JVM naming remains a later structural cleanup once those more immediate interop and semantic-resolution pieces are in place
 
@@ -233,6 +231,7 @@ To ensure long-term maintainability and enable advanced tooling workflows, the f
 - Snapshot/golden tests: verify Jasmin output and diagnostics are stable and deterministic across compiler changes.
 - Full structured JSON diagnostics: machine-readable output, fix-it suggestions, deterministic ordering.
 - Consistent debug metadata: line number tables, local variable tables, source-to-bytecode mapping.
+- Richer member syntax may still need a later refinement such as `obj.name` for field selection and `obj.name()` for explicit calls if real interop cases make the ambiguity matter, but this looks unlikely for well-designed Java classes and is not an active Milestone 33 blocker.
 
 ## Longer-Term Tooling Ideas
 - Improve JVM verifier feedback so bytecode verification failures can be explained more clearly in terms of Perseus source and compiler phases.

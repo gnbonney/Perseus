@@ -197,7 +197,7 @@ For Perseus on the JVM, it helps to distinguish two different use cases that bot
 
 Those two cases should not be treated as identical, because they have different semantic expectations. Cross-file Perseus linkage is mostly a separate-compilation problem, while Java interop is a foreign-interface problem.
 
-Perseus should therefore treat external procedures as a phased feature rather than one monolithic interoperability milestone. The simplest and most robust first step is separate compilation and explicit calls to static JVM entry points. Richer cases such as instance-method interop, call-by-name across compilation units, and imported classes should come later, after the ABI is documented more formally.
+Perseus should therefore treat external procedures as an incremental feature rather than one monolithic interoperability mechanism. The simplest and most robust foundation is separate compilation and explicit calls to static JVM entry points. Richer cases such as instance-method interop, call-by-name across compilation units, and imported classes should come later, after the ABI is documented more formally.
 
 ## Proposed Syntax
 
@@ -220,7 +220,7 @@ The intent is:
 
 This split keeps the common Perseus-to-Perseus case lightweight while still making Java interop explicit. It also leaves room for a later Simula-inspired class extension, where imported JVM types could be declared more naturally as `external java class ...` instead of being modeled only as procedure targets.
 
-For the first implementation, Perseus should prioritize `external(...)` and `external java static(...)`. The `virtual(...)` form is still a plausible direction, but it should be treated as a later phase rather than part of the minimum external-procedure milestone.
+Perseus should prioritize `external(...)` and `external java static(...)`. The `virtual(...)` form is still a plausible direction, but it should be treated as later work rather than part of the core external-procedure design.
 
 ## Resolution and Classpath
 
@@ -719,259 +719,126 @@ This makes the parameter-passing mechanism explicit and generalizes it to any co
 
 ## Simula-Style Classes
 
-Perseus should treat classes as a major language extension inspired by Simula, but not as a requirement to reproduce every historical Simula surface form verbatim. The design goal is to preserve the important Algol-to-Simula lineage while still allowing Perseus to adopt a cleaner JVM-oriented presentation where that is helpful.
+Perseus treats classes as a major Simula-inspired extension to an Algol-family language. The goal is not to reproduce every historical Simula surface form verbatim, but to preserve the important Algol-to-Simula lineage while fitting naturally on the JVM.
 
-## General Direction
+## Current Model
 
-- Perseus should borrow the core object model from Simula more than from Java.
-- Perseus does not need to copy every historical Simula syntax choice exactly.
-- The first class milestone should focus on fields, instance procedures, object creation, and method calls.
-- Inheritance, prefixing, and process/coroutine features should be added only after the basic object model is stable.
-
-This means Perseus classes should be understood as Simula-inspired program units in an Algol-family language, not as a second copy of Java classes disguised with Algol keywords.
-
-## Class Identity and Compilation Units
-
-Perseus should allow more than one class to appear in a single source file, but class identity should not be tied permanently to the temporary JVM naming scheme used by the first implementation.
-
-The long-term design should be:
-
-- a source file may define multiple Perseus classes
-- each class should have its own stable JVM identity
-- the compiled-unit name and the class name should be related, but not collapsed into one temporary implementation detail
-
-The current MVP implementation emits classes under the enclosing compiled program class name. That is acceptable as an implementation strategy for the first slice, but it is not the right long-term semantic model for reusable class libraries, prefix inheritance, or external class interop.
-
-As the class model grows, Perseus should move toward stable class naming that works naturally with:
-
-- separate compilation
-- reusable libraries
-- external procedure and class linkage
-- inheritance across compilation-unit boundaries
-
-The intended design direction is more specific than just "better names." It should mean:
-
-- every reusable Perseus class has a predictable JVM class name
-- that name is derived from an explicit package/unit naming policy rather than from temporary code-generator conventions
-- separately compiled Perseus code can refer to that class name intentionally
-- other JVM languages can also refer to it without depending on hidden implementation details
-
-### Naming Policy
-
-The long-term naming policy should be:
-
-- the CLI or source-level package mechanism determines the JVM package
-- each Perseus class contributes its own simple class name
-- the resulting JVM identity is the combination of those two parts
-
-So if a user compiles with:
-
-```text
---package mylib.geometry
-```
-
-and the source defines:
-
-```algol
-class Point;
-class ColoredPoint;
-```
-
-then the intended stable JVM names are:
-
-- `mylib.geometry.Point`
-- `mylib.geometry.ColoredPoint`
-
-not temporary names derived from the enclosing generated main-program class.
-
-### Multiple Classes Per Source File
-
-Perseus should continue to allow multiple classes in one source file.
-
-That should not force those classes to become JVM inner classes or synthetic companions of one generated top-level wrapper. Instead:
-
-- each declared Perseus class should still receive its own stable JVM class identity
-- the source file acts as a compilation unit, not as the permanent owner name of every class inside it
-
-This is important for:
-
-- prefix inheritance across files
-- reusable libraries
-- external Java interop
-- separate compilation of class-based code
-
-### Main Program Versus Reusable Classes
-
-Perseus should distinguish between:
-
-- the compiled main program entry class, when a source file is being built as an executable program
-- reusable class definitions declared in that same compilation unit
-
-Those are related outputs, but they should not be treated as the same identity.
-
-In particular:
-
-- the executable entry class may still have its own generated JVM name
-- reusable Perseus classes should keep their own stable JVM names independent of that entry-class name
-
-This avoids making library class identity depend on the incidental name chosen for a runnable program wrapper.
-
-### Stable Versus Internal Names
-
-Perseus should also distinguish between:
-
-- stable class names that are part of the intended reusable/library surface
-- internal generated names used only for compiler support
-
-Stable names include things like:
-
-- ordinary Perseus classes intended for separate compilation
-- classes meant to participate in inheritance
-- classes meant to be referenced from other Perseus units
-- classes meant to interoperate with Java/Kotlin or other JVM languages
-
-Internal names include things like:
-
-- thunk helper classes
-- procedure-reference helper classes
-- other compiler-generated support artifacts
-
-Those internal names may remain implementation-specific even if reusable class names become stable.
-
-### Design Consequences
-
-Once Perseus adopts stable JVM naming for reusable classes:
-
-- `ref(ClassName)` should resolve to a class identity that is stable across separate compilation
-- external procedure and class linkage can rely on deliberate names instead of temporary wrapper names
-- inheritance across compilation units becomes much easier to specify
-- Java/JVM interop becomes more natural because Perseus classes look like ordinary named JVM classes
-
-That is why stable JVM naming is not merely a code-generation cleanup. It is part of the language design for reusable classes.
-
-## Call-by-Value Default for Class Procedures
-
-One important design decision should be made explicitly: procedures declared inside classes should default to call-by-value.
-
-That choice is attractive for several reasons:
-
-- It matches Simula's own direction rather than fighting it.
-- It fits naturally with JVM method-call expectations.
-- It makes object behavior easier to reason about in the presence of mutation and instance state.
-- It reduces friction if Perseus is later used to host or adapt Simula-style code.
-
-This also gives Perseus a useful semantic distinction:
-
-- ordinary Algol-style standalone procedures may continue to follow classic Algol parameter-passing defaults
-- class procedures may follow Simula-style method defaults
-
-That split is not a compromise born only of implementation convenience. It reflects the historical evolution from Algol toward Simula while also giving Perseus a cleaner and more practical object model.
-
-## Surface Syntax vs Semantics
-
-Perseus should separate semantic inheritance from surface imitation.
-
-- Semantically, classes should be close to Simula's idea of objects with fields and procedures.
-- Syntactically, Perseus may choose a simpler or more regular form if that makes the language easier to parse, teach, and interoperate with on the JVM.
-
-So the design question for classes is not "how can Perseus copy Simula exactly?" but rather:
-
-- which Simula semantics are essential,
-- which historical surface details are worth preserving,
-- and which parts should be expressed in a distinct Perseus style.
-
-## Prefix Inheritance
-
-Perseus should adopt Simula-style single inheritance through prefixing rather than trying to imitate Java's `extends` model directly.
-
-The important design points are:
-
-- inheritance should be single, not multiple
-- the model should be understood as prefix inheritance in the Simula tradition
-- inherited fields and procedures should become part of the prefixed class object
-- object initialization order should follow the prefix chain
-- virtual dispatch rules should be designed together with prefixing rather than bolted on separately
-
-The exact surface syntax can still be settled later, but the semantic direction should now be explicit: Perseus class inheritance should be prefix-style.
-
-This is a better fit for the language's history and gives a clearer identity than simply importing Java-style subclass syntax into an Algol-family language.
-
-## External Classes
-
-External classes should be treated as a separate design problem from Perseus prefix inheritance.
-
-There are really two different cases:
-
-- Perseus classes inheriting from other Perseus classes
-- Perseus code referencing or interoperating with external JVM classes, especially Java classes
-
-Those should not be conflated. A future `external java class ...` design may allow imported JVM classes to be named and used more naturally in Perseus source, but that does not automatically imply that Perseus classes should inherit from arbitrary Java classes in the same way they prefix other Perseus classes.
-
-The safer design direction is:
-
-- prefix inheritance for Perseus-defined classes
-- explicit external-class declarations for imported JVM classes
-- any decision about extending external Java classes should come only after the ordinary Perseus class model is stable
-
-This keeps the language design clearer and avoids forcing the Perseus class model to mirror the JVM object model too early.
-
-## Member Selection and Zero-Argument Procedures
-
-As Perseus classes grow richer and Java interop deepens, member-selection syntax needs a clearer rule than the current first-slice dotted shorthand.
-
-The intended direction is:
-
-- `obj.name` means field selection
-- `obj.name()` means procedure or method call
-- bare zero-argument shorthand such as `obj.name` may continue to work only when there is no conflicting field with the same name
-- if both a field `name` and a zero-argument procedure or method `name()` are visible, the bare form should be treated as ambiguous and rejected
-
-For example, if a class declares:
-
-```algol
-class Point;
-begin
-    real x, y;
-
-    real procedure length;
-        length := sqrt(x * x + y * y)
-end;
-```
-
-then both of these may be accepted while there is no conflicting field named `length`:
-
-```algol
-outreal(1, p.length);
-outreal(1, p.length());
-```
-
-But if a field `length` also becomes visible on the same object, the bare form `p.length` should no longer be accepted as a shorthand method call. In that case:
-
-- `p.length` should mean field selection
-- `p.length()` should mean the zero-argument procedure call
-
-This keeps historical Algol/Simula-style shorthand available in unambiguous cases while still allowing Perseus to interoperate sensibly with Java classes, where fields and zero-argument methods commonly coexist and are syntactically distinguished.
-
-## Initial Scope
-
-The first class milestone should aim for:
+The current class model includes:
 
 - class declarations
 - instance fields
 - instance procedures
 - explicit object creation
-- dotted member/procedure access
+- dotted member and procedure access
+- Simula-style prefix inheritance
+- dynamic dispatch for overridden procedures
+- `external java class ...` declarations
+- extension of concrete and abstract external Java classes
+- implementation of one or more external Java interfaces with `implements`
 
-The following should be postponed until later design passes:
+This gives Perseus a real object model rather than a purely experimental class syntax.
 
-- prefix inheritance and its initialization rules
-- virtual override rules beyond the minimum needed for method dispatch
-- stable JVM naming for reusable separately compiled classes
-- imported external class syntax beyond the basic roadmap hooks already planned
-- decisions about whether Perseus classes may extend external Java classes
-- process or coroutine features
-- any attempt to make class methods participate in full classic Algol call-by-name semantics by default
+## Core Direction
+
+The class design should continue to follow these principles:
+
+- Perseus should borrow the core object model from Simula more than from Java.
+- Perseus does not need to copy every historical Simula surface detail exactly.
+- Semantics matter more than surface imitation.
+- JVM interop should be strong, but Perseus classes should not simply become Java classes written with Algol spelling.
+
+So the design question is not how to copy Simula or Java exactly, but how to keep the Simula lineage while giving Perseus a coherent object model of its own.
+
+## Class Identity and Naming
+
+Traditional Perseus programs still require a chosen JVM entry-class name, because the JVM requires a class to hold the compiled program entry point. That is normal and not a design problem in itself.
+
+Declared Perseus classes, however, use the class names written in the source. They are not anonymous helper artifacts.
+
+The remaining design issue is narrower:
+
+- how reusable Perseus classes should be packaged and named across separate compilation
+- how multi-file library workflows should relate to those names
+
+The intended direction is:
+
+- a source file may define multiple Perseus classes
+- each declared class should keep its own class identity
+- package naming should come from an explicit package or compilation policy
+
+This matters for reusable libraries, separate compilation, inheritance across compilation units, and interop with other JVM languages.
+
+## Call-by-Value Default for Class Procedures
+
+Procedures declared inside classes should default to call-by-value.
+
+That is the right design for Perseus because:
+
+- it matches Simula's direction better than classic Algol call-by-name
+- it fits naturally with JVM method-call expectations
+- it makes object behavior easier to reason about in the presence of mutation and instance state
+- it makes Perseus classes more usable from other JVM languages
+
+This also preserves a useful semantic distinction:
+
+- ordinary Algol-style standalone procedures may continue to follow classic Algol defaults
+- class procedures follow Simula-style method defaults
+
+## Prefix Inheritance
+
+Perseus class inheritance should be understood as Simula-style single inheritance through prefixing.
+
+The important design points are:
+
+- inheritance is single, not multiple
+- inherited fields and procedures become part of the prefixed class object
+- object initialization follows the prefix chain
+- dynamic dispatch belongs to the prefix model rather than being treated as an unrelated add-on
+
+This gives Perseus a clearer identity than simply copying Java's `extends` model into Algol-family syntax.
+
+## External Java Classes and Interfaces
+
+External Java interop is a separate part of the class design from Perseus-to-Perseus prefix inheritance.
+
+There are several distinct cases:
+
+- Perseus classes inheriting from other Perseus classes
+- Perseus code using external JVM classes as ordinary object types
+- Perseus classes extending external Java classes
+- Perseus classes implementing external Java interfaces
+
+Those should not be conflated, even though they meet in the same runtime.
+
+The current direction is:
+
+- prefix inheritance for Perseus-defined classes
+- explicit `external java class ...` declarations for imported JVM classes
+- Java superclass and interface conformance checked during semantic validation before code generation
+- Java/JVM verification left as a later safety net
+
+This keeps the language design clear while still allowing meaningful JVM interoperability.
+
+## Member Selection and Zero-Argument Procedures
+
+Perseus currently allows dotted zero-argument procedure syntax such as `obj.name`.
+
+A richer disambiguation rule may eventually be needed if real interop cases make it necessary. The likely rule would be:
+
+- `obj.name` means field selection
+- `obj.name()` means procedure or method call
+
+At the moment this appears to be a possible future refinement rather than an active problem, since well-designed Java classes are unlikely to expose both a public field and a zero-argument method with the same name.
+
+## Open Class Design Questions
+
+Some class-design questions remain open:
+
+- how constructor chaining and overriding should be expressed when Perseus classes extend external Java classes
+- how separate-compilation and multi-file library conventions should build on the existing package-and-class naming model
+- whether exception values should later expose a richer object-style interface in Perseus source
+- whether Perseus should later move further toward Simula process or coroutine concepts
 
 ## Summary
 
-For Perseus, the best path is to make classes Simula-inspired in semantics, Perseus-specific in final surface syntax, and explicitly call-by-value by default inside the class world. Prefix inheritance should be the intended long-term inheritance model, while external JVM classes should be handled through a separate interop design rather than treated as if they were ordinary Perseus prefixes. That keeps the language aligned with its Algol-family history while supporting the broader project goal of evolving beyond a strict Algol 60 compiler.
+Perseus classes are Simula-inspired in semantics, value-oriented by default, and increasingly interoperable with ordinary JVM classes and interfaces. Prefix inheritance remains the native long-term inheritance model, while Java classes and interfaces are handled through explicit interop rather than by collapsing the Perseus model into Java's.

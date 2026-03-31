@@ -136,9 +136,9 @@ This keeps external procedure behavior aligned with the broader JVM ecosystem.
 
 ## Launcher Strategy
 
-The first milestone hides Java by shipping a real launcher command.
+Perseus should ship a real launcher command.
 
-Initial approach:
+Approach:
 
 - use Gradle application/distribution support
 - generate:
@@ -152,35 +152,6 @@ This provides:
 - a stable user-facing entry point
 
 Even though these launch scripts still run on the JVM, users no longer need to type `java` or construct a classpath manually.
-
----
-
-## Installation and Distribution
-
-Perseus is intended to be installable as a normal command-line tool on Windows and macOS.
-
-Phased approach:
-
-### Phase 1
-
-- distributable launcher scripts
-- zipped application bundle from Gradle
-
-### Phase 2
-
-- packaged runtime distribution for easier installation
-- optional inclusion of a bundled JVM runtime if desired
-
-### Phase 3
-
-- platform-specific installers or app bundles using `jpackage`
-
-This would allow:
-
-- Windows installer or app image
-- macOS application bundle or installer
-
-The goal is for users to install and run `perseus` as a normal tool, without being constantly reminded that the implementation happens to target the JVM.
 
 ---
 
@@ -198,48 +169,21 @@ Exit code categories:
 
 - `0` success
 - non-zero for compilation failure
-- distinct non-zero code for internal compiler/runtime failure if practical
 
 ---
 
-## Artifact Policy
+## Future Directions
 
-The CLI should decide intentionally which files it keeps by default:
+The current CLI is built around the launcher, classfile output, JAR packaging, package selection, and classpath-based external resolution described above.
 
-- `.class`
-- `.jar` when requested
-- optional `.j` Jasmin output
+Later CLI and distribution work may include:
 
-One reasonable policy is:
+- packaged runtime distribution for easier installation
+- optional inclusion of a bundled JVM runtime
+- platform-specific installers or app bundles using `jpackage`
+- more refined exit-code distinctions between compilation failures and internal compiler/runtime failures
 
-- keep `.class` output by default
-- emit `.j` only with an explicit option such as `--emit-jasmin`
-
-That would make the normal user-facing experience feel like a compiler, while still preserving the JVM/Jasmin transparency that is valuable during development.
-
----
-
-## Staged Milestone 31 Plan
-
-### First Slice
-
-- `perseus` launcher script via Gradle application packaging
-- compile one or more `.alg` files
-- `-d <outdir>`
-- `-cp` / `--classpath`
-- improved user-facing diagnostics and exit codes
-
-### Second Slice
-
-- `--jar <file>`
-- optional `--emit-jasmin`
-- cleaner output layout
-
-### Later Polishing
-
-- installable platform packages
-- `jpackage`
-- richer CLI subcommands like `check` or `emit-jasmin`
+These are follow-on improvements rather than part of the current CLI surface.
 
 ---
 
