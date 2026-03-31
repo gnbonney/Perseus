@@ -255,6 +255,43 @@ public class CLITest extends CompilerTest {
     }
 
     @Test
+    public void cli_compile_multiple_namespaced_sources_test() throws Exception {
+        Path outDir = BUILD_DIR.resolve("cli-multifile-namespace-out");
+        Files.createDirectories(outDir);
+
+        ProcessResult result = runCli(List.of(
+                "test/algol/namespaces/namespace_multi_file_alpha.alg",
+                "test/algol/namespaces/namespace_multi_file_beta.alg",
+                "-d",
+                outDir.toString()));
+
+        assertEquals(0, result.exitCode(),
+                "CLI should support compiling multiple namespaced source files in one invocation");
+
+        assertTrue(Files.exists(outDir.resolve("mylib/shapes/Point.class")),
+                "The first file's declared class should be emitted under the shared namespace");
+        assertTrue(Files.exists(outDir.resolve("mylib/shapes/Counter.class")),
+                "The second file's declared class should be emitted under the shared namespace");
+    }
+
+    @Test
+    public void cli_multiple_sources_require_shared_namespace_test() throws Exception {
+        Path outDir = BUILD_DIR.resolve("cli-multifile-namespace-mismatch-out");
+        Files.createDirectories(outDir);
+
+        ProcessResult result = runCli(List.of(
+                "test/algol/namespaces/namespace_multi_file_alpha.alg",
+                "test/algol/namespaces/namespace_multi_file_mismatch.alg",
+                "-d",
+                outDir.toString()));
+
+        assertTrue(result.exitCode() != 0,
+                "CLI should reject multi-file namespace compilation when the source files disagree on namespace");
+        assertTrue(result.stderr().contains("namespace"),
+                "CLI should explain that the namespace declarations do not agree");
+    }
+
+    @Test
     public void cli_classpath_support_for_external_perseus_array_test() throws Exception {
         Path libraryOutDir = BUILD_DIR.resolve("cli-cp-array-lib");
         Path clientOutDir = BUILD_DIR.resolve("cli-cp-array-client");

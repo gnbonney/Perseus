@@ -784,6 +784,8 @@ The `namespace` keyword is preferable here to terms such as `package`, `module`,
 
 The current CLI `--package` option remains useful during the transition and for ordinary compiled programs, but the long-term language direction for reusable class identity is a source-level `namespace`.
 
+That `namespace` model should also extend naturally to multi-file libraries: several source files may contribute to the same reusable library identity when they are compiled together and agree on the same `namespace`.
+
 This matters for reusable libraries, separate compilation, inheritance across compilation units, and interop with other JVM languages.
 
 ## Call-by-Value Default for Class Procedures

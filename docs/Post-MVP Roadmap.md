@@ -41,7 +41,10 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Define how `namespace` interacts with the current CLI `--package` option
 - [x] Update code generation so reusable class identity is derived from `namespace + class name`
 - [x] Add tests for separately compiled classes using `namespace`
-- [ ] Decide how multi-file library workflows should build on the `namespace` model
+- [x] Decide that multi-file library workflows should allow multiple Perseus source files in one compiler invocation, with shared `namespace` agreement
+- [x] Add CLI support for compiling multiple Perseus source files in one invocation
+- [x] Define and enforce the rule that source files compiled together for one library must agree on `namespace`
+- [x] Add regression tests for multi-file namespaced libraries compiled in one compiler run
 
 **Implementation notes:**
 - The long-term inheritance direction is now prefix-style in the Simula tradition rather than Java-style subclass syntax
@@ -55,15 +58,21 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - External Java subclassing is now the intended direction for meaningful Java interop, because many Java APIs accept or return specific framework base classes rather than generic objects
 - Source-level `namespace` declarations are now implemented, and declared Perseus classes are emitted under the source namespace while ordinary wrapper/main program classes still use the compile target identity
 - Current regression coverage now also includes namespace parsing, multiple classes in one namespace, and a namespaced separate-compilation library/client path
+- The CLI can now compile multiple source files in one invocation, provided they agree on the same `namespace`
+- Current regression coverage now also includes successful multi-file namespaced compilation and rejection of mismatched namespaces
 - Conformance to extended Java classes and implemented Java interfaces should be checked during semantic validation before code generation, with JVM/ASM verification left as a later safety net
 - Reusable class identity now has a chosen language-level direction: a source `namespace` declaration rather than relying only on CLI package configuration
-- The main remaining follow-on work in this milestone is deciding how multi-file library workflows should build on the `namespace` model
+- Milestone 33 is now complete at the current intended scope
 
 **Decision:**
 - Perseus will use the keyword `namespace` for a source-level naming declaration for reusable classes and libraries.
 - This is preferred over `package`, `module`, or `library` because it describes naming and identity without implying a physical bundle or reusing a term that already has a different established meaning in the language.
 
-**Options for multi-file library workflows on top of `namespace`:**
+**Decision:**
+- Perseus will support multi-file library compilation by allowing multiple source files in one compiler invocation, provided they agree on the same `namespace`.
+- This keeps the feature at the compiler level, closer to `javac`, rather than turning the Perseus CLI into a fuller build tool.
+
+**Former options considered:**
 
 1. Keep the current single-file compilation model and treat `namespace` only as a naming declaration.
    - This is the smallest implementation step.
@@ -76,11 +85,6 @@ The milestones below collect follow-on work that was intentionally deferred whil
 3. Add a fuller library-oriented build mode around `namespace`, with explicit conventions for multi-file library roots, outputs, and possibly packaging.
    - This is the strongest long-term workflow.
    - It would also overlap more with Milestone 36 CLI/product work and would likely require broader tooling decisions at the same time.
-
-**Recommendation:**
-- Option 2 is probably the best next step.
-- It gives `namespace` a real multi-file library workflow without forcing Perseus into a much heavier build/package model too early.
-- Option 3 may still become attractive later, but it fits better once the broader CLI and product-facing tooling story is more mature.
 
 ## Milestone 34 - Exception Follow-On
 

@@ -136,6 +136,27 @@ public class PerseusCompiler {
 		return jasminFile;
 	}
 
+	public static String detectNamespace(String fileName) throws Exception {
+		ANTLRInputStream is = new ANTLRInputStream(new FileReader(fileName));
+		PerseusLexer lexer = new PerseusLexer(is);
+		CommonTokenStream tokens = new CommonTokenStream(lexer);
+		PerseusParser parser = new PerseusParser(tokens);
+		DescriptiveErrorListener errorListener = new DescriptiveErrorListener(fileName);
+		lexer.removeErrorListeners();
+		lexer.addErrorListener(errorListener);
+		parser.removeErrorListeners();
+		parser.addErrorListener(errorListener);
+		ProgramContext programContext = parser.program();
+		if (errorListener.hasErrors()) {
+			throw new CompilationFailedException(errorListener.getDiagnostics());
+		}
+
+		SymbolTableBuilder symBuilder = new SymbolTableBuilder();
+		ParseTreeWalker walker = new ParseTreeWalker();
+		walker.walk(symBuilder, programContext);
+		return symBuilder.getNamespaceName();
+	}
+
 	public static void assemble(Path jasminFile, Path classOutputDir) throws IOException, InterruptedException {
 		// Assemble the main file
 		assembleOne(jasminFile, classOutputDir);

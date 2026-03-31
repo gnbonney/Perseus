@@ -40,27 +40,43 @@ public class PerseusCLI {
     private static void run(CliOptions options) throws Exception {
         Files.createDirectories(options.outputDir());
 
-        String className = options.className() != null ? options.className() : inferClassName(options.inputFile());
         String packageName = normalizePackageName(options.packageName());
-        Path jasminFile = PerseusCompiler.compileToFile(
-                options.inputFile().toString(),
-                packageName,
-                className,
-                options.outputDir(),
-                effectiveClasspath(options));
+        if (options.inputFiles().size() == 1) {
+            Path inputFile = options.inputFiles().get(0);
+            String className = options.className() != null ? options.className() : inferClassName(inputFile);
+            Path jasminFile = PerseusCompiler.compileToFile(
+                    inputFile.toString(),
+                    packageName,
+                    className,
+                    options.outputDir(),
+                    effectiveClasspath(options));
 
-        PerseusCompiler.assemble(jasminFile, options.outputDir());
+            PerseusCompiler.assemble(jasminFile, options.outputDir());
 
-        if (options.jarFile() != null) {
-            createJar(options.outputDir(), options.jarFile(), toBinaryClassName(packageName, className));
-            System.out.println("Compilation successful. JAR generated at: " + options.jarFile());
+            if (options.jarFile() != null) {
+                createJar(options.outputDir(), options.jarFile(), toBinaryClassName(packageName, className));
+                System.out.println("Compilation successful. JAR generated at: " + options.jarFile());
+            } else {
+                System.out.println("Compilation successful. Classes generated in: " + options.outputDir());
+            }
         } else {
+            validateSharedNamespace(options.inputFiles());
+            for (Path inputFile : options.inputFiles()) {
+                String className = inferClassName(inputFile);
+                Path jasminFile = PerseusCompiler.compileToFile(
+                        inputFile.toString(),
+                        packageName,
+                        className,
+                        options.outputDir(),
+                        effectiveClasspath(options));
+                PerseusCompiler.assemble(jasminFile, options.outputDir());
+            }
             System.out.println("Compilation successful. Classes generated in: " + options.outputDir());
         }
     }
 
     private static void printUsage() {
-        System.err.println("Usage: perseus <inputFile> [-d <outputDir>] [--jar <jarFile>] [--class-name <name>] [--package <name>]");
+        System.err.println("Usage: perseus <inputFile> [<inputFile> ...] [-d <outputDir>] [--jar <jarFile>] [--class-name <name>] [--package <name>]");
     }
 
     private static CliOptions parseArgs(String[] args) {
@@ -68,7 +84,6 @@ public class PerseusCLI {
             throw new IllegalArgumentException("Missing input file.");
         }
 
-        Path inputFile = null;
         Path outputDir = Paths.get("build/perseus-out");
         Path jarFile = null;
         String className = null;
@@ -111,12 +126,16 @@ public class PerseusCLI {
         if (positional.isEmpty()) {
             throw new IllegalArgumentException("Missing input file.");
         }
-        if (positional.size() > 1) {
-            throw new IllegalArgumentException("Only a single input file is supported by the current CLI.");
+
+        List<Path> inputFiles = positional.stream().map(Paths::get).toList();
+        if (inputFiles.size() > 1 && className != null) {
+            throw new IllegalArgumentException("--class-name is only supported when compiling a single input file.");
+        }
+        if (inputFiles.size() > 1 && jarFile != null) {
+            throw new IllegalArgumentException("--jar is only supported when compiling a single input file.");
         }
 
-        inputFile = Paths.get(positional.get(0));
-        return new CliOptions(inputFile, outputDir, jarFile, className, packageName, classpathEntries);
+        return new CliOptions(inputFiles, outputDir, jarFile, className, packageName, classpathEntries);
     }
 
     private static List<Path> effectiveClasspath(CliOptions options) {
@@ -157,6 +176,25 @@ public class PerseusCLI {
         return internalPackageName.replace('/', '.') + "." + className;
     }
 
+    private static void validateSharedNamespace(List<Path> inputFiles) throws Exception {
+        String expectedNamespace = null;
+        for (Path inputFile : inputFiles) {
+            String namespace = PerseusCompiler.detectNamespace(inputFile.toString());
+            if (namespace == null || namespace.isBlank()) {
+                throw new IllegalArgumentException(
+                        "When compiling multiple source files together, each file must declare the same namespace: "
+                                + inputFile);
+            }
+            if (expectedNamespace == null) {
+                expectedNamespace = namespace;
+            } else if (!expectedNamespace.equals(namespace)) {
+                throw new IllegalArgumentException(
+                        "When compiling multiple source files together, all files must declare the same namespace. Expected "
+                                + expectedNamespace + " but found " + namespace + " in " + inputFile);
+            }
+        }
+    }
+
     private static void createJar(Path classRoot, Path jarFile, String mainClass) throws IOException {
         if (jarFile.getParent() != null) {
             Files.createDirectories(jarFile.getParent());
@@ -186,5 +224,5 @@ public class PerseusCLI {
         }
     }
 
-    private record CliOptions(Path inputFile, Path outputDir, Path jarFile, String className, String packageName, List<Path> classpathEntries) {}
+    private record CliOptions(List<Path> inputFiles, Path outputDir, Path jarFile, String className, String packageName, List<Path> classpathEntries) {}
 }

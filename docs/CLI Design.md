@@ -22,7 +22,7 @@ Perseus is implemented on the JVM, but the normal command-line experience should
 
 ## Primary Command Shape
 
-The primary command should be:
+The primary command shape is:
 
 ```bash
 perseus [options] <source files...>
@@ -39,7 +39,7 @@ perseus app.alg --jar app.jar
 perseus app.alg -cp libs\\mylib.jar
 ```
 
-This mirrors the general feel of `javac` while still leaving room for Perseus-specific options.
+The CLI accepts one or more source files in one compiler invocation. This mirrors the general feel of `javac` while still leaving room for Perseus-specific options.
 
 ---
 
@@ -76,6 +76,12 @@ This is especially important for:
 - separate compilation
 - external procedure linkage
 - building reusable Perseus libraries with stable class names
+
+For namespaced reusable libraries:
+
+- `namespace` in source defines reusable class identity
+- `--package` remains useful for ordinary compiled programs and transitional workflows
+- when multiple source files are compiled together for one library, they must agree on `namespace` rather than each supplying a separate library identity
 
 ---
 
