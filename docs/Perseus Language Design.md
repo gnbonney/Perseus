@@ -764,7 +764,25 @@ The intended direction is:
 
 - a source file may define multiple Perseus classes
 - each declared class should keep its own class identity
-- package naming should come from an explicit package or compilation policy
+- reusable class identity should be introduced in source with a `namespace` declaration
+
+For example:
+
+```algol
+namespace mylib.geometry;
+
+class Point;
+class ColoredPoint;
+```
+
+This would give the reusable classes identities corresponding to:
+
+- `mylib.geometry.Point`
+- `mylib.geometry.ColoredPoint`
+
+The `namespace` keyword is preferable here to terms such as `package`, `module`, or `library` because it describes naming and identity without implying a physical bundle or reusing a term that already has a different scope meaning elsewhere.
+
+The current CLI `--package` option remains useful during the transition and for ordinary compiled programs, but the long-term language direction for reusable class identity is a source-level `namespace`.
 
 This matters for reusable libraries, separate compilation, inheritance across compilation units, and interop with other JVM languages.
 

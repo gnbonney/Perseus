@@ -36,7 +36,12 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Support abstract Java superclasses and Java interfaces in the class interop model
 - [x] Add initial semantic validation for Java superclass/interface conformance before code generation
 - [x] Add tests for Java subclassing, abstract-class, interface, and override scenarios
-- [ ] Decide how separate-compilation and multi-file library conventions should build on the existing package-and-class naming model for reusable Perseus classes
+- [x] Decide that Perseus should use a source-level `namespace` declaration for reusable class identity
+- [ ] Add grammar support for `namespace ...;` source headers
+- [ ] Define how `namespace` interacts with the current CLI `--package` option
+- [ ] Update code generation so reusable class identity is derived from `namespace + class name`
+- [ ] Add tests for separately compiled classes using `namespace`
+- [ ] Decide how multi-file library workflows should build on the `namespace` model
 
 **Implementation notes:**
 - The long-term inheritance direction is now prefix-style in the Simula tradition rather than Java-style subclass syntax
@@ -50,19 +55,12 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - External Java subclassing is now the intended direction for meaningful Java interop, because many Java APIs accept or return specific framework base classes rather than generic objects
 - The next concrete compiler work in this milestone is Java-constructor chaining, method overriding, abstract Java base classes, Java interfaces, and the boundary between Simula-style Perseus prefixing and Java-style superclass/interface conformance
 - Conformance to extended Java classes and implemented Java interfaces should be checked during semantic validation before code generation, with JVM/ASM verification left as a later safety net
-- Broader reusable-class naming conventions remain a later language-design question rather than an immediate compiler blocker
+- Reusable class identity now has a chosen language-level direction: a source `namespace` declaration rather than relying only on CLI package configuration
+- The remaining follow-on work is to implement that `namespace` model cleanly and decide how multi-file library workflows build on it
 
-**Options for reusable class identity across separate compilation:**
-- Option 1: Keep the current basic model and rely on CLI-supplied package naming plus source class names.
-  Analysis: This is the lightest-weight option and fits the current implementation well. It keeps the language surface simple, but it leaves multi-file library organization mostly in tooling rather than in the language.
-- Option 2: Add a source-level package or module declaration and let reusable class identity be derived from that declaration plus the class name.
-  Analysis: This is the cleanest long-term language design for libraries and separate compilation. It would make class identity explicit in source, improve readability, and reduce dependence on CLI conventions, but it is a larger language change.
-- Option 3: Keep package naming in the CLI, but add explicit library-oriented CLI conventions for compiling and packaging multi-file class libraries.
-  Analysis: This is a middle path. It avoids adding a source-level package feature immediately while still making reusable library workflows more deliberate. It improves tooling sooner, but the language itself remains less explicit about library identity.
-
-**Likely best direction:**
-- Option 3 is probably the best near-term direction, because Perseus already has a workable package-and-class naming model and the immediate gap looks more like library workflow and convention than missing language syntax.
-- Option 2 remains the stronger long-term design if Perseus later wants a fuller source-level module or package story.
+**Decision:**
+- Perseus will use the keyword `namespace` for a source-level naming declaration for reusable classes and libraries.
+- This is preferred over `package`, `module`, or `library` because it describes naming and identity without implying a physical bundle or reusing a term that already has a different established meaning in the language.
 
 ## Milestone 34 - Exception Follow-On
 
