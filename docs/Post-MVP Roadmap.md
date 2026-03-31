@@ -37,10 +37,10 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Add initial semantic validation for Java superclass/interface conformance before code generation
 - [x] Add tests for Java subclassing, abstract-class, interface, and override scenarios
 - [x] Decide that Perseus should use a source-level `namespace` declaration for reusable class identity
-- [ ] Add grammar support for `namespace ...;` source headers
-- [ ] Define how `namespace` interacts with the current CLI `--package` option
-- [ ] Update code generation so reusable class identity is derived from `namespace + class name`
-- [ ] Add tests for separately compiled classes using `namespace`
+- [x] Add grammar support for `namespace ...;` source headers
+- [x] Define how `namespace` interacts with the current CLI `--package` option
+- [x] Update code generation so reusable class identity is derived from `namespace + class name`
+- [x] Add tests for separately compiled classes using `namespace`
 - [ ] Decide how multi-file library workflows should build on the `namespace` model
 
 **Implementation notes:**
@@ -53,10 +53,11 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - Current regression coverage now includes concrete Java superclass extension, abstract Java superclass conformance, single-interface conformance, and multi-interface conformance
 - The current semantic-validation slice now covers the cases exercised by those class and interface regressions before JVM/ASM verification
 - External Java subclassing is now the intended direction for meaningful Java interop, because many Java APIs accept or return specific framework base classes rather than generic objects
-- The next concrete compiler work in this milestone is Java-constructor chaining, method overriding, abstract Java base classes, Java interfaces, and the boundary between Simula-style Perseus prefixing and Java-style superclass/interface conformance
+- Source-level `namespace` declarations are now implemented, and declared Perseus classes are emitted under the source namespace while ordinary wrapper/main program classes still use the compile target identity
+- Current regression coverage now also includes namespace parsing, multiple classes in one namespace, and a namespaced separate-compilation library/client path
 - Conformance to extended Java classes and implemented Java interfaces should be checked during semantic validation before code generation, with JVM/ASM verification left as a later safety net
 - Reusable class identity now has a chosen language-level direction: a source `namespace` declaration rather than relying only on CLI package configuration
-- The remaining follow-on work is to implement that `namespace` model cleanly and decide how multi-file library workflows build on it
+- The main remaining follow-on work in this milestone is deciding how multi-file library workflows should build on the `namespace` model
 
 **Decision:**
 - Perseus will use the keyword `namespace` for a source-level naming declaration for reusable classes and libraries.
