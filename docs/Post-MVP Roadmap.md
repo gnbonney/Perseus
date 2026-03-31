@@ -37,7 +37,6 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Add initial semantic validation for Java superclass/interface conformance before code generation
 - [x] Add tests for Java subclassing, abstract-class, interface, and override scenarios
 - [ ] Decide how separate-compilation and multi-file library conventions should build on the existing package-and-class naming model for reusable Perseus classes
-- [ ] Decide whether caught exception values should later expose an object-style interface in Perseus source, and if so what its initial surface should be
 
 **Implementation notes:**
 - The long-term inheritance direction is now prefix-style in the Simula tradition rather than Java-style subclass syntax
@@ -51,7 +50,19 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - External Java subclassing is now the intended direction for meaningful Java interop, because many Java APIs accept or return specific framework base classes rather than generic objects
 - The next concrete compiler work in this milestone is Java-constructor chaining, method overriding, abstract Java base classes, Java interfaces, and the boundary between Simula-style Perseus prefixing and Java-style superclass/interface conformance
 - Conformance to extended Java classes and implemented Java interfaces should be checked during semantic validation before code generation, with JVM/ASM verification left as a later safety net
-- Broader reusable-class naming conventions and any richer source-level exception interface remain later language-design questions rather than immediate compiler blockers
+- Broader reusable-class naming conventions remain a later language-design question rather than an immediate compiler blocker
+
+**Options for reusable class identity across separate compilation:**
+- Option 1: Keep the current basic model and rely on CLI-supplied package naming plus source class names.
+  Analysis: This is the lightest-weight option and fits the current implementation well. It keeps the language surface simple, but it leaves multi-file library organization mostly in tooling rather than in the language.
+- Option 2: Add a source-level package or module declaration and let reusable class identity be derived from that declaration plus the class name.
+  Analysis: This is the cleanest long-term language design for libraries and separate compilation. It would make class identity explicit in source, improve readability, and reduce dependence on CLI conventions, but it is a larger language change.
+- Option 3: Keep package naming in the CLI, but add explicit library-oriented CLI conventions for compiling and packaging multi-file class libraries.
+  Analysis: This is a middle path. It avoids adding a source-level package feature immediately while still making reusable library workflows more deliberate. It improves tooling sooner, but the language itself remains less explicit about library identity.
+
+**Likely best direction:**
+- Option 3 is probably the best near-term direction, because Perseus already has a workable package-and-class naming model and the immediate gap looks more like library workflow and convention than missing language syntax.
+- Option 2 remains the stronger long-term design if Perseus later wants a fuller source-level module or package story.
 
 ## Milestone 34 - Exception Follow-On
 
@@ -59,9 +70,43 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 - [ ] Decide which existing runtime failures should remain fail-fast and which should become catchable exceptions
 - [ ] Give `when ... as ex do ...` real semantic/runtime support by binding a catch variable inside the handler
-- [ ] Add initial exception-inspection helpers such as `exceptionmessage(ex)` and `printexception(ex)`
-- [ ] Decide later whether richer exception member syntax should use helpers only or eventually support object-style access such as `ex.message`
-- [ ] Decide how much of the current JVM exception mapping should be replaced with a dedicated Perseus runtime exception hierarchy
+- [ ] Decide the initial source-level exception interface in Perseus
+- [ ] Implement that initial exception interface through helpers, object-style access, or both
+- [ ] Decide how much of the current JVM exception mapping should remain visible behind that interface versus being replaced with a dedicated Perseus runtime exception hierarchy
+
+**Recommendation on fail-fast versus catchable failures:**
+- Programmer-facing runtime conditions should become catchable exceptions where Perseus code can reasonably recover or report them.
+- Compiler bugs, verifier failures, impossible internal states, and other broken-invariant conditions should remain fail-fast.
+- In practice, this means ordinary runtime faults such as file and input problems are better candidates for catchable exceptions, while internal compiler/runtime corruption is not.
+
+**Options for caught exception values in Perseus source:**
+- Option 1: Keep exceptions mostly opaque in source and continue to prefer helper procedures such as `exceptionmessage(ex)` and `printexception(ex)`.
+  Analysis: This is the most conservative option and fits the current exception design well. It keeps the language simple and avoids committing to an exception object model too early, but it is less elegant and less object-oriented.
+- Option 2: Introduce a small standard object-style exception interface in source, with selected members such as `ex.message` and perhaps `ex.cause`.
+  Analysis: This would give Perseus a cleaner and more modern source-level exception model without requiring a fully open-ended object system for exceptions. It is a good compromise if exception handling becomes more central to everyday Perseus code.
+- Option 3: Treat exceptions as ordinary class-style objects and allow a broader member model, potentially including richer JVM exception details.
+  Analysis: This is the most expressive option, but it also risks overcommitting the language to the current JVM exception model and making the source language more complex than necessary.
+
+**Likely best direction:**
+- Option 2 is probably the best eventual direction if Perseus decides to expose exception values more richly in source.
+- Option 1 remains the best short-term position until exception binding and inspection needs become more central.
+
+**Consequences of that decision:**
+- If Perseus stays with Option 1, the next work is helper procedures such as `exceptionmessage(ex)` and `printexception(ex)`.
+- If Perseus adopts Option 2, the next work is to define a small object-style surface such as `ex.message` and decide whether helpers remain as convenience wrappers.
+- Option 3 would also require a broader decision about how much of the JVM exception model Perseus wants to expose directly.
+
+**Options for the underlying exception mapping model:**
+- Option 1: Keep a thin mapping to the current JVM exception model.
+  Analysis: This is the simplest option. It preserves debugging fidelity and minimizes new runtime design work, but it leaves Perseus more dependent on JVM exception concepts and names.
+- Option 2: Use a hybrid model with a small Perseus exception hierarchy for common language/runtime cases while still allowing recognizable JVM exceptions underneath.
+  Analysis: This gives Perseus a clearer language identity without requiring every exception to be normalized immediately. It is a good compromise between language clarity and implementation practicality.
+- Option 3: Replace most of the current JVM exception exposure with a dedicated Perseus runtime exception hierarchy.
+  Analysis: This is the cleanest language-level story, but it is also the most ambitious option and risks hiding useful JVM-level detail too early.
+
+**Likely best direction:**
+- Option 2 is probably the best direction.
+- It gives Perseus its own exception vocabulary where that matters most, while still preserving the practical value of the underlying JVM exception information.
 
 ## Milestone 35 - Dynamic Channels and Formatted I/O Follow-On
 
