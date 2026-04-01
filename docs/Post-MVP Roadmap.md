@@ -105,7 +105,18 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - The current implementation supports explicit `java(...)` patterns, built-in shorthand for an initial practical set of common Java exception classes, and `when ... as ex do ...` handlers that bind and use the caught Java exception object.
 - Regression coverage now includes named Java exception patterns, `as ex` message access, nested exception blocks, common Java exception shortcuts, and Java-based replacements for the older duplicate exception-name tests.
 
-## Milestone 35 - Dynamic Channels and Formatted I/O Follow-On
+## Milestone 35 - Compiled Standard Environment
+
+**Goal:** Move more of the environmental block out of compiler hardcoding and into a real always-available compiled standard environment.
+
+- [ ] Define the shape of the always-available standard environment / prelude
+- [ ] Decide which environmental identifiers remain true compiler intrinsics
+- [ ] Move selected environmental procedures into compiled Perseus source where practical
+- [ ] Use supporting Perseus classes where implementation-heavy features need them
+- [ ] Ensure the standard environment is automatically available to all Perseus programs without explicit imports
+- [ ] Add tests showing that migrated environmental procedures work through the compiled standard environment rather than only through compiler-recognized names
+
+## Milestone 36 - Dynamic Channels and Formatted I/O Follow-On
 
 **Goal:** Generalize the first working dynamic I/O slice into a broader runtime channel model.
 
@@ -115,11 +126,11 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Extend formatted I/O beyond the current `I`, `F`, and `A` subset
 - [ ] Add more file/string-channel regression programs that combine unformatted and formatted I/O
 
-## Milestone 36 - CLI Follow-On
+## Milestone 37 - CLI Follow-On
 
 **Goal:** Extend the working CLI into a broader tool suitable for multi-file and interop-heavy workflows.
 
-- [ ] Support compiling multiple Perseus source files in one CLI invocation
+- [x] Support compiling multiple Perseus source files in one CLI invocation
 - [ ] Define clearer output conventions for reusable separately compiled Perseus libraries
 - [ ] Improve handling of external inputs from both directories and JAR files in library-oriented workflows
 - [ ] Decide whether the CLI should support more explicit library-oriented packaging or commands beyond raw class-file output
@@ -127,7 +138,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Further exit-code and machine-facing CLI refinements
 - [ ] Additional commands such as `check` or `emit-jasmin` if they remain desirable after the MVP
 
-## Milestone 37 - Label and Switch Parameters / Designational Exits
+## Milestone 38 - Label and Switch Parameters / Designational Exits
 
 **Status:** Not currently planned.
 
@@ -145,17 +156,6 @@ The milestones below collect follow-on work that was intentionally deferred whil
 Possible JVM strategy for passed labels: lower non-local label exits to tagged exceptions (or an equivalent non-local escape mechanism) and catch them in the block/procedure activation that owns the real target labels. This would avoid requiring impossible cross-method JVM jumps while still giving a plausible implementation path for Algol-style designational exits.
 
 Possible JVM strategy for passed switches: lower a switch parameter to an indexed collection of label-exit descriptors (or thunks that resolve to them), reusing the same non-local escape machinery as passed labels when `goto sw[i]` selects a non-local target.
-
-## Milestone 38 - Compiled Standard Environment
-
-**Goal:** Move more of the environmental block out of compiler hardcoding and into a real always-available compiled standard environment.
-
-- [ ] Define the shape of the always-available standard environment / prelude
-- [ ] Decide which environmental identifiers remain true compiler intrinsics
-- [ ] Move selected environmental procedures into compiled Perseus source where practical
-- [ ] Use supporting Perseus classes where implementation-heavy features need them
-- [ ] Ensure the standard environment is automatically available to all Perseus programs without explicit imports
-- [ ] Add tests showing that migrated environmental procedures work through the compiled standard environment rather than only through compiler-recognized names
 
 ## Milestone 39 - Input Procedures Cleanup
 
