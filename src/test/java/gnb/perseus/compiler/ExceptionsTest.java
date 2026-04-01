@@ -35,6 +35,72 @@ public class ExceptionsTest extends CompilerTest {
     }
 
     @Test
+    public void exception_named_number_format_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/exceptions/exception_named_number_format.alg",
+                "gnb/perseus/programs",
+                "ExceptionNamedNumberFormat",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+        assertTrue(jasminSource.contains(".catch java/lang/NumberFormatException"),
+                "A common Java exception name should resolve without an explicit external java class declaration");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExceptionNamedNumberFormat");
+        assertEquals("0", output.trim(),
+                "A named Java exception pattern should catch NumberFormatException without java(...) syntax");
+    }
+
+    @Test
+    public void exception_java_number_format_as_ex_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/exceptions/exception_java_number_format_as_ex.alg",
+                "gnb/perseus/programs",
+                "ExceptionJavaNumberFormatAsEx",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+        assertTrue(jasminSource.contains(".catch java/lang/NumberFormatException"),
+                "The handler should still lower to a JVM catch for NumberFormatException");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExceptionJavaNumberFormatAsEx");
+        assertEquals("For input string: \"not-a-number\"", output.trim(),
+                "An as-bound exception value should be usable inside the handler");
+    }
+
+    @Test
+    public void exception_common_java_shortcuts_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/exceptions/exception_common_java_shortcuts.alg",
+                "gnb/perseus/programs",
+                "ExceptionCommonJavaShortcuts",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+        assertTrue(jasminSource.contains(".catch java/lang/NumberFormatException"),
+                "Named NumberFormatException should lower to the corresponding JVM catch");
+        assertTrue(jasminSource.contains(".catch java/lang/ArithmeticException"),
+                "Named ArithmeticException should lower to the corresponding JVM catch");
+        assertTrue(jasminSource.contains(".catch java/lang/IllegalArgumentException"),
+                "Named IllegalArgumentException should lower to the corresponding JVM catch");
+        assertTrue(jasminSource.contains(".catch java/lang/Exception"),
+                "Named Exception should lower to the corresponding JVM catch");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExceptionCommonJavaShortcuts");
+        assertEquals("1111", output.trim(),
+                "Common Java exception shortcuts should work across several representative exception types");
+    }
+
+    @Test
     public void exception_bounds_error_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/exceptions/exception_bounds_error.alg",
@@ -78,5 +144,25 @@ public class ExceptionsTest extends CompilerTest {
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExceptionFaultError");
         assertEquals("1", output.trim(),
                 "fault(...) inside an exception block should recover through FaultError handling");
+    }
+
+    @Test
+    public void exception_nested_blocks_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/exceptions/exception_nested_blocks.alg",
+                "gnb/perseus/programs",
+                "ExceptionNestedBlocks",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+        assertTrue(jasminSource.contains(".catch java/lang/NumberFormatException"),
+                "Nested exception blocks should still lower to JVM catch regions");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExceptionNestedBlocks");
+        assertEquals("11", output.trim(),
+                "The inner exception block should handle its own failure without falling through to the outer handler");
     }
 }

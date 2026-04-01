@@ -509,6 +509,29 @@ Perseus should distinguish between:
 
 The language-level names give Perseus code a portable vocabulary. The `java(...)` form gives precise control when interoperating with external JVM code.
 
+Perseus should also allow a practical middle ground for common Java exception classes:
+
+- users should not need `external java class ...` declarations just to catch familiar Java exceptions
+- `java(...)` remains the fully explicit form
+- common Java exception names may be recognized directly in exception patterns as built-in shorthand for the corresponding Java exception classes
+
+An initial intended set for direct exception-pattern names includes:
+
+- `Exception`
+- `RuntimeException`
+- `IOException`
+- `FileNotFoundException`
+- `NumberFormatException`
+- `IllegalArgumentException`
+- `IllegalStateException`
+- `ArrayIndexOutOfBoundsException`
+- `IndexOutOfBoundsException`
+- `ClassCastException`
+- `ArithmeticException`
+- `NullPointerException`
+
+This should be treated as an initial practical set rather than a closed catalog. Additional common Java exception classes may be added later if real Perseus programs need them.
+
 The initial language-level exception names should mean:
 
 - `IOError`

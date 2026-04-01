@@ -94,6 +94,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Bind `as ex` to the caught Java exception object in generated handler code
 - [ ] Allow exception-pattern identifiers to resolve against common Java exception classes without requiring `external java class` declarations
 - [ ] Add a built-in mapping for common Java exception classes used in Perseus exception patterns
+- [ ] Implement the initial built-in shorthand set for common Java exception pattern names
 - [ ] Distinguish exception-pattern type resolution from ordinary class/reference resolution where needed
 - [ ] Add regression tests for named Java exception patterns without prior external class declarations
 - [ ] Add regression tests for `when ... as ex do ...` handlers that inspect and use the bound exception value
