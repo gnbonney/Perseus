@@ -90,45 +90,17 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Goal:** Finish the parts of the exception design that were deferred after the first working slice.
 
-- [ ] Decide which existing runtime failures should remain fail-fast and which should become catchable exceptions
 - [ ] Give `when ... as ex do ...` real semantic/runtime support by binding a catch variable inside the handler
-- [ ] Decide the initial source-level exception interface in Perseus
-- [ ] Implement that initial exception interface through helpers, object-style access, or both
-- [ ] Decide how much of the current JVM exception mapping should remain visible behind that interface versus being replaced with a dedicated Perseus runtime exception hierarchy
+- [ ] Bind `as ex` to the caught Java exception object in generated handler code
+- [ ] Allow exception-pattern identifiers to resolve against common Java exception classes without requiring `external java class` declarations
+- [ ] Add a built-in mapping for common Java exception classes used in Perseus exception patterns
+- [ ] Distinguish exception-pattern type resolution from ordinary class/reference resolution where needed
+- [ ] Add regression tests for named Java exception patterns without prior external class declarations
+- [ ] Add regression tests for `when ... as ex do ...` handlers that inspect and use the bound exception value
 
-**Recommendation on fail-fast versus catchable failures:**
-- Programmer-facing runtime conditions should become catchable exceptions where Perseus code can reasonably recover or report them.
-- Compiler bugs, verifier failures, impossible internal states, and other broken-invariant conditions should remain fail-fast.
-- In practice, this means ordinary runtime faults such as file and input problems are better candidates for catchable exceptions, while internal compiler/runtime corruption is not.
-
-**Options for caught exception values in Perseus source:**
-- Option 1: Keep exceptions mostly opaque in source and continue to prefer helper procedures such as `exceptionmessage(ex)` and `printexception(ex)`.
-  Analysis: This is the most conservative option and fits the current exception design well. It keeps the language simple and avoids committing to an exception object model too early, but it is less elegant and less object-oriented.
-- Option 2: Introduce a small standard object-style exception interface in source, with selected members such as `ex.message` and perhaps `ex.cause`.
-  Analysis: This would give Perseus a cleaner and more modern source-level exception model without requiring a fully open-ended object system for exceptions. It is a good compromise if exception handling becomes more central to everyday Perseus code.
-- Option 3: Treat exceptions as ordinary class-style objects and allow a broader member model, potentially including richer JVM exception details.
-  Analysis: This is the most expressive option, but it also risks overcommitting the language to the current JVM exception model and making the source language more complex than necessary.
-
-**Likely best direction:**
-- Option 2 is probably the best eventual direction if Perseus decides to expose exception values more richly in source.
-- Option 1 remains the best short-term position until exception binding and inspection needs become more central.
-
-**Consequences of that decision:**
-- If Perseus stays with Option 1, the next work is helper procedures such as `exceptionmessage(ex)` and `printexception(ex)`.
-- If Perseus adopts Option 2, the next work is to define a small object-style surface such as `ex.message` and decide whether helpers remain as convenience wrappers.
-- Option 3 would also require a broader decision about how much of the JVM exception model Perseus wants to expose directly.
-
-**Options for the underlying exception mapping model:**
-- Option 1: Keep a thin mapping to the current JVM exception model.
-  Analysis: This is the simplest option. It preserves debugging fidelity and minimizes new runtime design work, but it leaves Perseus more dependent on JVM exception concepts and names.
-- Option 2: Use a hybrid model with a small Perseus exception hierarchy for common language/runtime cases while still allowing recognizable JVM exceptions underneath.
-  Analysis: This gives Perseus a clearer language identity without requiring every exception to be normalized immediately. It is a good compromise between language clarity and implementation practicality.
-- Option 3: Replace most of the current JVM exception exposure with a dedicated Perseus runtime exception hierarchy.
-  Analysis: This is the cleanest language-level story, but it is also the most ambitious option and risks hiding useful JVM-level detail too early.
-
-**Likely best direction:**
-- Option 2 is probably the best direction.
-- It gives Perseus its own exception vocabulary where that matters most, while still preserving the practical value of the underlying JVM exception information.
+**Implementation note:**
+- Milestone 34 builds on ordinary Java exception objects rather than a separate Perseus exception universe.
+- The practical compiler work is to make Java exception classes usable more naturally in exception patterns and to bind the caught exception value inside handlers.
 
 ## Milestone 35 - Dynamic Channels and Formatted I/O Follow-On
 
