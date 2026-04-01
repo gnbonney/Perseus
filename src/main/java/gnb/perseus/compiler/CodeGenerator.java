@@ -126,6 +126,7 @@ public class CodeGenerator extends PerseusBaseListener {
     // Stacks for if/then/else label management (supports nesting)
     private final Deque<String> ifEndLabelStack  = new ArrayDeque<>();
     private final Deque<String> ifElseLabelStack = new ArrayDeque<>();
+    private final Deque<ExceptionBindingState> exceptionBindingStateStack = new ArrayDeque<>();
     private final ExceptionGenerator exceptionGen;
     private final ChannelIOGenerator channelGen;
 
@@ -137,6 +138,23 @@ public class CodeGenerator extends PerseusBaseListener {
     private final ClassGenerator classGen;
     // Delegate for generating procedure reference and procedure-variable call code
     private final ProcedureGenerator procGen;
+
+    private static final class ExceptionBindingState {
+        final String name;
+        final Integer priorLocalSlot;
+        final String priorType;
+        final int priorNumLocals;
+
+        ExceptionBindingState(String name, Integer priorLocalSlot, String priorType, int priorNumLocals) {
+            this.name = name;
+            this.priorLocalSlot = priorLocalSlot;
+            this.priorType = priorType;
+            this.priorNumLocals = priorNumLocals;
+        }
+    }
+
+    private static final ExceptionBindingState NO_EXCEPTION_BINDING =
+            new ExceptionBindingState("", null, null, -1);
 
     public CodeGenerator(String source, String packageName, String classPackageName, String className,
                          Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
@@ -1563,11 +1581,41 @@ public class CodeGenerator extends PerseusBaseListener {
     @Override
     public void enterExceptionHandler(PerseusParser.ExceptionHandlerContext ctx) {
         exceptionGen.enterExceptionHandler(ctx, activeOutput);
+        if (ctx.identifier() == null) {
+            exceptionBindingStateStack.push(NO_EXCEPTION_BINDING);
+            activeOutput.append("pop\n");
+            return;
+        }
+
+        String boundName = ctx.identifier().getText();
+        int priorNumLocals = currentNumLocals;
+        Integer priorLocalSlot = currentLocalIndex.get(boundName);
+        String priorType = currentSymbolTable.get(boundName);
+        int boundSlot = allocateNewLocal("exception");
+        currentLocalIndex.put(boundName, boundSlot);
+        currentSymbolTable.put(boundName, exceptionPatternRefType(ctx.exceptionPattern()));
+        exceptionBindingStateStack.push(new ExceptionBindingState(
+                boundName, priorLocalSlot, priorType, priorNumLocals));
+        activeOutput.append("astore ").append(boundSlot).append("\n");
     }
 
     @Override
     public void exitExceptionHandler(PerseusParser.ExceptionHandlerContext ctx) {
         exceptionGen.exitExceptionHandler(ctx, activeOutput);
+        if (exceptionBindingStateStack.isEmpty()) return;
+        ExceptionBindingState state = exceptionBindingStateStack.pop();
+        if (state == NO_EXCEPTION_BINDING) return;
+
+        currentNumLocals = state.priorNumLocals;
+        ensureLocalLimit(Math.max(currentNumLocals, 64));
+        currentLocalIndex.remove(state.name);
+        if (state.priorLocalSlot != null) {
+            currentLocalIndex.put(state.name, state.priorLocalSlot);
+        }
+        currentSymbolTable.remove(state.name);
+        if (state.priorType != null) {
+            currentSymbolTable.put(state.name, state.priorType);
+        }
     }
 
     @Override
@@ -3022,6 +3070,10 @@ public class CodeGenerator extends PerseusBaseListener {
             return procedures.get(outerProc);
         }
         return null;
+    }
+
+    private String exceptionPatternRefType(PerseusParser.ExceptionPatternContext ctx) {
+        return ExceptionTypeResolver.toReferenceType(ctx);
     }
 
     private SymbolTableBuilder.MethodInfo findClassMethodInHierarchy(SymbolTableBuilder.ClassInfo cls, String methodName) {

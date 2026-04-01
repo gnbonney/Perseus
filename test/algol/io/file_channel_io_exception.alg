@@ -1,4 +1,4 @@
-comment File-channel error handling sample for Milestone 29.;
+comment File-channel exception handling sample for Milestone 29.;
 begin
    integer recovered;
 
@@ -7,7 +7,7 @@ begin
    begin
       openfile(7, "C:/definitely/not/a/real/path/perseus_m29.txt", "r")
    exception
-      when IOError do
+      when IOException do
          recovered := 1
    end;
 

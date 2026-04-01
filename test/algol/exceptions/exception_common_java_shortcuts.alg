@@ -1,11 +1,13 @@
 comment Catch several common Java exceptions by direct name shortcuts.;
 begin
    integer x;
+   ref(Thread) t;
 
    external java static(java.lang.Integer) integer procedure parseInt(string s);
-   external java static(java.lang.Thread) procedure sleep(integer millis);
+   external java class java.lang.Thread;
 
    x := 0;
+   t := new Thread;
 
    begin
       x := parseInt("not-a-number")
@@ -22,7 +24,7 @@ begin
    end;
 
    begin
-      sleep(-1)
+      t.setPriority(0)
    exception
       when IllegalArgumentException do
          x := x + 100

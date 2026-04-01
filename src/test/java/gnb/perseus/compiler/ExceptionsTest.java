@@ -101,49 +101,49 @@ public class ExceptionsTest extends CompilerTest {
     }
 
     @Test
-    public void exception_bounds_error_test() throws Exception {
+    public void exception_array_index_out_of_bounds_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/exceptions/exception_bounds_error.alg",
+                "test/algol/exceptions/exception_array_index_out_of_bounds.alg",
                 "gnb/perseus/programs",
-                "ExceptionBoundsError",
+                "ExceptionArrayIndexOutOfBounds",
                 BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
-        System.out.println("=== EXCEPTION BOUNDS ERROR JASMIN ===");
+        System.out.println("=== EXCEPTION ARRAY INDEX OUT OF BOUNDS JASMIN ===");
         System.out.println(jasminSource);
-        System.out.println("=== END EXCEPTION BOUNDS ERROR ===");
+        System.out.println("=== END EXCEPTION ARRAY INDEX OUT OF BOUNDS ===");
 
         assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
         assertTrue(jasminSource.contains(".catch java/lang/ArrayIndexOutOfBoundsException"),
-                "BoundsError should currently lower to a JVM array-bounds catch");
+                "ArrayIndexOutOfBoundsException should lower to the corresponding JVM catch");
 
         PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
-        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExceptionBoundsError");
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExceptionArrayIndexOutOfBounds");
         assertEquals("99", output.trim(),
-                "BoundsError handler should recover after an out-of-range array access");
+                "ArrayIndexOutOfBoundsException should recover after an out-of-range array access");
     }
 
     @Test
-    public void exception_fault_error_test() throws Exception {
+    public void exception_runtime_exception_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/exceptions/exception_fault_error.alg",
+                "test/algol/exceptions/exception_runtime_exception.alg",
                 "gnb/perseus/programs",
-                "ExceptionFaultError",
+                "ExceptionRuntimeException",
                 BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
-        System.out.println("=== EXCEPTION FAULT ERROR JASMIN ===");
+        System.out.println("=== EXCEPTION RUNTIME EXCEPTION JASMIN ===");
         System.out.println(jasminSource);
-        System.out.println("=== END EXCEPTION FAULT ERROR ===");
+        System.out.println("=== END EXCEPTION RUNTIME EXCEPTION ===");
 
         assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
         assertTrue(jasminSource.contains(".catch java/lang/RuntimeException"),
-                "FaultError should currently lower to a catchable runtime exception");
+                "RuntimeException should currently lower to a catchable runtime exception");
 
         PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
-        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExceptionFaultError");
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExceptionRuntimeException");
         assertEquals("1", output.trim(),
-                "fault(...) inside an exception block should recover through FaultError handling");
+                "fault(...) inside an exception block should recover through RuntimeException handling");
     }
 
     @Test

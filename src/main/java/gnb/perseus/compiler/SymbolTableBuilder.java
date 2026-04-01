@@ -16,6 +16,20 @@ import java.util.Set;
  * procedures, arrays, labels, and the first slice of Perseus classes.
  */
 public class SymbolTableBuilder extends PerseusBaseListener {
+    private static final Map<String, String> BUILTIN_JAVA_EXCEPTION_TYPES = Map.ofEntries(
+            Map.entry("Exception", "java.lang.Exception"),
+            Map.entry("RuntimeException", "java.lang.RuntimeException"),
+            Map.entry("IOException", "java.io.IOException"),
+            Map.entry("FileNotFoundException", "java.io.FileNotFoundException"),
+            Map.entry("NumberFormatException", "java.lang.NumberFormatException"),
+            Map.entry("IllegalArgumentException", "java.lang.IllegalArgumentException"),
+            Map.entry("IllegalStateException", "java.lang.IllegalStateException"),
+            Map.entry("ArrayIndexOutOfBoundsException", "java.lang.ArrayIndexOutOfBoundsException"),
+            Map.entry("IndexOutOfBoundsException", "java.lang.IndexOutOfBoundsException"),
+            Map.entry("ClassCastException", "java.lang.ClassCastException"),
+            Map.entry("ArithmeticException", "java.lang.ArithmeticException"),
+            Map.entry("NullPointerException", "java.lang.NullPointerException"));
+
     private final Map<String, String> symbolTable = new LinkedHashMap<>();
     private final Map<String, String> mainSymbolTable = new LinkedHashMap<>();
     private final Set<String> labels = new LinkedHashSet<>();
@@ -29,6 +43,12 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     private final Deque<ProcInfo> procStack = new ArrayDeque<>();
     private final Deque<ClassInfo> classStack = new ArrayDeque<>();
     private final Deque<MethodInfo> methodStack = new ArrayDeque<>();
+
+    public SymbolTableBuilder() {
+        for (Map.Entry<String, String> entry : BUILTIN_JAVA_EXCEPTION_TYPES.entrySet()) {
+            registerExternalJavaClass(entry.getKey(), entry.getValue());
+        }
+    }
 
     private ProcInfo currentProc() {
         return procStack.isEmpty() ? null : procStack.peek();
@@ -132,6 +152,14 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
     public Map<String, PerseusParser.SwitchDeclContext> getSwitchDeclarations() {
         return switchDeclarations;
+    }
+
+    public static Map<String, String> getBuiltInJavaExceptionTypes() {
+        return BUILTIN_JAVA_EXCEPTION_TYPES;
+    }
+
+    public static String resolveBuiltInJavaExceptionQualifiedName(String simpleName) {
+        return BUILTIN_JAVA_EXCEPTION_TYPES.get(simpleName);
     }
 
     public String getNamespaceName() {
@@ -258,6 +286,10 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         String qualifiedName = ctx.qualifiedName().getText();
         String simpleName = ctx.qualifiedName().qualifiedNamePart(
                 ctx.qualifiedName().qualifiedNamePart().size() - 1).getText();
+        registerExternalJavaClass(simpleName, qualifiedName);
+    }
+
+    private void registerExternalJavaClass(String simpleName, String qualifiedName) {
         externalJavaClasses.put(simpleName, qualifiedName);
         classes.put(simpleName, new ClassInfo(simpleName, null, null, true, qualifiedName));
     }

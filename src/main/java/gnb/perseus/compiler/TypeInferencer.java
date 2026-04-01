@@ -18,6 +18,7 @@ public class TypeInferencer extends PerseusBaseListener {
     private final Map<PerseusParser.ExprContext, String> exprTypes = new HashMap<>();
     private final Deque<SymbolTableBuilder.ClassInfo> classStack = new ArrayDeque<>();
     private final Deque<SymbolTableBuilder.MethodInfo> methodStack = new ArrayDeque<>();
+    private final Deque<Map<String, String>> exceptionBindingStack = new ArrayDeque<>();
 
     public TypeInferencer(String sourceName, Map<String, String> symbolTable,
             Map<String, SymbolTableBuilder.ClassInfo> classes) {
@@ -60,6 +61,24 @@ public class TypeInferencer extends PerseusBaseListener {
     public void exitProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
         if (!methodStack.isEmpty()) {
             methodStack.pop();
+        }
+    }
+
+    @Override
+    public void enterExceptionHandler(PerseusParser.ExceptionHandlerContext ctx) {
+        if (ctx.identifier() == null) {
+            exceptionBindingStack.push(Map.of());
+            return;
+        }
+        String boundName = ctx.identifier().getText();
+        String boundType = ExceptionTypeResolver.toReferenceType(ctx.exceptionPattern());
+        exceptionBindingStack.push(Map.of(boundName, boundType));
+    }
+
+    @Override
+    public void exitExceptionHandler(PerseusParser.ExceptionHandlerContext ctx) {
+        if (!exceptionBindingStack.isEmpty()) {
+            exceptionBindingStack.pop();
         }
     }
 
@@ -271,6 +290,11 @@ public class TypeInferencer extends PerseusBaseListener {
     }
 
     private String lookupType(String name) {
+        for (Map<String, String> bindings : exceptionBindingStack) {
+            String type = bindings.get(name);
+            if (type != null) return type;
+        }
+
         SymbolTableBuilder.MethodInfo method = methodStack.peek();
         if (method != null) {
             String type = method.localVars.get(name);
@@ -289,7 +313,6 @@ public class TypeInferencer extends PerseusBaseListener {
 
         return symbolTable.get(name);
     }
-
     private SymbolTableBuilder.MethodInfo findMethodInHierarchy(SymbolTableBuilder.ClassInfo cls, String memberName) {
         SymbolTableBuilder.ClassInfo current = cls;
         while (current != null) {

@@ -460,23 +460,23 @@ end
     }
 
     @Test
-    public void file_channel_ioerror_test() throws Exception {
+    public void file_channel_io_exception_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
-                "test/algol/io/file_channel_ioerror.alg", "gnb/perseus/programs",
-                "FileChannelIOError", BUILD_DIR);
+                "test/algol/io/file_channel_io_exception.alg", "gnb/perseus/programs",
+                "FileChannelIOException", BUILD_DIR);
         String jasminSource = Files.readString(jasminFile);
 
-        System.out.println("=== FILE CHANNEL IOERROR JASMIN ===");
+        System.out.println("=== FILE CHANNEL IOEXCEPTION JASMIN ===");
         System.out.println(jasminSource);
-        System.out.println("=== END FILE CHANNEL IOERROR ===");
+        System.out.println("=== END FILE CHANNEL IOEXCEPTION ===");
 
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error");
 
         PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
-        String output = runClass(BUILD_DIR, "gnb.perseus.programs.FileChannelIOError");
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.FileChannelIOException");
         assertEquals("1", output.trim(),
-                "Opening an invalid file channel should raise IOError and recover through the handler");
+                "Opening an invalid file channel should raise IOException and recover through the handler");
     }
 }

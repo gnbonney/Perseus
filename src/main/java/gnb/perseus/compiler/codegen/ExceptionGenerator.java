@@ -1,5 +1,6 @@
 package gnb.perseus.compiler.codegen;
 
+import gnb.perseus.compiler.ExceptionTypeResolver;
 import gnb.perseus.compiler.antlr.PerseusParser;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -50,20 +51,20 @@ public class ExceptionGenerator {
         }
         ExceptionBlockInfo info = new ExceptionBlockInfo(ctx, startLabel, endLabel, afterLabel, handlerLabels);
         exceptionBlockStack.push(info);
-        for (PerseusParser.ExceptionHandlerContext handler : ctx.exceptionPart().exceptionHandler()) {
-            activeOutput.append(".catch ")
-                        .append(exceptionPatternToJvmType(handler.exceptionPattern()))
-                        .append(" from ").append(startLabel)
-                        .append(" to ").append(endLabel)
-                        .append(" using ").append(handlerLabels.get(handler))
-                        .append("\n");
-        }
         activeOutput.append(startLabel).append(":\n");
     }
 
     public void exitBlock(PerseusParser.BlockContext ctx, StringBuilder activeOutput) {
         if (ctx.exceptionPart() == null) return;
         ExceptionBlockInfo info = exceptionBlockStack.pop();
+        for (PerseusParser.ExceptionHandlerContext handler : ctx.exceptionPart().exceptionHandler()) {
+            activeOutput.append(".catch ")
+                        .append(exceptionPatternToJvmType(handler.exceptionPattern()))
+                        .append(" from ").append(info.startLabel)
+                        .append(" to ").append(info.endLabel)
+                        .append(" using ").append(info.handlerLabels.get(handler))
+                        .append("\n");
+        }
         activeOutput.append(info.afterLabel).append(":\n");
     }
 
@@ -84,7 +85,6 @@ public class ExceptionGenerator {
         String handlerLabel = info.handlerLabels.get(ctx);
         if (handlerLabel != null) {
             activeOutput.append(handlerLabel).append(":\n");
-            activeOutput.append("pop\n");
         }
     }
 
@@ -95,20 +95,6 @@ public class ExceptionGenerator {
     }
 
     private String exceptionPatternToJvmType(PerseusParser.ExceptionPatternContext ctx) {
-        if (ctx == null) return "java/lang/RuntimeException";
-        if (ctx.qualifiedName() != null) {
-            return ctx.qualifiedName().getText().replace('.', '/');
-        }
-        if (ctx.identifier() != null) {
-            return switch (ctx.identifier().getText()) {
-                case "BoundsError" -> "java/lang/ArrayIndexOutOfBoundsException";
-                case "FaultError" -> "java/lang/RuntimeException";
-                case "ArithmeticError" -> "java/lang/ArithmeticException";
-                case "IOError" -> "java/io/IOException";
-                case "EndOfFile" -> "java/io/EOFException";
-                default -> "java/lang/RuntimeException";
-            };
-        }
-        return "java/lang/RuntimeException";
+        return ExceptionTypeResolver.toInternalJavaName(ctx);
     }
 }

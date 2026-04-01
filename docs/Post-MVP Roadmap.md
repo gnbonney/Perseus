@@ -90,18 +90,20 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Goal:** Finish the parts of the exception design that were deferred after the first working slice.
 
-- [ ] Give `when ... as ex do ...` real semantic/runtime support by binding a catch variable inside the handler
-- [ ] Bind `as ex` to the caught Java exception object in generated handler code
-- [ ] Allow exception-pattern identifiers to resolve against common Java exception classes without requiring `external java class` declarations
-- [ ] Add a built-in mapping for common Java exception classes used in Perseus exception patterns
-- [ ] Implement the initial built-in shorthand set for common Java exception pattern names
-- [ ] Distinguish exception-pattern type resolution from ordinary class/reference resolution where needed
-- [ ] Add regression tests for named Java exception patterns without prior external class declarations
-- [ ] Add regression tests for `when ... as ex do ...` handlers that inspect and use the bound exception value
+- [x] Give `when ... as ex do ...` real semantic/runtime support by binding a catch variable inside the handler
+- [x] Bind `as ex` to the caught Java exception object in generated handler code
+- [x] Allow exception-pattern identifiers to resolve against common Java exception classes without requiring `external java class` declarations
+- [x] Add a built-in mapping for common Java exception classes used in Perseus exception patterns
+- [x] Implement the initial built-in shorthand set for common Java exception pattern names
+- [x] Distinguish exception-pattern type resolution from ordinary class/reference resolution where needed
+- [x] Add regression tests for named Java exception patterns without prior external class declarations
+- [x] Add regression tests for `when ... as ex do ...` handlers that inspect and use the bound exception value
 
 **Implementation note:**
 - Milestone 34 builds on ordinary Java exception objects rather than a separate Perseus exception universe.
-- The practical compiler work is to make Java exception classes usable more naturally in exception patterns and to bind the caught exception value inside handlers.
+- Java exception names should be the primary exception vocabulary in Perseus source where they already fit the JVM model naturally. Perseus-specific duplicate names such as `BoundsError`, `IOError`, and similar wrappers should be removed rather than carried forward as aliases.
+- The current implementation supports explicit `java(...)` patterns, built-in shorthand for an initial practical set of common Java exception classes, and `when ... as ex do ...` handlers that bind and use the caught Java exception object.
+- Regression coverage now includes named Java exception patterns, `as ex` message access, nested exception blocks, common Java exception shortcuts, and Java-based replacements for the older duplicate exception-name tests.
 
 ## Milestone 35 - Dynamic Channels and Formatted I/O Follow-On
 

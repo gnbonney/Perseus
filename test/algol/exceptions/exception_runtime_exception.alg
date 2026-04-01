@@ -1,4 +1,4 @@
-comment Catch a language-level FaultError raised by fault.;
+comment Catch the runtime exception raised by fault.;
 begin
    integer recovered;
 
@@ -7,7 +7,7 @@ begin
    begin
       fault("boom", 1)
    exception
-      when FaultError do
+      when RuntimeException do
          recovered := 1
    end;
 

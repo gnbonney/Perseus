@@ -131,6 +131,10 @@ different JVM instructions based on resolved types, for example:
 Separating this logic keeps code generation focused on lowering already-resolved
 semantics rather than re-deriving types while emitting bytecode.
 
+Structured exception handlers also use this pass to type any `when ... as ex do ...`
+binding as an object reference to the resolved Java exception class, so member
+calls such as `ex.getMessage()` can be validated before code generation.
+
 ### Why Not Merge the Passes?
 
 The separate-pass design keeps concerns clean:
@@ -266,7 +270,7 @@ The code generation phase (Pass 2) uses a modular, delegation-based architecture
 - **ProcedureGenerator:** Handles procedure declarations, procedure references (lifting static methods to objects), procedure variable calls, and thunk class generation for call-by-name parameters.
 - **BuiltinFunctionGenerator:** Handles expression-position environmental functions and other built-in value-returning operations.
 - **ChannelIOGenerator:** Handles channel-backed I/O procedures such as `openfile`, `openstring`, `closefile`, `outstring`, `outformat`, and `informat`.
-- **ExceptionGenerator:** Handles `begin ... exception ... end` lowering and JVM `try/catch` emission.
+- **ExceptionGenerator:** Handles `begin ... exception ... end` lowering, resolves exception patterns to JVM exception classes, and emits nested JVM `try/catch` regions in lexical order.
 - **ClassGenerator:** Handles Perseus class declarations, object construction, instance members, and related synthetic class emission.
 - **ContextManager:** Centralizes all shared state (symbol tables, local indices, output buffers, and synthetic class definitions for thunks and procedure references).
 - **GeneratorDelegate:** Provides a small common interface for specialized generators that need coordinated access to the facade and shared context.
@@ -279,6 +283,12 @@ This modular approach enables:
 - Deterministic and maintainable output structure
 
 The overall data flow and output conventions remain as described above, but the code generation logic is now distributed across these specialized classes, coordinated by the `CodeGenerator` facade and the `ContextManager` state hub.
+
+For structured exceptions specifically, responsibility is split across a few components:
+
+- `SymbolTableBuilder` registers the built-in shorthand set of common Java exception names so exception patterns can resolve them without `external java class` declarations.
+- `TypeInferencer` assigns the bound `as ex` variable an object-reference type based on the resolved exception class.
+- `ExceptionGenerator` lowers the protected block and handler clauses to JVM catch regions, while `CodeGenerator` stores the caught exception object into the bound local when an `as ex` name is present.
 
 ---
 
