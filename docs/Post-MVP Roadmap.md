@@ -110,11 +110,25 @@ The milestones below collect follow-on work that was intentionally deferred whil
 **Goal:** Move more of the environmental block out of compiler hardcoding and into a real always-available compiled standard environment.
 
 - [ ] Define the shape of the always-available standard environment / prelude
-- [ ] Decide which environmental identifiers remain true compiler intrinsics
-- [ ] Move selected environmental procedures into compiled Perseus source where practical
-- [ ] Use supporting Perseus classes where implementation-heavy features need them
+- [ ] Introduce a thin `StandardEnv` facade for the environmental block surface
+- [ ] Move the simpler math/environment procedures and constants into compiled support such as `MathEnv`
+- [ ] Move string-oriented support such as `length` into a compiled helper such as `Strings`
+- [ ] Move output-side environmental procedures into compiled support such as `TextOutput`
+- [ ] Move input-side environmental procedures into compiled support such as `TextInput`
+- [ ] Add channel/runtime support classes such as `Channels` where implementation-heavy environmental features need them
+- [ ] Move runtime control helpers such as `fault` and possibly `stop` into a compiled runtime helper such as `Faults` where practical
+- [ ] Decide which environmental identifiers remain true compiler intrinsics after that split
 - [ ] Ensure the standard environment is automatically available to all Perseus programs without explicit imports
 - [ ] Add tests showing that migrated environmental procedures work through the compiled standard environment rather than only through compiler-recognized names
+
+**Suggested order:**
+1. `StandardEnv`
+2. `MathEnv`
+3. `Strings`
+4. `TextOutput`
+5. `TextInput`
+6. `Channels`
+7. `Faults`
 
 ## Milestone 36 - Dynamic Channels and Formatted I/O Follow-On
 

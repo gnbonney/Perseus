@@ -349,6 +349,49 @@ Several design constraints have become clear as Perseus has grown to support cal
 - **Conservative limits plus post-processing remain the current strategy.** The compiler emits safe fixed limits such as `.limit stack 64` and `.limit locals 64`, and the standard compile path then uses ASM recomputation as verification and cleanup.
 - **Historically demanding programs remain important architectural regressions.** Programs such as Knuth's Man-or-Boy test are valuable not just as sample inputs, but as checks on whether these constraints continue to hold as the compiler evolves.
 
+## Compiled Standard Environment Structure
+
+The compiled standard environment avoids both a single monolithic
+`EnvironmentBlock` class and a one-class-per-procedure design. Instead, Perseus
+uses a small facade plus a few focused support classes.
+
+- `perseus.env.StandardEnv`
+- `perseus.lang.MathEnv`
+- `perseus.text.Strings`
+- `perseus.io.Channels`
+- `perseus.io.TextInput`
+- `perseus.io.TextOutput`
+- `perseus.runtime.Faults`
+
+- `perseus.env.StandardEnv`
+  - Thin facade or prelude surface exposing the standard environmental names
+    expected by Perseus programs.
+- `perseus.lang.MathEnv`
+  - Numeric functions and constants such as `abs`, `iabs`, `sign`, `entier`,
+    `sqrt`, `sin`, `cos`, `arctan`, `ln`, `exp`, `maxreal`, `minreal`,
+    `maxint`, and `epsilon`.
+- `perseus.text.Strings`
+  - String-oriented helpers such as `length`, plus a natural home for future
+    standard string support.
+- `perseus.io.Channels`
+  - Channel registry, standard stream bindings, and the lower-level runtime
+    support behind file and string channels.
+- `perseus.io.TextInput`
+  - Input-oriented environmental procedures such as `inchar`, `ininteger`, and
+    `inreal`, including shared scanning/parsing helpers.
+- `perseus.io.TextOutput`
+  - Output-oriented environmental procedures such as `outchar`, `outstring`,
+    `outinteger`, `outreal`, and `outterminator`, including shared formatting
+    helpers.
+- `perseus.runtime.Faults`
+  - Runtime control helpers such as `fault`, and possibly `stop` while those
+    remain part of the standard environment rather than true compiler intrinsics.
+
+This split keeps the public environmental surface familiar while allowing the
+implementation to group related runtime concerns together. It also fits the
+current class and `namespace` work better than leaving the environmental block
+as a large hardcoded compiler special case.
+
 
 ## Compiling Perseus Source to Jasmin
 

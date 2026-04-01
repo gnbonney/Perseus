@@ -197,11 +197,11 @@ For Perseus on the JVM, it helps to distinguish two different use cases that bot
 
 Those two cases should not be treated as identical, because they have different semantic expectations. Cross-file Perseus linkage is mostly a separate-compilation problem, while Java interop is a foreign-interface problem.
 
-Perseus should therefore treat external procedures as an incremental feature rather than one monolithic interoperability mechanism. The simplest and most robust foundation is separate compilation and explicit calls to static JVM entry points. Richer cases such as instance-method interop, call-by-name across compilation units, and imported classes should come later, after the ABI is documented more formally.
+Perseus treats external procedures as an incremental feature rather than one monolithic interoperability mechanism. The simplest and most robust foundation is separate compilation and explicit calls to static JVM entry points. Richer cases such as call-by-name across compilation units still come later, after the ABI is documented more formally.
 
 ## Proposed Syntax
 
-Perseus should make the target model explicit:
+Perseus makes the target model explicit:
 
 ```algol
 external(Package.ClassName) real procedure f(real x);
@@ -220,16 +220,16 @@ The intent is:
 
 This split keeps the common Perseus-to-Perseus case lightweight while still making Java interop explicit. It also leaves room for a later Simula-inspired class extension, where imported JVM types could be declared more naturally as `external java class ...` instead of being modeled only as procedure targets.
 
-Perseus should prioritize `external(...)` and `external java static(...)`. The `virtual(...)` form is still a plausible direction, but it should be treated as later work rather than part of the core external-procedure design.
+Perseus prioritizes `external(...)` and `external java static(...)`. The `virtual(...)` form remains later work rather than part of the core external-procedure design.
 
 ## Resolution and Classpath
 
 External procedure declarations should resolve against the ordinary JVM classpath rather than inventing a separate Perseus-specific search mechanism.
 
 - Compiled external Perseus classes and Java classes should both be found on the classpath.
-- The CLI should therefore grow an explicit classpath option such as `--classpath` / `-cp`.
-- For a first implementation, Perseus should prefer compile-time resolution and emit diagnostics when a referenced class or method cannot be found.
-- The CLI should not assume one fixed JVM package forever. A user-facing package option is needed so separately compiled Perseus units can choose stable class names intentionally.
+- The CLI supports explicit classpath options such as `--classpath` / `-cp`.
+- Perseus prefers compile-time resolution and emits diagnostics when a referenced class or method cannot be found.
+- The CLI supports user-facing package selection so separately compiled Perseus units can choose stable class names intentionally.
 
 This gives users a predictable workflow:
 
@@ -460,9 +460,9 @@ The simplest form attaches an exception part to a block:
 begin
     ...
 exception
-    when IOError do
+    when IOException do
         outstring(0, "I/O failure");
-    when EndOfFile do
+    when EOFException do
         done := true
 end
 ```
@@ -478,19 +478,19 @@ begin
     ...
 exception
     when java(java.io.IOException) as ex do
-        outstring(0, exceptionmessage(ex))
+        outstring(0, ex.getMessage())
 end
 ```
 
 This is especially useful for external Java interop, where the caller may want the exception message or specific exception-class discrimination.
 
-The first implementation of bound exception variables should keep the model modest:
+Bound exception variables keep the model modest:
 
 - `when ... as ex do ...` binds a catch variable for the duration of the handler
-- the bound value should be treated as an exception reference, not as an arbitrary user-defined class instance
-- the first useful operations should be helper-style inspection facilities such as `exceptionmessage(ex)` and `printexception(ex)`
+- the bound value is treated as an exception reference, not as an arbitrary user-defined class instance
+- ordinary Java exception methods such as `ex.getMessage()` are available on the bound exception object
 
-This gives Perseus practical exception introspection without requiring the full external-object/member-access story to be finished first.
+This gives Perseus practical exception introspection without requiring a separate exception-object hierarchy.
 
 ## Proposed Exception Names
 
@@ -510,7 +510,7 @@ For example, all of these should be valid:
 
 Perseus-specific duplicate names such as `IOError`, `BoundsError`, `ArithmeticError`, `EndOfFile`, and `FaultError` should not remain part of the long-term exception vocabulary. If Perseus libraries later define their own exception classes, those should be ordinary class/library exception types rather than renamed stand-ins for existing Java exceptions.
 
-An initial intended set for direct exception-pattern names includes:
+An initial practical set for direct exception-pattern names includes:
 
 - `Exception`
 - `RuntimeException`
@@ -525,7 +525,7 @@ An initial intended set for direct exception-pattern names includes:
 - `ArithmeticException`
 - `NullPointerException`
 
-This should be treated as an initial practical set rather than a closed catalog. Additional common Java exception classes may be added later if real Perseus programs need them.
+This is an initial practical set rather than a closed catalog. Additional common Java exception classes may be added later if real Perseus programs need them.
 
 ## Semantics
 
@@ -540,16 +540,16 @@ This gives Perseus a model closer to structured exception handling than to resum
 
 ## Raising Exceptions
 
-For completeness, the extension should eventually include an explicit way to raise exceptions in Algol code:
+For completeness, the extension may later include an explicit way to raise exceptions in Algol code:
 
 ```algol
-signal IOError;
+signal IOException;
 signal java(java.lang.IllegalStateException, "bad state");
 ```
 
 The initial implementation does not need to expose every constructor form immediately. It is enough if Perseus can:
 
-- translate internal runtime problems into language-level exception names, and
+- translate internal runtime problems into ordinary Java exception objects where appropriate, and
 - catch Java exceptions thrown from `external java` calls
 
 before growing a richer explicit `signal` syntax.
@@ -557,7 +557,7 @@ before growing a richer explicit `signal` syntax.
 ## Interaction with Existing Procedures
 
 - `fault(...)` can remain a simple terminate-with-error procedure for compatibility.
-- Over time, some operations that currently go straight to `fault(...)` could instead raise language-level exceptions that user code may catch.
+- Over time, some operations that currently go straight to `fault(...)` could instead raise catchable Java-backed exceptions that user code may handle.
 - This would let programs choose between:
   - fail-fast behavior
   - local recovery
@@ -591,22 +591,22 @@ The obvious lowering strategy is:
 
 - compile the protected part of the block to JVM `try`
 - compile each `when` clause to a corresponding `catch`
-- translate language-level exceptions to small Perseus runtime exception classes
+- resolve exception-pattern names to the corresponding Java exception classes
 - allow `java(...)` handlers to catch matching JVM exception types directly
 
 For example:
 
-- `when IOError do ...`
-  - catches `gnb.perseus.runtime.IOErrorException`
+- `when IOException do ...`
+  - catches `java/io/IOException`
 - `when java(java.io.IOException) as ex do ...`
   - catches `java/io/IOException`
 
 This is straightforward, maps well to the JVM, and avoids inventing a continuation model.
 
-For bound exception variables, the first JVM-level implementation path should be:
+The current JVM-level implementation path for bound exception variables is:
 
 - store the caught exception object in a temporary handler-local reference
-- make helper operations such as `exceptionmessage(ex)` and `printexception(ex)` lower to ordinary JVM calls on that object
+- allow ordinary Java exception methods such as `ex.getMessage()` to lower to ordinary JVM calls on that object
 - delay richer member-style syntax such as `ex.message` until exception objects and external-object access are better integrated with the broader class model
 
 ## Scope and Restrictions
@@ -617,7 +617,7 @@ To keep the first version robust:
 - matching should be by exception name/class only, not arbitrary Boolean guard expressions
 - handlers should not resume execution at the throw site
 - the first implementation may omit `finally`/cleanup syntax
-- the first bound-variable implementation may expose exception inspection through helper procedures rather than full object-member syntax
+- bound exception values currently expose practical Java-style method access rather than a separate Perseus-specific helper layer
 
 If a cleanup feature is desired later, it could be added in an Algol-flavored way such as:
 
@@ -625,7 +625,7 @@ If a cleanup feature is desired later, it could be added in an Algol-flavored wa
 begin
     ...
 exception
-    when IOError do ...
+    when IOException do ...
 finally
     closefile(ch)
 end
@@ -636,9 +636,9 @@ but this should be a later layer, not part of the minimum design.
 ## Summary
 
 - A block exception part (`begin ... exception ... end`) is the most Algol-like shape.
-- `when Name do ...` should handle language-level exceptions.
+- `when Name do ...` should handle direct Java exception names from the built-in shorthand set.
 - `when java(Fully.Qualified.Exception) as ex do ...` should handle precise Java interop failures.
-- `when ... as ex do ...` should first support practical inspection helpers such as `exceptionmessage(ex)` and `printexception(ex)`.
+- `when ... as ex do ...` supports practical inspection through ordinary Java exception methods such as `ex.getMessage()`.
 - JVM lowering is natural through ordinary `try/catch`.
 - This extension would make external Java/class interop much safer and more expressive.
 
@@ -737,11 +737,11 @@ The remaining design issue is narrower:
 - how reusable Perseus classes should be packaged and named across separate compilation
 - how multi-file library workflows should relate to those names
 
-The intended direction is:
+The current model is:
 
 - a source file may define multiple Perseus classes
 - each declared class should keep its own class identity
-- reusable class identity should be introduced in source with a `namespace` declaration
+- reusable class identity is introduced in source with a `namespace` declaration
 
 For example:
 
@@ -759,7 +759,7 @@ This would give the reusable classes identities corresponding to:
 
 The `namespace` keyword is preferable here to terms such as `package`, `module`, or `library` because it describes naming and identity without implying a physical bundle or reusing a term that already has a different scope meaning elsewhere.
 
-The current CLI `--package` option remains useful during the transition and for ordinary compiled programs, but the long-term language direction for reusable class identity is a source-level `namespace`.
+The CLI `--package` option remains useful for ordinary compiled programs, while reusable class identity in source is expressed with `namespace`.
 
 That `namespace` model should also extend naturally to multi-file libraries: several source files may contribute to the same reusable library identity when they are compiled together and agree on the same `namespace`.
 
