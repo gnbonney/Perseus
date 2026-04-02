@@ -367,8 +367,8 @@ uses a few focused support classes.
       `sqrt`, `sin`, `cos`, `arctan`, `ln`, `exp`, `maxreal`, `minreal`,
       `maxint`, and `epsilon`.
 - `perseus.text.Strings`
-  - String-oriented helpers such as `length`, plus a natural home for future
-    standard string support.
+  - String-oriented helpers such as `length`, `concat`, and `substring`, plus a natural home for future
+      standard string support.
 - `perseus.io.Channels`
   - Channel registry, standard stream bindings, and the lower-level runtime
     support behind file and string channels.

@@ -756,6 +756,8 @@ public class CodeGenerator extends PerseusBaseListener {
         if (procRetvalSlot >= 0) {
             if ("real".equals(info.returnType) || "deferred".equals(info.returnType)) {
                 activeOutput.append("dconst_0\n"); emitStore("dstore", procRetvalSlot);
+            } else if ("string".equals(info.returnType)) {
+                activeOutput.append("ldc \"\"\n"); emitStore("astore", procRetvalSlot);
             } else {
                 activeOutput.append("iconst_0\n"); emitStore("istore", procRetvalSlot);
             }
@@ -3342,7 +3344,35 @@ public class CodeGenerator extends PerseusBaseListener {
     private String generateMemberInvocation(String receiverName, String memberName,
             List<PerseusParser.ArgContext> args, boolean isStatement) {
         String receiverType = lookupVarType(receiverName);
-        if (receiverType == null || !receiverType.startsWith("ref:")) {
+        if (receiverType == null) {
+            return "; ERROR: member call requires typed receiver " + receiverName + "\n";
+        }
+        if ("string".equals(receiverType)) {
+            Method javaMethod = findJavaMethod("java.lang.String", memberName, args);
+            if (javaMethod == null) {
+                return "; ERROR: unknown string member java.lang.String." + memberName + "\n";
+            }
+            StringBuilder sb = new StringBuilder();
+            sb.append(generateLoadVar(receiverName));
+            StringBuilder desc = new StringBuilder("(");
+            Class<?>[] parameterTypes = javaMethod.getParameterTypes();
+            for (int i = 0; i < args.size(); i++) {
+                PerseusParser.ExprContext argExpr = args.get(i).expr();
+                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                sb.append(generateExpr(argExpr));
+                if (parameterTypes[i] == double.class && "integer".equals(argType)) {
+                    sb.append("i2d\n");
+                }
+                desc.append(toJvmDescriptor(parameterTypes[i]));
+            }
+            desc.append(")").append(toJvmDescriptor(javaMethod.getReturnType()));
+            sb.append("invokevirtual java/lang/String/").append(memberName).append(desc).append("\n");
+            if (isStatement && javaMethod.getReturnType() != void.class) {
+                sb.append(javaMethod.getReturnType() == double.class ? "pop2\n" : "pop\n");
+            }
+            return sb.toString();
+        }
+        if (!receiverType.startsWith("ref:")) {
             return "; ERROR: member call requires object reference " + receiverName + "\n";
         }
         String objectClass = receiverType.substring("ref:".length());

@@ -393,21 +393,23 @@ end
 	assertFalse(jasminSource.startsWith("ERROR"),
 		"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
-	// Should use String.length() for length(s)
-	assertTrue(jasminSource.contains("invokevirtual java/lang/String/length()I"),
-		"Should use String.length() for length(s)");
+	// Should use Strings.length() for builtin length(s)
+	assertTrue(jasminSource.contains("invokestatic perseus/text/Strings/length(Ljava/lang/String;)I"),
+		"Should use Strings.length() for length(s)");
 
-	// Should use String.substring for s[i] access and substring()
+	// Should use Strings.substring() for builtin substring(), and String.substring() for character access.
+	assertTrue(jasminSource.contains("invokestatic perseus/text/Strings/substring(Ljava/lang/String;II)Ljava/lang/String;"),
+		"Should use Strings.substring() for substring()");
 	assertTrue(jasminSource.contains("invokevirtual java/lang/String/substring(II)Ljava/lang/String;"),
-		"Should use String.substring(II) for character access and substring()");
+		"Should use String.substring(II) for character access");
 
 	// Should use StringBuilder for s[i] := mutation
 	assertTrue(jasminSource.contains("invokevirtual java/lang/StringBuilder/toString()Ljava/lang/String;"),
 		"Should use StringBuilder.toString() for character mutation");
 
-	// Should use String.concat for concat()
-	assertTrue(jasminSource.contains("invokevirtual java/lang/String/concat(Ljava/lang/String;)Ljava/lang/String;"),
-		"Should use String.concat() for concat()");
+	// Should use Strings.concat for concat()
+	assertTrue(jasminSource.contains("invokestatic perseus/text/Strings/concat(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;"),
+		"Should use Strings.concat() for concat()");
 
 	// Assemble to .class
 	PerseusCompiler.assemble(jasminFile, BUILD_DIR);

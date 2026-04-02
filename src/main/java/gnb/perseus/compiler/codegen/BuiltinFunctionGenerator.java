@@ -160,7 +160,7 @@ public class BuiltinFunctionGenerator {
             case "length":
                 // length(s) → s.length()
                 sb.append(exprCodeGen.apply(argExpr));
-                sb.append("invokevirtual java/lang/String/length()I\n");
+                sb.append("invokestatic perseus/text/Strings/length(Ljava/lang/String;)I\n");
                 return sb.toString();
 
             case "concat": {
@@ -168,7 +168,7 @@ public class BuiltinFunctionGenerator {
                 PerseusParser.ExprContext s2Expr = ctx.argList().arg().get(1).expr();
                 sb.append(exprCodeGen.apply(argExpr));
                 sb.append(exprCodeGen.apply(s2Expr));
-                sb.append("invokevirtual java/lang/String/concat(Ljava/lang/String;)Ljava/lang/String;\n");
+                sb.append("invokestatic perseus/text/Strings/concat(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;\n");
                 return sb.toString();
             }
 
@@ -179,9 +179,8 @@ public class BuiltinFunctionGenerator {
                 PerseusParser.ExprContext endExpr   = ctx.argList().arg().get(2).expr();
                 sb.append(exprCodeGen.apply(argExpr));    // push s
                 sb.append(exprCodeGen.apply(startExpr));  // push start
-                sb.append("iconst_1\n").append("isub\n"); // beginIndex = start - 1
-                sb.append(exprCodeGen.apply(endExpr));    // endIndex = end (Java exclusive)
-                sb.append("invokevirtual java/lang/String/substring(II)Ljava/lang/String;\n");
+                sb.append(exprCodeGen.apply(endExpr));
+                sb.append("invokestatic perseus/text/Strings/substring(Ljava/lang/String;II)Ljava/lang/String;\n");
                 return sb.toString();
             }
 

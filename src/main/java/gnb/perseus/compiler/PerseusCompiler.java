@@ -153,10 +153,6 @@ public class PerseusCompiler {
 				return;
 			}
 		}
-		Path sentinel = outputDir.resolve("perseus").resolve("lang").resolve("MathEnv.class");
-		if (Files.exists(sentinel)) {
-			return;
-		}
 		try {
 			PerseusStdlibBuilder.buildClasses(STDLIB_SOURCE_ROOT, outputDir);
 		} catch (CompilationFailedException e) {

@@ -43,4 +43,22 @@ public class StdlibTest extends CompilerTest {
         assertEquals("-1,2.5,42,3.0,0.0,1.0,0.0,1.0,3,-3", output.trim(),
                 "Builtin math names should work through the automatically provisioned standard environment");
     }
+
+    @Test
+    public void automatic_stdlib_strings_test() throws Exception {
+        Path clientDir = Files.createTempDirectory(BUILD_DIR, "stdlib-strings-client");
+        Path clientJasmin = PerseusCompiler.compileToFile(
+                "test/algol/stdlib/stdlib_strings_client.alg",
+                "gnb/perseus/programs",
+                "StdlibStringsClient",
+                clientDir);
+        PerseusCompiler.assemble(clientJasmin, clientDir);
+
+        assertTrue(Files.exists(clientDir.resolve("perseus/text/Strings.class")),
+                "Normal compilation should provision Strings automatically");
+
+        String output = runClass(clientDir, "gnb.perseus.programs.StdlibStringsClient");
+        assertEquals("13,world,world!", output.trim(),
+                "Builtin string names should work through the automatically provisioned standard environment");
+    }
 }

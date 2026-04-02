@@ -258,7 +258,20 @@ public class TypeInferencer extends PerseusBaseListener {
     @Override
     public void exitMemberCallExpr(PerseusParser.MemberCallExprContext ctx) {
         String receiverType = lookupType(ctx.identifier(0).getText());
-        if (receiverType == null || !receiverType.startsWith("ref:")) {
+        if (receiverType == null) {
+            throw error(ctx, "PERS2008", "Member call requires a typed receiver: " + ctx.getText());
+        }
+        if ("string".equals(receiverType)) {
+            String memberName = ctx.identifier(1).getText();
+            Method javaMethod = findJavaMethod("java.lang.String", memberName,
+                    ctx.argList() != null ? ctx.argList().arg().size() : 0);
+            if (javaMethod != null) {
+                exprTypes.put(ctx, mapJavaType(javaMethod.getReturnType()));
+                return;
+            }
+            throw error(ctx, "PERS2010", "Unknown string member: java.lang.String." + memberName);
+        }
+        if (!receiverType.startsWith("ref:")) {
             throw error(ctx, "PERS2008", "Member call requires an object reference: " + ctx.getText());
         }
         String className = receiverType.substring("ref:".length());

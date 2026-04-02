@@ -89,7 +89,9 @@ All math functions are expression-position calls (function designators) that ret
 | `arctan(E)` | `real procedure arctan(E)` | Returns −π/2 to π/2 |
 | `ln(E)` | `real procedure ln(E)` | The Modified Report (Appendix 2) specifies `fault` if E ≤ 0 |
 | `exp(E)` | `real procedure exp(E)` | |
-| `length(str)` | `integer procedure length(str)` | **Extension.** Returns the number of characters in `str` |
+| `length(str)` | `integer procedure length(str)` | From the Modified Report string support. Returns the number of characters in `str` |
+| `concat(a, b)` | `string procedure concat(a, b)` | **Extension.** Concatenates two strings |
+| `substring(str, i, j)` | `string procedure substring(str, i, j)` | **Extension.** Returns a substring using Perseus string indexing rules |
 
 ---
 

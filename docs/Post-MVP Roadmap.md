@@ -112,7 +112,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Define the shape of the always-available standard environment / prelude
 - [x] Create a dedicated stdlib source tree under `src/main/perseus/stdlib`
 - [ ] Move the Modified Report numeric procedures and constants into compiled support such as `MathEnv`
-- [ ] Move string-oriented support such as `length` into a compiled helper such as `Strings`
+- [x] Move string-oriented support such as `length`, `concat`, and `substring` into a compiled helper such as `Strings`
 - [ ] Move output-side environmental procedures into compiled support such as `TextOutput`
 - [ ] Move input-side environmental procedures into compiled support such as `TextInput`
 - [ ] Add channel/runtime support classes such as `Channels` where implementation-heavy environmental features need them
@@ -137,10 +137,14 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Current Milestone 35 slice:**
 - `MathEnv` now covers `abs`, `iabs`, `sign`, `entier`, `sqrt`, `sin`, `cos`, `arctan`, `ln`, and `exp`.
+- `Strings` now covers `length`, `concat`, and `substring`.
 - The typed procedure return-assignment coercion needed for integer-valued wrappers such as `entier` is implemented.
-- The standard environment is now provisioned automatically for normal compilation, and the migrated math builtins route through `MathEnv` rather than directly to `java.lang.Math`.
+- The standard environment is now provisioned automatically for normal compilation, and the migrated math and string builtins route through `MathEnv` and `Strings` rather than directly to Java library calls.
 - The stdlib source tree, Gradle compile task, and stdlib jar packaging are in place.
 - The remaining Modified Report work in this milestone is the numeric constants and the non-math environment classes listed above.
+
+**Perseus string extensions:**
+- `perseus.text.Strings` will also be the natural home for Perseus-specific string helpers such as `concat` and `substring`, even though they are not part of the Modified Report inventory.
 
 **Suggested order:**
 1. `src/main/perseus/stdlib`

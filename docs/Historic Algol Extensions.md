@@ -1,6 +1,6 @@
 # Algol Extensions
 
-Algol 60 left much to the imagination of compiler-writers.  Notably, it lacked any standard i/o procedures until the 1976 Modified Report.  It also lacked string variables.  Below is a list of Algol compilers with some of the extensions they implemented.  All of them have their own incompatible i/o procedures developed ahead of the modified standard generally written very specifically for old i/o devices such as punch cards and tapes.
+Algol 60 left much to the imagination of compiler writers. Notably, it had no standard I/O procedures until the 1976 Modified Report. String support was also limited and inconsistent across the language's history: the Modified Report includes a `string` type in some examples, but only specifies a `length` function, not a broader library of helpers such as `substring` or `concat`. As a result, many Algol compilers introduced their own incompatible extensions, especially for I/O. Those systems were often developed before the Modified Report and were frequently tailored to older devices such as punch cards and tapes.
 
 ## Data General Extended Algol
 
