@@ -392,6 +392,28 @@ implementation to group related runtime concerns together. It also fits the
 current class and `namespace` work better than leaving the environmental block
 as a large hardcoded compiler special case.
 
+The standard-environment source belongs under:
+
+- `src/main/perseus/stdlib`
+
+with subdirectories that mirror the logical runtime structure, for example:
+
+- `src/main/perseus/stdlib/perseus/env`
+- `src/main/perseus/stdlib/perseus/lang`
+- `src/main/perseus/stdlib/perseus/text`
+- `src/main/perseus/stdlib/perseus/io`
+- `src/main/perseus/stdlib/perseus/runtime`
+
+The build uses the Perseus compiler itself to compile this source tree and
+produce a separate standard-library artifact. The intended build products are:
+
+- compiled classes under a dedicated output directory such as `build/perseus-stdlib/classes`
+- a separate jar such as `build/libs/perseus-stdlib.jar`
+
+That keeps the standard environment as real Perseus code, makes it testable in
+its own right, and avoids baking the whole environmental block permanently into
+the Java compiler implementation.
+
 
 ## Compiling Perseus Source to Jasmin
 

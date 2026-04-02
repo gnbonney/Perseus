@@ -608,8 +608,12 @@ public class PerseusCompiler {
 				if (root == null) {
 					continue;
 				}
-				Path compiledClass = root.resolve(className.replace('.', java.io.File.separatorChar) + ".class");
-				if (Files.exists(compiledClass)) {
+				if (Files.isDirectory(root)) {
+					urls.add(root.toUri().toURL());
+					continue;
+				}
+				String fileName = root.getFileName() != null ? root.getFileName().toString().toLowerCase() : "";
+				if (Files.isRegularFile(root) && fileName.endsWith(".jar")) {
 					urls.add(root.toUri().toURL());
 				}
 			}

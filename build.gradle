@@ -79,3 +79,14 @@ task compilePerseus(type: JavaExec) {
         }
     }
 }
+
+task buildPerseusStdlib(type: JavaExec) {
+    classpath = files(sourceSets.main.runtimeClasspath)
+    mainClass = 'gnb.tools.PerseusStdlibBuilder'
+
+    def sourceRoot = project.hasProperty('stdlibSourceRoot') ? project.stdlibSourceRoot : 'src/main/perseus/stdlib'
+    def classOutputDir = project.hasProperty('stdlibOutputDir') ? project.stdlibOutputDir : 'build/perseus-stdlib/classes'
+    def jarFile = project.hasProperty('stdlibJarFile') ? project.stdlibJarFile : 'build/libs/perseus-stdlib.jar'
+
+    args sourceRoot, classOutputDir, jarFile
+}

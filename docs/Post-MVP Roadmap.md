@@ -110,25 +110,48 @@ The milestones below collect follow-on work that was intentionally deferred whil
 **Goal:** Move more of the environmental block out of compiler hardcoding and into a real always-available compiled standard environment.
 
 - [ ] Define the shape of the always-available standard environment / prelude
+- [x] Create a dedicated stdlib source tree under `src/main/perseus/stdlib`
 - [ ] Introduce a thin `StandardEnv` facade for the environmental block surface
-- [ ] Move the simpler math/environment procedures and constants into compiled support such as `MathEnv`
+- [ ] Move the Modified Report numeric procedures and constants into compiled support such as `MathEnv`
 - [ ] Move string-oriented support such as `length` into a compiled helper such as `Strings`
 - [ ] Move output-side environmental procedures into compiled support such as `TextOutput`
 - [ ] Move input-side environmental procedures into compiled support such as `TextInput`
 - [ ] Add channel/runtime support classes such as `Channels` where implementation-heavy environmental features need them
 - [ ] Move runtime control helpers such as `fault` and possibly `stop` into a compiled runtime helper such as `Faults` where practical
+- [x] Add a Gradle task that compiles the stdlib source tree with the Perseus compiler itself
+- [x] Package the compiled standard environment as a separate jar such as `build/libs/perseus-stdlib.jar`
 - [ ] Decide which environmental identifiers remain true compiler intrinsics after that split
 - [ ] Ensure the standard environment is automatically available to all Perseus programs without explicit imports
 - [ ] Add tests showing that migrated environmental procedures work through the compiled standard environment rather than only through compiler-recognized names
 
+**Modified Report inventory:**
+- `perseus.lang.MathEnv`
+  - `abs`, `iabs`, `sign`, `entier`, `sqrt`, `sin`, `cos`, `arctan`, `ln`, `exp`, `maxreal`, `minreal`, `maxint`, `epsilon`
+- `perseus.text.Strings`
+  - `length`
+- `perseus.io.TextInput`
+  - `inchar`, `ininteger`, `inreal`
+- `perseus.io.TextOutput`
+  - `outchar`, `outstring`, `outterminator`, `outinteger`, `outreal`
+- `perseus.runtime.Faults`
+  - `stop`, `fault`
+
+**Current Milestone 35 slice:**
+- `MathEnv` exists as a very small first slice with `abs` and `sign`.
+- The stdlib source tree, Gradle compile task, and stdlib jar packaging are in place.
+- The remaining Modified Report procedures and constants still need to be moved into the compiled environment classes listed above.
+
 **Suggested order:**
-1. `StandardEnv`
-2. `MathEnv`
-3. `Strings`
-4. `TextOutput`
-5. `TextInput`
-6. `Channels`
-7. `Faults`
+1. `src/main/perseus/stdlib`
+2. `StandardEnv`
+3. `MathEnv`
+4. `Strings`
+5. `TextOutput`
+6. `TextInput`
+7. `Channels`
+8. `Faults`
+9. Gradle stdlib compile task
+10. `perseus-stdlib.jar`
 
 ## Milestone 36 - Dynamic Channels and Formatted I/O Follow-On
 
