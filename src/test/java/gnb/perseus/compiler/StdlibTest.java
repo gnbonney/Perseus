@@ -35,7 +35,7 @@ public class StdlibTest extends CompilerTest {
         PerseusCompiler.assemble(clientJasmin, clientDir);
 
         String output = runClassWithClasspath(clientDir, "gnb.perseus.programs.StdlibMathClient", stdlibJar);
-        assertEquals("-1,2.5", output.trim(),
-                "A client should be able to call a compiled stdlib unit packaged as a jar");
+        assertEquals("-1,2.5,3.0,0.0,1.0,0.0,1.0", output.trim(),
+                "A client should be able to call a broader compiled MathEnv unit packaged as a jar");
     }
 }
