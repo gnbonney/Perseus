@@ -216,10 +216,12 @@ public class StatementGenerator implements GeneratorDelegate {
         
         // Handle built-ins first (Simplified for now)
         if ("outstring".equals(name) || "outreal".equals(name) || "outinteger".equals(name)) {
-            sb.append("getstatic java/lang/System/out Ljava/io/PrintStream;\n")
+            sb.append(exprGen.generateExpr(args.get(0).expr()))
                         .append(exprGen.generateExpr(args.get(args.size()-1).expr()))
-                        .append("invokevirtual java/io/PrintStream/print(")
-                        .append(name.equals("outstring") ? "Ljava/lang/String;" : name.equals("outreal") ? "D" : "I")
+                        .append("invokestatic perseus/io/TextOutput/")
+                        .append(name)
+                        .append("(")
+                        .append(name.equals("outstring") ? "ILjava/lang/String;" : name.equals("outreal") ? "ID" : "II")
                         .append(")V\n");
         } else {
             String varType = context.getSymbolTable().get(name);

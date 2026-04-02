@@ -10,6 +10,7 @@ import java.util.List;
 public class CompilerTest {
 
     static final Path BUILD_DIR = Paths.get("build/test-algol");
+    record ProcessResult(String stdout, String stderr, int exitCode) {}
 
     static String runClass(Path classDir, String className) throws Exception {
     	List<String> cmd = java.util.Arrays.asList("java", "-cp", classDir.toString(), className);
@@ -28,6 +29,24 @@ public class CompilerTest {
     	System.out.println("runClass: exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
     	assertEquals(0, exitCode, "Process failed for " + className + ": exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
     	return stdout;
+    }
+
+    static ProcessResult runClassCapture(Path classDir, String className) throws Exception {
+        List<String> cmd = java.util.Arrays.asList("java", "-cp", classDir.toString(), className);
+        System.out.println("runClassCapture: " + cmd);
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        pb.redirectErrorStream(false);
+        Process p = pb.start();
+        p.getOutputStream().close();
+        String stdout;
+        String stderr;
+        try (var out = p.getInputStream(); var err = p.getErrorStream()) {
+            stdout = new String(out.readAllBytes());
+            stderr = new String(err.readAllBytes());
+        }
+        int exitCode = p.waitFor();
+        System.out.println("runClassCapture: exit=" + exitCode + " stdout=[" + stdout + "] stderr=[" + stderr + "]");
+        return new ProcessResult(stdout, stderr, exitCode);
     }
 
     static String runClassWithClasspath(Path classDir, String className, Path extraClassDir) throws Exception {

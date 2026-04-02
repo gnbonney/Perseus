@@ -32,6 +32,7 @@ public final class PerseusStdlibBuilder {
 
     public static void buildClasses(Path sourceRoot, Path classOutputDir) throws Exception {
         Files.createDirectories(classOutputDir);
+        copyRuntimeSupportClass("gnb/perseus/runtime/TextOutputSupport.class", classOutputDir);
 
         List<Path> sources = collectSources(sourceRoot);
         if (sources.isEmpty()) {
@@ -88,6 +89,19 @@ public final class PerseusStdlibBuilder {
             }
         }
         return result.isEmpty() ? "Program" : result.toString();
+    }
+
+    private static void copyRuntimeSupportClass(String resourceName, Path classOutputDir) throws IOException {
+        try (InputStream in = PerseusStdlibBuilder.class.getClassLoader().getResourceAsStream(resourceName)) {
+            if (in == null) {
+                throw new IOException("Runtime support class not found on the build classpath: " + resourceName);
+            }
+            Path target = classOutputDir.resolve(resourceName.replace('/', java.io.File.separatorChar));
+            if (target.getParent() != null) {
+                Files.createDirectories(target.getParent());
+            }
+            Files.copy(in, target, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
     }
 
     private static void createJar(Path classRoot, Path jarFile) throws IOException {

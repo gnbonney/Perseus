@@ -1374,13 +1374,14 @@ public class CodeGenerator extends PerseusBaseListener {
                 this::lookupVarType, this::staticFieldName)) {
             return;
         } else if ("outchar".equals(name)) {
-            // outchar(channel, str, position) - outputs character at position in string
-            String stream = getChannelStream(args.get(0));
-            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
-                        .append("ldc ").append(args.get(1).getText()).append("\n")
+            if (args.size() > 0 && args.get(0).expr() != null) {
+                activeOutput.append(generateExpr(args.get(0).expr()));
+            } else {
+                activeOutput.append("iconst_1\n");
+            }
+            activeOutput.append(generateExpr(args.get(1).expr()))
                         .append(generateExpr(args.get(2).expr()))
-                        .append("invokevirtual java/lang/String/charAt(I)C\n")
-                        .append("invokevirtual java/io/PrintStream/print(C)V\n");
+                        .append("invokestatic perseus/io/TextOutput/outchar(ILjava/lang/String;I)V\n");
         } else if ("ininteger".equals(name)) {
             // ininteger(channel, var) - reads an integer from System.in and stores in var
             PerseusParser.ExprContext varExpr = args.get(1).expr();
@@ -3457,7 +3458,7 @@ public class CodeGenerator extends PerseusBaseListener {
                           .append(info.paramNames.get(ai)).append("\n");
                     }
                 }
-                String argType = exprTypes.getOrDefault(arg.expr(), "integer");
+                String argType = getExprBaseType(arg.expr());
                 if ("real".equals(paramType) && "integer".equals(argType)) {
                     sb.append("i2d\n");
                 }
@@ -3526,6 +3527,10 @@ public class CodeGenerator extends PerseusBaseListener {
         }
         if (expr instanceof PerseusParser.VarExprContext ve) {
             String name = ve.identifier().getText();
+            String varType = lookupVarType(name);
+            if (varType != null) {
+                return varType.startsWith("thunk:") ? varType.substring("thunk:".length()) : varType;
+            }
             SymbolTableBuilder.ProcInfo procInfo = procedures.get(name);
             if (procInfo != null) {
                 return procInfo.returnType;

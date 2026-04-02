@@ -30,8 +30,8 @@ public class CoreLanguageTest extends CompilerTest{
 				"Output should declare the correct class");
 		assertTrue(jasminSource.contains(".method public static main([Ljava/lang/String;)V"),
 				"Output should declare a main method");
-		assertTrue(jasminSource.contains("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V"),
-				"Output should emit outstring call");
+		assertTrue(jasminSource.contains("invokestatic perseus/io/TextOutput/outstring(ILjava/lang/String;)V"),
+				"Output should emit outstring through the compiled TextOutput unit");
 
 		// Assemble to .class
 		PerseusCompiler.assemble(jasminFile, BUILD_DIR);

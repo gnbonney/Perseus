@@ -61,4 +61,22 @@ public class StdlibTest extends CompilerTest {
         assertEquals("13,world,world!", output.trim(),
                 "Builtin string names should work through the automatically provisioned standard environment");
     }
+
+    @Test
+    public void automatic_stdlib_textoutput_test() throws Exception {
+        Path clientDir = Files.createTempDirectory(BUILD_DIR, "stdlib-textoutput-client");
+        Path clientJasmin = PerseusCompiler.compileToFile(
+                "test/algol/stdlib/stdlib_textoutput_client.alg",
+                "gnb/perseus/programs",
+                "StdlibTextOutputClient",
+                clientDir);
+        PerseusCompiler.assemble(clientJasmin, clientDir);
+
+        assertTrue(Files.exists(clientDir.resolve("perseus/io/TextOutput.class")),
+                "Normal compilation should provision TextOutput automatically");
+
+        String output = runClass(clientDir, "gnb.perseus.programs.StdlibTextOutputClient");
+        assertEquals("42 3.5 Hello o", output.trim(),
+                "Builtin output names should work through the automatically provisioned TextOutput unit");
+    }
 }

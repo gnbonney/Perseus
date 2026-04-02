@@ -390,13 +390,13 @@ public class ClassGenerator {
         String name = call.identifier().getText();
         List<PerseusParser.ArgContext> args = call.argList() != null ? call.argList().arg() : List.of();
         if ("outstring".equals(name) && args.size() == 2) {
-            return generatePrintCall(cls, method, args.get(1).expr(), localSlots, returnSlot, "string");
+            return generateTextOutputCall(cls, method, args.get(0).expr(), args.get(1).expr(), localSlots, returnSlot, "outstring", "ILjava/lang/String;");
         }
         if ("outinteger".equals(name) && args.size() == 2) {
-            return generatePrintCall(cls, method, args.get(1).expr(), localSlots, returnSlot, "integer");
+            return generateTextOutputCall(cls, method, args.get(0).expr(), args.get(1).expr(), localSlots, returnSlot, "outinteger", "II");
         }
         if ("outreal".equals(name) && args.size() == 2) {
-            return generatePrintCall(cls, method, args.get(1).expr(), localSlots, returnSlot, "real");
+            return generateTextOutputCall(cls, method, args.get(0).expr(), args.get(1).expr(), localSlots, returnSlot, "outreal", "ID");
         }
 
         SymbolTableBuilder.MethodInfo classMethod = findMethodInHierarchy(cls, name);
@@ -466,6 +466,17 @@ public class ClassGenerator {
         } else {
             sb.append("invokevirtual java/io/PrintStream/print(I)V\n");
         }
+        return sb.toString();
+    }
+
+    private String generateTextOutputCall(SymbolTableBuilder.ClassInfo cls, SymbolTableBuilder.MethodInfo method,
+            PerseusParser.ExprContext channelExpr, PerseusParser.ExprContext valueExpr, Map<String, Integer> localSlots,
+            int returnSlot, String methodName, String descriptor) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(generateClassExpr(cls, method, channelExpr, localSlots, returnSlot));
+        sb.append(generateClassExpr(cls, method, valueExpr, localSlots, returnSlot));
+        sb.append("invokestatic perseus/io/TextOutput/").append(methodName)
+          .append("(").append(descriptor).append(")V\n");
         return sb.toString();
     }
 

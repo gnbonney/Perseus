@@ -48,7 +48,7 @@ public class ChannelIOGenerator {
                     currentLocalIndex, staticFieldName, allocateNewLocal);
             case "outinteger" -> emitOutInteger(args, activeOutput, generateExpr, getChannelStream, lookupVarType,
                     currentLocalIndex, staticFieldName, allocateNewLocal);
-            case "outterminator" -> emitOutTerminator(args, activeOutput, getChannelStream, lookupVarType,
+            case "outterminator" -> emitOutTerminator(args, activeOutput, generateExpr, getChannelStream, lookupVarType,
                     currentLocalIndex, staticFieldName, allocateNewLocal);
             case "outformat" -> emitOutformat(args, activeOutput, generateExpr, exprTypeResolver, getChannelStream,
                     lookupVarType, currentLocalIndex, staticFieldName, allocateNewLocal);
@@ -275,10 +275,9 @@ public class ChannelIOGenerator {
         if (!emitStringOrFileOutput(channelArg, "Ljava/lang/String;",
                 generateExpr.apply(args.get(args.size() - 1).expr()), activeOutput, lookupVarType, currentLocalIndex,
                 staticFieldName, allocateNewLocal)) {
-            String stream = getChannelStream.apply(channelArg);
-            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
-                    .append(generateExpr.apply(args.get(args.size() - 1).expr()))
-                    .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
+            appendChannelValue(channelArg, activeOutput, generateExpr);
+            activeOutput.append(generateExpr.apply(args.get(args.size() - 1).expr()))
+                    .append("invokestatic perseus/io/TextOutput/outstring(ILjava/lang/String;)V\n");
         }
         return true;
     }
@@ -294,10 +293,9 @@ public class ChannelIOGenerator {
         if (!emitStringOrFileOutput(channelArg, "D",
                 generateExpr.apply(args.get(args.size() - 1).expr()), activeOutput, lookupVarType, currentLocalIndex,
                 staticFieldName, allocateNewLocal)) {
-            String stream = getChannelStream.apply(channelArg);
-            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
-                    .append(generateExpr.apply(args.get(args.size() - 1).expr()))
-                    .append("invokevirtual java/io/PrintStream/print(D)V\n");
+            appendChannelValue(channelArg, activeOutput, generateExpr);
+            activeOutput.append(generateExpr.apply(args.get(args.size() - 1).expr()))
+                    .append("invokestatic perseus/io/TextOutput/outreal(ID)V\n");
         }
         return true;
     }
@@ -313,15 +311,15 @@ public class ChannelIOGenerator {
         if (!emitStringOrFileOutput(channelArg, "I",
                 generateExpr.apply(args.get(args.size() - 1).expr()), activeOutput, lookupVarType, currentLocalIndex,
                 staticFieldName, allocateNewLocal)) {
-            String stream = getChannelStream.apply(channelArg);
-            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
-                    .append(generateExpr.apply(args.get(args.size() - 1).expr()))
-                    .append("invokevirtual java/io/PrintStream/print(I)V\n");
+            appendChannelValue(channelArg, activeOutput, generateExpr);
+            activeOutput.append(generateExpr.apply(args.get(args.size() - 1).expr()))
+                    .append("invokestatic perseus/io/TextOutput/outinteger(II)V\n");
         }
         return true;
     }
 
     private boolean emitOutTerminator(List<PerseusParser.ArgContext> args, StringBuilder activeOutput,
+            Function<PerseusParser.ExprContext, String> generateExpr,
             Function<PerseusParser.ArgContext, String> getChannelStream,
             Function<String, String> lookupVarType,
             Map<String, Integer> currentLocalIndex,
@@ -330,12 +328,19 @@ public class ChannelIOGenerator {
         PerseusParser.ArgContext channelArg = args.size() > 0 ? args.get(0) : null;
         if (!emitStringOrFileOutput(channelArg, "Ljava/lang/String;", "ldc \" \"\n", activeOutput, lookupVarType,
                 currentLocalIndex, staticFieldName, allocateNewLocal)) {
-            String stream = getChannelStream.apply(channelArg);
-            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
-                    .append("ldc \" \"\n")
-                    .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
+            appendChannelValue(channelArg, activeOutput, generateExpr);
+            activeOutput.append("invokestatic perseus/io/TextOutput/outterminator(I)V\n");
         }
         return true;
+    }
+
+    private void appendChannelValue(PerseusParser.ArgContext channelArg, StringBuilder activeOutput,
+            Function<PerseusParser.ExprContext, String> generateExpr) {
+        if (channelArg == null || channelArg.expr() == null) {
+            activeOutput.append("iconst_1\n");
+            return;
+        }
+        activeOutput.append(generateExpr.apply(channelArg.expr()));
     }
 
     private boolean emitOutformat(List<PerseusParser.ArgContext> args, StringBuilder activeOutput,

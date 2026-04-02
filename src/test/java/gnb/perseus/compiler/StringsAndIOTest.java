@@ -145,15 +145,14 @@ end
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
         
-        // Verify outchar generates String.charAt invocation
-        assertTrue(jasminSource.contains("invokevirtual java/lang/String/charAt(I)C"),
-                "Should generate String.charAt for outchar");
-        
-        // Verify outterminator and outinteger generate PrintStream.print
-        assertTrue(jasminSource.contains("invokevirtual java/io/PrintStream/print(I)V"),
-                "Should generate PrintStream.print(I) for outinteger");
-        assertTrue(jasminSource.contains("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V"),
-                "Should generate PrintStream.print(String) for outterminator");
+        assertTrue(jasminSource.contains("invokestatic perseus/io/TextOutput/outinteger(II)V"),
+                "Should call TextOutput.outinteger");
+        assertTrue(jasminSource.contains("invokestatic perseus/io/TextOutput/outterminator(I)V"),
+                "Should call TextOutput.outterminator");
+        assertTrue(jasminSource.contains("invokestatic perseus/io/TextOutput/outreal(ID)V"),
+                "Should call TextOutput.outreal");
+        assertTrue(jasminSource.contains("invokestatic perseus/io/TextOutput/outchar(ILjava/lang/String;I)V"),
+                "Should call TextOutput.outchar");
     }
 
     @Test
@@ -173,31 +172,24 @@ end
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error");
         
-        // Verify channel 0 generates System.err references
-        assertTrue(jasminSource.contains("getstatic java/lang/System/err Ljava/io/PrintStream;"),
-                "Channel 0 should use System.err");
-        
-        // Verify channel 1 generates System.out references
-        assertTrue(jasminSource.contains("getstatic java/lang/System/out Ljava/io/PrintStream;"),
-                "Channel 1 should use System.out");
-        
-        // Count occurrences to ensure proper stream selection
-        int errCount = countOccurrences(jasminSource, "getstatic java/lang/System/err");
-        int outCount = countOccurrences(jasminSource, "getstatic java/lang/System/out");
-        
-        // We have 5 channel 0 calls and 5 channel 1 calls in the test
-        assertEquals(5, errCount, "Should have 5 System.err references for channel 0");
-        assertEquals(5, outCount, "Should have 5 System.out references for channel 1");
-    }
+        assertTrue(jasminSource.contains("invokestatic perseus/io/TextOutput/outstring(ILjava/lang/String;)V"),
+                "Channel-aware outstring calls should route through TextOutput");
+        assertTrue(jasminSource.contains("invokestatic perseus/io/TextOutput/outinteger(II)V"),
+                "Channel-aware outinteger calls should route through TextOutput");
+        assertTrue(jasminSource.contains("invokestatic perseus/io/TextOutput/outreal(ID)V"),
+                "Channel-aware outreal calls should route through TextOutput");
+        assertTrue(jasminSource.contains("invokestatic perseus/io/TextOutput/outchar(ILjava/lang/String;I)V"),
+                "Channel-aware outchar calls should route through TextOutput");
+        assertTrue(jasminSource.contains("invokestatic perseus/io/TextOutput/outterminator(I)V"),
+                "Channel-aware outterminator calls should route through TextOutput");
 
-    private int countOccurrences(String text, String substring) {
-        int count = 0;
-        int index = 0;
-        while ((index = text.indexOf(substring, index)) != -1) {
-            count++;
-            index += substring.length();
-        }
-        return count;
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+        ProcessResult result = runClassCapture(BUILD_DIR, "gnb.perseus.programs.ChannelTest");
+        assertEquals(0, result.exitCode(), "channel_test should run successfully");
+        assertEquals("INFO: This goes to stdout992.71Y ", result.stdout(),
+                "Channel 1 output should be written to stdout");
+        assertEquals("ERROR: This goes to stderr423.14A ", result.stderr(),
+                "Channel 0 output should be written to stderr");
     }
 
     @Test

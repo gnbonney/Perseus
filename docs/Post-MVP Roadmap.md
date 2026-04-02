@@ -113,7 +113,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Create a dedicated stdlib source tree under `src/main/perseus/stdlib`
 - [ ] Move the Modified Report numeric procedures and constants into compiled support such as `MathEnv`
 - [x] Move string-oriented support such as `length`, `concat`, and `substring` into a compiled helper such as `Strings`
-- [ ] Move output-side environmental procedures into compiled support such as `TextOutput`
+- [x] Move output-side environmental procedures into compiled support such as `TextOutput`
 - [ ] Move input-side environmental procedures into compiled support such as `TextInput`
 - [ ] Add channel/runtime support classes such as `Channels` where implementation-heavy environmental features need them
 - [ ] Move runtime control helpers such as `fault` and possibly `stop` into a compiled runtime helper such as `Faults` where practical
@@ -138,10 +138,12 @@ The milestones below collect follow-on work that was intentionally deferred whil
 **Current Milestone 35 slice:**
 - `MathEnv` now covers `abs`, `iabs`, `sign`, `entier`, `sqrt`, `sin`, `cos`, `arctan`, `ln`, and `exp`.
 - `Strings` now covers `length`, `concat`, and `substring`.
+- `TextOutput` now covers `outchar`, `outstring`, `outterminator`, `outinteger`, and `outreal`.
 - The typed procedure return-assignment coercion needed for integer-valued wrappers such as `entier` is implemented.
 - The standard environment is now provisioned automatically for normal compilation, and the migrated math and string builtins route through `MathEnv` and `Strings` rather than directly to Java library calls.
+- The migrated output procedures now route through `perseus.io.TextOutput`, with a small Java runtime helper handling the current JVM stream dispatch details behind that compiled stdlib unit.
 - The stdlib source tree, Gradle compile task, and stdlib jar packaging are in place.
-- The remaining Modified Report work in this milestone is the numeric constants and the non-math environment classes listed above.
+- The remaining Modified Report work in this milestone is the numeric constants and the input/runtime environment classes listed above.
 
 **Perseus string extensions:**
 - `perseus.text.Strings` will also be the natural home for Perseus-specific string helpers such as `concat` and `substring`, even though they are not part of the Modified Report inventory.
@@ -276,6 +278,25 @@ These milestones are not just deferred implementation cleanup. They represent la
 - This work is intentionally separated from Milestone 32 because it depends on a stabilized thunk ABI rather than the first external procedure slice
 - The strongest motivation is historical Algol library translation, not general JVM-facing library design
 - Public JVM-facing reuse should prefer value-oriented Perseus classes and methods where possible, while external call-by-name remains a narrower compatibility feature
+
+## Milestone 46 - Java API Interop Follow-On
+
+**Goal:** Extend Perseus Java interop beyond static methods and first-slice object calls so ordinary Java APIs can be used more directly without helper bridge classes.
+
+- [ ] Add source-level support for external Java static fields such as `java.lang.System.out`
+- [ ] Add object-valued external bindings so imported Java values can be named and reused in Perseus source
+- [ ] Allow chaining instance calls through imported Java values and field lookups
+- [ ] Improve overloaded-method resolution so Java calls are selected by argument types rather than only by name and arity
+- [ ] Improve overloaded-constructor resolution for `new` calls against external Java classes
+- [ ] Add source-level support for external Java instance fields where direct field access is the right interop surface
+- [ ] Decide how Java constants and enum-like static members should be exposed in Perseus source
+- [ ] Improve diagnostics for ambiguous or unsupported Java overloads and member lookups
+- [ ] Add regression tests around `System.out` / `System.err`, `PrintStream`, overloaded methods, overloaded constructors, and chained Java member calls
+
+**Implementation notes:**
+- This milestone grows out of concrete friction discovered while moving `TextOutput` into the compiled standard environment.
+- The current need for bridge helpers such as `gnb.perseus.runtime.TextOutputSupport` is acceptable as a short-term runtime strategy, but it also shows where Perseus Java interop still needs a richer source model.
+- Support for static fields, object-valued bindings, chaining, and stronger overload resolution would make both the standard library and ordinary user-written Java interop code feel much more direct.
 
 ## Toward a General-Purpose Product
 
