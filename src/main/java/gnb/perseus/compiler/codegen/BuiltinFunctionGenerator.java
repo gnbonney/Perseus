@@ -79,65 +79,63 @@ public class BuiltinFunctionGenerator {
             case "sqrt":
                 sb.append(exprCodeGen.apply(argExpr));
                 if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/sqrt(D)D\n");
+                sb.append("invokestatic perseus/lang/MathEnv/sqrt(D)D\n");
                 return sb.toString();
 
             case "abs":
                 sb.append(exprCodeGen.apply(argExpr));
                 if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/abs(D)D\n");
+                sb.append("invokestatic perseus/lang/MathEnv/abs(D)D\n");
                 return sb.toString();
 
             case "iabs":
                 sb.append(exprCodeGen.apply(argExpr));
                 if ("real".equals(argType)) sb.append("d2i\n");
-                sb.append("invokestatic java/lang/Math/abs(I)I\n");
+                sb.append("invokestatic perseus/lang/MathEnv/iabs(I)I\n");
                 return sb.toString();
 
             case "sign":
                 // sign(E) = E > 0 ? 1 : E < 0 ? -1 : 0
                 sb.append(exprCodeGen.apply(argExpr));
                 if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/signum(D)D\n");
-                sb.append("d2i\n");
+                sb.append("invokestatic perseus/lang/MathEnv/sign(D)I\n");
                 return sb.toString();
 
             case "entier":
-                // entier(E) = (int)Math.floor(E)
+                // entier(E) returns the floor of E as an integer value
                 sb.append(exprCodeGen.apply(argExpr));
                 if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/floor(D)D\n");
-                sb.append("d2i\n");
+                sb.append("invokestatic perseus/lang/MathEnv/entier(D)I\n");
                 return sb.toString();
 
             case "sin":
                 sb.append(exprCodeGen.apply(argExpr));
                 if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/sin(D)D\n");
+                sb.append("invokestatic perseus/lang/MathEnv/sin(D)D\n");
                 return sb.toString();
 
             case "cos":
                 sb.append(exprCodeGen.apply(argExpr));
                 if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/cos(D)D\n");
+                sb.append("invokestatic perseus/lang/MathEnv/cos(D)D\n");
                 return sb.toString();
 
             case "arctan":
                 sb.append(exprCodeGen.apply(argExpr));
                 if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/atan(D)D\n");
+                sb.append("invokestatic perseus/lang/MathEnv/arctan(D)D\n");
                 return sb.toString();
 
             case "ln":
                 sb.append(exprCodeGen.apply(argExpr));
                 if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/log(D)D\n");
+                sb.append("invokestatic perseus/lang/MathEnv/ln(D)D\n");
                 return sb.toString();
 
             case "exp":
                 sb.append(exprCodeGen.apply(argExpr));
                 if ("integer".equals(argType)) sb.append("i2d\n");
-                sb.append("invokestatic java/lang/Math/exp(D)D\n");
+                sb.append("invokestatic perseus/lang/MathEnv/exp(D)D\n");
                 return sb.toString();
 
             default:

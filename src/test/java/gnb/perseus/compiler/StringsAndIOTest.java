@@ -87,22 +87,24 @@ end
 		
 		assertFalse(jasminSource.startsWith("ERROR"),
 				"Compilation should not produce an error: " + jasminSource);
-		assertTrue(jasminSource.contains("invokestatic java/lang/Math/sqrt"),
-				"Should call Math.sqrt");
-		assertTrue(jasminSource.contains("invokestatic java/lang/Math/abs"),
-				"Should call Math.abs");
-		assertTrue(jasminSource.contains("invokestatic java/lang/Math/sin"),
-				"Should call Math.sin");
-		assertTrue(jasminSource.contains("invokestatic java/lang/Math/log"),
-				"Should call Math.log for ln");
-		assertTrue(jasminSource.contains("invokestatic java/lang/Math/exp"),
-				"Should call Math.exp");
-		assertTrue(jasminSource.contains("invokestatic java/lang/Math/atan"),
-				"Should call Math.atan for arctan");
-		assertTrue(jasminSource.contains("invokestatic java/lang/Math/floor"),
-				"Should call Math.floor for entier");
-		assertTrue(jasminSource.contains("invokestatic java/lang/Math/signum"),
-				"Should call Math.signum for sign");
+		assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/sqrt"),
+				"Should call MathEnv.sqrt");
+		assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/abs"),
+				"Should call MathEnv.abs");
+		assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/sin"),
+				"Should call MathEnv.sin");
+		assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/ln"),
+				"Should call MathEnv.ln");
+		assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/exp"),
+				"Should call MathEnv.exp");
+		assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/arctan"),
+				"Should call MathEnv.arctan");
+		assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/entier"),
+				"Should call MathEnv.entier");
+		assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/iabs"),
+				"Should call MathEnv.iabs");
+		assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/sign"),
+				"Should call MathEnv.sign");
 
 		// Assemble to .class
 		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
@@ -364,8 +366,8 @@ end
                 "Compilation should not produce an error");
 
         // Verify sqrt call generation
-        assertTrue(jasminSource.contains("invokestatic java/lang/Math/sqrt(D)D"),
-                "Should call Math.sqrt");
+        assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/sqrt(D)D"),
+                "Should call MathEnv.sqrt");
 
         // Assemble and run
         PerseusCompiler.assemble(jasminFile, BUILD_DIR);

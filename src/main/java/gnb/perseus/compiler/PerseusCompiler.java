@@ -2,6 +2,7 @@
 
 package gnb.perseus.compiler;
 
+import gnb.tools.PerseusStdlibBuilder;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -41,6 +42,7 @@ import gnb.perseus.postprocess.FixLimits;
  *   Pass 2 - CodeGenerator: emit Jasmin assembly
  */
 public class PerseusCompiler {
+	private static final Path STDLIB_SOURCE_ROOT = Paths.get("src/main/perseus/stdlib");
 
 	/** Jasmin source for the Thunk interface needed by call-by-name compiled programs. */
 	private static final String THUNK_INTERFACE_JASMIN =
@@ -72,6 +74,15 @@ public class PerseusCompiler {
 
 	public static Path compileToFile(String algolFile, String packageName, String className, Path outputDir,
 			List<Path> externalClassRoots) throws IOException {
+		return compileToFileInternal(algolFile, packageName, className, outputDir, externalClassRoots, true);
+	}
+
+	public static Path compileToFileInternal(String algolFile, String packageName, String className, Path outputDir,
+			List<Path> externalClassRoots, boolean includeStandardEnvironment) throws IOException {
+		Files.createDirectories(outputDir);
+		if (includeStandardEnvironment) {
+			ensureStandardEnvironment(outputDir, algolFile);
+		}
 		// Run the full pipeline so we can access the CodeGenerator for thunk outputs
 		CodeGenerator codegen;
 		try {
@@ -88,7 +99,6 @@ public class PerseusCompiler {
 			String message = "Compilation failed: " + causeText + "\n" + sw.toString();
 			throw new IOException(message, e);
 		}
-		Files.createDirectories(outputDir);
 
 		// Write main .j file
 		Path jasminFile = outputDir.resolve(className + ".j");
@@ -134,6 +144,26 @@ public class PerseusCompiler {
 		}
 
 		return jasminFile;
+	}
+
+	private static void ensureStandardEnvironment(Path outputDir, String algolFile) throws IOException {
+		if (algolFile != null) {
+			Path sourcePath = Paths.get(algolFile).normalize();
+			if (sourcePath.startsWith(STDLIB_SOURCE_ROOT.normalize())) {
+				return;
+			}
+		}
+		Path sentinel = outputDir.resolve("perseus").resolve("lang").resolve("MathEnv.class");
+		if (Files.exists(sentinel)) {
+			return;
+		}
+		try {
+			PerseusStdlibBuilder.buildClasses(STDLIB_SOURCE_ROOT, outputDir);
+		} catch (CompilationFailedException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new IOException("Failed to prepare the standard environment in " + outputDir + ": " + e.getMessage(), e);
+		}
 	}
 
 	public static String detectNamespace(String fileName) throws Exception {
@@ -420,7 +450,8 @@ public class PerseusCompiler {
 			}
 			try {
 				Class<?> owner = loadExternalOwner(info.externalTargetClass, externalClassRoots);
-				ExternalMethodMatch match = findMatchingExternalMethod(owner, procName, info);
+				String targetMethodName = info.externalTargetMethod != null ? info.externalTargetMethod : procName;
+				ExternalMethodMatch match = findMatchingExternalMethod(owner, procName, targetMethodName, info);
 				if (match.method() == null) {
 					diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
 							match.message()));
@@ -477,14 +508,15 @@ public class PerseusCompiler {
 
 	private record ExternalMethodMatch(Method method, String message) {}
 
-	private static ExternalMethodMatch findMatchingExternalMethod(Class<?> owner, String procName, SymbolTableBuilder.ProcInfo info) {
+	private static ExternalMethodMatch findMatchingExternalMethod(Class<?> owner, String procName, String targetMethodName,
+			SymbolTableBuilder.ProcInfo info) {
 		String expectedDescriptor = getExpectedExternalMethodDescriptor(info);
 		Method firstSameName = null;
 		Method sameNameStatic = null;
 		Method sameNameArity = null;
 		Method sameParamsDifferentReturn = null;
 		for (Method method : owner.getMethods()) {
-			if (!method.getName().equals(procName)) {
+			if (!method.getName().equals(targetMethodName)) {
 				continue;
 			}
 			if (firstSameName == null) {
@@ -506,7 +538,7 @@ public class PerseusCompiler {
 				sameParamsDifferentReturn = method;
 			}
 		}
-		String qualifiedName = info.externalTargetClass + "." + procName;
+		String qualifiedName = info.externalTargetClass + "." + targetMethodName;
 		if (sameParamsDifferentReturn != null) {
 			return new ExternalMethodMatch(null,
 					"External procedure " + procName + " resolved in " + info.externalTargetClass

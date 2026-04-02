@@ -353,9 +353,8 @@ Several design constraints have become clear as Perseus has grown to support cal
 
 The compiled standard environment avoids both a single monolithic
 `EnvironmentBlock` class and a one-class-per-procedure design. Instead, Perseus
-uses a small facade plus a few focused support classes.
+uses a few focused support classes.
 
-- `perseus.env.StandardEnv`
 - `perseus.lang.MathEnv`
 - `perseus.text.Strings`
 - `perseus.io.Channels`
@@ -363,13 +362,10 @@ uses a small facade plus a few focused support classes.
 - `perseus.io.TextOutput`
 - `perseus.runtime.Faults`
 
-- `perseus.env.StandardEnv`
-  - Thin facade or prelude surface exposing the standard environmental names
-    expected by Perseus programs.
 - `perseus.lang.MathEnv`
   - Numeric functions and constants such as `abs`, `iabs`, `sign`, `entier`,
-    `sqrt`, `sin`, `cos`, `arctan`, `ln`, `exp`, `maxreal`, `minreal`,
-    `maxint`, and `epsilon`.
+      `sqrt`, `sin`, `cos`, `arctan`, `ln`, `exp`, `maxreal`, `minreal`,
+      `maxint`, and `epsilon`.
 - `perseus.text.Strings`
   - String-oriented helpers such as `length`, plus a natural home for future
     standard string support.
@@ -398,7 +394,6 @@ The standard-environment source belongs under:
 
 with subdirectories that mirror the logical runtime structure, for example:
 
-- `src/main/perseus/stdlib/perseus/env`
 - `src/main/perseus/stdlib/perseus/lang`
 - `src/main/perseus/stdlib/perseus/text`
 - `src/main/perseus/stdlib/perseus/io`

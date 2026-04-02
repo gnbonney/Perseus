@@ -222,6 +222,34 @@ This split keeps the common Perseus-to-Perseus case lightweight while still maki
 
 Perseus prioritizes `external(...)` and `external java static(...)`. The `virtual(...)` form remains later work rather than part of the core external-procedure design.
 
+Perseus will also support an optional local alias for an external Java procedure declaration:
+
+```algol
+external java static(java.lang.Math)
+    real procedure cos(real x) as math_cos;
+```
+
+This means:
+
+- the external Java target method name is `cos`
+- the local Perseus name in the current unit is `math_cos`
+
+This is useful when a Perseus unit wants to define its own procedure with the standard name while implementing it in terms of an imported Java static. For example, a compiled standard-environment unit may define:
+
+```algol
+external java static(java.lang.Math)
+    real procedure cos(real x) as math_cos;
+
+real procedure cos(x);
+    value x;
+    real x;
+begin
+    cos := math_cos(x)
+end;
+```
+
+That keeps `cos` as the exported Perseus procedure while making its Java-based implementation explicit.
+
 ## Resolution and Classpath
 
 External procedure declarations should resolve against the ordinary JVM classpath rather than inventing a separate Perseus-specific search mechanism.
@@ -298,6 +326,8 @@ external java virtual(java.lang.System.out, java.io.PrintStream) procedure print
 ```
 
 Here `static(...)` names the owning class, while `virtual(targetExprType, ownerType)` is a sketch for calling an instance method through a receiver object. The exact surface syntax can still evolve, but the important point is that Java linkage should be explicit.
+
+Perseus does not use ordinary assignment from `real` to `integer` as a general language conversion. The normal source-level conversion remains `entier(x)`. To support implementations such as `MathEnv.entier`, the compiler may apply a narrow coercion rule when assigning to the implicit result variable of a typed procedure: if an `integer procedure` assigns a `real` expression to its result, the generated code converts that value to integer at the return-assignment point. This supports typed procedure results such as `entier` without turning ordinary variable assignment into a general implicit narrowing conversion.
 
 For the first implementation, only the `static(...)` form should be considered in scope. Instance-method linkage should wait until Perseus has either a more settled external-object story or class support of its own.
 

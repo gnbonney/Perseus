@@ -235,6 +235,20 @@ end
 		assertEquals("5.0 5.5 6.0 6.5", output.trim());
 	}
 
+	@Test
+	public void typed_return_coercion_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+			"test/algol/procedures/typed_return_coercion.alg", "gnb/perseus/programs", "TypedReturnCoercionTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.TypedReturnCoercionTest");
+		assertEquals("3,-3", output.trim());
+	}
+
     @Test
     public void deferred_name_params_mixed_type_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(

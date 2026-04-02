@@ -1,11 +1,37 @@
 comment Compiled standard-environment slice for basic numeric helpers.;
 namespace perseus.lang;
 
+external java static(java.lang.Math)
+    integer procedure abs(integer x) as math_iabs;
+external java static(java.lang.Math)
+    real procedure abs(real x) as math_abs;
+external java static(java.lang.Math)
+    real procedure floor(real x) as math_floor;
+external java static(java.lang.Math)
+    real procedure sqrt(real x) as math_sqrt;
+external java static(java.lang.Math)
+    real procedure sin(real x) as math_sin;
+external java static(java.lang.Math)
+    real procedure cos(real x) as math_cos;
+external java static(java.lang.Math)
+    real procedure atan(real x) as math_atan;
+external java static(java.lang.Math)
+    real procedure log(real x) as math_log;
+external java static(java.lang.Math)
+    real procedure exp(real x) as math_exp;
+
 real procedure abs(E);
     value E;
     real E;
 begin
-    abs := if E >= 0.0 then E else -E
+    abs := math_abs(E)
+end;
+
+integer procedure iabs(E);
+    value E;
+    integer E;
+begin
+    iabs := math_iabs(E)
 end;
 
 integer procedure sign(E);
@@ -20,40 +46,47 @@ real procedure sqrt(E);
     value E;
     real E;
 begin
-    sqrt := sqrt(E)
+    sqrt := math_sqrt(E)
 end;
 
 real procedure sin(E);
     value E;
     real E;
 begin
-    sin := sin(E)
+    sin := math_sin(E)
 end;
 
 real procedure cos(E);
     value E;
     real E;
 begin
-    cos := cos(E)
+    cos := math_cos(E)
 end;
 
 real procedure arctan(E);
     value E;
     real E;
 begin
-    arctan := arctan(E)
+    arctan := math_atan(E)
 end;
 
 real procedure ln(E);
     value E;
     real E;
 begin
-    ln := ln(E)
+    ln := math_log(E)
 end;
 
 real procedure exp(E);
     value E;
     real E;
 begin
-    exp := exp(E)
+    exp := math_exp(E)
+end;
+
+integer procedure entier(E);
+    value E;
+    real E;
+begin
+    entier := math_floor(E)
 end

@@ -53,8 +53,8 @@ public class HistoricalStressTest extends CompilerTest {
 
 		assertFalse(jasminSource.startsWith("ERROR"),
 				"Compilation should not produce an error: " + jasminSource);
-		assertTrue(jasminSource.contains("invokestatic java/lang/Math/sqrt"),
-				"Should call Math.sqrt");
+		assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/sqrt"),
+				"Should call MathEnv.sqrt");
 
 		// Assemble to .class
 		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
@@ -77,8 +77,8 @@ public class HistoricalStressTest extends CompilerTest {
 
 		assertFalse(jasminSource.startsWith("ERROR"),
 				"Compilation should not produce an error: " + jasminSource);
-		assertTrue(jasminSource.contains("invokestatic java/lang/Math/sqrt"),
-				"Should call Math.sqrt");
+		assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/sqrt"),
+				"Should call MathEnv.sqrt");
 
 		// Assemble to .class
 		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
@@ -105,8 +105,8 @@ public class HistoricalStressTest extends CompilerTest {
                 "pi_simple.alg should compile without error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
         // Verify key code patterns are present
-        assertTrue(jasminSource.contains("invokestatic java/lang/Math/sqrt"),
-                "Should call Math.sqrt for the Archimedes b step");
+        assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/sqrt"),
+                "Should call MathEnv.sqrt for the Archimedes b step");
         assertTrue(jasminSource.contains(".method public static archimedesa"),
                 "Should define archimedesa procedure as a static method");
         assertTrue(jasminSource.contains(".method public static archimedesb"),

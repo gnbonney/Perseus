@@ -1096,6 +1096,9 @@ public class CodeGenerator extends PerseusBaseListener {
                                     .append("/").append(envReturnFieldName(currentProcName)).append(" Ljava/lang/String;\n");
                     }
                 } else {
+                    if ("real".equals(exprType)) {
+                        activeOutput.append("d2i\n");
+                    }
                     emitStore("istore", procRetvalSlot);
                     if (useEnvBridge(currentProcName)) {
                         activeOutput.append("iload ").append(procRetvalSlot).append("\n");
@@ -1119,6 +1122,9 @@ public class CodeGenerator extends PerseusBaseListener {
                     activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                 .append("/").append(envReturnFieldName(name)).append(" Ljava/lang/String;\n");
                 } else {
+                    if ("real".equals(exprType)) {
+                        activeOutput.append("d2i\n");
+                    }
                     activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                 .append("/").append(envReturnFieldName(name)).append(" I\n");
                 }
@@ -3435,8 +3441,9 @@ public class CodeGenerator extends PerseusBaseListener {
                 .map(paramName -> externalTypeToJvmDesc(getFormalBaseType(info, paramName), info.externalKind))
                 .collect(Collectors.joining());
         String retDesc = externalTypeToJvmDesc(info.returnType, info.externalKind);
+        String targetMethodName = info.externalTargetMethod != null ? info.externalTargetMethod : name;
         sb.append("invokestatic ").append(info.externalTargetClass.replace('.', '/'))
-                .append("/").append(name)
+                .append("/").append(targetMethodName)
                 .append("(").append(paramDesc).append(")").append(retDesc).append("\n");
         if (isStatement && !"V".equals(retDesc)) {
             if ("D".equals(retDesc)) sb.append("pop2\n");
@@ -4062,12 +4069,6 @@ public class CodeGenerator extends PerseusBaseListener {
         } else if (ctx instanceof PerseusParser.ProcCallExprContext e) {
             String procName = e.identifier().getText();
             List<PerseusParser.ArgContext> callArgs = e.argList() != null ? e.argList().arg() : List.of();
-            
-            // Check for built-in math functions first
-            String builtinCode = generateBuiltinMathFunction(procName, e);
-            if (builtinCode != null) {
-                return builtinCode;
-            }
 
             // Check if this name refers to a procedure variable
             String varType = lookupVarType(procName);
@@ -4089,6 +4090,10 @@ public class CodeGenerator extends PerseusBaseListener {
             } else if (isProcVar) {
                 callCode = generateProcedureVariableCall(procName, varType, callArgs);
             } else {
+                String builtinCode = generateBuiltinMathFunction(procName, e);
+                if (builtinCode != null) {
+                    return builtinCode;
+                }
                 // Fall back to ordinary procedure invocation (should not usually happen)
                 callCode = generateUserProcedureInvocation(procName, callArgs, false);
             }

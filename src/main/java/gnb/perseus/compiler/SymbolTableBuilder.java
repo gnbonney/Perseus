@@ -75,6 +75,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         public boolean external;
         public String externalKind;
         public String externalTargetClass;
+        public String externalTargetMethod;
 
         public ProcInfo(String returnType) {
             this.returnType = returnType;
@@ -245,12 +246,14 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         else if (ctx.REAL() != null) returnType = "real";
         else if (ctx.STRING() != null) returnType = "string";
         else returnType = "void";
-        String name = ctx.identifier().getText();
+        String declaredName = ctx.identifier(0).getText();
+        String name = ctx.identifier().size() > 1 ? ctx.identifier(1).getText() : declaredName;
 
         symbolTable.put(name, "procedure:" + returnType);
 
         ProcInfo proc = new ProcInfo(returnType);
         proc.external = true;
+        proc.externalTargetMethod = declaredName;
         if (ctx.externalProcSpec() instanceof PerseusParser.ExternalPerseusSpecContext perseusSpec) {
             proc.externalKind = "perseus";
             proc.externalTargetClass = perseusSpec.qualifiedName().getText();

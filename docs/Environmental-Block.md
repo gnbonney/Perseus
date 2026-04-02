@@ -187,9 +187,8 @@ For rationale and historical context, see Perseus Language Design.md.
 
 Today, many environmental identifiers are still recognized directly by the compiler and lowered to known JVM calls or runtime patterns. The compiled standard environment replaces more of that hardcoding with a real always-available standard prelude.
 
-This standard environment is not one giant source file. It is split into a small facade plus focused support classes:
+This standard environment is not one giant source file. It is split into focused support classes:
 
-- `perseus.env.StandardEnv`
 - `perseus.lang.MathEnv`
 - `perseus.text.Strings`
 - `perseus.io.Channels`

@@ -24,18 +24,23 @@ public class StdlibTest extends CompilerTest {
                 "The stdlib builder should compile MathEnv under its namespace");
         assertTrue(Files.exists(stdlibJar),
                 "The stdlib builder should package the compiled classes into a jar");
+    }
 
+    @Test
+    public void automatic_stdlib_builtin_test() throws Exception {
         Path clientDir = Files.createTempDirectory(BUILD_DIR, "stdlib-client");
         Path clientJasmin = PerseusCompiler.compileToFile(
                 "test/algol/stdlib/stdlib_math_client.alg",
                 "gnb/perseus/programs",
                 "StdlibMathClient",
-                clientDir,
-                java.util.List.of(clientDir, stdlibJar));
+                clientDir);
         PerseusCompiler.assemble(clientJasmin, clientDir);
 
-        String output = runClassWithClasspath(clientDir, "gnb.perseus.programs.StdlibMathClient", stdlibJar);
-        assertEquals("-1,2.5,3.0,0.0,1.0,0.0,1.0", output.trim(),
-                "A client should be able to call a broader compiled MathEnv unit packaged as a jar");
+        assertTrue(Files.exists(clientDir.resolve("perseus/lang/MathEnv.class")),
+                "Normal compilation should provision MathEnv automatically");
+
+        String output = runClass(clientDir, "gnb.perseus.programs.StdlibMathClient");
+        assertEquals("-1,2.5,42,3.0,0.0,1.0,0.0,1.0,3,-3", output.trim(),
+                "Builtin math names should work through the automatically provisioned standard environment");
     }
 }

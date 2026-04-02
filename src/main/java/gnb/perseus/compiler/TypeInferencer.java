@@ -218,12 +218,6 @@ public class TypeInferencer extends PerseusBaseListener {
     @Override
     public void exitProcCallExpr(PerseusParser.ProcCallExprContext ctx) {
         String procName = ctx.identifier().getText();
-        String builtinType = getBuiltinFunctionType(procName);
-        if (builtinType != null) {
-            exprTypes.put(ctx, builtinType);
-            return;
-        }
-
         SymbolTableBuilder.ClassInfo currentClass = classStack.peek();
         if (currentClass != null) {
             SymbolTableBuilder.MethodInfo method = findMethodInHierarchy(currentClass, procName);
@@ -242,6 +236,12 @@ public class TypeInferencer extends PerseusBaseListener {
         String procType = lookupType(procName);
         if (procType != null && procType.startsWith("procedure:")) {
             exprTypes.put(ctx, procType.substring("procedure:".length()));
+            return;
+        }
+
+        String builtinType = getBuiltinFunctionType(procName);
+        if (builtinType != null) {
+            exprTypes.put(ctx, builtinType);
         }
     }
 

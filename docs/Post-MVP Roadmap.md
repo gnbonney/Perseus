@@ -111,7 +111,6 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 - [ ] Define the shape of the always-available standard environment / prelude
 - [x] Create a dedicated stdlib source tree under `src/main/perseus/stdlib`
-- [ ] Introduce a thin `StandardEnv` facade for the environmental block surface
 - [ ] Move the Modified Report numeric procedures and constants into compiled support such as `MathEnv`
 - [ ] Move string-oriented support such as `length` into a compiled helper such as `Strings`
 - [ ] Move output-side environmental procedures into compiled support such as `TextOutput`
@@ -121,8 +120,8 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Add a Gradle task that compiles the stdlib source tree with the Perseus compiler itself
 - [x] Package the compiled standard environment as a separate jar such as `build/libs/perseus-stdlib.jar`
 - [ ] Decide which environmental identifiers remain true compiler intrinsics after that split
-- [ ] Ensure the standard environment is automatically available to all Perseus programs without explicit imports
-- [ ] Add tests showing that migrated environmental procedures work through the compiled standard environment rather than only through compiler-recognized names
+- [x] Ensure the standard environment is automatically available to all Perseus programs without explicit imports
+- [x] Add tests showing that migrated environmental procedures work through the compiled standard environment rather than only through compiler-recognized names
 
 **Modified Report inventory:**
 - `perseus.lang.MathEnv`
@@ -137,21 +136,22 @@ The milestones below collect follow-on work that was intentionally deferred whil
   - `stop`, `fault`
 
 **Current Milestone 35 slice:**
-- `MathEnv` exists as a very small first slice with `abs` and `sign`.
+- `MathEnv` now covers `abs`, `iabs`, `sign`, `entier`, `sqrt`, `sin`, `cos`, `arctan`, `ln`, and `exp`.
+- The typed procedure return-assignment coercion needed for integer-valued wrappers such as `entier` is implemented.
+- The standard environment is now provisioned automatically for normal compilation, and the migrated math builtins route through `MathEnv` rather than directly to `java.lang.Math`.
 - The stdlib source tree, Gradle compile task, and stdlib jar packaging are in place.
-- The remaining Modified Report procedures and constants still need to be moved into the compiled environment classes listed above.
+- The remaining Modified Report work in this milestone is the numeric constants and the non-math environment classes listed above.
 
 **Suggested order:**
 1. `src/main/perseus/stdlib`
-2. `StandardEnv`
-3. `MathEnv`
-4. `Strings`
-5. `TextOutput`
-6. `TextInput`
-7. `Channels`
-8. `Faults`
-9. Gradle stdlib compile task
-10. `perseus-stdlib.jar`
+2. `MathEnv`
+3. `Strings`
+4. `TextOutput`
+5. `TextInput`
+6. `Channels`
+7. `Faults`
+8. Gradle stdlib compile task
+9. `perseus-stdlib.jar`
 
 ## Milestone 36 - Dynamic Channels and Formatted I/O Follow-On
 

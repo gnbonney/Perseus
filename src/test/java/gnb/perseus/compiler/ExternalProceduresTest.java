@@ -78,6 +78,27 @@ public class ExternalProceduresTest extends CompilerTest {
 	}
 
 	@Test
+	public void external_java_static_alias_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_java_static_alias.alg", "gnb/perseus/programs", "ExternalJavaStaticAlias", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== EXTERNAL JAVA STATIC ALIAS JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END EXTERNAL JAVA STATIC ALIAS ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("invokestatic java/lang/Math/cos(D)D"),
+				"Should call the declared external Java static Math.cos method through the local alias");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalJavaStaticAlias");
+		System.out.println("external_java_static_alias output: [" + output + "]");
+		assertEquals("1.0", output.trim(),
+				"External Java static aliases should let Perseus use a local name while still targeting the real Java method");
+	}
+
+	@Test
 	public void external_perseus_array_client_test() throws Exception {
 		Path libraryJasminFile = PerseusCompiler.compileToFile(
 				"test/algol/external/external_algol_array_library.alg", "gnb/perseus/programs", "ExternalAlgolArrayLibrary", BUILD_DIR);

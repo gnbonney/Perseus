@@ -108,7 +108,7 @@ procedureDecl
   ;
 
 externalProcedureDecl
-  : EXTERNAL externalProcSpec (INTEGER | REAL | STRING)? PROCEDURE identifier ('(' externalFormalList? ')')?
+  : EXTERNAL externalProcSpec (INTEGER | REAL | STRING)? PROCEDURE identifier ('(' externalFormalList? ')')? (AS identifier)?
   ;
 
 externalProcSpec

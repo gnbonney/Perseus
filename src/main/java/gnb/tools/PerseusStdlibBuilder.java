@@ -30,20 +30,10 @@ public final class PerseusStdlibBuilder {
         build(sourceRoot, classOutputDir, jarFile);
     }
 
-    public static void build(Path sourceRoot, Path classOutputDir, Path jarFile) throws Exception {
+    public static void buildClasses(Path sourceRoot, Path classOutputDir) throws Exception {
         Files.createDirectories(classOutputDir);
-        if (jarFile.getParent() != null) {
-            Files.createDirectories(jarFile.getParent());
-        }
 
-        List<Path> sources;
-        try (var stream = Files.walk(sourceRoot)) {
-            sources = stream.filter(Files::isRegularFile)
-                    .filter(path -> path.toString().endsWith(".alg"))
-                    .sorted(Comparator.comparing(Path::toString))
-                    .toList();
-        }
-
+        List<Path> sources = collectSources(sourceRoot);
         if (sources.isEmpty()) {
             throw new IllegalArgumentException("No Perseus stdlib source files found under " + sourceRoot);
         }
@@ -55,16 +45,32 @@ public final class PerseusStdlibBuilder {
             }
             String packageName = namespace.replace('.', '/');
             String className = inferClassName(source);
-            Path jasminFile = PerseusCompiler.compileToFile(
+            Path jasminFile = PerseusCompiler.compileToFileInternal(
                     source.toString(),
                     packageName,
                     className,
                     classOutputDir,
-                    List.of(classOutputDir));
+                    List.of(classOutputDir),
+                    false);
             PerseusCompiler.assemble(jasminFile, classOutputDir);
         }
+    }
 
+    public static void build(Path sourceRoot, Path classOutputDir, Path jarFile) throws Exception {
+        if (jarFile.getParent() != null) {
+            Files.createDirectories(jarFile.getParent());
+        }
+        buildClasses(sourceRoot, classOutputDir);
         createJar(classOutputDir, jarFile);
+    }
+
+    private static List<Path> collectSources(Path sourceRoot) throws IOException {
+        try (var stream = Files.walk(sourceRoot)) {
+            return stream.filter(Files::isRegularFile)
+                    .filter(path -> path.toString().endsWith(".alg"))
+                    .sorted(Comparator.comparing(Path::toString))
+                    .toList();
+        }
     }
 
     private static String inferClassName(Path inputFile) {
