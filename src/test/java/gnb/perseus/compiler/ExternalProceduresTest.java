@@ -145,6 +145,29 @@ public class ExternalProceduresTest extends CompilerTest {
 	}
 
 	@Test
+	public void external_java_overloaded_method_resolution_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_java_overloaded_method_resolution.alg", "gnb/perseus/programs", "ExternalJavaOverloadedMethodResolution", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== EXTERNAL JAVA OVERLOADED METHOD RESOLUTION JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END EXTERNAL JAVA OVERLOADED METHOD RESOLUTION ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("invokevirtual java/util/ArrayList/remove(I)Ljava/lang/Object;"),
+				"Should select the int overload of ArrayList.remove when called with an integer argument");
+		assertTrue(jasminSource.contains("invokevirtual java/lang/Object/toString()Ljava/lang/String;"),
+				"Should preserve the selected Java return type so later member calls type-check correctly");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalJavaOverloadedMethodResolution");
+		System.out.println("external_java_overloaded_method_resolution output: [" + output + "]");
+		assertEquals("abc", output.trim(),
+				"Java overload resolution should use argument types so the right overload and return type are selected");
+	}
+
+	@Test
 	public void external_perseus_array_client_test() throws Exception {
 		Path libraryJasminFile = PerseusCompiler.compileToFile(
 				"test/algol/external/external_algol_array_library.alg", "gnb/perseus/programs", "ExternalAlgolArrayLibrary", BUILD_DIR);

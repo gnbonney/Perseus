@@ -3107,24 +3107,7 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private Method findJavaMethod(String qualifiedName, String methodName, List<PerseusParser.ArgContext> args) {
-        try {
-            Class<?> owner = Class.forName(qualifiedName);
-            Method best = null;
-            int bestScore = Integer.MAX_VALUE;
-            for (Method method : owner.getMethods()) {
-                if (!method.getName().equals(methodName) || method.getParameterCount() != args.size()) {
-                    continue;
-                }
-                int score = scoreJavaCallable(method.getParameterTypes(), args);
-                if (score >= 0 && score < bestScore) {
-                    best = method;
-                    bestScore = score;
-                }
-            }
-            return best;
-        } catch (ClassNotFoundException ignored) {
-        }
-        return null;
+        return JavaInteropResolver.findBestMethod(qualifiedName, methodName, getArgTypes(args));
     }
 
     private Field findJavaField(String qualifiedName, String fieldName) {
@@ -3149,6 +3132,14 @@ public class CodeGenerator extends PerseusBaseListener {
         return null;
     }
 
+    private List<String> getArgTypes(List<PerseusParser.ArgContext> args) {
+        ArrayList<String> argTypes = new ArrayList<>();
+        for (PerseusParser.ArgContext arg : args) {
+            argTypes.add(exprTypes.getOrDefault(arg.expr(), "integer"));
+        }
+        return argTypes;
+    }
+
     private String toJvmDescriptor(Class<?> type) {
         if (type == void.class) return "V";
         if (type == boolean.class) return "Z";
@@ -3161,44 +3152,6 @@ public class CodeGenerator extends PerseusBaseListener {
         if (type == double.class) return "D";
         if (type.isArray()) return type.getName().replace('.', '/');
         return "L" + type.getName().replace('.', '/') + ";";
-    }
-
-    private int scoreJavaCallable(Class<?>[] parameterTypes, List<PerseusParser.ArgContext> args) {
-        int score = 0;
-        for (int i = 0; i < parameterTypes.length; i++) {
-            String argType = exprTypes.getOrDefault(args.get(i).expr(), "integer");
-            int paramScore = scoreJavaArgument(parameterTypes[i], argType);
-            if (paramScore < 0) {
-                return -1;
-            }
-            score += paramScore;
-        }
-        return score;
-    }
-
-    private int scoreJavaArgument(Class<?> parameterType, String argType) {
-        return switch (argType) {
-            case "string" -> {
-                if (parameterType == String.class) yield 0;
-                if (!parameterType.isPrimitive() && parameterType.isAssignableFrom(String.class)) yield 5;
-                yield -1;
-            }
-            case "integer" -> {
-                if (parameterType == int.class || parameterType == Integer.class) yield 0;
-                if (parameterType == double.class || parameterType == Double.class) yield 1;
-                if (parameterType == long.class || parameterType == Long.class) yield 2;
-                if (!parameterType.isPrimitive() && Number.class.isAssignableFrom(parameterType)) yield 5;
-                yield -1;
-            }
-            case "real" -> {
-                if (parameterType == double.class || parameterType == Double.class) yield 0;
-                if (parameterType == float.class || parameterType == Float.class) yield 1;
-                if (!parameterType.isPrimitive() && Number.class.isAssignableFrom(parameterType)) yield 5;
-                yield -1;
-            }
-            case "boolean" -> (parameterType == boolean.class || parameterType == Boolean.class) ? 0 : -1;
-            default -> !parameterType.isPrimitive() ? 10 : -1;
-        };
     }
 
     private boolean isProcedureReturnTarget(String name, boolean rhsIsProcedureRef) {

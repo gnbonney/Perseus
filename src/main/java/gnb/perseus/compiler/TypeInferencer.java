@@ -219,6 +219,7 @@ public class TypeInferencer extends PerseusBaseListener {
     @Override
     public void exitProcCallExpr(PerseusParser.ProcCallExprContext ctx) {
         String procName = ctx.identifier().getText();
+        java.util.List<String> argTypes = getArgTypes(ctx.argList());
         SymbolTableBuilder.ClassInfo currentClass = classStack.peek();
         if (currentClass != null) {
             SymbolTableBuilder.MethodInfo method = findMethodInHierarchy(currentClass, procName);
@@ -226,8 +227,7 @@ public class TypeInferencer extends PerseusBaseListener {
                 exprTypes.put(ctx, method.returnType);
                 return;
             }
-            Method javaMethod = findJavaMethodInHierarchy(currentClass, procName,
-                    ctx.argList() != null ? ctx.argList().arg().size() : 0);
+            Method javaMethod = findJavaMethodInHierarchy(currentClass, procName, argTypes);
             if (javaMethod != null) {
                 exprTypes.put(ctx, mapJavaType(javaMethod.getReturnType()));
                 return;
@@ -263,10 +263,10 @@ public class TypeInferencer extends PerseusBaseListener {
             throw error(ctx, "PERS2008", "Member call requires a typed receiver: " + ctx.getText());
         }
         boolean explicitCall = ctx.argList() != null;
+        java.util.List<String> argTypes = getArgTypes(ctx.argList());
         if ("string".equals(receiverType)) {
             String memberName = ctx.identifier(1).getText();
-            Method javaMethod = findJavaMethod("java.lang.String", memberName,
-                    ctx.argList() != null ? ctx.argList().arg().size() : 0);
+            Method javaMethod = findJavaMethod("java.lang.String", memberName, argTypes);
             if (javaMethod != null) {
                 exprTypes.put(ctx, mapJavaType(javaMethod.getReturnType()));
                 return;
@@ -294,8 +294,7 @@ public class TypeInferencer extends PerseusBaseListener {
                 return;
             }
         }
-        Method javaMethod = findJavaMethodInHierarchy(cls, memberName,
-                ctx.argList() != null ? ctx.argList().arg().size() : 0);
+        Method javaMethod = findJavaMethodInHierarchy(cls, memberName, argTypes);
         if (javaMethod != null) {
             exprTypes.put(ctx, mapJavaType(javaMethod.getReturnType()));
             return;
@@ -347,24 +346,26 @@ public class TypeInferencer extends PerseusBaseListener {
         return null;
     }
 
-    private Method findJavaMethod(String qualifiedName, String memberName, int argCount) {
-        try {
-            Class<?> owner = Class.forName(qualifiedName);
-            for (Method method : owner.getMethods()) {
-                if (method.getName().equals(memberName) && method.getParameterCount() == argCount) {
-                    return method;
-                }
-            }
-        } catch (ClassNotFoundException ignored) {
+    private java.util.List<String> getArgTypes(PerseusParser.ArgListContext argList) {
+        if (argList == null) {
+            return java.util.List.of();
         }
-        return null;
+        java.util.ArrayList<String> argTypes = new java.util.ArrayList<>();
+        for (PerseusParser.ArgContext arg : argList.arg()) {
+            argTypes.add(exprTypes.getOrDefault(arg.expr(), "integer"));
+        }
+        return argTypes;
     }
 
-    private Method findJavaMethodInHierarchy(SymbolTableBuilder.ClassInfo cls, String memberName, int argCount) {
+    private Method findJavaMethod(String qualifiedName, String memberName, java.util.List<String> argTypes) {
+        return JavaInteropResolver.findBestMethod(qualifiedName, memberName, argTypes);
+    }
+
+    private Method findJavaMethodInHierarchy(SymbolTableBuilder.ClassInfo cls, String memberName, java.util.List<String> argTypes) {
         SymbolTableBuilder.ClassInfo current = cls;
         while (current != null) {
             if (current.externalJava && current.externalJavaQualifiedName != null) {
-                Method method = findJavaMethod(current.externalJavaQualifiedName, memberName, argCount);
+                Method method = findJavaMethod(current.externalJavaQualifiedName, memberName, argTypes);
                 if (method != null) {
                     return method;
                 }

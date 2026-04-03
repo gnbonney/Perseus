@@ -1,6 +1,7 @@
 package gnb.perseus.compiler.codegen;
 
 import gnb.perseus.compiler.CodeGenUtils;
+import gnb.perseus.compiler.JavaInteropResolver;
 import gnb.perseus.compiler.SymbolTableBuilder;
 import gnb.perseus.compiler.antlr.PerseusParser;
 import java.lang.reflect.Method;
@@ -354,7 +355,7 @@ public class ClassGenerator {
             if (classMethod != null) {
                 return generateClassMethodInvocation(cls, method, cls, name, classMethod, args, localSlots, returnSlot);
             }
-            Method javaMethod = findJavaMethodInHierarchy(cls, name, args.size());
+            Method javaMethod = findJavaMethodInHierarchy(cls, name, args);
             if (javaMethod != null) {
                 return generateJavaMethodInvocation(cls, method, ownerClassInfo(javaMethod.getDeclaringClass()), name, javaMethod,
                         args, localSlots, returnSlot);
@@ -374,7 +375,7 @@ public class ClassGenerator {
                         return generateClassMemberInvocation(cls, method, receiverName, receiverClass, memberName, classMethod,
                                 args, localSlots, returnSlot);
                     }
-                    Method javaMethod = findJavaMethodInHierarchy(receiverClass, memberName, args.size());
+                    Method javaMethod = findJavaMethodInHierarchy(receiverClass, memberName, args);
                     if (javaMethod != null) {
                         return generateJavaMemberInvocation(cls, method, receiverName, receiverClass, memberName, javaMethod,
                                 args, localSlots, returnSlot);
@@ -408,7 +409,7 @@ public class ClassGenerator {
             }
             return sb.toString();
         }
-        Method javaMethod = findJavaMethodInHierarchy(cls, name, args.size());
+        Method javaMethod = findJavaMethodInHierarchy(cls, name, args);
         if (javaMethod != null) {
             StringBuilder sb = new StringBuilder(generateJavaMethodInvocation(cls, method,
                     ownerClassInfo(javaMethod.getDeclaringClass()), name, javaMethod, args, localSlots, returnSlot));
@@ -442,7 +443,7 @@ public class ClassGenerator {
             }
             return sb.toString();
         }
-        Method javaMethod = findJavaMethodInHierarchy(receiverClass, memberName, args.size());
+        Method javaMethod = findJavaMethodInHierarchy(receiverClass, memberName, args);
         if (javaMethod != null) {
             StringBuilder sb = new StringBuilder(generateJavaMemberInvocation(cls, method, receiverName, receiverClass, memberName,
                     javaMethod, args, localSlots, returnSlot));
@@ -673,11 +674,11 @@ public class ClassGenerator {
         return cls.name;
     }
 
-    private Method findJavaMethodInHierarchy(SymbolTableBuilder.ClassInfo cls, String methodName, int argCount) {
+    private Method findJavaMethodInHierarchy(SymbolTableBuilder.ClassInfo cls, String methodName, List<PerseusParser.ArgContext> args) {
         SymbolTableBuilder.ClassInfo current = cls;
         while (current != null) {
             if (current.externalJava && current.externalJavaQualifiedName != null) {
-                Method method = findJavaMethod(current.externalJavaQualifiedName, methodName, argCount);
+                Method method = findJavaMethod(current.externalJavaQualifiedName, methodName, args);
                 if (method != null) {
                     return method;
                 }
@@ -687,17 +688,16 @@ public class ClassGenerator {
         return null;
     }
 
-    private Method findJavaMethod(String qualifiedName, String methodName, int argCount) {
-        try {
-            Class<?> owner = Class.forName(qualifiedName);
-            for (Method method : owner.getMethods()) {
-                if (method.getName().equals(methodName) && method.getParameterCount() == argCount) {
-                    return method;
-                }
-            }
-        } catch (ClassNotFoundException ignored) {
+    private Method findJavaMethod(String qualifiedName, String methodName, List<PerseusParser.ArgContext> args) {
+        return JavaInteropResolver.findBestMethod(qualifiedName, methodName, getArgTypes(args));
+    }
+
+    private List<String> getArgTypes(List<PerseusParser.ArgContext> args) {
+        java.util.ArrayList<String> argTypes = new java.util.ArrayList<>();
+        for (PerseusParser.ArgContext arg : args) {
+            argTypes.add(exprTypes.getOrDefault(arg.expr(), "integer"));
         }
-        return null;
+        return argTypes;
     }
 
     private String ownerInternalName(SymbolTableBuilder.ClassInfo cls) {
