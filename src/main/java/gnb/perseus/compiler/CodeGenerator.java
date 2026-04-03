@@ -3878,14 +3878,13 @@ public class CodeGenerator extends PerseusBaseListener {
 
             // Check for environmental constants first
             if ("maxreal".equals(name)) {
-                return "ldc2_w " + Double.MAX_VALUE + "\n";
+                return "invokestatic perseus/lang/MathEnv/maxreal()D\n";
             } else if ("minreal".equals(name)) {
-                return "ldc2_w " + Double.MIN_VALUE + "\n";
+                return "invokestatic perseus/lang/MathEnv/minreal()D\n";
             } else if ("maxint".equals(name)) {
-                return "ldc " + Integer.MAX_VALUE + "\n";
+                return "invokestatic perseus/lang/MathEnv/maxint()I\n";
             } else if ("epsilon".equals(name)) {
-                // Machine epsilon - using Double.MIN_NORMAL as a reasonable approximation
-                return "ldc2_w " + Double.MIN_NORMAL + "\n";
+                return "invokestatic perseus/lang/MathEnv/epsilon()D\n";
             }
 
             // Check if this is the current procedure's return value OR a procedure self-reference variable

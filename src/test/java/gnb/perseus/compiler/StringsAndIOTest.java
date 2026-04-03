@@ -317,15 +317,14 @@ end
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
 
-        // Verify constant loading
-        assertTrue(jasminSource.contains("ldc2_w " + Double.MAX_VALUE),
-                "Should load Double.MAX_VALUE for maxreal");
-        assertTrue(jasminSource.contains("ldc2_w " + Double.MIN_VALUE),
-                "Should load Double.MIN_VALUE for minreal");
-        assertTrue(jasminSource.contains("ldc2_w " + Double.MIN_NORMAL),
-                "Should load machine epsilon for epsilon");
-        assertTrue(jasminSource.contains("ldc " + Integer.MAX_VALUE),
-                "Should load Integer.MAX_VALUE for maxint");
+        assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/maxreal()D"),
+                "Should route maxreal through MathEnv");
+        assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/minreal()D"),
+                "Should route minreal through MathEnv");
+        assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/epsilon()D"),
+                "Should route epsilon through MathEnv");
+        assertTrue(jasminSource.contains("invokestatic perseus/lang/MathEnv/maxint()I"),
+                "Should route maxint through MathEnv");
 
         // Assemble to .class
         PerseusCompiler.assemble(jasminFile, BUILD_DIR);

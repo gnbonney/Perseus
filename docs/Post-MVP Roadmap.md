@@ -111,7 +111,8 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 - [ ] Define the shape of the always-available standard environment / prelude
 - [x] Create a dedicated stdlib source tree under `src/main/perseus/stdlib`
-- [ ] Move the Modified Report numeric procedures and constants into compiled support such as `MathEnv`
+- [x] Move the Modified Report numeric procedures into compiled support such as `MathEnv`
+- [x] Move the Modified Report numeric constants into compiled support such as `MathEnv`
 - [x] Move string-oriented support such as `length`, `concat`, and `substring` into a compiled helper such as `Strings`
 - [x] Move output-side environmental procedures into compiled support such as `TextOutput`
 - [ ] Move input-side environmental procedures into compiled support such as `TextInput`
@@ -137,13 +138,14 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Current Milestone 35 slice:**
 - `MathEnv` now covers `abs`, `iabs`, `sign`, `entier`, `sqrt`, `sin`, `cos`, `arctan`, `ln`, and `exp`.
+- `MathEnv` now also covers the numeric constants `maxreal`, `minreal`, `maxint`, and `epsilon`.
 - `Strings` now covers `length`, `concat`, and `substring`.
 - `TextOutput` now covers `outchar`, `outstring`, `outterminator`, `outinteger`, and `outreal`.
 - The typed procedure return-assignment coercion needed for integer-valued wrappers such as `entier` is implemented.
 - The standard environment is now provisioned automatically for normal compilation, and the migrated math and string builtins route through `MathEnv` and `Strings` rather than directly to Java library calls.
 - The migrated output procedures now route through `perseus.io.TextOutput`, with a small Java runtime helper handling the current JVM stream dispatch details behind that compiled stdlib unit.
 - The stdlib source tree, Gradle compile task, and stdlib jar packaging are in place.
-- The remaining Modified Report work in this milestone is the numeric constants and the input/runtime environment classes listed above.
+- The remaining Modified Report work in this milestone is now the input/runtime environment classes listed above.
 
 **Perseus string extensions:**
 - `perseus.text.Strings` will also be the natural home for Perseus-specific string helpers such as `concat` and `substring`, even though they are not part of the Modified Report inventory.
