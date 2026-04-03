@@ -21,7 +21,7 @@ Perseus arrays follow Algol-family conventions rather than Java's array syntax a
 
 That means a Perseus array declaration describes an abstract index space, while a Java array mainly describes storage with zero-based offsets. Perseus preserves the Algol view at the language level and hides the offset arithmetic from the programmer.
 
-On the JVM, Perseus currently lowers declared arrays to ordinary JVM arrays and performs the bound normalization in generated code. Non-zero lower bounds are handled by subtracting the declared lower bound, and multidimensional arrays are flattened in row-major order rather than emitted as Java arrays-of-arrays. This keeps the surface language close to Algol while still mapping cleanly onto JVM bytecode.
+On the JVM, Perseus currently lowers declared arrays to ordinary JVM arrays and performs the bound normalization in generated code. Here "lowers" means "translates a Perseus source construct into its underlying JVM form." Non-zero lower bounds are handled by subtracting the declared lower bound, and multidimensional arrays are flattened in row-major order rather than emitted as Java arrays-of-arrays. This keeps the surface language close to Algol while still mapping cleanly onto JVM bytecode.
 
 ## Strings
 
@@ -186,27 +186,35 @@ closefile(5);
 For rationale and historical context, see Environmental-Block.md.
 
 ---
-## External Procedures
+## External Libraries, Classes and Procedures
 
 NU Algol had external procedures while Simula 67 had external classes and external procedures. They had to be declared in the program they were being used in, somewhat like an import statement in a Java class. In the Simula 67 standard, external classes and external procedures were considered "program modules".
 
-For Perseus on the JVM, it helps to distinguish two different use cases that both look "external" from the source language:
+For Perseus on the JVM, "external" now covers a broader family of interop cases:
 
 1. Calling a Perseus procedure that was compiled from a different source file and therefore lives in a different generated JVM class.
-2. Calling a method defined in some other JVM language, primarily Java.
+2. Referring to a separately compiled Perseus class or library unit through explicit external linkage.
+3. Calling a method defined in some other JVM language, primarily Java.
+4. Referring to Java fields, constants, and object-valued bindings that are meant to be used directly in Perseus source.
 
-Those two cases should not be treated as identical, because they have different semantic expectations. Cross-file Perseus linkage is mostly a separate-compilation problem, while Java interop is a foreign-interface problem.
+These cases should not be treated as identical, because they have different semantic expectations. Cross-file Perseus linkage is mostly a separate-compilation problem, while Java interop is a foreign-interface problem. Java methods, Java fields, and imported Java object values also bring different resolution and member-access needs even within the Java interop side of the design.
 
 Perseus treats external procedures as an incremental feature rather than one monolithic interoperability mechanism. The simplest and most robust foundation is separate compilation and explicit calls to static JVM entry points. Richer cases such as call-by-name across compilation units still come later, after the ABI is documented more formally.
 
-## Proposed Syntax
+This broader interop area covers:
+
+- separately compiled Perseus libraries reached through `external(...)`
+- imported JVM classes declared with `external java class ...`
+- imported Java procedures, fields, and object values reached through `external java ...`
+
+### External Procedure Syntax
 
 Perseus makes the target model explicit:
 
 ```algol
 external(Package.ClassName) real procedure f(real x);
 external java static(java.lang.Math) real procedure cos(real x);
-external java virtual(java.lang.System.out, java.io.PrintStream) procedure print(string s);
+external java static(java.lang.System) ref(java.io.PrintStream) out as stdout;
 ```
 
 The intent is:
@@ -220,7 +228,7 @@ The intent is:
 
 This split keeps the common Perseus-to-Perseus case lightweight while still making Java interop explicit. It also leaves room for a later Simula-inspired class extension, where imported JVM types could be declared more naturally as `external java class ...` instead of being modeled only as procedure targets.
 
-Perseus prioritizes `external(...)` and `external java static(...)`. The `virtual(...)` form remains later work rather than part of the core external-procedure design.
+Perseus prioritizes `external(...)` and `external java static(...)`. The current implementation centers on static Java methods, while the advanced Java interop work below extends that model to static fields, object-valued bindings, chaining, and stronger member resolution.
 
 Perseus will also support an optional local alias for an external Java procedure declaration:
 
@@ -250,7 +258,7 @@ end;
 
 That keeps `cos` as the exported Perseus procedure while making its Java-based implementation explicit.
 
-## Resolution and Classpath
+### Resolution and Classpath
 
 External procedure declarations should resolve against the ordinary JVM classpath rather than inventing a separate Perseus-specific search mechanism.
 
@@ -267,7 +275,7 @@ This gives users a predictable workflow:
 
 That model is already familiar to JVM users and keeps external Perseus linkage and Java interop conceptually aligned.
 
-## External Perseus
+### External Perseus
 
 `external(TargetClass)` is intended for separate compilation. A program in one file should be able to call a Perseus procedure whose definition was compiled into another generated class.
 
@@ -313,7 +321,7 @@ The call-by-name point matters because Perseus's current lowering depends on gen
 
 Arrays deserve to be called out separately. Historic Algol procedure libraries clearly used formal array parameters, and Perseus should support that style of separate compilation too. However, array parameters are still ABI-bearing rather than simple scalar value parameters, because the callee must agree with the caller about the JVM array representation, bounds metadata, and dimensionality. Perseus should therefore treat external Perseus arrays as a documented ABI case of their own rather than silently lumping them into "ordinary value passing".
 
-## External Java
+### External Java
 
 `external java` is for calling methods from Java or other JVM languages that expose ordinary JVM methods.
 
@@ -322,14 +330,14 @@ Examples:
 ```algol
 external java static(java.lang.Math) real procedure cos(real x);
 external java static(java.lang.Integer) integer procedure parseInt(string s);
-external java virtual(java.lang.System.out, java.io.PrintStream) procedure print(string s);
+external java static(java.lang.System) ref(java.io.PrintStream) out as stdout;
 ```
 
-Here `static(...)` names the owning class, while `virtual(targetExprType, ownerType)` is a sketch for calling an instance method through a receiver object. The exact surface syntax can still evolve, but the important point is that Java linkage should be explicit.
+Here `static(...)` names the owning Java class. The same source form covers both imported static procedures and imported static fields, with the declaration kind determining whether Perseus is binding a callable member or an object-valued field.
 
 Perseus does not use ordinary assignment from `real` to `integer` as a general language conversion. The normal source-level conversion remains `entier(x)`. To support implementations such as `MathEnv.entier`, the compiler may apply a narrow coercion rule when assigning to the implicit result variable of a typed procedure: if an `integer procedure` assigns a `real` expression to its result, the generated code converts that value to integer at the return-assignment point. This supports typed procedure results such as `entier` without turning ordinary variable assignment into a general implicit narrowing conversion.
 
-For the first implementation, only the `static(...)` form should be considered in scope. Instance-method linkage should wait until Perseus has either a more settled external-object story or class support of its own.
+The current implementation centers on static Java methods. The `Advanced Java Interop` subsection below extends this source model to static fields, imported object values, chained instance calls, and stronger overload resolution.
 
 ### Restrictions
 
@@ -379,7 +387,111 @@ Notes:
 - `real -> integer` should **not** silently use Java's truncating cast if Perseus wants to preserve Algol-style rounding semantics. This boundary needs to be specified explicitly.
 - Return values should follow the same mapping in reverse.
 
-## Perseus to Perseus External Type Mapping
+### Advanced Java Interop
+
+`external java` extends beyond simple static methods so ordinary Java APIs can be used directly from Perseus source without extra wrapper classes whose only purpose is to stand between Perseus code and ordinary Java library members.
+
+#### External Java Static Fields
+
+Perseus will support importing Java static fields as named external bindings.
+
+Example:
+
+```algol
+external java class java.io.PrintStream;
+
+external java static(java.lang.System)
+    ref(PrintStream) out as stdout;
+external java static(java.lang.System)
+    ref(PrintStream) err as stderr;
+```
+
+This means:
+
+- the external Java member name is `out`
+- the local Perseus name is `stdout`
+- the declaration binds the value of the static field `java.lang.System.out`
+
+The `as` form is required for static fields in the source design, because local aliases make imported Java API names more usable and avoid collisions with Perseus definitions.
+
+#### Object-Valued External Bindings
+
+Perseus will allow imported Java values to be named and reused in source, not only called immediately as procedures.
+
+That includes:
+
+- static object fields imported through `external java static(...)`
+- object values stored in ordinary `ref(...)` variables
+- later reuse of those bindings in subsequent member access or procedure calls
+
+This gives Perseus a source-level model for Java objects as values, not just Java methods as call targets.
+
+#### Chained Java Member Access
+
+Once object-valued bindings exist, Perseus will allow chained access through those values.
+
+Examples:
+
+```algol
+stdout.println("Hello");
+stderr.println("Error");
+```
+
+At the source level, dotted access will therefore cover:
+
+- external Java field selection
+- method calls on the selected object
+- repeated chaining where each step resolves to a valid Java member
+
+This is the part of the interop design that removes the need for extra Java wrapper classes whose only role is to expose ordinary Java library members in a form Perseus can reach.
+
+#### Java Overload Resolution
+
+Java overload resolution in Perseus will use:
+
+- member name
+- number of arguments
+- argument types
+- ordinary widening conversions that Perseus already documents at the JVM boundary
+
+Resolution by name and number of arguments alone is not sufficient once Java APIs are used directly from stdlib code and ordinary user programs.
+
+The same rule applies to:
+
+- overloaded methods
+- overloaded constructors
+
+Perseus does not need to reproduce every detail of Java source overload resolution, but it must choose the target method from the declared and inferred JVM-facing argument types rather than only from the procedure name and argument count.
+
+#### External Java Instance Fields
+
+Perseus will also support direct access to public Java instance fields where that is the natural interop surface.
+
+Examples:
+
+```algol
+someObject.field
+someObject.field := 42
+```
+
+This uses ordinary dotted member syntax. The language rule is that imported Java objects may expose both methods and public fields through that syntax, with resolution based on the imported JVM member metadata.
+
+#### Java Constants and Enum-Like Static Members
+
+Java constants and enum-like static members use the same source model as external Java static fields.
+
+Examples:
+
+```algol
+external java static(java.lang.Double)
+    real MAX_VALUE as max_double;
+external java static(java.lang.Integer)
+    integer MAX_VALUE as max_int;
+```
+
+This is the part of the interop design that removes the need for extra Java wrapper classes whose only role is to expose ordinary Java constants in a form Perseus can reach.
+
+### Perseus to Perseus External Type Mapping
 
 For `external(...)`, the mapping should follow Perseus's internal procedure ABI rather than Java source-language expectations.
 
@@ -404,7 +516,7 @@ This first table intentionally covers the scalar/string cases that already map c
 
 Those cases should not be promised until the ABI is documented and tested.
 
-## ABI Note
+### ABI Note
 
 Here "ABI" means the binary calling convention used by separately compiled code, not just the source-level procedure declaration. For Perseus external procedures, the ABI includes things like:
 
@@ -416,25 +528,9 @@ Here "ABI" means the binary calling convention used by separately compiled code,
 
 This matters because two separately compiled Perseus units may have source declarations that look compatible while still failing to link correctly if the underlying binary conventions are not defined and kept stable.
 
-## Lowering Strategy
+### External Scope
 
-### External Perseus
-
-- Resolve the target generated class from the declaration.
-- Emit a direct `invokestatic` to the generated procedure entry point.
-- Apply the same Perseus-side coercions used for normal internal procedure calls.
-- Require the external declaration to match the compiled Algol signature exactly.
-
-### External Java
-
-- Resolve the target class/member from the declaration.
-- Type-check actual arguments against the external signature using the Algol-to-Java mapping table.
-- Emit `invokestatic`, `invokevirtual`, or `invokeinterface` as appropriate.
-- Apply only documented coercions at the boundary.
-
-## External Procedure Scope
-
-### Initial External Scope
+#### Initial External Scope
 
 - `external(TargetClass)` for scalar/string procedures with exact signature matching
 - `external java static(TargetClass)` with explicit Algol-to-Java type mapping
@@ -442,7 +538,7 @@ This matters because two separately compiled Perseus units may have source decla
 - no procedure values, no call-by-name, no labels, no switches
 - a user-facing way to choose the generated JVM package/class path for separately compiled Perseus units
 
-### External Perseus Arrays
+#### External Perseus Arrays
 
 - document the array ABI explicitly
 - support one-dimensional array parameters across compilation units
@@ -454,13 +550,11 @@ This matters because two separately compiled Perseus units may have source decla
 
 Representative driver examples for this work come from historic Algol-style library procedures such as `INIVEC`, where a separately compiled procedure mutates a caller-supplied array through a formal array parameter.
 
-### Later External Work
+#### Later External Work
 
 - external Perseus call-by-name once the thunk ABI is frozen and documented
-- Java instance methods
-- richer object/class interop, likely after Perseus class support
 
-## Rationale
+### Rationale
 
 This split gives Perseus a cleaner long-term story:
 
@@ -472,7 +566,7 @@ It also fits the current architecture well. Perseus already generates JVM-static
 
 ## Exceptions
 
-Access to external Java procedures and classes strongly suggests a need for structured exception handling. Java methods may fail by throwing exceptions, and Perseus should have a source-level way to respond to those failures without forcing everything through `fault(...)` or process termination. A block-oriented exception extension also fits Algol's existing `begin ... end` structure better than importing Java's `try/catch` syntax directly.
+Perseus uses structured exception handling in a block-oriented form that fits Algol's `begin ... end` structure. This is especially important for `external java`, where Java methods may fail by throwing exceptions, but it is not limited to Java interop alone.
 
 ## Design Goals
 
@@ -480,11 +574,11 @@ Access to external Java procedures and classes strongly suggests a need for stru
 - Support both Perseus-signaled conditions and caught Java exceptions from `external java`.
 - Make the common case readable without forcing Java class names everywhere.
 - Preserve lexical scoping and block structure.
-- Allow a simple first implementation on the JVM using ordinary `try/catch`.
+- Keep the model straightforward on the JVM through ordinary `try/catch`.
 
-## Proposed Syntax
+## Syntax
 
-The simplest form attaches an exception part to a block:
+An exception part attaches to a block:
 
 ```algol
 begin
@@ -499,9 +593,9 @@ end
 
 Handlers are tried from top to bottom. The first matching `when` clause handles the exception. If no clause matches, the exception propagates outward to an enclosing exception block. If none exists, the program fails with the default runtime behavior.
 
-## Optional Bound Exception Variable
+## Bound Exception Variable
 
-For richer handling, a handler may bind the caught exception to a variable:
+A handler may bind the caught exception to a variable:
 
 ```algol
 begin
@@ -522,9 +616,9 @@ Bound exception variables keep the model modest:
 
 This gives Perseus practical exception introspection without requiring a separate exception-object hierarchy.
 
-## Proposed Exception Names
+## Exception Names
 
-Perseus should build its exception syntax directly on Java exception classes rather than inventing a parallel set of renamed Perseus exceptions.
+Perseus builds its exception syntax directly on Java exception classes rather than inventing a parallel set of renamed Perseus exceptions.
 
 That means Perseus should support:
 
@@ -555,7 +649,7 @@ An initial practical set for direct exception-pattern names includes:
 - `ArithmeticException`
 - `NullPointerException`
 
-This is an initial practical set rather than a closed catalog. Additional common Java exception classes may be added later if real Perseus programs need them.
+This is an initial practical set rather than a closed catalog. Additional common Java exception classes may be added if real Perseus programs need them.
 
 ## Semantics
 
@@ -564,29 +658,29 @@ This is an initial practical set rather than a closed catalog. Additional common
 - If an exception is raised inside the protected block, control transfers to the first matching `when` clause.
 - The handler runs in the lexical scope of the block, so it can inspect and update surrounding locals.
 - After the handler finishes, control continues after the whole block, not back inside the point where the exception occurred.
-- A handler may rethrow the exception with a future `raise`/`signal` statement if desired.
+- A handler may later rethrow the exception if Perseus grows an explicit raising form.
 
 This gives Perseus a model closer to structured exception handling than to resumable conditions.
 
 ## Raising Exceptions
 
-For completeness, the extension may later include an explicit way to raise exceptions in Algol code:
+Perseus does not yet define a general source-level `raise` or `signal` form. If one is added later, it would likely look something like:
 
 ```algol
 signal IOException;
 signal java(java.lang.IllegalStateException, "bad state");
 ```
 
-The initial implementation does not need to expose every constructor form immediately. It is enough if Perseus can:
+The important current point is that Perseus already:
 
 - translate internal runtime problems into ordinary Java exception objects where appropriate, and
 - catch Java exceptions thrown from `external java` calls
 
-before growing a richer explicit `signal` syntax.
+before growing a richer explicit raising syntax.
 
 ## Interaction with Existing Procedures
 
-- `fault(...)` can remain a simple terminate-with-error procedure for compatibility.
+- `fault(...)` raises a runtime exception carrying the fault message.
 - Over time, some operations that currently go straight to `fault(...)` could instead raise catchable Java-backed exceptions that user code may handle.
 - This would let programs choose between:
   - fail-fast behavior
@@ -595,7 +689,7 @@ before growing a richer explicit `signal` syntax.
 
 ## Interaction with External Java
 
-This extension is especially valuable for `external java`.
+This is especially valuable for `external java`.
 
 Example:
 
@@ -615,38 +709,14 @@ Without exception handling, Java interop would either:
 
 Neither is a good long-term design.
 
-## JVM Lowering Strategy
-
-The obvious lowering strategy is:
-
-- compile the protected part of the block to JVM `try`
-- compile each `when` clause to a corresponding `catch`
-- resolve exception-pattern names to the corresponding Java exception classes
-- allow `java(...)` handlers to catch matching JVM exception types directly
-
-For example:
-
-- `when IOException do ...`
-  - catches `java/io/IOException`
-- `when java(java.io.IOException) as ex do ...`
-  - catches `java/io/IOException`
-
-This is straightforward, maps well to the JVM, and avoids inventing a continuation model.
-
-The current JVM-level implementation path for bound exception variables is:
-
-- store the caught exception object in a temporary handler-local reference
-- allow ordinary Java exception methods such as `ex.getMessage()` to lower to ordinary JVM calls on that object
-- delay richer member-style syntax such as `ex.message` until exception objects and external-object access are better integrated with the broader class model
-
 ## Scope and Restrictions
 
-To keep the first version robust:
+To keep the design robust:
 
 - handlers should attach only to `begin ... end` blocks, not individual statements
 - matching should be by exception name/class only, not arbitrary Boolean guard expressions
 - handlers should not resume execution at the throw site
-- the first implementation may omit `finally`/cleanup syntax
+- the language may later add `finally`/cleanup syntax, but it is not part of the current model
 - bound exception values currently expose practical Java-style method access rather than a separate Perseus-specific helper layer
 
 If a cleanup feature is desired later, it could be added in an Algol-flavored way such as:
@@ -665,12 +735,11 @@ but this should be a later layer, not part of the minimum design.
 
 ## Summary
 
-- A block exception part (`begin ... exception ... end`) is the most Algol-like shape.
-- `when Name do ...` should handle direct Java exception names from the built-in shorthand set.
-- `when java(Fully.Qualified.Exception) as ex do ...` should handle precise Java interop failures.
+- A block exception part (`begin ... exception ... end`) is the Perseus exception form.
+- `when Name do ...` handles direct Java exception names from the built-in shorthand set.
+- `when java(Fully.Qualified.Exception) as ex do ...` handles precise Java interop failures.
 - `when ... as ex do ...` supports practical inspection through ordinary Java exception methods such as `ex.getMessage()`.
-- JVM lowering is natural through ordinary `try/catch`.
-- This extension would make external Java/class interop much safer and more expressive.
+- This design makes external Java/class interop safer and more expressive without inventing a separate Perseus exception universe.
 
 ## Lambda Notation
 

@@ -410,6 +410,28 @@ That keeps the standard environment as real Perseus code, makes it testable in
 its own right, and avoids baking the whole environmental block permanently into
 the Java compiler implementation.
 
+## External Linkage Lowering
+
+External linkage has a language-design side and a JVM-lowering side.
+
+At the architecture level, "lowering" means translating a Perseus source construct into the specific JVM class, field, method, and bytecode form that implements it.
+
+For external Perseus procedures, the compiler:
+
+- resolves the target generated class from the declaration
+- emits a direct `invokestatic` to the generated procedure entry point
+- applies the same Perseus-side coercions used for normal internal procedure calls
+- requires the external declaration to match the compiled Perseus signature exactly
+
+For external Java linkage, the compiler:
+
+- resolves the target class and member from the declaration
+- type-checks actual arguments against the documented Algol-to-Java mapping
+- emits `invokestatic`, `invokevirtual`, `invokeinterface`, or field access bytecode as appropriate
+- applies only the documented coercions at the JVM boundary
+
+This lowering policy is intentionally conservative. It keeps Perseus-to-Perseus linkage close to the compiler's own calling conventions, and it keeps Java interop explicit instead of pretending that ordinary Java members support Algol-specific parameter-passing semantics.
+
 
 ## Compiling Perseus Source to Jasmin
 
