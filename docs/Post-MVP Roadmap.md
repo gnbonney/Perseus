@@ -172,7 +172,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Add source-level support for external Java instance fields where direct field access is the right interop surface
 - [x] Improve overloaded-method resolution so Java calls are selected by argument types rather than only by name and number of arguments
 - [x] Improve overloaded-constructor resolution for `new` calls against external Java classes
-- [ ] Decide how Java constants and enum-like static members should be exposed in Perseus source
+- [x] Implement Java constants and enum-like static members through the existing external Java static-field binding syntax
 - [ ] Improve diagnostics for ambiguous or unsupported Java overloads and member lookups
 - [ ] Add regression tests around `System.out` / `System.err`, `PrintStream`, overloaded methods, overloaded constructors, and chained Java member calls
 - [ ] Refactor the compiled standard library to use these richer Java interop features directly and remove bridge helpers where they are no longer needed

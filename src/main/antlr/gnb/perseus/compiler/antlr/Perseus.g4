@@ -75,7 +75,15 @@ externalClassDecl
   ;
 
 externalValueDecl
-  : EXTERNAL JAVA STATIC '(' qualifiedName ')' REF '(' identifier ')' identifier AS identifier
+  : EXTERNAL JAVA STATIC '(' qualifiedName ')' externalValueType identifier AS identifier
+  ;
+
+externalValueType
+  : REF '(' identifier ')'
+  | REAL
+  | INTEGER
+  | BOOLEAN
+  | STRING
   ;
 
 refDecl

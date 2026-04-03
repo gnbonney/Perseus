@@ -3875,6 +3875,12 @@ public class CodeGenerator extends PerseusBaseListener {
                 return generateProcedureReference(name, procInfo);
             }
 
+            SymbolTableBuilder.ExternalValueInfo externalValue = externalJavaStaticValues.get(name);
+            if (externalValue != null) {
+                return "getstatic " + externalValue.ownerClass.replace('.', '/') + "/" + externalValue.targetMember
+                        + " " + externalValueJvmDesc(externalValue.type) + "\n";
+            }
+
             // Regular variable lookup
             Integer idx = currentLocalIndex.get(name);
             String type = currentSymbolTable.get(name);

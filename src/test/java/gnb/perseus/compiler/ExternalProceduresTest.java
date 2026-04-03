@@ -122,6 +122,31 @@ public class ExternalProceduresTest extends CompilerTest {
 	}
 
 	@Test
+	public void external_java_static_constants_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_java_static_constants.alg", "gnb/perseus/programs", "ExternalJavaStaticConstants", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== EXTERNAL JAVA STATIC CONSTANTS JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END EXTERNAL JAVA STATIC CONSTANTS ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("getstatic java/lang/Double/MAX_VALUE D"),
+				"Should import real Java constants through the external static-field binding syntax");
+		assertTrue(jasminSource.contains("getstatic java/lang/Integer/MAX_VALUE I"),
+				"Should import integer Java constants through the external static-field binding syntax");
+		assertTrue(jasminSource.contains("getstatic java/nio/file/StandardOpenOption/READ Ljava/nio/file/StandardOpenOption;"),
+				"Should import enum-like static members through the same static-field binding syntax");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalJavaStaticConstants");
+		System.out.println("external_java_static_constants output: [" + output + "]");
+		assertEquals("RIREAD", output.trim(),
+				"External Java static-field bindings should cover both scalar constants and enum-like static members");
+	}
+
+	@Test
 	public void external_java_instance_fields_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/external/external_java_instance_fields.alg", "gnb/perseus/programs", "ExternalJavaInstanceFields", BUILD_DIR);

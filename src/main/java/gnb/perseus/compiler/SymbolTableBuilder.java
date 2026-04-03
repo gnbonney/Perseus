@@ -485,12 +485,25 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     @Override
     public void enterExternalValueDecl(PerseusParser.ExternalValueDeclContext ctx) {
         String ownerClass = ctx.qualifiedName().getText();
-        String refType = "ref:" + ctx.identifier(0).getText();
-        String targetMember = ctx.identifier(1).getText();
-        String localName = ctx.identifier(2).getText();
-        symbolTable.put(localName, refType);
-        mainSymbolTable.put(localName, refType);
-        externalJavaStaticValues.put(localName, new ExternalValueInfo(localName, refType, ownerClass, targetMember));
+        String declaredType;
+        if (ctx.externalValueType().REF() != null) {
+            declaredType = "ref:" + ctx.externalValueType().identifier().getText();
+        } else if (ctx.externalValueType().REAL() != null) {
+            declaredType = "real";
+        } else if (ctx.externalValueType().INTEGER() != null) {
+            declaredType = "integer";
+        } else if (ctx.externalValueType().BOOLEAN() != null) {
+            declaredType = "boolean";
+        } else if (ctx.externalValueType().STRING() != null) {
+            declaredType = "string";
+        } else {
+            declaredType = "integer";
+        }
+        String targetMember = ctx.identifier(0).getText();
+        String localName = ctx.identifier(1).getText();
+        symbolTable.put(localName, declaredType);
+        mainSymbolTable.put(localName, declaredType);
+        externalJavaStaticValues.put(localName, new ExternalValueInfo(localName, declaredType, ownerClass, targetMember));
     }
 
     @Override
