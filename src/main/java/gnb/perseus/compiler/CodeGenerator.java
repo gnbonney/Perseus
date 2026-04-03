@@ -11,6 +11,7 @@ import gnb.perseus.compiler.codegen.ClassGenerator;
 import gnb.perseus.compiler.codegen.ExceptionGenerator;
 import gnb.perseus.compiler.codegen.ProcedureGenerator;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -1494,6 +1495,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 ctx.identifier(0).getText(),
                 ctx.identifier(1).getText(),
                 ctx.argList() != null ? ctx.argList().arg() : List.of(),
+                ctx.argList() != null,
                 true));
     }
 
@@ -3125,6 +3127,15 @@ public class CodeGenerator extends PerseusBaseListener {
         return null;
     }
 
+    private Field findJavaField(String qualifiedName, String fieldName) {
+        try {
+            Class<?> owner = Class.forName(qualifiedName);
+            return owner.getField(fieldName);
+        } catch (ClassNotFoundException | NoSuchFieldException ignored) {
+        }
+        return null;
+    }
+
     private Constructor<?> findJavaConstructor(String qualifiedName, int argCount) {
         try {
             Class<?> owner = Class.forName(qualifiedName);
@@ -3329,7 +3340,7 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private String generateMemberInvocation(String receiverName, String memberName,
-            List<PerseusParser.ArgContext> args, boolean isStatement) {
+            List<PerseusParser.ArgContext> args, boolean explicitCall, boolean isStatement) {
         String receiverType = lookupVarType(receiverName);
         if (receiverType == null) {
             return "; ERROR: member call requires typed receiver " + receiverName + "\n";
@@ -3373,6 +3384,17 @@ public class CodeGenerator extends PerseusBaseListener {
         sb.append("checkcast ").append(ownerInternalName(cls)).append("\n");
 
         if (cls.externalJava) {
+            if (!explicitCall) {
+                Field javaField = findJavaField(cls.externalJavaQualifiedName, memberName);
+                if (javaField != null) {
+                    sb.append("getfield ").append(javaField.getDeclaringClass().getName().replace('.', '/'))
+                      .append("/").append(memberName).append(" ").append(toJvmDescriptor(javaField.getType())).append("\n");
+                    if (isStatement) {
+                        sb.append(javaField.getType() == double.class || javaField.getType() == long.class ? "pop2\n" : "pop\n");
+                    }
+                    return sb.toString();
+                }
+            }
             Method javaMethod = findJavaMethod(cls.externalJavaQualifiedName, memberName, args);
             if (javaMethod == null) {
                 return "; ERROR: unknown external java class member " + objectClass + "." + memberName + "\n";
@@ -3819,6 +3841,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     e.identifier(0).getText(),
                     e.identifier(1).getText(),
                     e.argList() != null ? e.argList().arg() : List.of(),
+                    e.argList() != null,
                     false);
         } else if (ctx instanceof PerseusParser.VarExprContext e) {
             String name = e.identifier().getText();

@@ -2,6 +2,7 @@ package gnb.perseus.compiler;
 
 import gnb.perseus.compiler.antlr.PerseusBaseListener;
 import gnb.perseus.compiler.antlr.PerseusParser;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -261,6 +262,7 @@ public class TypeInferencer extends PerseusBaseListener {
         if (receiverType == null) {
             throw error(ctx, "PERS2008", "Member call requires a typed receiver: " + ctx.getText());
         }
+        boolean explicitCall = ctx.argList() != null;
         if ("string".equals(receiverType)) {
             String memberName = ctx.identifier(1).getText();
             Method javaMethod = findJavaMethod("java.lang.String", memberName,
@@ -284,6 +286,13 @@ public class TypeInferencer extends PerseusBaseListener {
         if (method != null) {
             exprTypes.put(ctx, method.returnType);
             return;
+        }
+        if (!explicitCall) {
+            Field javaField = findJavaFieldInHierarchy(cls, memberName);
+            if (javaField != null) {
+                exprTypes.put(ctx, mapJavaType(javaField.getType()));
+                return;
+            }
         }
         Method javaMethod = findJavaMethodInHierarchy(cls, memberName,
                 ctx.argList() != null ? ctx.argList().arg().size() : 0);
@@ -358,6 +367,29 @@ public class TypeInferencer extends PerseusBaseListener {
                 Method method = findJavaMethod(current.externalJavaQualifiedName, memberName, argCount);
                 if (method != null) {
                     return method;
+                }
+            }
+            current = current.parentName != null ? classes.get(current.parentName) : null;
+        }
+        return null;
+    }
+
+    private Field findJavaField(String qualifiedName, String memberName) {
+        try {
+            Class<?> owner = Class.forName(qualifiedName);
+            return owner.getField(memberName);
+        } catch (ClassNotFoundException | NoSuchFieldException ignored) {
+        }
+        return null;
+    }
+
+    private Field findJavaFieldInHierarchy(SymbolTableBuilder.ClassInfo cls, String memberName) {
+        SymbolTableBuilder.ClassInfo current = cls;
+        while (current != null) {
+            if (current.externalJava && current.externalJavaQualifiedName != null) {
+                Field field = findJavaField(current.externalJavaQualifiedName, memberName);
+                if (field != null) {
+                    return field;
                 }
             }
             current = current.parentName != null ? classes.get(current.parentName) : null;

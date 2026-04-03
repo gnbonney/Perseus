@@ -122,6 +122,29 @@ public class ExternalProceduresTest extends CompilerTest {
 	}
 
 	@Test
+	public void external_java_instance_fields_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_java_instance_fields.alg", "gnb/perseus/programs", "ExternalJavaInstanceFields", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== EXTERNAL JAVA INSTANCE FIELDS JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END EXTERNAL JAVA INSTANCE FIELDS ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("getfield java/awt/Point/x I"),
+				"Should read the public Java instance field x directly");
+		assertTrue(jasminSource.contains("getfield java/awt/Point/y I"),
+				"Should read the public Java instance field y directly");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalJavaInstanceFields");
+		System.out.println("external_java_instance_fields output: [" + output + "]");
+		assertEquals("3,4", output.trim(),
+				"External Java instance field access should read public Java fields directly");
+	}
+
+	@Test
 	public void external_perseus_array_client_test() throws Exception {
 		Path libraryJasminFile = PerseusCompiler.compileToFile(
 				"test/algol/external/external_algol_array_library.alg", "gnb/perseus/programs", "ExternalAlgolArrayLibrary", BUILD_DIR);
