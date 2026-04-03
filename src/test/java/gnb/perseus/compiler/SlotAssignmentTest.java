@@ -45,7 +45,7 @@ public class SlotAssignmentTest {
             "test.alg", "test", null, "Test",
             symbolTable, localIndex, nextLocal,
             new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(),
-            procVarSlots
+            procVarSlots, new HashMap<>(), new HashMap<>()
         );
         
         // We can't easily walk a full program here without more setup, 

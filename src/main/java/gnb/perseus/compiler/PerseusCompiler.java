@@ -296,6 +296,8 @@ public class PerseusCompiler {
 		Map<String, PerseusParser.SwitchDeclContext> switchDeclarations = symBuilder.getSwitchDeclarations();
 		String classPackageName = normalizeInternalPackageName(symBuilder.getNamespaceName());
 		validateExternalProcedures(fileName, procedures, externalClassRoots);
+		validateExternalJavaStaticValues(fileName, symBuilder.getExternalJavaStaticValues(),
+				symBuilder.getExternalJavaClasses(), externalClassRoots);
 
         // Check for procedure variables (procedure names that are used in assignments or expressions)
         Set<String> procedureVariables = new LinkedHashSet<>();
@@ -417,7 +419,8 @@ public class PerseusCompiler {
 		String source = Paths.get(fileName).getFileName().toString();
 		CodeGenerator codegen = new CodeGenerator(source, packageName, classPackageName, className,
 				mainSymbolTable, localIndex, numLocals, exprTypes, arrayBounds, arrayBoundPairs,
-				symBuilder.getProcedures(), classes, switchDeclarations, procVarSlotsMap);
+				symBuilder.getProcedures(), classes, switchDeclarations, procVarSlotsMap,
+				symBuilder.getExternalJavaClasses(), symBuilder.getExternalJavaStaticValues());
 		walker.walk(codegen, programContext);
 		return codegen;
 	}
@@ -486,6 +489,43 @@ public class PerseusCompiler {
 			}
 		}
 		return true;
+	}
+
+	private static void validateExternalJavaStaticValues(String fileName,
+			Map<String, SymbolTableBuilder.ExternalValueInfo> values,
+			Map<String, String> externalJavaClasses,
+			List<Path> externalClassRoots) throws CompilationFailedException {
+		java.util.ArrayList<CompilerDiagnostic> diagnostics = new java.util.ArrayList<>();
+		for (SymbolTableBuilder.ExternalValueInfo info : values.values()) {
+			try {
+				Class<?> owner = loadExternalOwner(info.ownerClass, externalClassRoots);
+				java.lang.reflect.Field field = owner.getField(info.targetMember);
+				if (!Modifier.isStatic(field.getModifiers())) {
+					diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
+							"External Java field " + info.ownerClass + "." + info.targetMember + " exists but is not static"));
+					continue;
+				}
+				String expected = externalValueTypeToJvmDescriptor(info.type, externalJavaClasses);
+				String actual = toJvmDescriptor(field.getType());
+				if (!expected.equals(actual)) {
+					diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
+							"External Java field " + info.ownerClass + "." + info.targetMember
+									+ " did not match the declared type; expected " + expected + " but found " + actual));
+				}
+			} catch (NoSuchFieldException e) {
+				diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
+						"External Java field not found: " + info.ownerClass + "." + info.targetMember));
+			} catch (ClassNotFoundException e) {
+				diagnostics.add(CompilerDiagnostic.error("PERS3001", fileName, 1, 1,
+						"External target class not found: " + info.ownerClass));
+			} catch (IOException e) {
+				diagnostics.add(CompilerDiagnostic.error("PERS3001", fileName, 1, 1,
+						"Unable to inspect external target class " + info.ownerClass + ": " + e.getMessage()));
+			}
+		}
+		if (!diagnostics.isEmpty()) {
+			throw new CompilationFailedException(diagnostics);
+		}
 	}
 
 	private static boolean isSupportedExternalType(String type, String externalKind, boolean isReturnType) {
@@ -613,6 +653,21 @@ public class PerseusCompiler {
 			return CodeGenUtils.arrayTypeToJvmDesc(type) + "II";
 		}
 		return CodeGenUtils.getReturnTypeDescriptor(type);
+	}
+
+	private static String externalValueTypeToJvmDescriptor(String type, Map<String, String> externalJavaClasses) {
+		if (type == null) {
+			return "V";
+		}
+		if (type.startsWith("ref:")) {
+			String simpleName = type.substring("ref:".length());
+			String qualified = externalJavaClasses.get(simpleName);
+			if (qualified == null) {
+				return "Ljava/lang/Object;";
+			}
+			return "L" + qualified.replace('.', '/') + ";";
+		}
+		return externalTypeToJvmDescriptor(type, "java-static");
 	}
 
 	private static String toJvmDescriptor(Class<?> type) {

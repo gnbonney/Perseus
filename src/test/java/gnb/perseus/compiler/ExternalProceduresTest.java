@@ -99,6 +99,29 @@ public class ExternalProceduresTest extends CompilerTest {
 	}
 
 	@Test
+	public void external_java_static_field_alias_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_java_static_field_alias.alg", "gnb/perseus/programs", "ExternalJavaStaticFieldAlias", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== EXTERNAL JAVA STATIC FIELD ALIAS JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END EXTERNAL JAVA STATIC FIELD ALIAS ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("getstatic java/lang/System/out Ljava/io/PrintStream;"),
+				"Should load the declared external Java static field through its aliased local name");
+		assertTrue(jasminSource.contains("invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V"),
+				"Should allow a chained instance call through the imported static field binding");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalJavaStaticFieldAlias");
+		System.out.println("external_java_static_field_alias output: [" + output + "]");
+		assertEquals("Hello from static field", output.trim(),
+				"External Java static field aliases should bind object values that can be used for instance calls");
+	}
+
+	@Test
 	public void external_perseus_array_client_test() throws Exception {
 		Path libraryJasminFile = PerseusCompiler.compileToFile(
 				"test/algol/external/external_algol_array_library.alg", "gnb/perseus/programs", "ExternalAlgolArrayLibrary", BUILD_DIR);

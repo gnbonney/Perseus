@@ -54,7 +54,7 @@ compoundStatement
   ;
 
 statement
-  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalProcedureDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | block)?
+  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalValueDecl | externalProcedureDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | block)?
   ;
 
 classDecl
@@ -72,6 +72,10 @@ interfaceList
 
 externalClassDecl
   : EXTERNAL JAVA CLASS qualifiedName
+  ;
+
+externalValueDecl
+  : EXTERNAL JAVA STATIC '(' qualifiedName ')' REF '(' identifier ')' identifier AS identifier
   ;
 
 refDecl

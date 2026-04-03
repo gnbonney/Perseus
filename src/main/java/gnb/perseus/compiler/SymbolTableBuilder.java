@@ -38,6 +38,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     private final Map<String, ProcInfo> procedures = new LinkedHashMap<>();
     private final Map<String, ClassInfo> classes = new LinkedHashMap<>();
     private final Map<String, String> externalJavaClasses = new LinkedHashMap<>();
+    private final Map<String, ExternalValueInfo> externalJavaStaticValues = new LinkedHashMap<>();
     private final Map<String, PerseusParser.SwitchDeclContext> switchDeclarations = new LinkedHashMap<>();
     private String namespaceName;
     private final Deque<ProcInfo> procStack = new ArrayDeque<>();
@@ -79,6 +80,20 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
         public ProcInfo(String returnType) {
             this.returnType = returnType;
+        }
+    }
+
+    public static class ExternalValueInfo {
+        public final String localName;
+        public final String type;
+        public final String ownerClass;
+        public final String targetMember;
+
+        public ExternalValueInfo(String localName, String type, String ownerClass, String targetMember) {
+            this.localName = localName;
+            this.type = type;
+            this.ownerClass = ownerClass;
+            this.targetMember = targetMember;
         }
     }
 
@@ -149,6 +164,10 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
     public Map<String, String> getExternalJavaClasses() {
         return externalJavaClasses;
+    }
+
+    public Map<String, ExternalValueInfo> getExternalJavaStaticValues() {
+        return externalJavaStaticValues;
     }
 
     public Map<String, PerseusParser.SwitchDeclContext> getSwitchDeclarations() {
@@ -461,6 +480,17 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             symbolTable.put(name, refType);
             mainSymbolTable.put(name, refType);
         }
+    }
+
+    @Override
+    public void enterExternalValueDecl(PerseusParser.ExternalValueDeclContext ctx) {
+        String ownerClass = ctx.qualifiedName().getText();
+        String refType = "ref:" + ctx.identifier(0).getText();
+        String targetMember = ctx.identifier(1).getText();
+        String localName = ctx.identifier(2).getText();
+        symbolTable.put(localName, refType);
+        mainSymbolTable.put(localName, refType);
+        externalJavaStaticValues.put(localName, new ExternalValueInfo(localName, refType, ownerClass, targetMember));
     }
 
     @Override

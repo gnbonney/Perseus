@@ -136,6 +136,8 @@ public class CodeGenerator extends PerseusBaseListener {
     // Delegate for generating built-in math and string function calls
     private final BuiltinFunctionGenerator builtinGen;
     private final ClassGenerator classGen;
+    private final Map<String, String> externalJavaClasses;
+    private final Map<String, SymbolTableBuilder.ExternalValueInfo> externalJavaStaticValues;
     // Delegate for generating procedure reference and procedure-variable call code
     private final ProcedureGenerator procGen;
 
@@ -163,7 +165,9 @@ public class CodeGenerator extends PerseusBaseListener {
                          Map<String, SymbolTableBuilder.ProcInfo> procedures,
                          Map<String, SymbolTableBuilder.ClassInfo> classes,
                          Map<String, PerseusParser.SwitchDeclContext> switchDeclarations,
-                         Map<String, Integer> procVarSlots) {
+                         Map<String, Integer> procVarSlots,
+                         Map<String, String> externalJavaClasses,
+                         Map<String, SymbolTableBuilder.ExternalValueInfo> externalJavaStaticValues) {
         this.source = source;
         this.packageName = packageName;
         this.classPackageName = classPackageName != null && !classPackageName.isBlank() ? classPackageName : packageName;
@@ -173,6 +177,8 @@ public class CodeGenerator extends PerseusBaseListener {
         this.classes = classes != null ? classes : Map.of();
         this.switchDeclarations = switchDeclarations != null ? switchDeclarations : Map.of();
         this.procVarSlots = procVarSlots != null ? procVarSlots : Map.of();
+        this.externalJavaClasses = externalJavaClasses != null ? externalJavaClasses : Map.of();
+        this.externalJavaStaticValues = externalJavaStaticValues != null ? externalJavaStaticValues : Map.of();
         this.rootMainSymbolTable = symbolTable;
         this.rootMainLocalIndex = localIndex;
         this.currentSymbolTable = symbolTable;
@@ -2033,6 +2039,7 @@ public class CodeGenerator extends PerseusBaseListener {
     private String generateLoadVar(String name) {
         Integer idx = currentLocalIndex.get(name);
         String type = currentSymbolTable.get(name);
+        SymbolTableBuilder.ExternalValueInfo externalValue = externalJavaStaticValues.get(name);
         boolean resolvedFromRootMain = false;
         if (idx == null && mainLocalIndex != null) {
             idx = mainLocalIndex.get(name);
@@ -2090,6 +2097,10 @@ public class CodeGenerator extends PerseusBaseListener {
             return sb.toString();
         }
         if (idx == null) {
+            if (externalValue != null) {
+                return "getstatic " + externalValue.ownerClass.replace('.', '/') + "/" + externalValue.targetMember
+                        + " " + externalValueJvmDesc(externalValue.type) + "\n";
+            }
             // Check if this is a static scalar
             if (type != null && !type.endsWith("[]") && !type.startsWith("procedure:") && !type.startsWith("thunk:")) {
                 String jvmDesc = scalarTypeToJvmDesc(type);
@@ -2985,6 +2996,18 @@ public class CodeGenerator extends PerseusBaseListener {
 
     private static String scalarTypeToJvmDesc(String scalarType) {
         return CodeGenUtils.scalarTypeToJvmDesc(scalarType);
+    }
+
+    private String externalValueJvmDesc(String type) {
+        if (type != null && type.startsWith("ref:")) {
+            String simpleName = type.substring("ref:".length());
+            String qualified = externalJavaClasses.get(simpleName);
+            if (qualified != null) {
+                return "L" + qualified.replace('.', '/') + ";";
+            }
+            return "Ljava/lang/Object;";
+        }
+        return scalarTypeToJvmDesc(type);
     }
 
     private static String externalTypeToJvmDesc(String type, String externalKind) {
