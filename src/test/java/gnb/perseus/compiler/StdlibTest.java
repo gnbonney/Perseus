@@ -79,4 +79,40 @@ public class StdlibTest extends CompilerTest {
         assertEquals("42 3.5 Hello o", output.trim(),
                 "Builtin output names should work through the automatically provisioned TextOutput unit");
     }
+
+    @Test
+    public void automatic_stdlib_textinput_test() throws Exception {
+        Path clientDir = Files.createTempDirectory(BUILD_DIR, "stdlib-textinput-client");
+        Path clientJasmin = PerseusCompiler.compileToFile(
+                "test/algol/stdlib/stdlib_textinput_client.alg",
+                "gnb/perseus/programs",
+                "StdlibTextInputClient",
+                clientDir);
+        PerseusCompiler.assemble(clientJasmin, clientDir);
+
+        assertTrue(Files.exists(clientDir.resolve("perseus/io/TextInput.class")),
+                "Normal compilation should provision TextInput automatically");
+
+        String output = runClassWithInput(clientDir, "gnb.perseus.programs.StdlibTextInputClient", "12\n3.5\ne\n");
+        assertEquals("12,3.5,1", output.trim(),
+                "Builtin input names should work through the automatically provisioned TextInput unit");
+    }
+
+    @Test
+    public void automatic_stdlib_faults_test() throws Exception {
+        Path clientDir = Files.createTempDirectory(BUILD_DIR, "stdlib-faults-client");
+        Path clientJasmin = PerseusCompiler.compileToFile(
+                "test/algol/stdlib/stdlib_fault_client.alg",
+                "gnb/perseus/programs",
+                "StdlibFaultClient",
+                clientDir);
+        PerseusCompiler.assemble(clientJasmin, clientDir);
+
+        assertTrue(Files.exists(clientDir.resolve("perseus/runtime/Faults.class")),
+                "Normal compilation should provision Faults automatically");
+
+        String output = runClass(clientDir, "gnb.perseus.programs.StdlibFaultClient");
+        assertEquals("1", output.trim(),
+                "Builtin fault should work through the automatically provisioned Faults unit");
+    }
 }

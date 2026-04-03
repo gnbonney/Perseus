@@ -287,12 +287,8 @@ end
                 "Should call System.exit() for stop");
 
         // Verify fault call generation
-        assertTrue(jasminSource.contains("getstatic java/lang/System/err Ljava/io/PrintStream;"),
-                "Should get System.err for fault");
-        assertTrue(jasminSource.contains("invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V"),
-                "Should call println for fault message");
-        assertTrue(jasminSource.contains("iconst_1"),
-                "Should load exit code 1 for fault");
+        assertTrue(jasminSource.contains("invokestatic perseus/runtime/Faults/fault(Ljava/lang/String;D)V"),
+                "Should route fault through the compiled Faults unit");
 
         // Assemble to .class
         PerseusCompiler.assemble(jasminFile, BUILD_DIR);

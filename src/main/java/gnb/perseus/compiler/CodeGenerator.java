@@ -1383,88 +1383,59 @@ public class CodeGenerator extends PerseusBaseListener {
                         .append(generateExpr(args.get(2).expr()))
                         .append("invokestatic perseus/io/TextOutput/outchar(ILjava/lang/String;I)V\n");
         } else if ("ininteger".equals(name)) {
-            // ininteger(channel, var) - reads an integer from System.in and stores in var
             PerseusParser.ExprContext varExpr = args.get(1).expr();
             if (varExpr instanceof PerseusParser.VarExprContext) {
                 String varName = ((PerseusParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
                 String varType = currentSymbolTable.get(varName);
+                activeOutput.append(generateExpr(args.get(0).expr()))
+                            .append("invokestatic perseus/io/TextInput/ininteger(I)I\n");
                 if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
-                    // Static scalar
-                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                                .append("/__scanner Ljava/util/Scanner;\n")
-                                .append("invokevirtual java/util/Scanner/nextInt()I\n")
-                                .append("putstatic ").append(packageName).append("/").append(className)
+                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                 .append("/").append(varName).append(" I\n");
                 } else if (varSlot == null) {
                     activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
                 } else {
-                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                                .append("/__scanner Ljava/util/Scanner;\n")
-                                .append("invokevirtual java/util/Scanner/nextInt()I\n")
-                                .append("istore ").append(varSlot).append("\n");
+                    activeOutput.append("istore ").append(varSlot).append("\n");
                 }
             } else {
                 activeOutput.append("; ERROR: ininteger requires a variable as second argument\n");
             }
         } else if ("inreal".equals(name)) {
-            // inreal(channel, var) - reads a real from System.in and stores in var
             PerseusParser.ExprContext varExpr = args.get(1).expr();
             if (varExpr instanceof PerseusParser.VarExprContext) {
                 String varName = ((PerseusParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
                 String varType = currentSymbolTable.get(varName);
+                activeOutput.append(generateExpr(args.get(0).expr()))
+                            .append("invokestatic perseus/io/TextInput/inreal(I)D\n");
                 if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
-                    // Static scalar
-                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                                .append("/__scanner Ljava/util/Scanner;\n")
-                                .append("invokevirtual java/util/Scanner/nextDouble()D\n")
-                                .append("putstatic ").append(packageName).append("/").append(className)
+                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                 .append("/").append(varName).append(" D\n");
                 } else if (varSlot == null) {
                     activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
                 } else {
-                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                                .append("/__scanner Ljava/util/Scanner;\n")
-                                .append("invokevirtual java/util/Scanner/nextDouble()D\n")
-                                .append("dstore ").append(varSlot).append("\n");
+                    activeOutput.append("dstore ").append(varSlot).append("\n");
                 }
             } else {
                 activeOutput.append("; ERROR: inreal requires a variable as second argument\n");
             }
         } else if ("inchar".equals(name)) {
-            // inchar(channel, str, var) - reads one character and finds its position in str
-            String str = args.get(1).getText();
             PerseusParser.ExprContext varExpr = args.get(2).expr();
             if (varExpr instanceof PerseusParser.VarExprContext) {
                 String varName = ((PerseusParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
                 String varType = currentSymbolTable.get(varName);
+                activeOutput.append(generateExpr(args.get(0).expr()))
+                            .append(generateExpr(args.get(1).expr()))
+                            .append("invokestatic perseus/io/TextInput/inchar(ILjava/lang/String;)I\n");
                 if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
-                    // Static scalar
-                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                                .append("/__scanner Ljava/util/Scanner;\n")
-                                .append("invokevirtual java/util/Scanner/next()Ljava/lang/String;\n")
-                                .append("iconst_0\n")
-                                .append("invokevirtual java/lang/String/charAt(I)C\n")
-                                .append("ldc ").append(str).append("\n")
-                                .append("swap\n")
-                                .append("invokevirtual java/lang/String/indexOf(I)I\n")
-                                .append("putstatic ").append(packageName).append("/").append(className)
+                    activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                 .append("/").append(varName).append(" I\n");
                 } else if (varSlot == null) {
                     activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
                 } else {
-                    // Read next token from scanner
-                    activeOutput.append("getstatic ").append(packageName).append("/").append(className)
-                                .append("/__scanner Ljava/util/Scanner;\n")
-                                .append("invokevirtual java/util/Scanner/next()Ljava/lang/String;\n")
-                                .append("iconst_0\n")
-                                .append("invokevirtual java/lang/String/charAt(I)C\n")
-                                .append("ldc ").append(str).append("\n")
-                                .append("swap\n")
-                                .append("invokevirtual java/lang/String/indexOf(I)I\n")
-                                .append("istore ").append(varSlot).append("\n");
+                    activeOutput.append("istore ").append(varSlot).append("\n");
                 }
             } else {
                 activeOutput.append("; ERROR: inchar requires a variable as third argument\n");
@@ -1474,20 +1445,12 @@ public class CodeGenerator extends PerseusBaseListener {
             activeOutput.append("iconst_0\n")
                         .append("invokestatic java/lang/System/exit(I)V\n");
         } else if ("fault".equals(name)) {
-            if (exceptionGen.isInsideExceptionBlock()) {
-                activeOutput.append("new java/lang/RuntimeException\n")
-                            .append("dup\n")
-                            .append(generateExpr(args.get(0).expr()))
-                            .append("invokespecial java/lang/RuntimeException/<init>(Ljava/lang/String;)V\n")
-                            .append("athrow\n");
-            } else {
-                // fault(str, r) - prints error message to System.err then exits with code 1
-                activeOutput.append("getstatic java/lang/System/err Ljava/io/PrintStream;\n")
-                            .append(generateExpr(args.get(0).expr()))
-                            .append("invokevirtual java/io/PrintStream/println(Ljava/lang/String;)V\n")
-                            .append("iconst_1\n")
-                            .append("invokestatic java/lang/System/exit(I)V\n");
+            activeOutput.append(generateExpr(args.get(0).expr()));
+            activeOutput.append(generateExpr(args.get(1).expr()));
+            if ("integer".equals(exprTypes.getOrDefault(args.get(1).expr(), "integer"))) {
+                activeOutput.append("i2d\n");
             }
+            activeOutput.append("invokestatic perseus/runtime/Faults/fault(Ljava/lang/String;D)V\n");
         } else {
             // Check if it's a call through a procedure variable (local or outer scope).
             String varType = currentSymbolTable.get(name);

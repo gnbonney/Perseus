@@ -84,7 +84,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 3. Add a fuller library-oriented build mode around `namespace`, with explicit conventions for multi-file library roots, outputs, and possibly packaging.
    - This is the strongest long-term workflow.
-   - It would also overlap more with Milestone 36 CLI/product work and would likely require broader tooling decisions at the same time.
+   - It would also overlap more with Milestone 38 CLI/product work and would likely require broader tooling decisions at the same time.
 
 ## Milestone 34 - Exception Follow-On
 
@@ -109,18 +109,16 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Goal:** Move more of the environmental block out of compiler hardcoding and into a real always-available compiled standard environment.
 
-- [ ] Define the shape of the always-available standard environment / prelude
+- [x] Define the shape of the always-available standard environment / prelude
 - [x] Create a dedicated stdlib source tree under `src/main/perseus/stdlib`
 - [x] Move the Modified Report numeric procedures into compiled support such as `MathEnv`
 - [x] Move the Modified Report numeric constants into compiled support such as `MathEnv`
 - [x] Move string-oriented support such as `length`, `concat`, and `substring` into a compiled helper such as `Strings`
 - [x] Move output-side environmental procedures into compiled support such as `TextOutput`
-- [ ] Move input-side environmental procedures into compiled support such as `TextInput`
-- [ ] Add channel/runtime support classes such as `Channels` where implementation-heavy environmental features need them
-- [ ] Move runtime control helpers such as `fault` and possibly `stop` into a compiled runtime helper such as `Faults` where practical
+- [x] Move input-side environmental procedures into compiled support such as `TextInput`
+- [x] Implement `fault` through a compiled/runtime helper that throws a runtime exception
 - [x] Add a Gradle task that compiles the stdlib source tree with the Perseus compiler itself
 - [x] Package the compiled standard environment as a separate jar such as `build/libs/perseus-stdlib.jar`
-- [ ] Decide which environmental identifiers remain true compiler intrinsics after that split
 - [x] Ensure the standard environment is automatically available to all Perseus programs without explicit imports
 - [x] Add tests showing that migrated environmental procedures work through the compiled standard environment rather than only through compiler-recognized names
 
@@ -134,18 +132,22 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - `perseus.io.TextOutput`
   - `outchar`, `outstring`, `outterminator`, `outinteger`, `outreal`
 - `perseus.runtime.Faults`
-  - `stop`, `fault`
+  - `fault`
 
 **Current Milestone 35 slice:**
 - `MathEnv` now covers `abs`, `iabs`, `sign`, `entier`, `sqrt`, `sin`, `cos`, `arctan`, `ln`, and `exp`.
 - `MathEnv` now also covers the numeric constants `maxreal`, `minreal`, `maxint`, and `epsilon`.
 - `Strings` now covers `length`, `concat`, and `substring`.
 - `TextOutput` now covers `outchar`, `outstring`, `outterminator`, `outinteger`, and `outreal`.
+- `TextInput` now covers `inchar`, `ininteger`, and `inreal`.
+- `Faults` now covers `fault`.
 - The typed procedure return-assignment coercion needed for integer-valued wrappers such as `entier` is implemented.
 - The standard environment is now provisioned automatically for normal compilation, and the migrated math and string builtins route through `MathEnv` and `Strings` rather than directly to Java library calls.
 - The migrated output procedures now route through `perseus.io.TextOutput`, with a small Java runtime helper handling the current JVM stream dispatch details behind that compiled stdlib unit.
+- The migrated input procedures now route through `perseus.io.TextInput`, with a small Java runtime helper handling the current standard-input scanning details behind that compiled stdlib unit.
 - The stdlib source tree, Gradle compile task, and stdlib jar packaging are in place.
-- The remaining Modified Report work in this milestone is now the input/runtime environment classes listed above.
+- `stop` will remain a compiler/runtime intrinsic rather than being moved into the compiled standard environment.
+- Milestone 35 is now complete at the current intended scope.
 
 **Perseus string extensions:**
 - `perseus.text.Strings` will also be the natural home for Perseus-specific string helpers such as `concat` and `substring`, even though they are not part of the Modified Report inventory.
@@ -156,22 +158,42 @@ The milestones below collect follow-on work that was intentionally deferred whil
 3. `Strings`
 4. `TextOutput`
 5. `TextInput`
-6. `Channels`
-7. `Faults`
-8. Gradle stdlib compile task
-9. `perseus-stdlib.jar`
+6. `Faults`
+7. Gradle stdlib compile task
+8. `perseus-stdlib.jar`
 
-## Milestone 36 - Dynamic Channels and Formatted I/O Follow-On
+## Milestone 36 - Java API Interop Follow-On
+
+**Goal:** Extend Perseus Java interop beyond static methods and first-slice object calls so ordinary Java APIs can be used more directly without helper bridge classes.
+
+- [ ] Add source-level support for external Java static fields such as `java.lang.System.out`
+- [ ] Add object-valued external bindings so imported Java values can be named and reused in Perseus source
+- [ ] Allow chaining instance calls through imported Java values and field lookups
+- [ ] Improve overloaded-method resolution so Java calls are selected by argument types rather than only by name and arity
+- [ ] Improve overloaded-constructor resolution for `new` calls against external Java classes
+- [ ] Add source-level support for external Java instance fields where direct field access is the right interop surface
+- [ ] Decide how Java constants and enum-like static members should be exposed in Perseus source
+- [ ] Improve diagnostics for ambiguous or unsupported Java overloads and member lookups
+- [ ] Add regression tests around `System.out` / `System.err`, `PrintStream`, overloaded methods, overloaded constructors, and chained Java member calls
+- [ ] Refactor the compiled standard library to use these richer Java interop features directly and remove bridge helpers where they are no longer needed
+
+**Implementation notes:**
+- This milestone grows out of concrete friction discovered while moving `TextOutput` and `MathEnv` into the compiled standard environment.
+- The current need for bridge helpers such as `gnb.perseus.runtime.TextOutputSupport`, `gnb.perseus.runtime.TextInputSupport`, and `gnb.perseus.runtime.MathConstantsSupport` is acceptable as a short-term runtime strategy, but it also shows where Perseus Java interop still needs a richer source model.
+- Support for static fields, object-valued bindings, chaining, and stronger overload resolution would make both the standard library and ordinary user-written Java interop code feel much more direct.
+
+## Milestone 37 - Dynamic Channels and Formatted I/O Follow-On
 
 **Goal:** Generalize the first working dynamic I/O slice into a broader runtime channel model.
 
+- [ ] Add channel/runtime support classes such as `Channels` where implementation-heavy environmental features need them
 - [ ] Generalize the runtime model beyond the current constant-channel / literal-path slice
 - [ ] Extend more input/output procedures to use dynamic stream dispatch instead of only `System.out` / `System.err`
 - [ ] Add explicit `EndOfFile` behavior and decide where `fault(...)` remains the compatibility fallback
 - [ ] Extend formatted I/O beyond the current `I`, `F`, and `A` subset
 - [ ] Add more file/string-channel regression programs that combine unformatted and formatted I/O
 
-## Milestone 37 - CLI Follow-On
+## Milestone 38 - CLI Follow-On
 
 **Goal:** Extend the working CLI into a broader tool suitable for multi-file and interop-heavy workflows.
 
@@ -183,7 +205,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Further exit-code and machine-facing CLI refinements
 - [ ] Additional commands such as `check` or `emit-jasmin` if they remain desirable after the MVP
 
-## Milestone 38 - Label and Switch Parameters / Designational Exits
+## Milestone 39 - Label and Switch Parameters / Designational Exits
 
 **Status:** Not currently planned.
 
@@ -202,7 +224,7 @@ Possible JVM strategy for passed labels: lower non-local label exits to tagged e
 
 Possible JVM strategy for passed switches: lower a switch parameter to an indexed collection of label-exit descriptors (or thunks that resolve to them), reusing the same non-local escape machinery as passed labels when `goto sw[i]` selects a non-local target.
 
-## Milestone 39 - Input Procedures Cleanup
+## Milestone 40 - Input Procedures Cleanup
 
 **Goal:** Revisit the input-side environmental procedures that were marked complete during the MVP path and confirm that they really work end to end in realistic programs.
 
@@ -213,7 +235,7 @@ Possible JVM strategy for passed switches: lower a switch parameter to an indexe
 - [ ] Decide whether the current scanner/channel model for input procedures matches the intended environmental-block semantics closely enough
 - [ ] Update the MVP and environmental-block documentation once the behavior is confirmed
 
-## Milestone 40 - Recursive Thunk and Procedure-Parameter Cleanup
+## Milestone 41 - Recursive Thunk and Procedure-Parameter Cleanup
 
 **Goal:** Revisit recursive call-by-name and passed-procedure edge cases that appear to go beyond the currently validated thunk machinery.
 
@@ -227,7 +249,7 @@ Possible JVM strategy for passed switches: lower a switch parameter to an indexe
 
 These milestones are not just deferred implementation cleanup. They represent larger possible directions for Perseus after the MVP and the most important follow-on work are in place.
 
-## Milestone 41 - Lambda Notation
+## Milestone 42 - Lambda Notation
 
 **Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
@@ -235,7 +257,7 @@ These milestones are not just deferred implementation cleanup. They represent la
 - [ ] Lowering strategy onto existing procedure-reference infrastructure
 - [ ] Tests for higher-order procedure use cases
 
-## Milestone 42 - Actors
+## Milestone 43 - Actors
 
 **Goal:** Explore actors as a distinctive future direction for Perseus once the MVP and key follow-on milestones are in place (see [Actors Design Spec.md](Actors%20Design%20Spec.md)).
 
@@ -244,7 +266,7 @@ These milestones are not just deferred implementation cleanup. They represent la
 - [ ] Decide how actors should relate to existing classes, exceptions, and external Java interop
 - [ ] Add focused actor sample programs and a phased implementation plan
 
-## Milestone 43 - Looping Extensions
+## Milestone 44 - Looping Extensions
 
 **Goal:** Extend Perseus with more modern looping forms while preserving the original Algol `for` statement for compatibility (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
 
@@ -255,7 +277,7 @@ These milestones are not just deferred implementation cleanup. They represent la
 - [ ] Define scope and evaluation rules for loop-local iteration variables
 - [ ] Add focused sample programs and regression tests for the new loop forms
 
-## Milestone 44 - Collections and Iterators
+## Milestone 45 - Collections and Iterators
 
 **Goal:** Add higher-level collection types and iteration protocols suitable for more general-purpose programming (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
 
@@ -265,9 +287,9 @@ These milestones are not just deferred implementation cleanup. They represent la
 - [ ] Define an iterator protocol that works with `for ... in ... do`
 - [ ] Decide how collection libraries fit into the standard environment / standard library story
 - [ ] Add sample programs and regression tests for collection use cases
-- [ ] Decide how iterator pipelines such as `map` and `filter` should depend on Milestone 41 lambda notation
+- [ ] Decide how iterator pipelines such as `map` and `filter` should depend on Milestone 42 lambda notation
 
-## Milestone 45 - External Call-by-Name ABI
+## Milestone 46 - External Call-by-Name ABI
 
 **Goal:** Add a documented and stable Perseus-to-Perseus thunk ABI for the narrower case of separately compiled translations of historical Algol libraries.
 
@@ -280,25 +302,6 @@ These milestones are not just deferred implementation cleanup. They represent la
 - This work is intentionally separated from Milestone 32 because it depends on a stabilized thunk ABI rather than the first external procedure slice
 - The strongest motivation is historical Algol library translation, not general JVM-facing library design
 - Public JVM-facing reuse should prefer value-oriented Perseus classes and methods where possible, while external call-by-name remains a narrower compatibility feature
-
-## Milestone 46 - Java API Interop Follow-On
-
-**Goal:** Extend Perseus Java interop beyond static methods and first-slice object calls so ordinary Java APIs can be used more directly without helper bridge classes.
-
-- [ ] Add source-level support for external Java static fields such as `java.lang.System.out`
-- [ ] Add object-valued external bindings so imported Java values can be named and reused in Perseus source
-- [ ] Allow chaining instance calls through imported Java values and field lookups
-- [ ] Improve overloaded-method resolution so Java calls are selected by argument types rather than only by name and arity
-- [ ] Improve overloaded-constructor resolution for `new` calls against external Java classes
-- [ ] Add source-level support for external Java instance fields where direct field access is the right interop surface
-- [ ] Decide how Java constants and enum-like static members should be exposed in Perseus source
-- [ ] Improve diagnostics for ambiguous or unsupported Java overloads and member lookups
-- [ ] Add regression tests around `System.out` / `System.err`, `PrintStream`, overloaded methods, overloaded constructors, and chained Java member calls
-
-**Implementation notes:**
-- This milestone grows out of concrete friction discovered while moving `TextOutput` into the compiled standard environment.
-- The current need for bridge helpers such as `gnb.perseus.runtime.TextOutputSupport` is acceptable as a short-term runtime strategy, but it also shows where Perseus Java interop still needs a richer source model.
-- Support for static fields, object-valued bindings, chaining, and stronger overload resolution would make both the standard library and ordinary user-written Java interop code feel much more direct.
 
 ## Toward a General-Purpose Product
 

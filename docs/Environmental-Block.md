@@ -113,11 +113,11 @@ These read-only values are pre-declared in the environmental block and may be us
 | ALGOL identifier | Signature | Behaviour |
 |---|---|---|
 | `stop` | `procedure stop` | Terminates execution immediately |
-| `fault(str, r)` | `procedure fault(str, r)` | Prints an error message to standard error and terminates |
+| `fault(str, r)` | `procedure fault(str, r)` | Raises a runtime exception carrying the fault message |
 
 **Notes (Algol 60 Modified Report, Appendix 2):**
 - `stop` is defined as a `goto` to a label outside the program.
-- `fault` always writes to standard error regardless of channel. It is called internally by `sqrt` (if E < 0) and `ln` (if E ≤ 0).
+- In the current JVM implementation, `fault` raises a runtime exception. Uncaught faults therefore terminate execution naturally, while exception handlers may recover if they choose to catch the resulting runtime exception.
 
 ---
 
@@ -205,5 +205,5 @@ This makes the environmental block:
 - easier to document as a real library interface,
 - and more consistent with Perseus's support for external procedures, classes, `namespace`, and standard classpath-based linkage.
 
-The migration remains incremental rather than all at once: Perseus keeps a small intrinsic core, then moves environmental procedures into compiled Perseus code feature by feature as the runtime support becomes strong enough to carry them cleanly.
+The migration remains incremental rather than all at once: Perseus keeps a small intrinsic core, then moves environmental procedures into compiled Perseus code feature by feature as the runtime support becomes strong enough to carry them cleanly. `MathEnv`, `Strings`, `TextOutput`, `TextInput`, and `Faults` are already on that compiled path. `Channels` is the next remaining piece of the heavier runtime environment.
 

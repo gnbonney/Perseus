@@ -374,14 +374,15 @@ uses a few focused support classes.
     support behind file and string channels.
 - `perseus.io.TextInput`
   - Input-oriented environmental procedures such as `inchar`, `ininteger`, and
-    `inreal`, including shared scanning/parsing helpers.
+    `inreal`, including the current standard-input scanning bridge and later
+    channel-aware parsing support.
 - `perseus.io.TextOutput`
   - Output-oriented environmental procedures such as `outchar`, `outstring`,
-    `outinteger`, `outreal`, and `outterminator`, including shared formatting
-    helpers.
+    `outinteger`, `outreal`, and `outterminator`, including the current stream
+    dispatch bridge and later channel-aware formatting support.
 - `perseus.runtime.Faults`
-  - Runtime control helpers such as `fault`, and possibly `stop` while those
-    remain part of the standard environment rather than true compiler intrinsics.
+  - Runtime fault raising such as `fault`, while `stop` remains a
+    compiler/runtime intrinsic.
 
 This split keeps the public environmental surface familiar while allowing the
 implementation to group related runtime concerns together. It also fits the
