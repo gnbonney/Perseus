@@ -171,7 +171,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Allow chaining instance calls through imported Java values and field lookups
 - [x] Add source-level support for external Java instance fields where direct field access is the right interop surface
 - [x] Improve overloaded-method resolution so Java calls are selected by argument types rather than only by name and number of arguments
-- [ ] Improve overloaded-constructor resolution for `new` calls against external Java classes
+- [x] Improve overloaded-constructor resolution for `new` calls against external Java classes
 - [ ] Decide how Java constants and enum-like static members should be exposed in Perseus source
 - [ ] Improve diagnostics for ambiguous or unsupported Java overloads and member lookups
 - [ ] Add regression tests around `System.out` / `System.err`, `PrintStream`, overloaded methods, overloaded constructors, and chained Java member calls
@@ -181,7 +181,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - This milestone grows out of concrete friction discovered while moving `TextOutput` and `MathEnv` into the compiled standard environment.
 - The current need for bridge helpers such as `gnb.perseus.runtime.TextOutputSupport`, `gnb.perseus.runtime.TextInputSupport`, and `gnb.perseus.runtime.MathConstantsSupport` is acceptable as a short-term runtime strategy, but it also shows where Perseus Java interop still needs a richer source model.
 - Support for static fields, object-valued bindings, chaining, and stronger overload resolution would make both the standard library and ordinary user-written Java interop code feel much more direct.
-- The first slice of this work now covers aliased external Java static fields, imported object-valued bindings, chained instance calls through those bindings, direct reads of public Java instance fields, and method overload resolution by argument type.
+- The first slice of this work now covers aliased external Java static fields, imported object-valued bindings, chained instance calls through those bindings, direct reads of public Java instance fields, and overload resolution by argument type for both Java methods and Java constructors.
 
 ## Milestone 37 - Dynamic Channels and Formatted I/O Follow-On
 

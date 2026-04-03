@@ -3119,17 +3119,8 @@ public class CodeGenerator extends PerseusBaseListener {
         return null;
     }
 
-    private Constructor<?> findJavaConstructor(String qualifiedName, int argCount) {
-        try {
-            Class<?> owner = Class.forName(qualifiedName);
-            for (Constructor<?> ctor : owner.getConstructors()) {
-                if (ctor.getParameterCount() == argCount) {
-                    return ctor;
-                }
-            }
-        } catch (ClassNotFoundException ignored) {
-        }
-        return null;
+    private Constructor<?> findJavaConstructor(String qualifiedName, List<PerseusParser.ArgContext> args) {
+        return JavaInteropResolver.findBestConstructor(qualifiedName, getArgTypes(args));
     }
 
     private List<String> getArgTypes(List<PerseusParser.ArgContext> args) {
@@ -3758,7 +3749,7 @@ public class CodeGenerator extends PerseusBaseListener {
             List<PerseusParser.ArgContext> args = e.argList() != null ? e.argList().arg() : List.of();
             StringBuilder ctorDesc = new StringBuilder("(");
             if (cls != null && cls.externalJava) {
-                Constructor<?> ctor = findJavaConstructor(cls.externalJavaQualifiedName, args.size());
+                Constructor<?> ctor = findJavaConstructor(cls.externalJavaQualifiedName, args);
                 if (ctor == null) {
                     return "; ERROR: no matching external java constructor for " + objectClass + "\n";
                 }

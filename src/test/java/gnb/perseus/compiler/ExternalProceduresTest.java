@@ -168,6 +168,27 @@ public class ExternalProceduresTest extends CompilerTest {
 	}
 
 	@Test
+	public void external_java_overloaded_constructor_resolution_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_java_overloaded_constructor_resolution.alg", "gnb/perseus/programs", "ExternalJavaOverloadedConstructorResolution", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== EXTERNAL JAVA OVERLOADED CONSTRUCTOR RESOLUTION JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END EXTERNAL JAVA OVERLOADED CONSTRUCTOR RESOLUTION ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("invokespecial java/lang/StringBuilder/<init>(Ljava/lang/String;)V"),
+				"Should select the StringBuilder(String) constructor when called with a string argument");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalJavaOverloadedConstructorResolution");
+		System.out.println("external_java_overloaded_constructor_resolution output: [" + output + "]");
+		assertEquals("abc", output.trim(),
+				"Java constructor overload resolution should use argument types so the right constructor is selected");
+	}
+
+	@Test
 	public void external_perseus_array_client_test() throws Exception {
 		Path libraryJasminFile = PerseusCompiler.compileToFile(
 				"test/algol/external/external_algol_array_library.alg", "gnb/perseus/programs", "ExternalAlgolArrayLibrary", BUILD_DIR);
