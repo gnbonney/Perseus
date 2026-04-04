@@ -407,7 +407,7 @@ public class PerseusCompiler {
 		int numLocals = Math.max(nextLocal, 1);
 
 		// Pass 1.5: type inference
-		TypeInferencer typeInf = new TypeInferencer(fileName, symbolTable, classes);
+		TypeInferencer typeInf = new TypeInferencer(fileName, symbolTable, procedures, classes);
 		try {
 			walker.walk(typeInf, programContext);
 		} catch (DiagnosticException e) {

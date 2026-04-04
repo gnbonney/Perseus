@@ -32,9 +32,7 @@ public final class PerseusStdlibBuilder {
 
     public static void buildClasses(Path sourceRoot, Path classOutputDir) throws Exception {
         Files.createDirectories(classOutputDir);
-        copyRuntimeSupportClass("gnb/perseus/runtime/TextOutputSupport.class", classOutputDir);
         copyRuntimeSupportClass("gnb/perseus/runtime/TextInputSupport.class", classOutputDir);
-        copyRuntimeSupportClass("gnb/perseus/runtime/MathConstantsSupport.class", classOutputDir);
         copyRuntimeSupportClass("gnb/perseus/runtime/FaultSupport.class", classOutputDir);
 
         List<Path> sources = collectSources(sourceRoot);

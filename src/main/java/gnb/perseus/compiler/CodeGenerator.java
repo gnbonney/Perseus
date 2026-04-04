@@ -3107,7 +3107,8 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private Method findJavaMethod(String qualifiedName, String methodName, List<PerseusParser.ArgContext> args) {
-        return JavaInteropResolver.findBestMethod(qualifiedName, methodName, getArgTypes(args));
+        return JavaInteropResolver.findBestMethod(
+                qualifiedName, methodName, getArgTypes(args), this::scoreReferenceCompatibility);
     }
 
     private Field findJavaField(String qualifiedName, String fieldName) {
@@ -3120,7 +3121,8 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private Constructor<?> findJavaConstructor(String qualifiedName, List<PerseusParser.ArgContext> args) {
-        return JavaInteropResolver.findBestConstructor(qualifiedName, getArgTypes(args));
+        return JavaInteropResolver.findBestConstructor(
+                qualifiedName, getArgTypes(args), this::scoreReferenceCompatibility);
     }
 
     private List<String> getArgTypes(List<PerseusParser.ArgContext> args) {
@@ -3129,6 +3131,48 @@ public class CodeGenerator extends PerseusBaseListener {
             argTypes.add(exprTypes.getOrDefault(arg.expr(), "integer"));
         }
         return argTypes;
+    }
+
+    private int scoreReferenceCompatibility(Class<?> parameterType, String refTypeSimpleName) {
+        SymbolTableBuilder.ClassInfo cls = classes.get(refTypeSimpleName);
+        if (cls == null) {
+            return -1;
+        }
+        if (matchesJavaReferenceType(cls, parameterType)) {
+            return 2;
+        }
+        return -1;
+    }
+
+    private boolean matchesJavaReferenceType(SymbolTableBuilder.ClassInfo cls, Class<?> parameterType) {
+        if (cls.externalJava && cls.externalJavaQualifiedName != null) {
+            try {
+                Class<?> actualClass = Class.forName(cls.externalJavaQualifiedName);
+                if (parameterType.isAssignableFrom(actualClass)) {
+                    return true;
+                }
+            } catch (ClassNotFoundException ignored) {
+            }
+        }
+        for (String ifaceName : cls.interfaces) {
+            SymbolTableBuilder.ClassInfo iface = classes.get(ifaceName);
+            if (iface != null && iface.externalJava && iface.externalJavaQualifiedName != null) {
+                try {
+                    Class<?> ifaceClass = Class.forName(iface.externalJavaQualifiedName);
+                    if (parameterType.isAssignableFrom(ifaceClass)) {
+                        return true;
+                    }
+                } catch (ClassNotFoundException ignored) {
+                }
+            }
+        }
+        if (cls.parentName != null) {
+            SymbolTableBuilder.ClassInfo parent = classes.get(cls.parentName);
+            if (parent != null && matchesJavaReferenceType(parent, parameterType)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String toJvmDescriptor(Class<?> type) {

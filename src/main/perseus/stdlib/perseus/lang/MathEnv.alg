@@ -19,14 +19,14 @@ external java static(java.lang.Math)
     real procedure log(real x) as math_log;
 external java static(java.lang.Math)
     real procedure exp(real x) as math_exp;
-external java static(gnb.perseus.runtime.MathConstantsSupport)
-    real procedure maxreal as runtime_maxreal;
-external java static(gnb.perseus.runtime.MathConstantsSupport)
-    real procedure minreal as runtime_minreal;
-external java static(gnb.perseus.runtime.MathConstantsSupport)
-    integer procedure maxint as runtime_maxint;
-external java static(gnb.perseus.runtime.MathConstantsSupport)
-    real procedure epsilon as runtime_epsilon;
+external java static(java.lang.Double)
+    real MAX_VALUE as runtime_maxreal;
+external java static(java.lang.Double)
+    real MIN_VALUE as runtime_minreal;
+external java static(java.lang.Integer)
+    integer MAX_VALUE as runtime_maxint;
+external java static(java.lang.Double)
+    real MIN_NORMAL as runtime_epsilon;
 
 real procedure abs(E);
     value E;
@@ -101,20 +101,20 @@ end;
 
 real procedure maxreal;
 begin
-    maxreal := runtime_maxreal()
+    maxreal := runtime_maxreal
 end;
 
 real procedure minreal;
 begin
-    minreal := runtime_minreal()
+    minreal := runtime_minreal
 end;
 
 integer procedure maxint;
 begin
-    maxint := runtime_maxint()
+    maxint := runtime_maxint
 end;
 
 real procedure epsilon;
 begin
-    epsilon := runtime_epsilon()
+    epsilon := runtime_epsilon
 end

@@ -1,23 +1,20 @@
 comment Compiled standard-environment slice for text output helpers.;
 namespace perseus.io;
 
-external java static(gnb.perseus.runtime.TextOutputSupport)
-    procedure outstring(integer channel; string text) as runtime_outstring;
-external java static(gnb.perseus.runtime.TextOutputSupport)
-    procedure outreal(integer channel; real number) as runtime_outreal;
-external java static(gnb.perseus.runtime.TextOutputSupport)
-    procedure outinteger(integer channel; integer number) as runtime_outinteger;
-external java static(gnb.perseus.runtime.TextOutputSupport)
-    procedure outterminator(integer channel) as runtime_outterminator;
-external java static(gnb.perseus.runtime.TextOutputSupport)
-    procedure outchar(integer channel; string text; integer position) as runtime_outchar;
+external java class java.io.PrintStream;
+
+external java static(java.lang.System)
+    ref(PrintStream) out as stdout;
+external java static(java.lang.System)
+    ref(PrintStream) err as stderr;
 
 procedure outstring(channel, text);
     value channel, text;
     integer channel;
     string text;
 begin
-    runtime_outstring(channel, text)
+    if channel = 0 then stderr.print(text)
+    else stdout.print(text)
 end;
 
 procedure outreal(channel, number);
@@ -25,21 +22,24 @@ procedure outreal(channel, number);
     integer channel;
     real number;
 begin
-    runtime_outreal(channel, number)
+    if channel = 0 then stderr.print(number)
+    else stdout.print(number)
 end;
 
 procedure outinteger(channel, number);
     value channel, number;
     integer channel, number;
 begin
-    runtime_outinteger(channel, number)
+    if channel = 0 then stderr.print(number)
+    else stdout.print(number)
 end;
 
 procedure outterminator(channel);
     value channel;
     integer channel;
 begin
-    runtime_outterminator(channel)
+    if channel = 0 then stderr.print(" ")
+    else stdout.print(" ")
 end;
 
 procedure outchar(channel, text, position);
@@ -47,5 +47,5 @@ procedure outchar(channel, text, position);
     integer channel, position;
     string text;
 begin
-    runtime_outchar(channel, text, position)
+    outstring(channel, text.substring(position, position + 1))
 end

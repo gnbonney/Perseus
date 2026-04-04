@@ -263,6 +263,32 @@ public class ExternalProceduresTest extends CompilerTest {
 	}
 
 	@Test
+	public void external_java_ambiguous_overload_diagnostic_test() throws Exception {
+		CompilationFailedException e = expectExternalCompilationFailure(
+				"test/algol/external/external_java_ambiguous_overload.alg",
+				"ExternalJavaAmbiguousOverload");
+
+		assertEquals("PERS2010", e.getDiagnostics().get(0).code());
+		assertTrue(e.getDiagnostics().get(0).message().contains("Ambiguous Java overload"),
+				"Diagnostic should explain that the Java member call is ambiguous");
+		assertTrue(e.getDiagnostics().get(0).message().contains("pick"),
+				"Diagnostic should name the Java member");
+	}
+
+	@Test
+	public void external_java_unsupported_member_diagnostic_test() throws Exception {
+		CompilationFailedException e = expectExternalCompilationFailure(
+				"test/algol/external/external_java_unsupported_member.alg",
+				"ExternalJavaUnsupportedMember");
+
+		assertEquals("PERS2010", e.getDiagnostics().get(0).code());
+		assertTrue(e.getDiagnostics().get(0).message().contains("No matching Java overload"),
+				"Diagnostic should explain that no Java overload matched the supplied argument types");
+		assertTrue(e.getDiagnostics().get(0).message().contains("java.awt.Point.move"),
+				"Diagnostic should name the Java member that failed to resolve");
+	}
+
+	@Test
 	public void external_wrong_parameter_type_diagnostic_test() throws Exception {
 		Path libraryJasminFile = PerseusCompiler.compileToFile(
 				"test/algol/external/external_algol_library.alg", "gnb/perseus/programs", "ExternalAlgolLibrary", BUILD_DIR);

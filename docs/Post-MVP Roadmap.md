@@ -173,15 +173,15 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Improve overloaded-method resolution so Java calls are selected by argument types rather than only by name and number of arguments
 - [x] Improve overloaded-constructor resolution for `new` calls against external Java classes
 - [x] Implement Java constants and enum-like static members through the existing external Java static-field binding syntax
-- [ ] Improve diagnostics for ambiguous or unsupported Java overloads and member lookups
-- [ ] Add regression tests around `System.out` / `System.err`, `PrintStream`, overloaded methods, overloaded constructors, and chained Java member calls
-- [ ] Refactor the compiled standard library to use these richer Java interop features directly and remove bridge helpers where they are no longer needed
+- [x] Improve diagnostics for ambiguous or unsupported Java overloads and member lookups
+- [x] Add regression tests around `System.out` / `System.err`, `PrintStream`, overloaded methods, overloaded constructors, and chained Java member calls
+- [x] Refactor the compiled standard library to use these richer Java interop features directly and remove bridge helpers where they are no longer needed
 
 **Implementation notes:**
 - This milestone grows out of concrete friction discovered while moving `TextOutput` and `MathEnv` into the compiled standard environment.
-- The current need for bridge helpers such as `gnb.perseus.runtime.TextOutputSupport`, `gnb.perseus.runtime.TextInputSupport`, and `gnb.perseus.runtime.MathConstantsSupport` is acceptable as a short-term runtime strategy, but it also shows where Perseus Java interop still needs a richer source model.
-- Support for static fields, object-valued bindings, chaining, and stronger overload resolution would make both the standard library and ordinary user-written Java interop code feel much more direct.
-- The first slice of this work now covers aliased external Java static fields, imported object-valued bindings, chained instance calls through those bindings, direct reads of public Java instance fields, and overload resolution by argument type for both Java methods and Java constructors.
+- The direct Java interop surface now covers aliased external Java static fields, imported object-valued bindings, chained instance calls through those bindings, direct reads of public Java instance fields, Java constants and enum-like members, and overload resolution by argument type for both Java methods and Java constructors.
+- Diagnostics now distinguish ambiguous Java overloads from unsupported Java member calls instead of collapsing them into generic unknown-member errors.
+- `MathEnv` and `TextOutput` now use the richer interop directly, so the obsolete `MathConstantsSupport` and `TextOutputSupport` bridge helpers are gone. `TextInputSupport` and `FaultSupport` remain for the narrower runtime cases that still need them.
 
 ## Milestone 37 - Dynamic Channels and Formatted I/O Follow-On
 

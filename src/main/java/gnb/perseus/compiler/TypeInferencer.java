@@ -15,16 +15,20 @@ import java.util.Map;
 public class TypeInferencer extends PerseusBaseListener {
     private final String sourceName;
     private final Map<String, String> symbolTable;
+    private final Map<String, SymbolTableBuilder.ProcInfo> procedures;
     private final Map<String, SymbolTableBuilder.ClassInfo> classes;
     private final Map<PerseusParser.ExprContext, String> exprTypes = new HashMap<>();
     private final Deque<SymbolTableBuilder.ClassInfo> classStack = new ArrayDeque<>();
+    private final Deque<SymbolTableBuilder.ProcInfo> procStack = new ArrayDeque<>();
     private final Deque<SymbolTableBuilder.MethodInfo> methodStack = new ArrayDeque<>();
     private final Deque<Map<String, String>> exceptionBindingStack = new ArrayDeque<>();
 
     public TypeInferencer(String sourceName, Map<String, String> symbolTable,
+            Map<String, SymbolTableBuilder.ProcInfo> procedures,
             Map<String, SymbolTableBuilder.ClassInfo> classes) {
         this.sourceName = sourceName;
         this.symbolTable = symbolTable;
+        this.procedures = procedures != null ? procedures : Map.of();
         this.classes = classes != null ? classes : Map.of();
     }
 
@@ -55,6 +59,11 @@ public class TypeInferencer extends PerseusBaseListener {
             if (method != null) {
                 methodStack.push(method);
             }
+            return;
+        }
+        SymbolTableBuilder.ProcInfo proc = procedures.get(ctx.identifier().getText());
+        if (proc != null) {
+            procStack.push(proc);
         }
     }
 
@@ -62,6 +71,10 @@ public class TypeInferencer extends PerseusBaseListener {
     public void exitProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
         if (!methodStack.isEmpty()) {
             methodStack.pop();
+            return;
+        }
+        if (!procStack.isEmpty()) {
+            procStack.pop();
         }
     }
 
@@ -220,20 +233,6 @@ public class TypeInferencer extends PerseusBaseListener {
     public void exitProcCallExpr(PerseusParser.ProcCallExprContext ctx) {
         String procName = ctx.identifier().getText();
         java.util.List<String> argTypes = getArgTypes(ctx.argList());
-        SymbolTableBuilder.ClassInfo currentClass = classStack.peek();
-        if (currentClass != null) {
-            SymbolTableBuilder.MethodInfo method = findMethodInHierarchy(currentClass, procName);
-            if (method != null) {
-                exprTypes.put(ctx, method.returnType);
-                return;
-            }
-            Method javaMethod = findJavaMethodInHierarchy(currentClass, procName, argTypes);
-            if (javaMethod != null) {
-                exprTypes.put(ctx, mapJavaType(javaMethod.getReturnType()));
-                return;
-            }
-        }
-
         String procType = lookupType(procName);
         if (procType != null && procType.startsWith("procedure:")) {
             exprTypes.put(ctx, procType.substring("procedure:".length()));
@@ -243,6 +242,24 @@ public class TypeInferencer extends PerseusBaseListener {
         String builtinType = getBuiltinFunctionType(procName);
         if (builtinType != null) {
             exprTypes.put(ctx, builtinType);
+            return;
+        }
+
+        SymbolTableBuilder.ClassInfo currentClass = classStack.peek();
+        if (currentClass != null) {
+            SymbolTableBuilder.MethodInfo method = findMethodInHierarchy(currentClass, procName);
+            if (method != null) {
+                exprTypes.put(ctx, method.returnType);
+                return;
+            }
+            JavaInteropResolver.MethodResolution resolution = findJavaMethodInHierarchy(currentClass, procName, argTypes);
+            if (resolution.method() != null) {
+                exprTypes.put(ctx, mapJavaType(resolution.method().getReturnType()));
+                return;
+            }
+            if (resolution.diagnostic() != null) {
+                throw error(ctx, "PERS2010", resolution.diagnostic());
+            }
         }
     }
 
@@ -253,53 +270,94 @@ public class TypeInferencer extends PerseusBaseListener {
 
     @Override
     public void exitNewObjectExpr(PerseusParser.NewObjectExprContext ctx) {
-        exprTypes.put(ctx, "ref:" + ctx.identifier().getText());
+        String className = ctx.identifier().getText();
+        SymbolTableBuilder.ClassInfo cls = classes.get(className);
+        if (cls != null && cls.externalJava) {
+            JavaInteropResolver.ConstructorResolution resolution =
+                    JavaInteropResolver.resolveConstructor(
+                            cls.externalJavaQualifiedName,
+                            getArgTypes(ctx.argList()),
+                            this::scoreReferenceCompatibility);
+            if (resolution.constructor() == null) {
+                throw error(ctx, "PERS2011", resolution.diagnostic());
+            }
+        }
+        exprTypes.put(ctx, "ref:" + className);
     }
 
     @Override
     public void exitMemberCallExpr(PerseusParser.MemberCallExprContext ctx) {
-        String receiverType = lookupType(ctx.identifier(0).getText());
+        String memberType = resolveMemberAccessType(
+                ctx.identifier(0).getText(),
+                ctx.identifier(1).getText(),
+                ctx.argList() != null,
+                getArgTypes(ctx.argList()),
+                ctx);
+        exprTypes.put(ctx, memberType);
+    }
+
+    @Override
+    public void exitMemberCall(PerseusParser.MemberCallContext ctx) {
+        resolveMemberAccessType(
+                ctx.identifier(0).getText(),
+                ctx.identifier(1).getText(),
+                ctx.argList() != null,
+                getArgTypes(ctx.argList()),
+                null);
+    }
+
+    private String resolveMemberAccessType(String receiverName, String memberName, boolean explicitCall,
+            java.util.List<String> argTypes, org.antlr.v4.runtime.ParserRuleContext ctxForError) {
+        String receiverType = lookupType(receiverName);
         if (receiverType == null) {
-            throw error(ctx, "PERS2008", "Member call requires a typed receiver: " + ctx.getText());
-        }
-        boolean explicitCall = ctx.argList() != null;
-        java.util.List<String> argTypes = getArgTypes(ctx.argList());
-        if ("string".equals(receiverType)) {
-            String memberName = ctx.identifier(1).getText();
-            Method javaMethod = findJavaMethod("java.lang.String", memberName, argTypes);
-            if (javaMethod != null) {
-                exprTypes.put(ctx, mapJavaType(javaMethod.getReturnType()));
-                return;
+            if (ctxForError != null) {
+                throw error(ctxForError, "PERS2008", "Member call requires a typed receiver: " + receiverName + "." + memberName);
             }
-            throw error(ctx, "PERS2010", "Unknown string member: java.lang.String." + memberName);
+            throw new DiagnosticException(CompilerDiagnostic.error("PERS2008", fileFromSourceName(), 1, 1,
+                    "Member call requires a typed receiver: " + receiverName + "." + memberName));
+        }
+        if ("string".equals(receiverType)) {
+            JavaInteropResolver.MethodResolution resolution = findJavaMethod("java.lang.String", memberName, argTypes);
+            if (resolution.method() != null) {
+                return mapJavaType(resolution.method().getReturnType());
+            }
+            raiseMemberError(ctxForError, "PERS2010", resolution.diagnostic());
         }
         if (!receiverType.startsWith("ref:")) {
-            throw error(ctx, "PERS2008", "Member call requires an object reference: " + ctx.getText());
+            raiseMemberError(ctxForError, "PERS2008", "Member call requires an object reference: " + receiverName + "." + memberName);
         }
         String className = receiverType.substring("ref:".length());
         SymbolTableBuilder.ClassInfo cls = classes.get(className);
         if (cls == null) {
-            throw error(ctx, "PERS2009", "Unknown class: " + className);
+            raiseMemberError(ctxForError, "PERS2009", "Unknown class: " + className);
         }
-        String memberName = ctx.identifier(1).getText();
         SymbolTableBuilder.MethodInfo method = findMethodInHierarchy(cls, memberName);
         if (method != null) {
-            exprTypes.put(ctx, method.returnType);
-            return;
+            return method.returnType;
         }
         if (!explicitCall) {
             Field javaField = findJavaFieldInHierarchy(cls, memberName);
             if (javaField != null) {
-                exprTypes.put(ctx, mapJavaType(javaField.getType()));
-                return;
+                return mapJavaType(javaField.getType());
             }
         }
-        Method javaMethod = findJavaMethodInHierarchy(cls, memberName, argTypes);
-        if (javaMethod != null) {
-            exprTypes.put(ctx, mapJavaType(javaMethod.getReturnType()));
-            return;
+        JavaInteropResolver.MethodResolution resolution = findJavaMethodInHierarchy(cls, memberName, argTypes);
+        if (resolution.method() != null) {
+            return mapJavaType(resolution.method().getReturnType());
         }
-        throw error(ctx, "PERS2010", "Unknown class member: " + className + "." + memberName);
+        raiseMemberError(ctxForError, "PERS2010", resolution.diagnostic());
+        return "integer";
+    }
+
+    private void raiseMemberError(org.antlr.v4.runtime.ParserRuleContext ctxForError, String code, String message) {
+        if (ctxForError != null) {
+            throw error(ctxForError, code, message);
+        }
+        throw new DiagnosticException(CompilerDiagnostic.error(code, fileFromSourceName(), 1, 1, message));
+    }
+
+    private String fileFromSourceName() {
+        return sourceName != null ? sourceName : "<input>";
     }
 
     private void requireBooleanOperands(PerseusParser.ExprContext left, PerseusParser.ExprContext right,
@@ -321,6 +379,14 @@ public class TypeInferencer extends PerseusBaseListener {
             String type = method.localVars.get(name);
             if (type != null) return type;
             type = method.paramTypes.get(name);
+            if (type != null) return type;
+        }
+
+        SymbolTableBuilder.ProcInfo proc = procStack.peek();
+        if (proc != null) {
+            String type = proc.localVars.get(name);
+            if (type != null) return type;
+            type = proc.paramTypes.get(name);
             if (type != null) return type;
         }
 
@@ -357,22 +423,26 @@ public class TypeInferencer extends PerseusBaseListener {
         return argTypes;
     }
 
-    private Method findJavaMethod(String qualifiedName, String memberName, java.util.List<String> argTypes) {
-        return JavaInteropResolver.findBestMethod(qualifiedName, memberName, argTypes);
+    private JavaInteropResolver.MethodResolution findJavaMethod(String qualifiedName, String memberName, java.util.List<String> argTypes) {
+        return JavaInteropResolver.resolveMethod(qualifiedName, memberName, argTypes, this::scoreReferenceCompatibility);
     }
 
-    private Method findJavaMethodInHierarchy(SymbolTableBuilder.ClassInfo cls, String memberName, java.util.List<String> argTypes) {
+    private JavaInteropResolver.MethodResolution findJavaMethodInHierarchy(SymbolTableBuilder.ClassInfo cls, String memberName, java.util.List<String> argTypes) {
         SymbolTableBuilder.ClassInfo current = cls;
+        JavaInteropResolver.MethodResolution lastFailure = null;
         while (current != null) {
             if (current.externalJava && current.externalJavaQualifiedName != null) {
-                Method method = findJavaMethod(current.externalJavaQualifiedName, memberName, argTypes);
-                if (method != null) {
-                    return method;
+                JavaInteropResolver.MethodResolution resolution = findJavaMethod(current.externalJavaQualifiedName, memberName, argTypes);
+                if (resolution.method() != null) {
+                    return resolution;
                 }
+                lastFailure = resolution;
             }
             current = current.parentName != null ? classes.get(current.parentName) : null;
         }
-        return null;
+        return lastFailure != null
+                ? lastFailure
+                : new JavaInteropResolver.MethodResolution(null, "Unknown class member: " + cls.name + "." + memberName);
     }
 
     private Field findJavaField(String qualifiedName, String memberName) {
@@ -398,6 +468,48 @@ public class TypeInferencer extends PerseusBaseListener {
         return null;
     }
 
+    private int scoreReferenceCompatibility(Class<?> parameterType, String refTypeSimpleName) {
+        SymbolTableBuilder.ClassInfo cls = classes.get(refTypeSimpleName);
+        if (cls == null) {
+            return -1;
+        }
+        if (matchesJavaReferenceType(cls, parameterType)) {
+            return 2;
+        }
+        return -1;
+    }
+
+    private boolean matchesJavaReferenceType(SymbolTableBuilder.ClassInfo cls, Class<?> parameterType) {
+        if (cls.externalJava && cls.externalJavaQualifiedName != null) {
+            try {
+                Class<?> actualClass = Class.forName(cls.externalJavaQualifiedName);
+                if (parameterType.isAssignableFrom(actualClass)) {
+                    return true;
+                }
+            } catch (ClassNotFoundException ignored) {
+            }
+        }
+        for (String ifaceName : cls.interfaces) {
+            SymbolTableBuilder.ClassInfo iface = classes.get(ifaceName);
+            if (iface != null && iface.externalJava && iface.externalJavaQualifiedName != null) {
+                try {
+                    Class<?> ifaceClass = Class.forName(iface.externalJavaQualifiedName);
+                    if (parameterType.isAssignableFrom(ifaceClass)) {
+                        return true;
+                    }
+                } catch (ClassNotFoundException ignored) {
+                }
+            }
+        }
+        if (cls.parentName != null) {
+            SymbolTableBuilder.ClassInfo parent = classes.get(cls.parentName);
+            if (parent != null && matchesJavaReferenceType(parent, parameterType)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private String mapJavaType(Class<?> type) {
         if (type == void.class) return "void";
         if (type == double.class || type == float.class) return "real";
@@ -417,6 +529,10 @@ public class TypeInferencer extends PerseusBaseListener {
     }
 
     private DiagnosticException error(PerseusParser.ExprContext ctx, String code, String message) {
+        return new DiagnosticException(CompilerDiagnostic.error(code, ctx.getStart(), sourceName, message));
+    }
+
+    private DiagnosticException error(org.antlr.v4.runtime.ParserRuleContext ctx, String code, String message) {
         return new DiagnosticException(CompilerDiagnostic.error(code, ctx.getStart(), sourceName, message));
     }
 }
