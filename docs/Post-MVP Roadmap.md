@@ -197,13 +197,56 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - End-of-file behavior is defined and covered by regression tests.
 - Formatted and unformatted I/O both work against non-console channels, not only against `System.out` / `System.err`.
 
-- [ ] Add channel/runtime support classes such as `Channels` where implementation-heavy environmental features need them
 - [x] Generalize the runtime model beyond the current constant-channel / literal-path slice
 - [x] Route `outstring`, `outinteger`, `outreal`, `outterminator`, and `instring` through dynamic file-channel dispatch
 - [x] Extend the remaining ordinary input procedures to the same dynamic channel model (`ininteger`, `inreal`, and `inchar`)
-- [ ] Add explicit `EndOfFile` behavior and decide where `fault(...)` remains the compatibility fallback
-- [ ] Extend formatted I/O beyond the current `I`, `F`, and `A` subset
 - [ ] Add more file/string-channel regression programs that combine unformatted and formatted I/O
+- [ ] Add explicit `EndOfFile` behavior and keep `fault(...)` only as the narrower compatibility fallback while ordinary I/O/channel failures use direct Java-backed exceptions
+- [ ] Extend formatted I/O beyond the current `I`, `F`, and `A` subset
+- [ ] Consolidate the broader channel model into runtime support classes such as `Channels` where the heavier environmental features need them
+
+**Notes on `fault(...)` as fallback:**
+- Chosen direction: ordinary I/O/channel failures should use direct Java-backed exceptions such as `EOFException`, `IOException`, `IllegalStateException`, and `IllegalArgumentException`, while `fault(...)` remains only as the narrower compatibility fallback.
+- Option 1: Keep `fault(...)` as the broad compatibility fallback for EOF, invalid channel use, unsupported modes, and other channel/runtime problems. This is the most conservative path, but it gives user code the least specific recovery information.
+  Example:
+  ```algol
+  begin
+      ininteger(2, x)
+  exception
+      when RuntimeException do
+          done := true
+  end
+  ```
+- Option 2: Use direct Java-backed exceptions for ordinary I/O conditions such as `EOFException`, `IOException`, `IllegalStateException`, and `IllegalArgumentException`, while keeping `fault(...)` only as a narrower fallback for cases that remain awkward or intentionally fail-fast. This currently looks like the best fit.
+  Example:
+  ```algol
+  begin
+      ininteger(2, x)
+  exception
+      when java(java.io.EOFException) do
+          done := true
+      when IOException do
+          io_failed := true
+      when IllegalStateException do
+          bad_channel := true
+      when RuntimeException do
+          unexpected_fault := true
+  end
+  ```
+- Option 3: Remove any internal `fault(...)` fallback from the I/O path entirely, so ordinary channel and file problems are always exposed as direct exceptions and `fault(...)` only happens when the source program calls it explicitly. This is the cleanest long-term model if Perseus continues to lean fully into Java-backed exceptions.
+  Example:
+  ```algol
+  begin
+      ininteger(2, x)
+  exception
+      when java(java.io.EOFException) do
+          done := true
+      when IOException do
+          io_failed := true
+      when IllegalStateException do
+          bad_channel := true
+  end
+  ```
 
 ## Milestone 38 - CLI Follow-On
 
