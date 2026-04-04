@@ -61,13 +61,19 @@ Input procedures now read from standard input on the ordinary console path and f
 
 > **Extension.** `outformat` and `informat` are Perseus extensions, not part of the Algol 60 Modified Report. See Perseus Language Design.md for rationale and historical context.
 
-The `outformat` and `informat` procedures accept a format string that specifies the width, type, and precision of each output field. Multiple fields are separated by commas or spaces. The current implemented subset is `I`, `F`, and `A`; the chosen conservative expansion direction is `I`, `F`, `E`, `A`, `L`, `X`, and `/`, with optional zero-padding on `I`.
+The `outformat` and `informat` procedures accept a format string that specifies the width, type, and precision of each output field. Multiple fields are separated by commas or spaces. The current implemented output-side subset is `Iw[.m]`, `Fw.d`, `Ew.d`, `A`/`Aw`, `Lw`, `nX`, and `/`. `informat` still uses the narrower `I`, `F`, and `A` subset for now.
 
 | Format specifier | Meaning | Example call | Example output |
 |---|---|---|---|
 | `I5` | Integer, width 5 | `outformat(1, "I5", 42)` | `   42` |
+| `I5.3` | Integer, width 5, at least 3 digits with leading zeros | `outformat(1, "I5.3", 7)` | `  007` |
 | `F8.2` | Real, width 8, 2 decimal places | `outformat(1, "F8.2", 3.14159)` | `    3.14` |
+| `E10.2` | Real in scientific notation | `outformat(1, "E10.2", 1234.0)` | `  1.23e+03` |
+| `A` | String with no fixed width | `outformat(1, "A", "Algol")` | `Algol` |
 | `A10` | String, width 10 | `outformat(1, "A10", "Algol")` | `     Algol` |
+| `L5` | Boolean/logical, width 5 | `outformat(1, "L5", true)` | ` true` |
+| `2X` | Output 2 spaces | `outformat(1, "2X")` | `  ` |
+| `/` | Line break | `outformat(1, "/")` | newline |
 | `I4, F6.2` | Integer width 4, then real width 6 | `outformat(1, "I4, F6.2", 42, 3.14)` | `  42  3.14` |
 | `A5, I3, F7.3` | String, integer, real | `outformat(1, "A5, I3, F7.3", "Test", 7, 2.718)` | ` Test  7  2.718` |
 

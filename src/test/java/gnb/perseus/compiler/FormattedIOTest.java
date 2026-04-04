@@ -80,6 +80,29 @@ public class FormattedIOTest extends CompilerTest {
     }
 
     @Test
+    public void outformat_extended_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/io/outformat_extended.alg",
+                "gnb/perseus/programs",
+                "OutformatExtended",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== OUTFORMAT EXTENDED JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END OUTFORMAT EXTENDED ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.OutformatExtended");
+        assertEquals("  007    1.23e+03\nok   true", output,
+                "outformat should support zero-padded integer, scientific, logical, spacing, and line-break descriptors");
+    }
+
+    @Test
     public void informat_basic_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/io/informat_basic.alg",

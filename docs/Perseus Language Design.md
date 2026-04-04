@@ -98,7 +98,7 @@ This approach is consistent with the Modified Report's philosophy of implementat
 
 Many historic Algol compilers provided formatted I/O, but there was no single standard Algol 60 format language. Perseus therefore treats formatted I/O as an intentional extension with a small descriptor-based syntax that is Algol-friendly, strongly reminiscent of classic Fortran formatting, and practical on the JVM.
 
-The current implementation translates Perseus format descriptors to Java formatting operations. That keeps the user-facing model compact while letting the runtime reuse JVM formatting behavior where it fits naturally.
+The current implementation renders output-side Perseus format descriptors through shared runtime formatting support. That keeps the user-facing model compact while letting the runtime reuse JVM formatting behavior where it fits naturally.
 
 ## Rationale
 
@@ -114,16 +114,18 @@ Perseus keeps these as the user-facing formatted-I/O procedures:
 - `outformat(channel, format, arg1, arg2, ...)` — outputs formatted text to the given channel.
 - `informat(channel, format, var1, var2, ...)` — reads formatted input from the given channel (future/optional).
 
-**Current implemented subset:**
+**Current implemented state:**
 
-- Use a simplified Algol-inspired format string, e.g., `"I5, F8.2, A10"` (integer, float, alphanumeric fields).
-- Each field specifier maps to a Java format code:
-	- `I5` → `%5d` (integer, width 5)
-	- `F8.2` → `%8.2f` (float, width 8, 2 decimals)
-	- `A10` → `%10s` (string/alphanumeric, width 10)
-- Commas or spaces separate fields.
-
-The compiler parses the format string, translates it to a Java format string, and emits a call to `String.format`.
+- `outformat` currently supports:
+  - `Iw[.m]`
+  - `Fw.d`
+  - `Ew.d`
+  - `A` and `Aw`
+  - `Lw`
+  - `nX`
+  - `/`
+- `informat` currently keeps the narrower `I`, `F`, and `A` subset.
+- Commas or spaces separate descriptors.
 
 ### Expanded conservative direction
 

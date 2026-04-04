@@ -202,12 +202,13 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Extend the remaining ordinary input procedures to the same dynamic channel model (`ininteger`, `inreal`, and `inchar`)
 - [x] Add more file/string-channel regression programs that combine unformatted and formatted I/O
 - [x] Add explicit `EndOfFile` behavior and keep `fault(...)` only as the narrower compatibility fallback while ordinary I/O/channel failures use direct Java-backed exceptions
-- [ ] Extend formatted I/O beyond the current `I`, `F`, and `A` subset
+- [x] Extend output-side formatted I/O beyond the current `I`, `F`, and `A` subset
+- [ ] Decide whether and how `informat` should grow beyond the current `I`, `F`, and `A` subset
 - [ ] Consolidate the broader channel model into runtime support classes such as `Channels` where the heavier environmental features need them
 
 **Notes on `fault(...)` as fallback:**
 - Chosen direction: ordinary I/O/channel failures should use direct Java-backed exceptions such as `EOFException`, `IOException`, `IllegalStateException`, and `IllegalArgumentException`, while `fault(...)` remains only as the narrower compatibility fallback.
-- Current formatting state: the current `I`, `F`, and `A` output-format rendering path is no longer parsed and rendered entirely inside the compiler. `outformat` now delegates rendering to a shared runtime helper before writing through the standard `TextOutput` channel path. `informat` still keeps its descriptor-driven lowering in the compiler for now.
+- Current formatting state: the current output-format rendering path is no longer parsed and rendered entirely inside the compiler. `outformat` now delegates rendering to a shared runtime helper before writing through the standard `TextOutput` channel path, and the output-side descriptor set now includes `Iw[.m]`, `Fw.d`, `Ew.d`, `A`/`Aw`, `Lw`, `nX`, and `/`. `informat` still keeps its descriptor-driven lowering in the compiler for now and still supports the narrower `I`, `F`, and `A` subset.
 - Current status: file-channel reads now raise `EOFException` on end of file, while invalid channel use and ordinary file/runtime failures continue to surface as direct Java-backed exceptions such as `IllegalStateException`, `IllegalArgumentException`, and `IOException`.
 - Option 1: Keep `fault(...)` as the broad compatibility fallback for EOF, invalid channel use, unsupported modes, and other channel/runtime problems. This is the most conservative path, but it gives user code the least specific recovery information.
   Example:
