@@ -2,6 +2,14 @@ comment Compiled standard-environment slice for text output helpers.;
 namespace perseus.io;
 
 external java class java.io.PrintStream;
+external java static(gnb.perseus.runtime.ChannelsSupport)
+    procedure outString(integer channel; string text) as runtime_outstring;
+external java static(gnb.perseus.runtime.ChannelsSupport)
+    procedure outReal(integer channel; real number) as runtime_outreal;
+external java static(gnb.perseus.runtime.ChannelsSupport)
+    procedure outInteger(integer channel; integer number) as runtime_outinteger;
+external java static(gnb.perseus.runtime.ChannelsSupport)
+    procedure outTerminator(integer channel) as runtime_outterminator;
 
 external java static(java.lang.System)
     ref(PrintStream) out as stdout;
@@ -14,7 +22,8 @@ procedure outstring(channel, text);
     string text;
 begin
     if channel = 0 then stderr.print(text)
-    else stdout.print(text)
+    else if channel = 1 then stdout.print(text)
+    else runtime_outstring(channel, text)
 end;
 
 procedure outreal(channel, number);
@@ -23,7 +32,8 @@ procedure outreal(channel, number);
     real number;
 begin
     if channel = 0 then stderr.print(number)
-    else stdout.print(number)
+    else if channel = 1 then stdout.print(number)
+    else runtime_outreal(channel, number)
 end;
 
 procedure outinteger(channel, number);
@@ -31,7 +41,8 @@ procedure outinteger(channel, number);
     integer channel, number;
 begin
     if channel = 0 then stderr.print(number)
-    else stdout.print(number)
+    else if channel = 1 then stdout.print(number)
+    else runtime_outinteger(channel, number)
 end;
 
 procedure outterminator(channel);
@@ -39,7 +50,8 @@ procedure outterminator(channel);
     integer channel;
 begin
     if channel = 0 then stderr.print(" ")
-    else stdout.print(" ")
+    else if channel = 1 then stdout.print(" ")
+    else runtime_outterminator(channel)
 end;
 
 procedure outchar(channel, text, position);

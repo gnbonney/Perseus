@@ -39,9 +39,9 @@ public class ChannelIOGenerator {
             Function<String, String> lookupVarType,
             BiFunction<String, String, String> staticFieldName) {
         return switch (name) {
-            case "openfile" -> emitOpenFile(args, activeOutput, allocateNewLocal);
+            case "openfile" -> emitOpenFile(args, activeOutput, generateExpr);
             case "openstring" -> emitOpenString(args, activeOutput);
-            case "closefile" -> emitCloseFile(args, activeOutput);
+            case "closefile" -> emitCloseFile(args, activeOutput, generateExpr);
             case "outstring" -> emitOutString(args, activeOutput, generateExpr, getChannelStream, lookupVarType,
                     currentLocalIndex, staticFieldName, allocateNewLocal);
             case "outreal" -> emitOutReal(args, activeOutput, generateExpr, getChannelStream, lookupVarType,
@@ -54,7 +54,7 @@ public class ChannelIOGenerator {
                     lookupVarType, currentLocalIndex, staticFieldName, allocateNewLocal);
             case "informat" -> emitInformat(args, activeOutput, allocateNewLocal, currentLocalIndex, currentSymbolTable,
                     mainSymbolTable, staticFieldName);
-            case "instring" -> emitInstring(args, activeOutput, allocateNewLocal, currentLocalIndex,
+            case "instring" -> emitInstring(args, activeOutput, generateExpr, allocateNewLocal, currentLocalIndex,
                     currentSymbolTable, mainSymbolTable, staticFieldName);
             default -> false;
         };
@@ -185,7 +185,7 @@ public class ChannelIOGenerator {
     }
 
     private boolean emitOpenFile(List<PerseusParser.ArgContext> args, StringBuilder activeOutput,
-            Function<String, Integer> allocateNewLocal) {
+            Function<PerseusParser.ExprContext, String> generateExpr) {
         if (args.size() < 3) {
             activeOutput.append("; ERROR: openfile requires channel, filename, and mode\n");
             return true;
@@ -193,43 +193,22 @@ public class ChannelIOGenerator {
         Integer channel = getConstantChannelValue(args.get(0));
         String filenameLiteral = getStringLiteralText(args.get(1));
         String modeLiteral = getStringLiteralText(args.get(2));
-        if (channel == null || filenameLiteral == null || modeLiteral == null) {
-            activeOutput.append("; ERROR: openfile currently requires a constant channel and string literals for filename and mode\n");
-            return true;
+        if (channel != null && filenameLiteral != null && modeLiteral != null) {
+            String mode = switch (modeLiteral) {
+                case "\"w\"" -> "w";
+                case "\"r\"" -> "r";
+                case "\"a\"" -> "a";
+                default -> null;
+            };
+            if (mode != null) {
+                constantFileChannels.put(channel, new FileChannelBinding(filenameLiteral, mode));
+                constantStringChannels.remove(channel);
+            }
         }
-
-        String mode = switch (modeLiteral) {
-            case "\"w\"" -> "w";
-            case "\"r\"" -> "r";
-            default -> null;
-        };
-        if (mode == null) {
-            activeOutput.append("; ERROR: openfile mode must currently be \"r\" or \"w\"\n");
-            return true;
-        }
-
-        constantFileChannels.put(channel, new FileChannelBinding(filenameLiteral, mode));
-        constantStringChannels.remove(channel);
-
-        int streamSlot = allocateNewLocal.apply("fileChannel");
-        if ("w".equals(mode)) {
-            activeOutput.append("new java/io/FileOutputStream\n")
-                    .append("dup\n")
-                    .append("ldc ").append(filenameLiteral).append("\n")
-                    .append("iconst_0\n")
-                    .append("invokespecial java/io/FileOutputStream/<init>(Ljava/lang/String;Z)V\n")
-                    .append("astore ").append(streamSlot).append("\n")
-                    .append("aload ").append(streamSlot).append("\n")
-                    .append("invokevirtual java/io/FileOutputStream/close()V\n");
-        } else {
-            activeOutput.append("new java/io/FileInputStream\n")
-                    .append("dup\n")
-                    .append("ldc ").append(filenameLiteral).append("\n")
-                    .append("invokespecial java/io/FileInputStream/<init>(Ljava/lang/String;)V\n")
-                    .append("astore ").append(streamSlot).append("\n")
-                    .append("aload ").append(streamSlot).append("\n")
-                    .append("invokevirtual java/io/FileInputStream/close()V\n");
-        }
+        appendChannelValue(args.get(0), activeOutput, generateExpr);
+        activeOutput.append(args.get(1).expr() != null ? generateExpr.apply(args.get(1).expr()) : "ldc \"\"\n");
+        activeOutput.append(args.get(2).expr() != null ? generateExpr.apply(args.get(2).expr()) : "ldc \"\"\n");
+        activeOutput.append("invokestatic gnb/perseus/runtime/ChannelsSupport/openFile(ILjava/lang/String;Ljava/lang/String;)V\n");
         return true;
     }
 
@@ -249,7 +228,8 @@ public class ChannelIOGenerator {
         return true;
     }
 
-    private boolean emitCloseFile(List<PerseusParser.ArgContext> args, StringBuilder activeOutput) {
+    private boolean emitCloseFile(List<PerseusParser.ArgContext> args, StringBuilder activeOutput,
+            Function<PerseusParser.ExprContext, String> generateExpr) {
         if (args.isEmpty()) {
             activeOutput.append("; ERROR: closefile requires a channel\n");
             return true;
@@ -258,9 +238,9 @@ public class ChannelIOGenerator {
         if (channel != null) {
             constantFileChannels.remove(channel);
             constantStringChannels.remove(channel);
-        } else {
-            activeOutput.append("; WARNING: closefile currently requires a constant channel to clear channel state\n");
         }
+        appendChannelValue(args.get(0), activeOutput, generateExpr);
+        activeOutput.append("invokestatic gnb/perseus/runtime/ChannelsSupport/closeFile(I)V\n");
         return true;
     }
 
@@ -364,23 +344,30 @@ public class ChannelIOGenerator {
         String formattedValue = generateFormattedString(specs, args.subList(2, args.size()), generateExpr, exprTypeResolver,
                 activeOutput);
         PerseusParser.ArgContext channelArg = args.get(0);
-        if (!emitStringOrFileOutput(channelArg, "Ljava/lang/String;", formattedValue, activeOutput, lookupVarType,
+        if (emitStringOrFileOutput(channelArg, "Ljava/lang/String;", formattedValue, activeOutput, lookupVarType,
                 currentLocalIndex, staticFieldName, allocateNewLocal)) {
-            String stream = getChannelStream.apply(channelArg);
-            activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
-                    .append(formattedValue)
-                    .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
+            return true;
         }
+        Integer channel = getConstantChannelValue(channelArg);
+        if (channel != null && constantFileChannels.containsKey(channel) && "w".equals(constantFileChannels.get(channel).mode())) {
+            emitFileChannelPrint(channel, "Ljava/lang/String;", formattedValue, activeOutput, allocateNewLocal);
+            return true;
+        }
+        String stream = getChannelStream.apply(channelArg);
+        activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
+                .append(formattedValue)
+                .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
         return true;
     }
 
     private boolean emitInstring(List<PerseusParser.ArgContext> args, StringBuilder activeOutput,
+            Function<PerseusParser.ExprContext, String> generateExpr,
             Function<String, Integer> allocateNewLocal,
             Map<String, Integer> currentLocalIndex,
             Map<String, String> currentSymbolTable,
             Map<String, String> mainSymbolTable,
             BiFunction<String, String, String> staticFieldName) {
-        if (!emitFileChannelInstring(args, activeOutput, allocateNewLocal, currentLocalIndex, currentSymbolTable,
+        if (!emitFileChannelInstring(args, activeOutput, generateExpr, allocateNewLocal, currentLocalIndex, currentSymbolTable,
                 mainSymbolTable, staticFieldName)) {
             PerseusParser.ExprContext varExpr = args.get(1).expr();
             if (varExpr instanceof PerseusParser.VarExprContext) {
@@ -578,10 +565,11 @@ public class ChannelIOGenerator {
             return emitStringChannelWrite(channel, appendValueCode, activeOutput, lookupVarType, currentLocalIndex,
                     staticFieldName);
         }
-        return emitFileChannelPrint(channel, printDescriptor, valueCode, activeOutput, allocateNewLocal);
+        return false;
     }
 
     private boolean emitFileChannelInstring(List<PerseusParser.ArgContext> args, StringBuilder activeOutput,
+            Function<PerseusParser.ExprContext, String> generateExpr,
             Function<String, Integer> allocateNewLocal, Map<String, Integer> currentLocalIndex,
             Map<String, String> currentSymbolTable, Map<String, String> mainSymbolTable,
             BiFunction<String, String, String> staticFieldName) {
@@ -589,17 +577,13 @@ public class ChannelIOGenerator {
             activeOutput.append("; ERROR: instring requires channel and variable\n");
             return true;
         }
+
         Integer channel = getConstantChannelValue(args.get(0));
-        if (channel == null) {
+        if (channel != null && channel < 2) {
             return false;
         }
-        FileChannelBinding binding = constantFileChannels.get(channel);
-        if (binding == null) {
+        if (channel != null && constantStringChannels.containsKey(channel)) {
             return false;
-        }
-        if (!"r".equals(binding.mode())) {
-            activeOutput.append("; ERROR: instring attempted on file channel not opened for read\n");
-            return true;
         }
 
         PerseusParser.ExprContext varExpr = args.get(1).expr();
@@ -615,17 +599,8 @@ public class ChannelIOGenerator {
             varType = mainSymbolTable.get(varName);
         }
 
-        int scannerSlot = allocateNewLocal.apply("fileScanner");
-        activeOutput.append("new java/util/Scanner\n")
-                .append("dup\n")
-                .append("new java/io/FileInputStream\n")
-                .append("dup\n")
-                .append("ldc ").append(binding.filenameLiteral()).append("\n")
-                .append("invokespecial java/io/FileInputStream/<init>(Ljava/lang/String;)V\n")
-                .append("invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V\n")
-                .append("astore ").append(scannerSlot).append("\n")
-                .append("aload ").append(scannerSlot).append("\n")
-                .append("invokevirtual java/util/Scanner/nextLine()Ljava/lang/String;\n");
+        appendChannelValue(args.get(0), activeOutput, generateExpr);
+        activeOutput.append("invokestatic gnb/perseus/runtime/ChannelsSupport/inString(I)Ljava/lang/String;\n");
 
         if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:")
                 && !varType.startsWith("thunk:")) {
@@ -636,8 +611,6 @@ public class ChannelIOGenerator {
         } else {
             activeOutput.append("astore ").append(varSlot).append("\n");
         }
-        activeOutput.append("aload ").append(scannerSlot).append("\n")
-                .append("invokevirtual java/util/Scanner/close()V\n");
         return true;
     }
 }

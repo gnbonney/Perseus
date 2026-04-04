@@ -932,6 +932,7 @@ Some class-design questions remain open:
 
 - how constructor chaining and overriding should be expressed when Perseus classes extend external Java classes
 - how separate-compilation and multi-file library conventions should build on the existing package-and-class naming model
+- whether unusually demanding JVM framework interop would ever justify class-composition or inheritance mechanisms beyond the current single-prefix model
 - whether exception values should later expose a richer object-style interface in Perseus source
 - whether Perseus should later move further toward Simula process or coroutine concepts
 

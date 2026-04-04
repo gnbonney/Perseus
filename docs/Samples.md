@@ -56,11 +56,9 @@ The sample suite now exercises most of the implemented language surface, includi
 
 ## Current Follow-On Samples
 
-Two samples currently remain outside the active regression suite and point to follow-on work:
+One sample currently remains outside the active regression suite and points to follow-on work:
 
 - [`test/algol/io/input_procedures.alg`](../test/algol/io/input_procedures.alg)
   This appears to be a valid sample for `ininteger`, `inreal`, and `inchar`, but current exploratory runs suggest those input procedures were marked complete too optimistically. This now maps to post-MVP cleanup work.
-- [`test/algol/misc/thunk_recursion.alg`](../test/algol/misc/thunk_recursion.alg)
-  This appears to expose a recursive thunk / passed-procedure edge case that is not yet handled correctly. It should become a focused post-MVP regression once the intended semantics are nailed down.
 
 An older experimental sample, `proc_typed.alg`, was removed after review because it did not appear to be a valid Algol program.

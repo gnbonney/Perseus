@@ -7,13 +7,13 @@ Version 1.4
 - Target: Perseus compiler (Algol 60 base + JVM backend via Project Loom virtual threads)
 
 ### 1. Motivation and Design Goals
-Perseus is an Algol-60 descendant targeting the modern JVM. This document explores **actors** as a possible future primary mechanism for pure, message-based object-oriented programming in the spirit of Alan Kay. It assumes Perseus already has its main-roadmap class model for JVM interoperability, libraries, and conventional object-oriented structure.
+Perseus is an Algol-60 descendant targeting the modern JVM. This document explores **actors** as a possible future primary mechanism for pure, message-based object-oriented programming in the spirit of Alan Kay. It assumes Perseus already has its class model for JVM interoperability, libraries, and conventional object-oriented structure.
 
-This design is being kept intentionally separate from the current MVP roadmap. Not because the actor idea is bad, but because it is good enough to deserve a deliberate entry instead of getting bolted on impulsively.
+This design is being kept intentionally separate from the active language roadmap. Not because the actor idea is bad, but because it is substantial enough to deserve a deliberate entry instead of getting bolted on impulsively.
 
 **Core Philosophy**
 - **Actors** would be the recommended, distinctive feature for new concurrent Perseus code: pure messaging, encapsulated state-process, extreme late binding, and true concurrency with no shared mutable state.
-- **Classes** remain the familiar bridge for Java interop: synchronous calls, fields, and direct mapping to JVM classes/objects are assumed to come from the main Perseus roadmap rather than this proposal.
+- **Classes** remain the familiar bridge for Java interop: synchronous calls, fields, and direct mapping to JVM classes/objects are assumed to come from the main Perseus class model rather than this proposal.
 - The two models should coexist peacefully. Actors remain isolated; classes can be used for data structures, utility objects, or when calling Java libraries. An actor may hold references to class instances (and vice versa), but actors never share mutable state with each other or with classes in a way that breaks isolation.
 
 This hybrid approach could keep Perseus distinctive (actor-centric concurrency) while remaining practical for real-world JVM development.
@@ -238,21 +238,10 @@ end;
 - Compiler static checks (optional): warn on sending unknown message tags to a `ref` type.
 - No shared mutable state across actors (enforced by language rules).
 
-### 7. Implementation Roadmap for Perseus Compiler
-1. Keep this design separate from the current MVP roadmap through at least Milestone 31.
-2. Add `actor`, `on message`, `send ... the message`, `become`, and `ref(ActorName)` to the parser.
-3. Extend type checking for actor references, message tags, actor/class interaction, and Java interop boundaries.
-4. Code generator:
-   - Actors -> `Behavior` + virtual thread.
-   - Existing Perseus classes remain on their separate roadmap path.
-5. Ship a minimal runtime JAR for actors, or generate everything inline if zero dependencies are desired.
-6. Optional: add `replyto` syntax and pattern-matching sugar in a later phase.
-
-### 8. Future Extensions (Out of Scope for v1.0)
+### 7. Future Extensions (Out of Scope for v1.0)
 - Distributed actors (networked mailboxes).
 - Typed message protocols (interfaces for message tags).
 - Built-in supervision hierarchies (Erlang-style).
 - Hot code swapping via `become` with live updates.
-- Stronger inheritance or multiple inheritance for classes (if needed for advanced interop).
 
-This specification provides a foundation for adding actors to a Perseus that already has a class/interoperability story on the main roadmap. It aims to balance the purity of Alan Kay-style OOP (via actors) with practical JVM interop (via the existing class model), while staying faithful to Algol 60's block-structured roots and using `%` for comments.
+This specification provides a foundation for adding actors to a Perseus that already has a class/interoperability story on the main roadmap. It aims to balance the purity of Alan Kay-style OOP (via actors) with practical JVM interop (via the existing class model), while staying faithful to Algol 60's block-structured roots.

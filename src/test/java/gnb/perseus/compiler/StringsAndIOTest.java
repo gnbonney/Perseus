@@ -470,4 +470,46 @@ end
         assertEquals("1", output.trim(),
                 "Opening an invalid file channel should raise IOException and recover through the handler");
     }
+
+    @Test
+    public void dynamic_file_channel_variable_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/io/dynamic_file_channel_variable.alg", "gnb/perseus/programs",
+                "DynamicFileChannelVariable", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== DYNAMIC FILE CHANNEL VARIABLE JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END DYNAMIC FILE CHANNEL VARIABLE ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.DynamicFileChannelVariable");
+        assertEquals("dynamic file channel", output.trim(),
+                "A file channel chosen through a variable should still support open, write, read, and close");
+    }
+
+    @Test
+    public void closed_file_channel_exception_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/io/closed_file_channel_exception.alg", "gnb/perseus/programs",
+                "ClosedFileChannelException", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== CLOSED FILE CHANNEL EXCEPTION JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END CLOSED FILE CHANNEL EXCEPTION ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ClosedFileChannelException");
+        assertEquals("1", output.trim(),
+                "Writing to a closed channel should fail in a defined way that can be handled");
+    }
 }

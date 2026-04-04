@@ -188,9 +188,19 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Goal:** Generalize the first working dynamic I/O slice into a broader runtime channel model.
 
+**Acceptance criteria:**
+- A program can open a file on channel `2+`, write through ordinary output procedures such as `outstring`, `outinteger`, and `outreal`, close the channel, and produce the expected file contents.
+- A program can open a file on channel `2+`, read through ordinary input procedures such as `ininteger`, `inreal`, and `inchar`, and receive the expected values.
+- A program can associate a string buffer with a channel and use ordinary output procedures against that channel to build the expected string result.
+- Channels `0` and `1` continue to behave as standard error and standard output.
+- Invalid or closed channels fail in a defined way rather than silently defaulting to the wrong target.
+- End-of-file behavior is defined and covered by regression tests.
+- Formatted and unformatted I/O both work against non-console channels, not only against `System.out` / `System.err`.
+
 - [ ] Add channel/runtime support classes such as `Channels` where implementation-heavy environmental features need them
-- [ ] Generalize the runtime model beyond the current constant-channel / literal-path slice
-- [ ] Extend more input/output procedures to use dynamic stream dispatch instead of only `System.out` / `System.err`
+- [x] Generalize the runtime model beyond the current constant-channel / literal-path slice
+- [x] Route `outstring`, `outinteger`, `outreal`, `outterminator`, and `instring` through dynamic file-channel dispatch
+- [ ] Extend the remaining input/output procedures to the same dynamic channel model
 - [ ] Add explicit `EndOfFile` behavior and decide where `fault(...)` remains the compatibility fallback
 - [ ] Extend formatted I/O beyond the current `I`, `F`, and `A` subset
 - [ ] Add more file/string-channel regression programs that combine unformatted and formatted I/O
@@ -207,11 +217,89 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Further exit-code and machine-facing CLI refinements
 - [ ] Additional commands such as `check` or `emit-jasmin` if they remain desirable after the MVP
 
-## Milestone 39 - Label and Switch Parameters / Designational Exits
+## Milestone 39 - Input Procedures Cleanup
 
-**Status:** Not currently planned.
+**Goal:** Revisit the input-side environmental procedures that were marked complete during the MVP path and confirm that they really work end to end in realistic programs.
 
-**Priority:** Optional standards-completeness milestone that may never be implemented if Perseus continues to prefer structured exceptions and other more modern control-flow mechanisms.
+- [ ] Add a real regression around [`input_procedures.alg`](../test/algol/io/input_procedures.alg)
+- [ ] Verify and, if necessary, fix ininteger(channel, var) runtime behavior
+- [ ] Verify and, if necessary, fix inreal(channel, var) runtime behavior
+- [ ] Verify and, if necessary, fix inchar(channel, str, var) runtime behavior
+- [ ] Decide whether the current scanner/channel model for input procedures matches the intended environmental-block semantics closely enough
+- [ ] Update the MVP and environmental-block documentation once the behavior is confirmed
+
+## Future Direction Milestones
+
+These milestones are not just deferred implementation cleanup. They represent larger possible directions for Perseus after the MVP and the most important follow-on work are in place.
+
+## Milestone 40 - Looping Extensions
+
+**Goal:** Extend Perseus with more modern looping forms while preserving the original Algol `for` statement for compatibility (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
+
+- [ ] Add `for ... in ... do` iteration over ranges and existing array forms
+- [ ] Add a general `loop ... end` construct
+- [ ] Add `break` and `continue`
+- [ ] Define range syntax such as `..` and `..<`
+- [ ] Define scope and evaluation rules for loop-local iteration variables
+- [ ] Add focused sample programs and regression tests for the new loop forms
+
+## Milestone 41 - Lambda Notation
+
+**Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
+
+- [ ] Syntax and parsing for lambda-style procedure literals
+- [ ] Lowering strategy onto existing procedure-reference infrastructure
+- [ ] Tests for higher-order procedure use cases
+
+## Milestone 42 - Collections and Iterators
+
+**Goal:** Add higher-level collection types and iteration protocols suitable for more general-purpose programming (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
+
+- [ ] Add collection types such as `vector`, `map`, and `set`
+- [ ] Add collection literals and basic collection operations
+- [ ] Extend `for ... in ... do` from ranges/arrays to collection and iterator-protocol-based iteration
+- [ ] Define an iterator protocol that works with `for ... in ... do`
+- [ ] Decide how collection libraries fit into the standard environment / standard library story
+- [ ] Add sample programs and regression tests for collection use cases
+- [ ] Decide how iterator pipelines such as `map` and `filter` should depend on Milestone 41 lambda notation
+
+## Milestone 43 - Actors
+
+**Goal:** Explore actors as a distinctive future direction for Perseus once the MVP and key follow-on milestones are in place (see [Actors Design Spec.md](Actors%20Design%20Spec.md)).
+
+- [ ] Decide whether actors should become a primary language model, a peer to classes, or a higher-level library/runtime abstraction
+- [ ] Define a small first slice (`actor`, references, creation, send, mailbox/handler basics)
+- [ ] Decide how actors should relate to existing classes, exceptions, and external Java interop
+- [ ] Add focused actor sample programs and a phased implementation plan
+
+**Implementation notes:**
+- The first parser surface would likely include `actor`, `on message`, `send ... the message`, `become`, and `ref(ActorName)`.
+- Type checking would need to cover actor references, message tags, actor/class interaction, and Java interop boundaries.
+- A plausible first lowering strategy is actors to a `Behavior` model plus virtual threads.
+- The runtime could begin either as a small dedicated actor-support jar or as generated support code if avoiding runtime dependencies remains a priority.
+- Later refinements could add `replyto` syntax and pattern-matching sugar once the base actor model is settled.
+
+## Out-of-Scope Features
+
+These items remain possible later, but they are intentionally outside the active numbered roadmap.
+
+### External Call-by-Name ABI
+
+**Goal:** Add a documented and stable Perseus-to-Perseus thunk ABI for the narrower case of separately compiled translations of historical Algol libraries.
+
+- [ ] Define the external thunk ABI for call-by-name parameters across separately compiled Perseus boundaries
+- [ ] Decide which generated support types must become stable shared runtime contracts
+- [ ] Add focused external call-by-name regressions based on translated historical Algol library patterns
+- [ ] Keep this as a specialized Perseus-to-Perseus compatibility feature rather than the default public JVM library surface
+
+**Implementation notes:**
+- This work is intentionally separated from Milestone 32 because it depends on a stabilized thunk ABI rather than the first external procedure slice
+- The strongest motivation is historical Algol library translation, not general JVM-facing library design
+- Public JVM-facing reuse should prefer value-oriented Perseus classes and methods where possible, while external call-by-name remains a narrower compatibility feature
+
+### Label and Switch Parameters / Designational Exits
+
+**Priority:** Optional standards-completeness feature that may never be implemented if Perseus continues to prefer structured exceptions and other more modern control-flow mechanisms.
 
 **Goal:** Allow labels and switches to be passed as parameters and used for procedure-mediated exits, matching real Algol 60 designational-expression semantics more closely.
 
@@ -225,85 +313,6 @@ The milestones below collect follow-on work that was intentionally deferred whil
 Possible JVM strategy for passed labels: lower non-local label exits to tagged exceptions (or an equivalent non-local escape mechanism) and catch them in the block/procedure activation that owns the real target labels. This would avoid requiring impossible cross-method JVM jumps while still giving a plausible implementation path for Algol-style designational exits.
 
 Possible JVM strategy for passed switches: lower a switch parameter to an indexed collection of label-exit descriptors (or thunks that resolve to them), reusing the same non-local escape machinery as passed labels when `goto sw[i]` selects a non-local target.
-
-## Milestone 40 - Input Procedures Cleanup
-
-**Goal:** Revisit the input-side environmental procedures that were marked complete during the MVP path and confirm that they really work end to end in realistic programs.
-
-- [ ] Add a real regression around [`input_procedures.alg`](../test/algol/io/input_procedures.alg)
-- [ ] Verify and, if necessary, fix ininteger(channel, var) runtime behavior
-- [ ] Verify and, if necessary, fix inreal(channel, var) runtime behavior
-- [ ] Verify and, if necessary, fix inchar(channel, str, var) runtime behavior
-- [ ] Decide whether the current scanner/channel model for input procedures matches the intended environmental-block semantics closely enough
-- [ ] Update the MVP and environmental-block documentation once the behavior is confirmed
-
-## Milestone 41 - Recursive Thunk and Procedure-Parameter Cleanup
-
-**Goal:** Revisit recursive call-by-name and passed-procedure edge cases that appear to go beyond the currently validated thunk machinery.
-
-- [ ] Add a real regression around [`thunk_recursion.alg`](../test/algol/misc/thunk_recursion.alg)
-- [ ] Decide whether `thunk_recursion.alg` represents intended Algol semantics exactly as written, and tighten the sample if needed without removing the recursive thunk edge case
-- [ ] Fix the recursive thunk / passed-procedure lowering so the generated thunk getter and return shape are verifier-correct
-- [ ] Verify that the fix does not regress existing call-by-name coverage such as `jen.alg`, `nested_digits.alg`, and `manboy.alg`
-- [ ] Add focused non-regression tests for recursive procedure parameters and re-entrant thunk refresh behavior
-
-## Future Direction Milestones
-
-These milestones are not just deferred implementation cleanup. They represent larger possible directions for Perseus after the MVP and the most important follow-on work are in place.
-
-## Milestone 42 - Lambda Notation
-
-**Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
-
-- [ ] Syntax and parsing for lambda-style procedure literals
-- [ ] Lowering strategy onto existing procedure-reference infrastructure
-- [ ] Tests for higher-order procedure use cases
-
-## Milestone 43 - Actors
-
-**Goal:** Explore actors as a distinctive future direction for Perseus once the MVP and key follow-on milestones are in place (see [Actors Design Spec.md](Actors%20Design%20Spec.md)).
-
-- [ ] Decide whether actors should become a primary language model, a peer to classes, or a higher-level library/runtime abstraction
-- [ ] Define a small first slice (`actor`, references, creation, send, mailbox/handler basics)
-- [ ] Decide how actors should relate to existing classes, exceptions, and external Java interop
-- [ ] Add focused actor sample programs and a phased implementation plan
-
-## Milestone 44 - Looping Extensions
-
-**Goal:** Extend Perseus with more modern looping forms while preserving the original Algol `for` statement for compatibility (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
-
-- [ ] Add `for ... in ... do` iteration over ranges and existing array forms
-- [ ] Add a general `loop ... end` construct
-- [ ] Add `break` and `continue`
-- [ ] Define range syntax such as `..` and `..<`
-- [ ] Define scope and evaluation rules for loop-local iteration variables
-- [ ] Add focused sample programs and regression tests for the new loop forms
-
-## Milestone 45 - Collections and Iterators
-
-**Goal:** Add higher-level collection types and iteration protocols suitable for more general-purpose programming (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
-
-- [ ] Add collection types such as `vector`, `map`, and `set`
-- [ ] Add collection literals and basic collection operations
-- [ ] Extend `for ... in ... do` from ranges/arrays to collection and iterator-protocol-based iteration
-- [ ] Define an iterator protocol that works with `for ... in ... do`
-- [ ] Decide how collection libraries fit into the standard environment / standard library story
-- [ ] Add sample programs and regression tests for collection use cases
-- [ ] Decide how iterator pipelines such as `map` and `filter` should depend on Milestone 42 lambda notation
-
-## Milestone 46 - External Call-by-Name ABI
-
-**Goal:** Add a documented and stable Perseus-to-Perseus thunk ABI for the narrower case of separately compiled translations of historical Algol libraries.
-
-- [ ] Define the external thunk ABI for call-by-name parameters across separately compiled Perseus boundaries
-- [ ] Decide which generated support types must become stable shared runtime contracts
-- [ ] Add focused external call-by-name regressions based on translated historical Algol library patterns
-- [ ] Keep this as a specialized Perseus-to-Perseus compatibility feature rather than the default public JVM library surface
-
-**Implementation notes:**
-- This work is intentionally separated from Milestone 32 because it depends on a stabilized thunk ABI rather than the first external procedure slice
-- The strongest motivation is historical Algol library translation, not general JVM-facing library design
-- Public JVM-facing reuse should prefer value-oriented Perseus classes and methods where possible, while external call-by-name remains a narrower compatibility feature
 
 ## Toward a General-Purpose Product
 
