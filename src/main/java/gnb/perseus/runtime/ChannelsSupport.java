@@ -11,7 +11,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class ChannelsSupport {
-    private static final Map<Integer, BufferedReader> READ_CHANNELS = new ConcurrentHashMap<>();
+    private static final int NO_BUFFERED_CHAR = -2;
+    private static final Map<Integer, InputChannel> READ_CHANNELS = new ConcurrentHashMap<>();
     private static final Map<Integer, BufferedWriter> WRITE_CHANNELS = new ConcurrentHashMap<>();
 
     private ChannelsSupport() {
@@ -23,7 +24,8 @@ public final class ChannelsSupport {
         try {
             Path path = Path.of(filename);
             switch (mode) {
-                case "r" -> READ_CHANNELS.put(channel, Files.newBufferedReader(path, StandardCharsets.UTF_8));
+                case "r" -> READ_CHANNELS.put(channel,
+                        new InputChannel(Files.newBufferedReader(path, StandardCharsets.UTF_8)));
                 case "w" -> WRITE_CHANNELS.put(channel, Files.newBufferedWriter(
                         path,
                         StandardCharsets.UTF_8,
@@ -45,7 +47,7 @@ public final class ChannelsSupport {
 
     public static void closeFile(int channel) {
         requireDynamicChannel(channel);
-        BufferedReader reader = READ_CHANNELS.remove(channel);
+        InputChannel reader = READ_CHANNELS.remove(channel);
         BufferedWriter writer = WRITE_CHANNELS.remove(channel);
         try {
             if (reader != null) {
@@ -82,13 +84,37 @@ public final class ChannelsSupport {
     }
 
     public static String inString(int channel) {
-        BufferedReader reader = requireReadChannel(channel);
+        InputChannel reader = requireReadChannel(channel);
         try {
-            String line = reader.readLine();
-            if (line == null) {
-                throw new IllegalStateException("End of file on channel " + channel);
-            }
-            return line;
+            return reader.readLine(channel);
+        } catch (IOException e) {
+            throw rethrowUnchecked(e);
+        }
+    }
+
+    public static int inInteger(int channel) {
+        InputChannel reader = requireReadChannel(channel);
+        try {
+            return Integer.parseInt(reader.readToken(channel));
+        } catch (IOException e) {
+            throw rethrowUnchecked(e);
+        }
+    }
+
+    public static double inReal(int channel) {
+        InputChannel reader = requireReadChannel(channel);
+        try {
+            return Double.parseDouble(reader.readToken(channel));
+        } catch (IOException e) {
+            throw rethrowUnchecked(e);
+        }
+    }
+
+    public static int inChar(int channel, String text) {
+        InputChannel reader = requireReadChannel(channel);
+        try {
+            String token = reader.readToken(channel);
+            return text.indexOf(token.charAt(0));
         } catch (IOException e) {
             throw rethrowUnchecked(e);
         }
@@ -122,9 +148,9 @@ public final class ChannelsSupport {
         throw new IllegalStateException("Channel " + channel + " is not open");
     }
 
-    private static BufferedReader requireReadChannel(int channel) {
+    private static InputChannel requireReadChannel(int channel) {
         requireDynamicChannel(channel);
-        BufferedReader reader = READ_CHANNELS.get(channel);
+        InputChannel reader = READ_CHANNELS.get(channel);
         if (reader != null) {
             return reader;
         }
@@ -132,5 +158,80 @@ public final class ChannelsSupport {
             throw new IllegalStateException("Channel " + channel + " is not open for read");
         }
         throw new IllegalStateException("Channel " + channel + " is not open");
+    }
+
+    private static final class InputChannel implements AutoCloseable {
+        private final BufferedReader reader;
+        private int bufferedChar = NO_BUFFERED_CHAR;
+
+        private InputChannel(BufferedReader reader) {
+            this.reader = reader;
+        }
+
+        private String readToken(int channel) throws IOException {
+            int ch;
+            do {
+                ch = readChar();
+                if (ch == -1) {
+                    throw eof(channel);
+                }
+            } while (Character.isWhitespace(ch));
+
+            StringBuilder token = new StringBuilder();
+            while (ch != -1 && !Character.isWhitespace(ch)) {
+                token.append((char) ch);
+                ch = readChar();
+            }
+            if (ch != -1) {
+                unreadChar(ch);
+            }
+            return token.toString();
+        }
+
+        private String readLine(int channel) throws IOException {
+            StringBuilder line = new StringBuilder();
+            while (true) {
+                int ch = readChar();
+                if (ch == -1) {
+                    if (line.isEmpty()) {
+                        throw eof(channel);
+                    }
+                    return line.toString();
+                }
+                if (ch == '\n') {
+                    return line.toString();
+                }
+                if (ch == '\r') {
+                    int next = readChar();
+                    if (next != '\n' && next != -1) {
+                        unreadChar(next);
+                    }
+                    return line.toString();
+                }
+                line.append((char) ch);
+            }
+        }
+
+        private int readChar() throws IOException {
+            if (bufferedChar != NO_BUFFERED_CHAR) {
+                int ch = bufferedChar;
+                bufferedChar = NO_BUFFERED_CHAR;
+                return ch;
+            }
+            return reader.read();
+        }
+
+        private void unreadChar(int ch) {
+            bufferedChar = ch;
+        }
+
+        @Override
+        public void close() throws IOException {
+            reader.close();
+        }
+    }
+
+    private static IllegalStateException eof(int channel) {
+        return new IllegalStateException("End of file on channel " + channel);
     }
 }

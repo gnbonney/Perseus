@@ -200,7 +200,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Add channel/runtime support classes such as `Channels` where implementation-heavy environmental features need them
 - [x] Generalize the runtime model beyond the current constant-channel / literal-path slice
 - [x] Route `outstring`, `outinteger`, `outreal`, `outterminator`, and `instring` through dynamic file-channel dispatch
-- [ ] Extend the remaining input/output procedures to the same dynamic channel model
+- [x] Extend the remaining ordinary input procedures to the same dynamic channel model (`ininteger`, `inreal`, and `inchar`)
 - [ ] Add explicit `EndOfFile` behavior and decide where `fault(...)` remains the compatibility fallback
 - [ ] Extend formatted I/O beyond the current `I`, `F`, and `A` subset
 - [ ] Add more file/string-channel regression programs that combine unformatted and formatted I/O

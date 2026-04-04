@@ -53,7 +53,7 @@ outinteger(1, result);                        comment goes to standard output;
 | `inchar(channel, str, int)` | `procedure inchar(channel, str, int)` | Reads one character from the channel; sets `int` to its position in `str` |
 | `informat(channel, format, ...)` | `procedure informat(channel, format, ...)` | **Extension.** Formatted input from the given channel (see Format String Examples below) |
 
-Currently all input procedures read from standard input. File and string channel support for input will be added when file I/O is implemented.
+Input procedures now read from standard input on the ordinary console path and from file channels opened with `openfile(channel, filename, "r")` for channels `2+`. String-channel input and a more explicit end-of-file model remain later work.
 
 ---
 

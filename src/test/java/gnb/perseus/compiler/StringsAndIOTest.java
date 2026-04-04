@@ -512,4 +512,25 @@ end
         assertEquals("1", output.trim(),
                 "Writing to a closed channel should fail in a defined way that can be handled");
     }
+
+    @Test
+    public void dynamic_file_channel_input_procedures_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/io/dynamic_file_channel_input_procedures.alg", "gnb/perseus/programs",
+                "DynamicFileChannelInputProcedures", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== DYNAMIC FILE CHANNEL INPUT PROCEDURES JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END DYNAMIC FILE CHANNEL INPUT PROCEDURES ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.DynamicFileChannelInputProcedures");
+        assertEquals("12,3.5,1", output.trim(),
+                "A file channel chosen through a variable should support ininteger, inreal, and inchar");
+    }
 }

@@ -65,3 +65,6 @@ parse_tree.txt
 
 # Ignore temporary build files
 build/tmp/
+
+# Generated milestone I/O test artifacts
+/milestone*.txt
