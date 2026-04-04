@@ -219,44 +219,47 @@ Formal array parameters currently still use the existing one-dimensional passing
 
 ## Environmental Block Implementation
 
-The Algol 60 Modified Report defines a fictitious outermost block called the **environmental block** that pre-declares all standard identifiers (I/O procedures, math functions, constants). Perseus implements this without generating any extra class files or runtime declarations. Instead, environmental identifiers are recognised **by name** in `CodeGenerator` and mapped directly to the appropriate JVM instruction sequences.
+The Algol 60 Modified Report defines a fictitious outermost block called the
+**environmental block** that pre-declares all standard identifiers. Perseus now
+implements most of that surface through a real compiled standard environment
+rather than treating the whole environmental block as a code-generation special
+case.
 
-Recognition happens at two code-generation sites:
+The migrated environmental units are:
 
-1. **`exitProcedureCall`** — for void-returning procedures used as statements:
-   `outstring`, `outinteger`, `outreal`, `outchar`, `outterminator`, `outformat`, `stop`, `fault`,
-   `openfile`, `openstring`, `closefile`
+- `perseus.lang.MathEnv`
+- `perseus.text.Strings`
+- `perseus.io.TextInput`
+- `perseus.io.TextOutput`
+- `perseus.runtime.Faults`
 
-2. **`generateExpr`** — for value-returning function designators (expression position):
-   `sqrt`, `abs`, `iabs`, `sign`, `entier`, `sin`, `cos`, `arctan`, `ln`, `exp`, `length`,
-   `ininteger`, `inreal`, `informat`
+These are compiled from `src/main/perseus/stdlib`, provisioned automatically
+for ordinary compilations, and also packaged as a separate `perseus-stdlib.jar`
+artifact.
 
-3. **Variable name resolution** — for constants (no argument list):
-   `maxreal`, `minreal`, `maxint`, `epsilon`
+The remaining intrinsic core is intentionally small:
 
-Environmental identifiers are **not** entered in `SymbolTableBuilder`'s symbol table, to avoid polluting user-visible scope or consuming JVM local-variable slots.
+- `stop` remains a compiler/runtime intrinsic.
+- `Channels` is still the next heavier runtime layer and remains part of the
+  later dynamic-channel work.
 
-### Channel Resolution
+### Current Lowering Split
 
-The channel parameter (first argument of all I/O procedures) is a compile-time constant integer. Perseus resolves it at code-generation time:
+The standard-environment surface now divides into three architectural layers:
 
-| Channel | Target | Use |
-|---|---|---|
-| `0` | `System.err` | Standard error |
-| `1` | `System.out` | Standard output |
-| `2`+ | File or string buffer | Mapped at runtime via `openfile`/`openstring` |
+- **Compiled Perseus stdlib code**
+  - `MathEnv`, `Strings`, `TextOutput`, `TextInput`, and `Faults`
+- **Direct Java interop from stdlib code**
+  - used where Perseus source can now express the needed Java members directly,
+    such as `MathEnv` numeric constants and `TextOutput` access to
+    `System.out` / `System.err`
+- **Narrow Java runtime helpers**
+  - still used only where Perseus source does not yet express the full runtime
+    mechanism cleanly, such as `TextInputSupport` and `FaultSupport`
 
-Channels 0 and 1 are resolved statically because Jasmin `getstatic` targets are determined at compile time. Higher-numbered channels require a runtime dispatch table (a helper method or static array of streams), which is needed once file and string channel support is implemented.
-
-If the channel argument is not a compile-time constant integer, codegen emits a warning comment and defaults to `System.out`.
-
-### Math Functions
-
-Math functions are mapped to `java/lang/Math` static methods via `invokestatic`. Constants (`maxreal`, `minreal`, `maxint`, `epsilon`) are inlined as `ldc`/`ldc2_w` instructions at their use sites. No `Math` object is created.
-
-### Input Procedures
-
-Input procedures (`ininteger`, `inreal`, `inchar`) read from `System.in` via a shared `Scanner` instance created once as a static field on the generated class, rather than constructed per call.
+This keeps the environmental block as a real library surface while still
+leaving a small practical bridge for the parts of JVM interaction that remain
+outside the current Perseus source model.
 
 ---
 

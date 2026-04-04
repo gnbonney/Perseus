@@ -228,7 +228,7 @@ The intent is:
 
 This split keeps the common Perseus-to-Perseus case lightweight while still making Java interop explicit. It also leaves room for a later Simula-inspired class extension, where imported JVM types could be declared more naturally as `external java class ...` instead of being modeled only as procedure targets.
 
-Perseus prioritizes `external(...)` and `external java static(...)`. The current implementation centers on static Java methods, while the advanced Java interop work below extends that model to static fields, object-valued bindings, chaining, and stronger member resolution.
+Perseus prioritizes `external(...)` and `external java static(...)`. The Java interop model now covers static methods, static fields, object-valued bindings, chaining, and stronger member resolution through the same explicit `external java` surface.
 
 Perseus will also support an optional local alias for an external Java procedure declaration:
 
@@ -337,7 +337,7 @@ Here `static(...)` names the owning Java class. The same source form covers both
 
 Perseus does not use ordinary assignment from `real` to `integer` as a general language conversion. The normal source-level conversion remains `entier(x)`. To support implementations such as `MathEnv.entier`, the compiler may apply a narrow coercion rule when assigning to the implicit result variable of a typed procedure: if an `integer procedure` assigns a `real` expression to its result, the generated code converts that value to integer at the return-assignment point. This supports typed procedure results such as `entier` without turning ordinary variable assignment into a general implicit narrowing conversion.
 
-The current implementation centers on static Java methods. The `Advanced Java Interop` subsection below extends this source model to static fields, imported object values, chained instance calls, and stronger overload resolution.
+The `Advanced Java Interop` subsection below defines the richer Java source model used by Perseus, including static fields, imported object values, chained instance calls, and stronger overload resolution.
 
 ### Restrictions
 

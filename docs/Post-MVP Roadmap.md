@@ -134,7 +134,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - `perseus.runtime.Faults`
   - `fault`
 
-**Current Milestone 35 slice:**
+**Milestone 35 status:**
 - `MathEnv` now covers `abs`, `iabs`, `sign`, `entier`, `sqrt`, `sin`, `cos`, `arctan`, `ln`, and `exp`.
 - `MathEnv` now also covers the numeric constants `maxreal`, `minreal`, `maxint`, and `epsilon`.
 - `Strings` now covers `length`, `concat`, and `substring`.
@@ -182,6 +182,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - The direct Java interop surface now covers aliased external Java static fields, imported object-valued bindings, chained instance calls through those bindings, direct reads of public Java instance fields, Java constants and enum-like members, and overload resolution by argument type for both Java methods and Java constructors.
 - Diagnostics now distinguish ambiguous Java overloads from unsupported Java member calls instead of collapsing them into generic unknown-member errors.
 - `MathEnv` and `TextOutput` now use the richer interop directly, so the obsolete `MathConstantsSupport` and `TextOutputSupport` bridge helpers are gone. `TextInputSupport` and `FaultSupport` remain for the narrower runtime cases that still need them.
+- Milestone 36 is now complete at the current intended scope.
 
 ## Milestone 37 - Dynamic Channels and Formatted I/O Follow-On
 

@@ -187,7 +187,9 @@ For rationale and historical context, see Perseus Language Design.md.
 
 ## Compiled Standard Environment
 
-Today, many environmental identifiers are still recognized directly by the compiler and lowered to known JVM calls or runtime patterns. The compiled standard environment replaces more of that hardcoding with a real always-available standard prelude.
+Perseus now provides most of the environmental block through a real
+always-available compiled standard environment rather than through compiler
+name-recognition alone.
 
 This standard environment is not one giant source file. It is split into focused support classes:
 
@@ -205,5 +207,14 @@ This makes the environmental block:
 - easier to document as a real library interface,
 - and more consistent with Perseus's support for external procedures, classes, `namespace`, and standard classpath-based linkage.
 
-The migration remains incremental rather than all at once: Perseus keeps a small intrinsic core, then moves environmental procedures into compiled Perseus code feature by feature as the runtime support becomes strong enough to carry them cleanly. `MathEnv`, `Strings`, `TextOutput`, `TextInput`, and `Faults` are already on that compiled path. `Channels` is the next remaining piece of the heavier runtime environment.
+At the current stage:
+
+- `MathEnv`, `Strings`, `TextOutput`, `TextInput`, and `Faults` are already on
+  the compiled standard-environment path.
+- `stop` intentionally remains intrinsic.
+- `Channels` is the next remaining piece of the heavier runtime environment.
+
+Some JVM-facing details still use narrow Java helper classes where Perseus
+source does not yet express the needed mechanism directly. That is now the
+exception rather than the main model.
 
