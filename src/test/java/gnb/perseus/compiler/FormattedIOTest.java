@@ -101,4 +101,50 @@ public class FormattedIOTest extends CompilerTest {
         assertEquals("42 3.1 Hello", output.trim(),
                 "informat should parse formatted input into integer, real, and string variables");
     }
+
+    @Test
+    public void mixed_string_channel_format_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/io/mixed_string_channel_format.alg",
+                "gnb/perseus/programs",
+                "MixedStringChannelFormat",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== MIXED STRING CHANNEL FORMAT JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END MIXED STRING CHANNEL FORMAT ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.MixedStringChannelFormat");
+        assertEquals("A=  7   2.5;9", output.trim(),
+                "String channels should support mixed formatted and unformatted output in one buffer");
+    }
+
+    @Test
+    public void mixed_file_channel_format_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/io/mixed_file_channel_format.alg",
+                "gnb/perseus/programs",
+                "MixedFileChannelFormat",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== MIXED FILE CHANNEL FORMAT JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END MIXED FILE CHANNEL FORMAT ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.MixedFileChannelFormat");
+        assertEquals("N=  5   xy!", output.trim(),
+                "File channels should support mixed formatted and unformatted output in one stream");
+    }
 }

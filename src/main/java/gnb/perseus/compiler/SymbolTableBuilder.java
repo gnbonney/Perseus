@@ -21,6 +21,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             Map.entry("RuntimeException", "java.lang.RuntimeException"),
             Map.entry("IOException", "java.io.IOException"),
             Map.entry("FileNotFoundException", "java.io.FileNotFoundException"),
+            Map.entry("EOFException", "java.io.EOFException"),
             Map.entry("NumberFormatException", "java.lang.NumberFormatException"),
             Map.entry("IllegalArgumentException", "java.lang.IllegalArgumentException"),
             Map.entry("IllegalStateException", "java.lang.IllegalStateException"),

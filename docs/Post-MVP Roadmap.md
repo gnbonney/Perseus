@@ -200,13 +200,14 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Generalize the runtime model beyond the current constant-channel / literal-path slice
 - [x] Route `outstring`, `outinteger`, `outreal`, `outterminator`, and `instring` through dynamic file-channel dispatch
 - [x] Extend the remaining ordinary input procedures to the same dynamic channel model (`ininteger`, `inreal`, and `inchar`)
-- [ ] Add more file/string-channel regression programs that combine unformatted and formatted I/O
-- [ ] Add explicit `EndOfFile` behavior and keep `fault(...)` only as the narrower compatibility fallback while ordinary I/O/channel failures use direct Java-backed exceptions
+- [x] Add more file/string-channel regression programs that combine unformatted and formatted I/O
+- [x] Add explicit `EndOfFile` behavior and keep `fault(...)` only as the narrower compatibility fallback while ordinary I/O/channel failures use direct Java-backed exceptions
 - [ ] Extend formatted I/O beyond the current `I`, `F`, and `A` subset
 - [ ] Consolidate the broader channel model into runtime support classes such as `Channels` where the heavier environmental features need them
 
 **Notes on `fault(...)` as fallback:**
 - Chosen direction: ordinary I/O/channel failures should use direct Java-backed exceptions such as `EOFException`, `IOException`, `IllegalStateException`, and `IllegalArgumentException`, while `fault(...)` remains only as the narrower compatibility fallback.
+- Current status: file-channel reads now raise `EOFException` on end of file, while invalid channel use and ordinary file/runtime failures continue to surface as direct Java-backed exceptions such as `IllegalStateException`, `IllegalArgumentException`, and `IOException`.
 - Option 1: Keep `fault(...)` as the broad compatibility fallback for EOF, invalid channel use, unsupported modes, and other channel/runtime problems. This is the most conservative path, but it gives user code the least specific recovery information.
   Example:
   ```algol

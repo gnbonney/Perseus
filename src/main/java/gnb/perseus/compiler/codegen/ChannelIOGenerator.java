@@ -348,15 +348,9 @@ public class ChannelIOGenerator {
                 currentLocalIndex, staticFieldName, allocateNewLocal)) {
             return true;
         }
-        Integer channel = getConstantChannelValue(channelArg);
-        if (channel != null && constantFileChannels.containsKey(channel) && "w".equals(constantFileChannels.get(channel).mode())) {
-            emitFileChannelPrint(channel, "Ljava/lang/String;", formattedValue, activeOutput, allocateNewLocal);
-            return true;
-        }
-        String stream = getChannelStream.apply(channelArg);
-        activeOutput.append("getstatic ").append(stream).append(" Ljava/io/PrintStream;\n")
-                .append(formattedValue)
-                .append("invokevirtual java/io/PrintStream/print(Ljava/lang/String;)V\n");
+        appendChannelValue(channelArg, activeOutput, generateExpr);
+        activeOutput.append(formattedValue)
+                .append("invokestatic perseus/io/TextOutput/outstring(ILjava/lang/String;)V\n");
         return true;
     }
 

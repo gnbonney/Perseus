@@ -2,6 +2,7 @@ package gnb.perseus.runtime;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -231,7 +232,7 @@ public final class ChannelsSupport {
         }
     }
 
-    private static IllegalStateException eof(int channel) {
-        return new IllegalStateException("End of file on channel " + channel);
+    private static EOFException eof(int channel) {
+        return new EOFException("End of file on channel " + channel);
     }
 }

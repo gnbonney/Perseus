@@ -533,4 +533,25 @@ end
         assertEquals("12,3.5,1", output.trim(),
                 "A file channel chosen through a variable should support ininteger, inreal, and inchar");
     }
+
+    @Test
+    public void file_channel_eof_exception_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/io/file_channel_eof_exception.alg", "gnb/perseus/programs",
+                "FileChannelEOFException", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== FILE CHANNEL EOF EXCEPTION JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END FILE CHANNEL EOF EXCEPTION ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.FileChannelEOFException");
+        assertEquals("21,1", output.trim(),
+                "Reading past the end of a file channel should raise EOFException and allow recovery");
+    }
 }

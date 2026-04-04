@@ -53,7 +53,7 @@ outinteger(1, result);                        comment goes to standard output;
 | `inchar(channel, str, int)` | `procedure inchar(channel, str, int)` | Reads one character from the channel; sets `int` to its position in `str` |
 | `informat(channel, format, ...)` | `procedure informat(channel, format, ...)` | **Extension.** Formatted input from the given channel (see Format String Examples below) |
 
-Input procedures now read from standard input on the ordinary console path and from file channels opened with `openfile(channel, filename, "r")` for channels `2+`. String-channel input and a more explicit end-of-file model remain later work.
+Input procedures now read from standard input on the ordinary console path and from file channels opened with `openfile(channel, filename, "r")` for channels `2+`. File-channel reads now raise `EOFException` on end of file. String-channel input remains later work.
 
 ---
 
@@ -142,7 +142,7 @@ To support file input/output and more meaningful channel usage, the following pr
 - All standard I/O procedures work with file channels opened via `openfile`/`closefile`.
 - Channels 0 and 1 are reserved for standard error and standard output.
 - Channel numbers 2 and above can be assigned to files or string buffers.
-- Invalid channel use, file not found, or permission errors are handled via the `fault` procedure.
+- Invalid channel use, file not found, permission errors, and end-of-file conditions are exposed through direct Java-backed exceptions such as `IllegalStateException`, `IllegalArgumentException`, `IOException`, and `EOFException`.
 - These extensions are not defined in the Algol 60 Modified Report, but are consistent with historical Algol compiler practice.
 
 For string channel support (sprintf-style output), see the next section.
