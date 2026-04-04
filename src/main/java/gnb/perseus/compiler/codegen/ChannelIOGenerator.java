@@ -25,6 +25,8 @@ public class ChannelIOGenerator {
         this.className = className;
     }
 
+    private record FormatSpec(char kind, int width, int precision) {}
+
     public boolean tryEmitProcedureCall(
             String name,
             List<PerseusParser.ArgContext> args,
@@ -59,8 +61,6 @@ public class ChannelIOGenerator {
             default -> false;
         };
     }
-
-    private record FormatSpec(char kind, int width, int precision) {}
 
     private Integer getConstantChannelValue(PerseusParser.ArgContext channelArg) {
         if (channelArg == null || channelArg.expr() == null) {
@@ -127,60 +127,32 @@ public class ChannelIOGenerator {
         return specs;
     }
 
-    private String toJavaFormatLiteral(List<FormatSpec> specs) {
-        StringBuilder sb = new StringBuilder("\"");
-        for (int i = 0; i < specs.size(); i++) {
-            if (i > 0) {
-                sb.append(" ");
-            }
-            FormatSpec spec = specs.get(i);
-            sb.append("%").append(spec.width());
-            if (spec.kind() == 'F') {
-                sb.append(".").append(spec.precision()).append("f");
-            } else if (spec.kind() == 'I') {
-                sb.append("d");
-            } else {
-                sb.append("s");
-            }
-        }
-        sb.append("\"");
-        return sb.toString();
-    }
-
-    private String generateFormattedString(List<FormatSpec> specs, List<PerseusParser.ArgContext> valueArgs,
+    private String generateFormattedString(String formatLiteral, List<PerseusParser.ArgContext> valueArgs,
             Function<PerseusParser.ExprContext, String> generateExpr,
             Function<PerseusParser.ExprContext, String> exprTypeResolver,
             StringBuilder activeOutput) {
-        if (specs.size() != valueArgs.size()) {
-            activeOutput.append("; ERROR: format/argument count mismatch\n");
-            return "ldc \"\"\n";
-        }
-
         StringBuilder sb = new StringBuilder();
-        sb.append("ldc ").append(toJavaFormatLiteral(specs)).append("\n");
-        sb.append("ldc ").append(specs.size()).append("\n");
+        sb.append("ldc ").append(formatLiteral).append("\n");
+        sb.append("ldc ").append(valueArgs.size()).append("\n");
         sb.append("anewarray java/lang/Object\n");
-        for (int i = 0; i < specs.size(); i++) {
-            FormatSpec spec = specs.get(i);
+        for (int i = 0; i < valueArgs.size(); i++) {
             PerseusParser.ExprContext expr = valueArgs.get(i).expr();
             String exprType = expr != null ? exprTypeResolver.apply(expr) : "integer";
             sb.append("dup\n");
             sb.append("ldc ").append(i).append("\n");
             sb.append(generateExpr.apply(expr));
-            if (spec.kind() == 'F') {
-                if (!"real".equals(exprType)) {
-                    sb.append("i2d\n");
-                }
+            if ("real".equals(exprType)) {
                 sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
-            } else if (spec.kind() == 'I') {
-                if ("real".equals(exprType)) {
-                    sb.append("d2i\n");
-                }
+            } else if ("integer".equals(exprType)) {
                 sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+            } else if ("boolean".equals(exprType)) {
+                sb.append("invokestatic java/lang/Boolean/valueOf(Z)Ljava/lang/Boolean;\n");
+            } else {
+                // Strings and references are already object values at the JVM level.
             }
             sb.append("aastore\n");
         }
-        sb.append("invokestatic java/lang/String/format(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;\n");
+        sb.append("invokestatic gnb/perseus/runtime/TextFormatSupport/format(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;\n");
         return sb.toString();
     }
 
@@ -340,8 +312,7 @@ public class ChannelIOGenerator {
             activeOutput.append("; ERROR: outformat currently requires a string-literal format\n");
             return true;
         }
-        List<FormatSpec> specs = parseFormatSpecs(formatLiteral);
-        String formattedValue = generateFormattedString(specs, args.subList(2, args.size()), generateExpr, exprTypeResolver,
+        String formattedValue = generateFormattedString(formatLiteral, args.subList(2, args.size()), generateExpr, exprTypeResolver,
                 activeOutput);
         PerseusParser.ArgContext channelArg = args.get(0);
         if (emitStringOrFileOutput(channelArg, "Ljava/lang/String;", formattedValue, activeOutput, lookupVarType,

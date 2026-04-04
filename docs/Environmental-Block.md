@@ -61,7 +61,7 @@ Input procedures now read from standard input on the ordinary console path and f
 
 > **Extension.** `outformat` and `informat` are Perseus extensions, not part of the Algol 60 Modified Report. See Perseus Language Design.md for rationale and historical context.
 
-The `outformat` and `informat` procedures accept a format string that specifies the width, type, and precision of each output field. Multiple fields are separated by commas or spaces.
+The `outformat` and `informat` procedures accept a format string that specifies the width, type, and precision of each output field. Multiple fields are separated by commas or spaces. The current implemented subset is `I`, `F`, and `A`; the chosen conservative expansion direction is `I`, `F`, `E`, `A`, `L`, `X`, and `/`, with optional zero-padding on `I`.
 
 | Format specifier | Meaning | Example call | Example output |
 |---|---|---|---|

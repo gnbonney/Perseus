@@ -84,7 +84,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 3. Add a fuller library-oriented build mode around `namespace`, with explicit conventions for multi-file library roots, outputs, and possibly packaging.
    - This is the strongest long-term workflow.
-   - It would also overlap more with Milestone 38 CLI/product work and would likely require broader tooling decisions at the same time.
+   - It would also overlap more with Milestone 39 CLI/product work and would likely require broader tooling decisions at the same time.
 
 ## Milestone 34 - Exception Follow-On
 
@@ -207,6 +207,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Notes on `fault(...)` as fallback:**
 - Chosen direction: ordinary I/O/channel failures should use direct Java-backed exceptions such as `EOFException`, `IOException`, `IllegalStateException`, and `IllegalArgumentException`, while `fault(...)` remains only as the narrower compatibility fallback.
+- Current formatting state: the current `I`, `F`, and `A` output-format rendering path is no longer parsed and rendered entirely inside the compiler. `outformat` now delegates rendering to a shared runtime helper before writing through the standard `TextOutput` channel path. `informat` still keeps its descriptor-driven lowering in the compiler for now.
 - Current status: file-channel reads now raise `EOFException` on end of file, while invalid channel use and ordinary file/runtime failures continue to surface as direct Java-backed exceptions such as `IllegalStateException`, `IllegalArgumentException`, and `IOException`.
 - Option 1: Keep `fault(...)` as the broad compatibility fallback for EOF, invalid channel use, unsupported modes, and other channel/runtime problems. This is the most conservative path, but it gives user code the least specific recovery information.
   Example:
@@ -249,7 +250,27 @@ The milestones below collect follow-on work that was intentionally deferred whil
   end
   ```
 
-## Milestone 38 - CLI Follow-On
+## Milestone 38 - Remaining Java Helper Reduction
+
+**Goal:** Remove the remaining Java runtime bridge helpers by extending Perseus source/runtime support until the compiled standard environment can express these cases directly.
+
+- [ ] Identify the remaining Java runtime support classes still required by the compiled standard environment
+- [ ] Add a real source-level `throw` / `signal` form so `fault` can raise Java-backed exceptions without `FaultSupport`
+- [ ] Add reference-typed arrays so compiled stdlib units can keep channel, reader, writer, and scanner state in Perseus source instead of Java-side registries
+- [ ] Add a source-level `null` reference value and the needed reference comparisons so compiled stdlib code can test open/closed or initialized/uninitialized object slots directly
+- [ ] Add the boxing and `ref(Object)` array support needed for compiled stdlib code to build Java `Object[]` argument lists directly, removing the need for `TextFormatSupport`
+- [ ] Move the current input-side scanner and file-reader state from `TextInputSupport` into compiled Perseus stdlib code once the reference-state features above exist
+- [ ] Implement a real compiled `perseus.io.Channels` unit that owns channel state directly and removes `ChannelsSupport`
+- [ ] Refactor the compiled standard environment to stop depending on all remaining Java runtime bridge helpers
+- [ ] Add regression coverage showing the migrated stdlib paths still work without those helper classes
+
+**Current helper targets:**
+- `gnb.perseus.runtime.ChannelsSupport`
+- `gnb.perseus.runtime.TextInputSupport`
+- `gnb.perseus.runtime.FaultSupport`
+- `gnb.perseus.runtime.TextFormatSupport`
+
+## Milestone 39 - CLI Follow-On
 
 **Goal:** Extend the working CLI into a broader tool suitable for multi-file and interop-heavy workflows.
 
@@ -261,7 +282,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Further exit-code and machine-facing CLI refinements
 - [ ] Additional commands such as `check` or `emit-jasmin` if they remain desirable after the MVP
 
-## Milestone 39 - Input Procedures Cleanup
+## Milestone 40 - Input Procedures Cleanup
 
 **Goal:** Revisit the input-side environmental procedures that were marked complete during the MVP path and confirm that they really work end to end in realistic programs.
 
@@ -276,7 +297,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 These milestones are not just deferred implementation cleanup. They represent larger possible directions for Perseus after the MVP and the most important follow-on work are in place.
 
-## Milestone 40 - Looping Extensions
+## Milestone 41 - Looping Extensions
 
 **Goal:** Extend Perseus with more modern looping forms while preserving the original Algol `for` statement for compatibility (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
 
@@ -287,7 +308,7 @@ These milestones are not just deferred implementation cleanup. They represent la
 - [ ] Define scope and evaluation rules for loop-local iteration variables
 - [ ] Add focused sample programs and regression tests for the new loop forms
 
-## Milestone 41 - Lambda Notation
+## Milestone 42 - Lambda Notation
 
 **Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
 
@@ -295,7 +316,7 @@ These milestones are not just deferred implementation cleanup. They represent la
 - [ ] Lowering strategy onto existing procedure-reference infrastructure
 - [ ] Tests for higher-order procedure use cases
 
-## Milestone 42 - Collections and Iterators
+## Milestone 43 - Collections and Iterators
 
 **Goal:** Add higher-level collection types and iteration protocols suitable for more general-purpose programming (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
 
@@ -305,9 +326,9 @@ These milestones are not just deferred implementation cleanup. They represent la
 - [ ] Define an iterator protocol that works with `for ... in ... do`
 - [ ] Decide how collection libraries fit into the standard environment / standard library story
 - [ ] Add sample programs and regression tests for collection use cases
-- [ ] Decide how iterator pipelines such as `map` and `filter` should depend on Milestone 41 lambda notation
+- [ ] Decide how iterator pipelines such as `map` and `filter` should depend on Milestone 42 lambda notation
 
-## Milestone 43 - Actors
+## Milestone 44 - Actors
 
 **Goal:** Explore actors as a distinctive future direction for Perseus once the MVP and key follow-on milestones are in place (see [Actors Design Spec.md](Actors%20Design%20Spec.md)).
 

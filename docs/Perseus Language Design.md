@@ -94,27 +94,27 @@ closefile(2);
 
 This approach is consistent with the Modified Report's philosophy of implementation-defined channel-to-device mapping, while bringing Perseus closer to modern I/O expectations.  It mirrors patterns already seen in Simula 67 (file, infile, outfile classes), NU Algol (FORMAT and LIST declarations), and DEC Algol (comprehensive file I/O).
 
-## Formatted I/O (Hybrid Design)
+## Formatted I/O
 
-Many historic Algol compilers provided formatted I/O via FORMAT statements or format strings, but the syntax and semantics varied widely. Modern JVM languages use `String.format` or similar mechanisms. To balance authenticity and practicality, Perseus proposes a **hybrid formatted I/O system**:
+Many historic Algol compilers provided formatted I/O, but there was no single standard Algol 60 format language. Perseus therefore treats formatted I/O as an intentional extension with a small descriptor-based syntax that is Algol-friendly, strongly reminiscent of classic Fortran formatting, and practical on the JVM.
 
-* **User-facing syntax:** Algol-style format strings, inspired by historic FORMAT statements but simplified for ease of use.
-* **Implementation:** Internally, these format strings are translated to Java `String.format` patterns, leveraging the JVM's formatting power while allowing Algol-like code.
+The current implementation translates Perseus format descriptors to Java formatting operations. That keeps the user-facing model compact while letting the runtime reuse JVM formatting behavior where it fits naturally.
 
 ## Rationale
 
-- **Historic fidelity:** Algol users expect FORMAT-like capabilities, e.g., field width, decimal places, alignment.
-- **Modern power:** Java's `String.format` is robust, internationalized, and well-tested.
-- **Simplicity:** Translating a subset of Algol-style format strings to Java format patterns allows users to write familiar code, while the compiler handles the mapping.
+- **Historic fit:** descriptor-based field formatting feels appropriate for an Algol-family language even though it is not defined by the Modified Report.
+- **Practicality:** Perseus is likely to be used for teaching, reporting, finance-style output, and ordinary business programs where fixed-width numeric and text formatting matters.
+- **Conservatism:** the format language should stay small and teachable rather than becoming a full clone of Fortran's larger edit-descriptor system.
+- **JVM leverage:** the chosen descriptors should map cleanly onto Java formatting behavior.
 
-## Proposed Syntax
+## Procedures And Descriptor Direction
 
-Introduce new procedures:
+Perseus keeps these as the user-facing formatted-I/O procedures:
 
 - `outformat(channel, format, arg1, arg2, ...)` — outputs formatted text to the given channel.
 - `informat(channel, format, var1, var2, ...)` — reads formatted input from the given channel (future/optional).
 
-**Format string syntax:**
+**Current implemented subset:**
 
 - Use a simplified Algol-inspired format string, e.g., `"I5, F8.2, A10"` (integer, float, alphanumeric fields).
 - Each field specifier maps to a Java format code:
@@ -125,6 +125,63 @@ Introduce new procedures:
 
 The compiler parses the format string, translates it to a Java format string, and emits a call to `String.format`.
 
+### Expanded conservative direction
+
+The current `I`, `F`, and `A` subset is a good base, but Perseus should grow the format language in a deliberately small and practical way rather than trying to reproduce the full breadth of Fortran edit descriptors.
+
+Perseus should keep the same descriptor-family style and expand it to:
+
+- `Iw[.m]`
+  - integer output with field width `w`
+  - optional `.m` gives a minimum digit count with leading zero padding
+- `Fw.d`
+  - fixed-point real output with width `w` and `d` digits after the decimal point
+- `Ew.d`
+  - scientific notation with width `w` and `d` digits after the decimal point
+- `A` or `Aw`
+  - string output with no fixed width or with field width `w`
+- `Lw`
+  - logical / Boolean output with width `w`
+- `nX`
+  - output `n` spaces
+- `/`
+  - line break
+
+This selection is intentionally conservative.
+
+It is broad enough for:
+
+- educational examples
+- scientific notation when needed
+- business and finance-style reports
+- fixed-width tabular output
+
+It also avoids drifting into descriptors that are more useful for systems programming or specialized report writers than for Perseus's main expected use cases.
+
+For now Perseus does not need to prioritize:
+
+- `B`, `O`, `Z` for binary, octal, and hexadecimal integer formatting
+- `D`, because Perseus does not have a separate source-level double-precision type distinct from `real`
+- `EX...` hexadecimal floating-point formats
+- `Tc` cursor-position formatting
+- quoted literal directives inside the format string
+
+Ordinary `outstring` calls already handle literal text clearly, so the format language does not need to absorb that job.
+
+This gives Perseus a formatting system that is:
+
+- more capable than the current minimal slice
+- still small enough to learn quickly
+- and still clearly distinct from implementing every historical Fortran edit descriptor
+
+Format strings should continue to follow these rules:
+
+- descriptors are written in a single string such as `"I5, F8.2, A10"`
+- commas or spaces separate descriptors
+- each non-layout descriptor consumes one argument or one input variable
+- `nX` and `/` affect layout only and do not consume an argument
+- `A` without a width uses the full string without padding
+
 ## Example Usage
 
 ```algol
@@ -132,6 +189,22 @@ integer i; real x; string s;
 i := 42; x := 3.14159; s := "Algol";
 outformat(1, "I5, F8.2, A10", i, x, s);
 % Output:   "   42    3.14      Algol"
+```
+
+An expanded example in the same style would be:
+
+```algol
+integer i;
+real x;
+Boolean ok;
+string name;
+
+i := 42;
+x := 3141.59;
+ok := true;
+name := "Algol";
+
+outformat(1, "A, I5.3, 2X, F8.2, /, L5, 1X, E10.2", name, i, x, ok, x);
 ```
 
 ## Translation Example
@@ -142,13 +215,14 @@ outformat(1, "I5, F8.2, A10", i, x, s);
 
 ## Extension and Compatibility
 
-- The format string parser can be extended to support more field types (e.g., scientific, hex, left/right alignment).
+- The chosen next descriptor family is `I`, `F`, `E`, `A`, `L`, `X`, and `/`, with optional zero-padding on `I`.
+- The current `I`, `F`, and `A` forms remain valid as the stable baseline.
 - For backward compatibility, `outstring`, `outinteger`, etc., remain available for simple output.
 - This approach allows easy integration with file I/O channels (e.g., `outformat(2, ...)` for file output).
 
 ## Future Directions
 
-- Input formatting (`informat`) can be added later, mapping format strings to Java `Scanner` or regex-based parsing.
+- `informat` may continue to lag behind `outformat` in how much of the descriptor family is implemented, but both procedures should use the same descriptor vocabulary in the language design.
 - Advanced features (e.g., locale, grouping, error handling) can be layered on top as needed.
 
 ---

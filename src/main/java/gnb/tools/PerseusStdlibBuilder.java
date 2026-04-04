@@ -34,6 +34,7 @@ public final class PerseusStdlibBuilder {
         Files.createDirectories(classOutputDir);
         copyRuntimeSupportClass("gnb/perseus/runtime/ChannelsSupport.class", classOutputDir);
         copyRuntimeSupportClass("gnb/perseus/runtime/ChannelsSupport$InputChannel.class", classOutputDir);
+        copyRuntimeSupportClass("gnb/perseus/runtime/TextFormatSupport.class", classOutputDir);
         copyRuntimeSupportClass("gnb/perseus/runtime/TextInputSupport.class", classOutputDir);
         copyRuntimeSupportClass("gnb/perseus/runtime/FaultSupport.class", classOutputDir);
 
