@@ -181,7 +181,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - This milestone grows out of concrete friction discovered while moving `TextOutput` and `MathEnv` into the compiled standard environment.
 - The direct Java interop surface now covers aliased external Java static fields, imported object-valued bindings, chained instance calls through those bindings, direct reads of public Java instance fields, Java constants and enum-like members, and overload resolution by argument type for both Java methods and Java constructors.
 - Diagnostics now distinguish ambiguous Java overloads from unsupported Java member calls instead of collapsing them into generic unknown-member errors.
-- `MathEnv` and `TextOutput` now use the richer interop directly, so the obsolete `MathConstantsSupport` and `TextOutputSupport` bridge helpers are gone. `TextInputSupport` and `FaultSupport` remain for the narrower runtime cases that still need them.
+- `MathEnv` and `TextOutput` now use the richer interop directly, so the obsolete `MathConstantsSupport` and `TextOutputSupport` bridge helpers are gone. `FaultSupport` remains for the narrower runtime case that still needs a bridge.
 - Milestone 36 is now complete at the current intended scope.
 
 ## Milestone 37 - Dynamic Channels and Formatted I/O Follow-On
@@ -204,13 +204,15 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Add explicit `EndOfFile` behavior and keep `fault(...)` only as the narrower compatibility fallback while ordinary I/O/channel failures use direct Java-backed exceptions
 - [x] Extend output-side formatted I/O beyond the current `I`, `F`, and `A` subset
 - [x] Move the existing `informat` `I`, `F`, and `A` functionality out of direct compiler hardcoding into shared runtime support
-- [ ] Consolidate the broader channel model into runtime support classes such as `Channels` where the heavier environmental features need them
+- [x] Consolidate the broader channel model into a shared runtime owner such as `Channels` where the heavier environmental features need it
 
 **Notes on `fault(...)` as fallback:**
 - Chosen direction: ordinary I/O/channel failures should use direct Java-backed exceptions such as `EOFException`, `IOException`, `IllegalStateException`, and `IllegalArgumentException`, while `fault(...)` remains only as the narrower compatibility fallback.
 - Current formatting state: the current output-format rendering path is no longer parsed and rendered entirely inside the compiler. `outformat` now delegates rendering to a shared runtime helper before writing through the standard `TextOutput` channel path, and the output-side descriptor set now includes `Iw[.m]`, `Fw.d`, `Ew.d`, `A`/`Aw`, `Lw`, `nX`, and `/`. `informat` still supports the narrower `I`, `F`, and `A` subset, but its format parsing and value-reading path now also lives in shared runtime support, with the compiler only handling assignment into the destination variables.
 - `informat` is intentionally staying simple for now. Fixed-width descriptor-driven input is much less central to modern programming than formatted output, and real-world input is more often delimited or structured (`CSV`, `JSON`, `XML`, whitespace-separated text, or library-driven parsing). Perseus should therefore treat `informat` as a small convenience rather than a major parsing framework unless real use cases later justify extending it. That design choice does not mean keeping the current compiler hardcoding indefinitely: the existing `I`, `F`, and `A` behavior should still move toward compiled stdlib/runtime support as the remaining helper-reduction work progresses.
 - Current status: file-channel reads now raise `EOFException` on end of file, while invalid channel use and ordinary file/runtime failures continue to surface as direct Java-backed exceptions such as `IllegalStateException`, `IllegalArgumentException`, and `IOException`.
+- Current channel model: dynamic file-channel state, file-channel reads/writes, standard-input-backed numeric/text reads, and current `informat` parsing now all share the same runtime owner in `gnb.perseus.runtime.Channels`, rather than being split between separate channel and text-input helpers.
+- Milestone 37 is now complete at the current intended scope.
 - Option 1: Keep `fault(...)` as the broad compatibility fallback for EOF, invalid channel use, unsupported modes, and other channel/runtime problems. This is the most conservative path, but it gives user code the least specific recovery information.
   Example:
   ```algol
@@ -261,14 +263,13 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [ ] Add reference-typed arrays so compiled stdlib units can keep channel, reader, writer, and scanner state in Perseus source instead of Java-side registries
 - [ ] Add a source-level `null` reference value and the needed reference comparisons so compiled stdlib code can test open/closed or initialized/uninitialized object slots directly
 - [ ] Add the boxing and `ref(Object)` array support needed for compiled stdlib code to build Java `Object[]` argument lists directly, removing the need for `TextFormatSupport`
-- [ ] Move the current input-side scanner and file-reader state from `TextInputSupport` into compiled Perseus stdlib code once the reference-state features above exist
-- [ ] Implement a real compiled `perseus.io.Channels` unit that owns channel state directly and removes `ChannelsSupport`
+- [ ] Move the current consolidated scanner and file-reader state from `gnb.perseus.runtime.Channels` into compiled Perseus stdlib code once the reference-state features above exist
+- [ ] Implement a real compiled `perseus.io.Channels` unit that owns channel state directly and removes the remaining Java-side `Channels` runtime helper
 - [ ] Refactor the compiled standard environment to stop depending on all remaining Java runtime bridge helpers
 - [ ] Add regression coverage showing the migrated stdlib paths still work without those helper classes
 
 **Current helper targets:**
-- `gnb.perseus.runtime.ChannelsSupport`
-- `gnb.perseus.runtime.TextInputSupport`
+- `gnb.perseus.runtime.Channels`
 - `gnb.perseus.runtime.FaultSupport`
 - `gnb.perseus.runtime.TextFormatSupport`
 

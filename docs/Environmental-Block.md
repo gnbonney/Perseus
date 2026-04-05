@@ -16,7 +16,7 @@ The channel parameter (first argument of all I/O procedures) selects the target 
 | `1` | Standard output | Normal program output (conventional default) |
 | `2`+ | File or string buffer | **Extension.** Opened via `openfile` or `openstring` |
 
-The channel argument must be a literal integer. If it is a variable or non-constant expression, the compiler defaults to standard output.
+The channel argument may be a literal, variable, or other integer expression. Dynamic file-channel dispatch is now supported for channel expressions that evaluate to `2+`.
 
 The Algol 60 Modified Report says the method of channel-to-device mapping is outside the scope of the language. Channel 0 maps naturally to standard error, letting programs write diagnostics cleanly separable from normal output:
 
@@ -201,7 +201,6 @@ This standard environment is not one giant source file. It is split into focused
 
 - `perseus.lang.MathEnv`
 - `perseus.text.Strings`
-- `perseus.io.Channels`
 - `perseus.io.TextInput`
 - `perseus.io.TextOutput`
 - `perseus.runtime.Faults`
@@ -218,7 +217,7 @@ At the current stage:
 - `MathEnv`, `Strings`, `TextOutput`, `TextInput`, and `Faults` are already on
   the compiled standard-environment path.
 - `stop` intentionally remains intrinsic.
-- `Channels` is the next remaining piece of the heavier runtime environment.
+- The next heavier channel step is a future compiled `perseus.io.Channels` unit; current dynamic channel state is owned by the shared Java-side `gnb.perseus.runtime.Channels` helper.
 
 Some JVM-facing details still use narrow Java helper classes where Perseus
 source does not yet express the needed mechanism directly. That is now the

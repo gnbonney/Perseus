@@ -1,11 +1,11 @@
 comment Compiled standard-environment slice for text input helpers.;
 namespace perseus.io;
 
-external java static(gnb.perseus.runtime.TextInputSupport)
+external java static(gnb.perseus.runtime.Channels)
     integer procedure ininteger(integer channel) as runtime_ininteger;
-external java static(gnb.perseus.runtime.TextInputSupport)
+external java static(gnb.perseus.runtime.Channels)
     real procedure inreal(integer channel) as runtime_inreal;
-external java static(gnb.perseus.runtime.TextInputSupport)
+external java static(gnb.perseus.runtime.Channels)
     integer procedure inchar(integer channel; string text) as runtime_inchar;
 
 integer procedure ininteger(channel);

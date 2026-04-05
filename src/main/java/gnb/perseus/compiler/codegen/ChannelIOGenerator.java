@@ -1,6 +1,6 @@
 package gnb.perseus.compiler.codegen;
 
-import gnb.perseus.runtime.TextInputSupport;
+import gnb.perseus.runtime.Channels;
 import gnb.perseus.compiler.antlr.PerseusParser;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -148,7 +148,7 @@ public class ChannelIOGenerator {
         appendChannelValue(args.get(0), activeOutput, generateExpr);
         activeOutput.append(args.get(1).expr() != null ? generateExpr.apply(args.get(1).expr()) : "ldc \"\"\n");
         activeOutput.append(args.get(2).expr() != null ? generateExpr.apply(args.get(2).expr()) : "ldc \"\"\n");
-        activeOutput.append("invokestatic gnb/perseus/runtime/ChannelsSupport/openFile(ILjava/lang/String;Ljava/lang/String;)V\n");
+            activeOutput.append("invokestatic gnb/perseus/runtime/Channels/openFile(ILjava/lang/String;Ljava/lang/String;)V\n");
         return true;
     }
 
@@ -180,7 +180,7 @@ public class ChannelIOGenerator {
             constantStringChannels.remove(channel);
         }
         appendChannelValue(args.get(0), activeOutput, generateExpr);
-        activeOutput.append("invokestatic gnb/perseus/runtime/ChannelsSupport/closeFile(I)V\n");
+        activeOutput.append("invokestatic gnb/perseus/runtime/Channels/closeFile(I)V\n");
         return true;
     }
 
@@ -347,7 +347,7 @@ public class ChannelIOGenerator {
         }
         char[] kinds;
         try {
-            kinds = TextInputSupport.informatKinds(formatLiteral);
+            kinds = Channels.informatKinds(formatLiteral);
         } catch (IllegalArgumentException e) {
             activeOutput.append("; ERROR: ").append(e.getMessage()).append("\n");
             return true;
@@ -360,7 +360,7 @@ public class ChannelIOGenerator {
         Integer valuesSlot = allocateNewLocal.apply("informatValues");
         appendChannelValue(args.get(0), activeOutput, generateExpr);
         activeOutput.append("ldc ").append(formatLiteral).append("\n")
-                .append("invokestatic gnb/perseus/runtime/TextInputSupport/informatValues(ILjava/lang/String;)[Ljava/lang/Object;\n")
+                .append("invokestatic gnb/perseus/runtime/Channels/informatValues(ILjava/lang/String;)[Ljava/lang/Object;\n")
                 .append("astore ").append(valuesSlot).append("\n");
 
         for (int i = 0; i < kinds.length; i++) {
@@ -526,7 +526,7 @@ public class ChannelIOGenerator {
         }
 
         appendChannelValue(args.get(0), activeOutput, generateExpr);
-        activeOutput.append("invokestatic gnb/perseus/runtime/ChannelsSupport/inString(I)Ljava/lang/String;\n");
+        activeOutput.append("invokestatic gnb/perseus/runtime/Channels/inString(I)Ljava/lang/String;\n");
 
         if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:")
                 && !varType.startsWith("thunk:")) {

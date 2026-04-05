@@ -8,15 +8,23 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 
-public final class ChannelsSupport {
+/**
+ * Shared runtime owner for dynamic channel state and channel-aware I/O helpers.
+ */
+public final class Channels {
     private static final int NO_BUFFERED_CHAR = -2;
+    private static final Scanner STDIN_SCANNER = new Scanner(System.in);
     private static final Map<Integer, InputChannel> READ_CHANNELS = new ConcurrentHashMap<>();
     private static final Map<Integer, BufferedWriter> WRITE_CHANNELS = new ConcurrentHashMap<>();
 
-    private ChannelsSupport() {
+    private Channels() {
     }
 
     public static void openFile(int channel, String filename, String mode) {
@@ -93,6 +101,13 @@ public final class ChannelsSupport {
         }
     }
 
+    public static int ininteger(int channel) {
+        if (channel >= 2) {
+            return inInteger(channel);
+        }
+        return STDIN_SCANNER.nextInt();
+    }
+
     public static int inInteger(int channel) {
         InputChannel reader = requireReadChannel(channel);
         try {
@@ -102,6 +117,13 @@ public final class ChannelsSupport {
         }
     }
 
+    public static double inreal(int channel) {
+        if (channel >= 2) {
+            return inReal(channel);
+        }
+        return STDIN_SCANNER.nextDouble();
+    }
+
     public static double inReal(int channel) {
         InputChannel reader = requireReadChannel(channel);
         try {
@@ -109,6 +131,13 @@ public final class ChannelsSupport {
         } catch (IOException e) {
             throw rethrowUnchecked(e);
         }
+    }
+
+    public static int inchar(int channel, String text) {
+        if (channel >= 2) {
+            return inChar(channel, text);
+        }
+        return text.indexOf(STDIN_SCANNER.next().charAt(0));
     }
 
     public static int inChar(int channel, String text) {
@@ -121,7 +150,72 @@ public final class ChannelsSupport {
         }
     }
 
-    public static String inToken(int channel) {
+    public static char[] informatKinds(String formatLiteral) {
+        List<Character> kinds = parseInformatKinds(formatLiteral);
+        char[] result = new char[kinds.size()];
+        for (int i = 0; i < kinds.size(); i++) {
+            result[i] = kinds.get(i);
+        }
+        return result;
+    }
+
+    public static Object[] informatValues(int channel, String formatLiteral) {
+        List<Character> kinds = parseInformatKinds(formatLiteral);
+        Object[] values = new Object[kinds.size()];
+        for (int i = 0; i < kinds.size(); i++) {
+            values[i] = switch (kinds.get(i)) {
+                case 'I' -> Integer.valueOf(ininteger(channel));
+                case 'F' -> Double.valueOf(inreal(channel));
+                case 'A' -> inToken(channel);
+                default -> throw new IllegalArgumentException("Unsupported informat specifier");
+            };
+        }
+        return values;
+    }
+
+    private static List<Character> parseInformatKinds(String formatLiteral) {
+        String raw = unquote(formatLiteral);
+        List<Character> kinds = new ArrayList<>();
+        for (String token : raw.split("[,\\s]+")) {
+            if (token.isBlank()) {
+                continue;
+            }
+            String upper = token.toUpperCase(Locale.ROOT);
+            char kind = upper.charAt(0);
+            if (kind == 'I' || kind == 'A') {
+                requireDigits(token, upper.substring(1));
+                kinds.add(kind);
+            } else if (kind == 'F') {
+                int dot = upper.indexOf('.');
+                if (dot < 0) {
+                    throw new IllegalArgumentException("Unsupported format token: " + token);
+                }
+                requireDigits(token, upper.substring(1, dot));
+                requireDigits(token, upper.substring(dot + 1));
+                kinds.add(kind);
+            } else {
+                throw new IllegalArgumentException("Unsupported format token: " + token);
+            }
+        }
+        return kinds;
+    }
+
+    private static void requireDigits(String token, String digits) {
+        try {
+            Integer.parseInt(digits);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("Unsupported format token: " + token, e);
+        }
+    }
+
+    private static String inToken(int channel) {
+        if (channel >= 2) {
+            return readDynamicToken(channel);
+        }
+        return STDIN_SCANNER.next();
+    }
+
+    private static String readDynamicToken(int channel) {
         InputChannel reader = requireReadChannel(channel);
         try {
             return reader.readToken(channel);
@@ -130,8 +224,17 @@ public final class ChannelsSupport {
         }
     }
 
+    private static String unquote(String literal) {
+        if (literal == null || literal.length() < 2 || literal.charAt(0) != '"' || literal.charAt(literal.length() - 1) != '"') {
+            return literal;
+        }
+        return literal.substring(1, literal.length() - 1)
+                .replace("\\\"", "\"")
+                .replace("\\n", "\n");
+    }
+
     private static RuntimeException rethrowUnchecked(Throwable throwable) {
-        ChannelsSupport.<RuntimeException>sneakyThrow(throwable);
+        Channels.<RuntimeException>sneakyThrow(throwable);
         throw new AssertionError("unreachable");
     }
 
@@ -170,15 +273,15 @@ public final class ChannelsSupport {
         throw new IllegalStateException("Channel " + channel + " is not open");
     }
 
-    private static final class InputChannel implements AutoCloseable {
+    static final class InputChannel implements AutoCloseable {
         private final BufferedReader reader;
         private int bufferedChar = NO_BUFFERED_CHAR;
 
-        private InputChannel(BufferedReader reader) {
+        InputChannel(BufferedReader reader) {
             this.reader = reader;
         }
 
-        private String readToken(int channel) throws IOException {
+        String readToken(int channel) throws IOException {
             int ch;
             do {
                 ch = readChar();
@@ -198,7 +301,7 @@ public final class ChannelsSupport {
             return token.toString();
         }
 
-        private String readLine(int channel) throws IOException {
+        String readLine(int channel) throws IOException {
             StringBuilder line = new StringBuilder();
             while (true) {
                 int ch = readChar();

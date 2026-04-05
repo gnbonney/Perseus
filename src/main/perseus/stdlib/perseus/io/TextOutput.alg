@@ -2,13 +2,13 @@ comment Compiled standard-environment slice for text output helpers.;
 namespace perseus.io;
 
 external java class java.io.PrintStream;
-external java static(gnb.perseus.runtime.ChannelsSupport)
+external java static(gnb.perseus.runtime.Channels)
     procedure outString(integer channel; string text) as runtime_outstring;
-external java static(gnb.perseus.runtime.ChannelsSupport)
+external java static(gnb.perseus.runtime.Channels)
     procedure outReal(integer channel; real number) as runtime_outreal;
-external java static(gnb.perseus.runtime.ChannelsSupport)
+external java static(gnb.perseus.runtime.Channels)
     procedure outInteger(integer channel; integer number) as runtime_outinteger;
-external java static(gnb.perseus.runtime.ChannelsSupport)
+external java static(gnb.perseus.runtime.Channels)
     procedure outTerminator(integer channel) as runtime_outterminator;
 
 external java static(java.lang.System)

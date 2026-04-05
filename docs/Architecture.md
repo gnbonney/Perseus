@@ -255,8 +255,8 @@ The standard-environment surface now divides into three architectural layers:
     `System.out` / `System.err`
 - **Narrow Java runtime helpers**
   - still used only where Perseus source does not yet express the full runtime
-    mechanism cleanly, such as `ChannelsSupport`, `TextInputSupport`,
-    `TextFormatSupport`, and `FaultSupport`
+    mechanism cleanly, such as `Channels`, `TextFormatSupport`, and
+    `FaultSupport`
 
 This keeps the environmental block as a real library surface while still
 leaving a small practical bridge for the parts of JVM interaction that remain
@@ -389,10 +389,11 @@ implementation to group related runtime concerns together. It also fits the
 current class and `namespace` work better than leaving the environmental block
 as a large hardcoded compiler special case.
 
-At the moment, the heavier channel model is still split between compiled stdlib
-surface code and the Java-side `ChannelsSupport` helper. A future compiled
-`perseus.io.Channels` unit remains the intended consolidation point once the
-remaining reference-state features are in place.
+At the moment, the heavier channel model is owned by the Java-side
+`gnb.perseus.runtime.Channels` runtime helper, while the compiled stdlib
+surface remains in `perseus.io.TextInput` and `perseus.io.TextOutput`. A future
+compiled `perseus.io.Channels` unit remains the intended next consolidation
+point once the remaining reference-state features are in place.
 
 The standard-environment source belongs under:
 
