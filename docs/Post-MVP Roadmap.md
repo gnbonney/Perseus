@@ -263,12 +263,20 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Add reference-typed arrays so compiled stdlib units can keep channel, reader, writer, and scanner state in Perseus source instead of Java-side registries
 - [x] Add a source-level `null` reference value and the needed reference comparisons so compiled stdlib code can test open/closed or initialized/uninitialized object slots directly
 - [x] Add the boxing and `ref(Object)` array support needed for compiled stdlib code to build Java `Object[]` argument lists directly, removing the need for `TextFormatSupport`
-- [ ] Define a clear path to a virtually pure perseus alg file stdio lib which can rely on external java classes, but should not require java support classes such as those currently in gnb.perseus.runtime package and should not rely on hardcoded jasmin code generated out of the compiler code generator. What additional syntax needs to be added to the perseus language to make this possible?
+- [ ] Extend ordinary procedure declarations and parameter specs to support scalar `ref(...)` parameters plus `ref(...)` and `boolean` return types where the stdlib/runtime surface needs them
+- [ ] Extend external Java procedure declarations to support scalar `ref(...)` parameters plus `ref(...)` and `boolean` return types so compiled stdlib code can model Java I/O helpers directly without wrapper bridge classes
+- [ ] Remove compiler-side stdio/channel state assumptions that currently live in `ChannelIOGenerator` (for example literal-only `outformat`/`informat` paths and constant-channel bookkeeping) by moving that behavior behind ordinary compiled stdlib code where practical
 - [ ] Add regression coverage showing the migrated stdlib paths still work without those helper classes
 
 **Current helper targets:**
 - `gnb.perseus.runtime.Channels`
 - `gnb.perseus.runtime.TextFormatSupport`
+
+**Acceptance criteria:**
+- The standard text I/O library can be expressed primarily as Perseus `.alg` units using ordinary compiled stdlib code plus direct external Java interop
+- The compiled stdlib no longer depends on Java bridge classes in `gnb.perseus.runtime` for channel ownership, formatted output, or formatted input support
+- The compiler no longer relies on hardcoded stdio-specific Jasmin emission paths to implement the migrated stdlib behavior
+- `PerseusStdlibBuilder` no longer needs to copy `Channels` or `TextFormatSupport` into stdlib outputs
 
 **Implementation notes:**
 - Perseus now has a source-level `null` literal for object references.
