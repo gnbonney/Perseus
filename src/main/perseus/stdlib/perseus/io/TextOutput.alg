@@ -2,8 +2,11 @@ comment Compiled standard-environment slice for text output helpers.;
 namespace perseus.io;
 
 external java class java.io.PrintStream;
+external java class java.lang.Object;
 external java static(gnb.perseus.runtime.Channels)
     procedure outString(integer channel; string text) as runtime_outstring;
+external java static(gnb.perseus.runtime.TextFormatSupport)
+    string procedure format(string formatLiteral; ref(Object) array values) as runtime_format;
 external java static(java.lang.Double)
     string procedure toString(real number) as real_toString;
 external java static(java.lang.Integer)
@@ -13,6 +16,14 @@ external java static(java.lang.System)
     ref(PrintStream) out as stdout;
 external java static(java.lang.System)
     ref(PrintStream) err as stderr;
+
+string procedure formatvalues(formatLiteral, values);
+    value formatLiteral, values;
+    string formatLiteral;
+    ref(Object) array values;
+begin
+    formatvalues := runtime_format(formatLiteral, values)
+end;
 
 procedure outstring(channel, text);
     value channel, text;

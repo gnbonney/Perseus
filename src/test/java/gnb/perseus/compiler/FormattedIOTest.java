@@ -25,6 +25,10 @@ public class FormattedIOTest extends CompilerTest {
 
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error");
+        assertFalse(jasminSource.contains("gnb/perseus/runtime/TextFormatSupport/format"),
+                "Outformat should no longer emit a direct compiler-side call to TextFormatSupport");
+        assertEquals(1, countOccurrences(jasminSource, "invokestatic perseus/io/TextOutput/formatvalues(Ljava/lang/String;[Ljava/lang/Object;II)Ljava/lang/String;"),
+                "Outformat should route formatted rendering through the compiled TextOutput stdlib unit");
 
         PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
@@ -192,5 +196,15 @@ public class FormattedIOTest extends CompilerTest {
         String output = runClass(BUILD_DIR, "gnb.perseus.programs.MixedFileChannelFormat");
         assertEquals("N=  5   xy!", output.trim(),
                 "File channels should support mixed formatted and unformatted output in one stream");
+    }
+
+    private int countOccurrences(String text, String needle) {
+        int count = 0;
+        int index = 0;
+        while ((index = text.indexOf(needle, index)) >= 0) {
+            count++;
+            index += needle.length();
+        }
+        return count;
     }
 }

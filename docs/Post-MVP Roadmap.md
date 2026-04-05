@@ -268,6 +268,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Extend formal procedure-parameter specs and generated procedure-reference support so higher-order `boolean` and `ref(...)` procedures work through ordinary procedure parameters and variables, not just direct calls
 - [x] Support external Java `ref(...) array` parameters so compiled stdlib code can call ordinary JVM `Object[]`-style APIs directly
 - [x] Move the dynamic-channel integer, real, and terminator output formatting path out of `Channels.java` and into compiled `TextOutput.alg` code using ordinary Java interop plus the remaining `outString(...)` primitive
+- [x] Route `outformat` formatting through a compiled `TextOutput.alg` helper instead of emitting a direct compiler-side call to `TextFormatSupport`, even while the underlying formatter logic still lives there for now
 - [ ] Migrate the remaining behavior currently owned by `Channels.java` and `TextFormatSupport.java` into compiled Perseus stdlib `.alg` units, leaving only minimal ordinary external Java interop at the boundary
 - [ ] Remove compiler-side stdio/channel state assumptions that currently live in `ChannelIOGenerator` (for example literal-only `outformat`/`informat` paths and constant-channel bookkeeping) by moving that behavior behind ordinary compiled stdlib code where practical
 - [ ] Add regression coverage showing the migrated stdlib paths still work without those helper classes
@@ -289,6 +290,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - Recent milestone 38 regression coverage now includes direct ordinary procedures, external Java procedures, and higher-order procedure-parameter cases for `boolean` and `ref(...)` signatures.
 - External Java interop now also supports `ref(...) array` parameters, which helps unlock eventual migration of formatter logic away from `TextFormatSupport` and toward ordinary JVM `Object[]` APIs called from compiled stdlib code.
 - `TextOutput.alg` now handles dynamic-channel integer, real, and terminator rendering itself via `java.lang.Integer.toString`, `java.lang.Double.toString`, and ordinary string output, so `Channels.java` no longer owns those wrapper methods.
+- The compiler-side `outformat` path now routes formatted rendering through a helper in compiled `TextOutput.alg`, so the generator no longer emits a direct stdio-specific call to `TextFormatSupport`.
 
 ## Milestone 39 - CLI Follow-On
 

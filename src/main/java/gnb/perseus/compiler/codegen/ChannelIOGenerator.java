@@ -120,7 +120,9 @@ public class ChannelIOGenerator {
             }
             sb.append("aastore\n");
         }
-        sb.append("invokestatic gnb/perseus/runtime/TextFormatSupport/format(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;\n");
+        sb.append("ldc 1\n");
+        sb.append("ldc ").append(valueArgs.size()).append("\n");
+        sb.append("invokestatic perseus/io/TextOutput/formatvalues(Ljava/lang/String;[Ljava/lang/Object;II)Ljava/lang/String;\n");
         return sb.toString();
     }
 
