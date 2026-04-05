@@ -538,7 +538,13 @@ public class PerseusCompiler {
 			return false;
 		}
 		if (type.endsWith("[]")) {
-			return !isReturnType && !"java-static".equals(externalKind);
+			if (isReturnType) {
+				return false;
+			}
+			if (type.startsWith("ref:")) {
+				return "java-static".equals(externalKind);
+			}
+			return !"java-static".equals(externalKind);
 		}
 		if (type.startsWith("ref:")) {
 			return "java-static".equals(externalKind);
@@ -651,6 +657,12 @@ public class PerseusCompiler {
 		if (type == null) {
 			return "V";
 		}
+		if (type.endsWith("[]")) {
+			if ("java-static".equals(externalKind)) {
+				return CodeGenUtils.arrayTypeToJvmDesc(type);
+			}
+			return CodeGenUtils.arrayTypeToJvmDesc(type) + "II";
+		}
 		if (type.startsWith("ref:")) {
 			String simpleName = type.substring("ref:".length());
 			String qualified = externalJavaClasses != null ? externalJavaClasses.get(simpleName) : null;
@@ -664,9 +676,6 @@ public class PerseusCompiler {
 				case "boolean" -> "Z";
 				default -> "I";
 			};
-		}
-		if (type.endsWith("[]")) {
-			return CodeGenUtils.arrayTypeToJvmDesc(type) + "II";
 		}
 		return CodeGenUtils.getReturnTypeDescriptor(type);
 	}

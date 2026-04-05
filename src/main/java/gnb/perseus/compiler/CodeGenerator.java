@@ -2968,6 +2968,12 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private String externalTypeToJvmDesc(String type, String externalKind) {
+        if (type != null && type.endsWith("[]")) {
+            if ("java-static".equals(externalKind)) {
+                return arrayTypeToJvmDesc(type);
+            }
+            return arrayTypeToJvmDesc(type) + "II";
+        }
         if (type != null && type.startsWith("ref:")) {
             String simpleName = type.substring("ref:".length());
             String qualified = externalJavaClasses.get(simpleName);
@@ -2984,9 +2990,6 @@ public class CodeGenerator extends PerseusBaseListener {
                 case "boolean" -> "Z";
                 default -> "I";
             };
-        }
-        if (type != null && type.endsWith("[]")) {
-            return arrayTypeToJvmDesc(type) + "II";
         }
         return CodeGenUtils.getReturnTypeDescriptor(type);
     }
@@ -3410,9 +3413,9 @@ public class CodeGenerator extends PerseusBaseListener {
             if (arg.expr() != null) {
                 sb.append(generateExpr(arg.expr()));
                 if (paramType.endsWith("[]")) {
-                    if (arg.expr() instanceof PerseusParser.VarExprContext varExpr) {
+                    if (!"java-static".equals(info.externalKind) && arg.expr() instanceof PerseusParser.VarExprContext varExpr) {
                         sb.append(generatePushArrayBounds(varExpr.identifier().getText()));
-                    } else {
+                    } else if (!"java-static".equals(info.externalKind)) {
                         sb.append("; ERROR: unsupported external array argument form for ")
                           .append(info.paramNames.get(ai)).append("\n");
                     }

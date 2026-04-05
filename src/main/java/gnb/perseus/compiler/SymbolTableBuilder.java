@@ -564,6 +564,9 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     }
 
     private String mapExternalParamType(PerseusParser.ExternalParamSpecTypeContext typeCtx) {
+        if (typeCtx instanceof PerseusParser.ExternalRefArrayParamTypeContext refArrayParamCtx) {
+            return "ref:" + refArrayParamCtx.refType().identifier().getText() + "[]";
+        }
         if (typeCtx instanceof PerseusParser.ExternalRefParamTypeContext refParamCtx) {
             return "ref:" + refParamCtx.refType().identifier().getText();
         }

@@ -142,7 +142,8 @@ externalFormalGroup
   ;
 
 externalParamSpecType
-  : refType           # ExternalRefParamType
+  : refType ARRAY     # ExternalRefArrayParamType
+  | refType           # ExternalRefParamType
   | REAL ARRAY        # ExternalRealArrayParamType
   | INTEGER ARRAY     # ExternalIntegerArrayParamType
   | STRING ARRAY      # ExternalStringArrayParamType
