@@ -270,6 +270,27 @@ end
 		assertEquals("TFabc", output.trim());
 	}
 
+	@Test
+	public void boolean_and_ref_procedure_params_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+			"test/algol/procedures/proc_boolean_and_ref_params.alg",
+			"gnb/perseus/programs",
+			"ProcBooleanAndRefParams",
+			BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+		assertTrue(jasminSource.contains("ReferenceProcedure"),
+			"Ref-returning procedure parameters should use the reference procedure interface");
+		assertTrue(jasminSource.contains("IntegerProcedure"),
+			"Boolean-returning procedure parameters should use the integer/boolean procedure interface");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ProcBooleanAndRefParams");
+		assertEquals("abcT", output.trim());
+	}
+
     @Test
     public void deferred_name_params_mixed_type_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(

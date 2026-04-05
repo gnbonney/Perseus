@@ -583,6 +583,10 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         if (typeCtx instanceof PerseusParser.RealProcedureParamTypeContext) return "procedure:real";
         if (typeCtx instanceof PerseusParser.IntegerProcedureParamTypeContext) return "procedure:integer";
         if (typeCtx instanceof PerseusParser.StringProcedureParamTypeContext) return "procedure:string";
+        if (typeCtx instanceof PerseusParser.BooleanProcedureParamTypeContext) return "procedure:boolean";
+        if (typeCtx instanceof PerseusParser.RefProcedureParamTypeContext refProcCtx) {
+            return "procedure:ref:" + refProcCtx.refType().identifier().getText();
+        }
         if (typeCtx instanceof PerseusParser.VoidProcedureParamTypeContext) return "procedure:void";
         if (typeCtx instanceof PerseusParser.RefParamTypeContext refParamCtx) {
             return "ref:" + refParamCtx.refType().identifier().getText();

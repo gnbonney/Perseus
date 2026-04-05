@@ -166,6 +166,8 @@ paramSpecType
   : REAL PROCEDURE    # RealProcedureParamType
   | INTEGER PROCEDURE # IntegerProcedureParamType
   | STRING PROCEDURE  # StringProcedureParamType
+  | BOOLEAN PROCEDURE # BooleanProcedureParamType
+  | refType PROCEDURE # RefProcedureParamType
   | refType           # RefParamType
   | refType ARRAY     # RefArrayParamType
   | REAL ARRAY        # RealArrayParamType

@@ -642,12 +642,7 @@ public class CodeGenerator extends PerseusBaseListener {
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(envThunkFieldName(procName, p)).append(" Ljava/lang/String;\n");
                     } else if (pType.startsWith("procedure:")) {
-                        String pDesc = switch (pType.substring("procedure:".length())) {
-                            case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                            case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                            case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                            default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                        };
+                        String pDesc = getProcedureInterfaceDescriptor(pType);
                         int saveSlot = currentNumLocals;
                         currentNumLocals += 1;
                         currentEnvParamSlots.put(p, saveSlot);
@@ -1170,12 +1165,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 // but not in currentLocalIndex), access it via class static field instead.
                 if (idx != null && !currentLocalIndex.containsKey(name)) {
                     if (varType != null && varType.startsWith("procedure:")) {
-                        String pdesc = switch (varType.substring("procedure:".length())) {
-                            case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                            case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                            case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                            default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                        };
+                        String pdesc = getProcedureInterfaceDescriptor(varType);
                         String targetName = resolveOuterFieldName(name, varType, resolvedFromRootMain);
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(targetName).append(" ").append(pdesc).append("\n");
@@ -1306,12 +1296,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 }
             } else if (isProcVar) {
                 // Procedure variables are stored in a static field so they are shared across activations.
-                String pdesc = switch (varType.substring("procedure:".length())) {
-                    case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                    case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                    case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                    default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                };
+                String pdesc = getProcedureInterfaceDescriptor(varType);
                 boolean storeToLocal = currentLocalIndex.containsKey(name);
 
                 if (storeToLocal) {
@@ -2139,12 +2124,7 @@ public class CodeGenerator extends PerseusBaseListener {
         // code for that outer method, access via static field rather than local slot.
         if (!currentLocalIndex.containsKey(name)) {
             if (type != null && type.startsWith("procedure:")) {
-                String desc = switch (type.substring("procedure:".length())) {
-                    case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                    case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                    case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                    default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                };
+                String desc = getProcedureInterfaceDescriptor(type);
                 String fieldName = resolveOuterFieldName(name, type, resolvedFromRootMain);
                 return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + desc + "\n";
             }
@@ -2174,12 +2154,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 if ("real".equals(pType) || "deferred".equals(pType)) desc = "D";
                 else if ("string".equals(pType)) desc = "Ljava/lang/String;";
                 else if (pType.startsWith("procedure:")) {
-                    desc = switch (pType.substring("procedure:".length())) {
-                        case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                        case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                        case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                        default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                    };
+                    desc = getProcedureInterfaceDescriptor(pType);
                 } else if ("deferred".equals(pType)) desc = "D";
                 else desc = "I";
                 return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentProcName, name) + " " + desc + "\n";
@@ -2246,12 +2221,7 @@ public class CodeGenerator extends PerseusBaseListener {
                             if ("real".equals(pType)) pDesc = "D";
                             else if ("string".equals(pType)) pDesc = "Ljava/lang/String;";
                             else if (pType.startsWith("procedure:")) {
-                                pDesc = switch (pType.substring("procedure:".length())) {
-                                    case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                                    case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                                    case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                                    default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                                };
+                                pDesc = getProcedureInterfaceDescriptor(pType);
                             } else pDesc = "I";
                         }
                         cls.append(".field public cap_").append(p).append(" ").append(pDesc).append("\n");
@@ -2277,12 +2247,7 @@ public class CodeGenerator extends PerseusBaseListener {
                             if ("real".equals(pType)) pDesc = "D";
                             else if ("string".equals(pType)) pDesc = "Ljava/lang/String;";
                             else if (pType.startsWith("procedure:")) {
-                                pDesc = switch (pType.substring("procedure:".length())) {
-                                    case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                                    case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                                    case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                                    default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                                };
+                                pDesc = getProcedureInterfaceDescriptor(pType);
                             } else pDesc = "I";
                         }
 
@@ -2330,12 +2295,7 @@ public class CodeGenerator extends PerseusBaseListener {
                             if ("real".equals(pType)) pDesc = "D";
                             else if ("string".equals(pType)) pDesc = "Ljava/lang/String;";
                             else if (pType.startsWith("procedure:")) {
-                                pDesc = switch (pType.substring("procedure:".length())) {
-                                    case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                                    case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                                    case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                                    default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                                };
+                                pDesc = getProcedureInterfaceDescriptor(pType);
                             } else pDesc = "I";
                         }
                         savedSlot.put(p, localSlot);
@@ -2381,12 +2341,7 @@ public class CodeGenerator extends PerseusBaseListener {
                             if ("real".equals(pType)) pDesc = "D";
                             else if ("string".equals(pType)) pDesc = "Ljava/lang/String;";
                             else if (pType.startsWith("procedure:")) {
-                                pDesc = switch (pType.substring("procedure:".length())) {
-                                    case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                                    case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                                    case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                                    default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                                };
+                                pDesc = getProcedureInterfaceDescriptor(pType);
                             } else pDesc = "I";
                         }
                         cls.append("aload_0\n");
@@ -2449,12 +2404,7 @@ public class CodeGenerator extends PerseusBaseListener {
                             if ("real".equals(pType)) pDesc = "D";
                             else if ("string".equals(pType)) pDesc = "Ljava/lang/String;";
                             else if (pType.startsWith("procedure:")) {
-                                pDesc = switch (pType.substring("procedure:".length())) {
-                                    case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                                    case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                                    case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                                    default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                                };
+                                pDesc = getProcedureInterfaceDescriptor(pType);
                             } else pDesc = "I";
                         }
                         int slot = savedSlot.get(p);
@@ -3622,12 +3572,7 @@ public class CodeGenerator extends PerseusBaseListener {
         }
         String type = lookupVarType(name);
         if (type != null && type.startsWith("procedure:")) {
-            String pDesc = switch (type.substring("procedure:".length())) {
-                case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                default -> "Lgnb/perseus/compiler/VoidProcedure;";
-            };
+            String pDesc = getProcedureInterfaceDescriptor(type);
             return "getstatic " + packageName + "/" + className + "/" + staticFieldName(name, type) + " "
                 + pDesc + "\n";
         }
@@ -4053,12 +3998,7 @@ public class CodeGenerator extends PerseusBaseListener {
             }
             if (!currentLocalIndex.containsKey(name)) {
                 if (type != null && type.startsWith("procedure:")) {
-                    String desc = switch (type.substring("procedure:".length())) {
-                        case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                        case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                        case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                        default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                    };
+                    String desc = getProcedureInterfaceDescriptor(type);
                     String fieldName = resolveOuterFieldName(name, type, resolvedFromRootMain);
                     return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + desc + "\n";
                 }
@@ -4084,12 +4024,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 if ("real".equals(pType) || "deferred".equals(pType)) desc = "D";
                     else if ("string".equals(pType)) desc = "Ljava/lang/String;";
                     else if (pType.startsWith("procedure:")) {
-                        desc = switch (pType.substring("procedure:".length())) {
-                            case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                            case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                            case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                            default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                        };
+                        desc = getProcedureInterfaceDescriptor(pType);
                     } else desc = "I";
                     return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentProcName, name) + " " + desc + "\n";
                 }

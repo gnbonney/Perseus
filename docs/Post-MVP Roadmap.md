@@ -263,8 +263,10 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Add reference-typed arrays so compiled stdlib units can keep channel, reader, writer, and scanner state in Perseus source instead of Java-side registries
 - [x] Add a source-level `null` reference value and the needed reference comparisons so compiled stdlib code can test open/closed or initialized/uninitialized object slots directly
 - [x] Add the boxing and `ref(Object)` array support needed for compiled stdlib code to build Java `Object[]` argument lists directly, removing the need for `TextFormatSupport`
-- [ ] Extend ordinary procedure declarations and parameter specs to support scalar `ref(...)` parameters plus `ref(...)` and `boolean` return types where the stdlib/runtime surface needs them
-- [ ] Extend external Java procedure declarations to support scalar `ref(...)` parameters plus `ref(...)` and `boolean` return types so compiled stdlib code can model Java I/O helpers directly without wrapper bridge classes
+- [x] Extend ordinary procedure declarations and parameter specs to support scalar `ref(...)` parameters plus `ref(...)` and `boolean` return types where the stdlib/runtime surface needs them
+- [x] Extend external Java procedure declarations to support scalar `ref(...)` parameters plus `ref(...)` and `boolean` return types so compiled stdlib code can model Java I/O helpers directly without wrapper bridge classes
+- [x] Extend formal procedure-parameter specs and generated procedure-reference support so higher-order `boolean` and `ref(...)` procedures work through ordinary procedure parameters and variables, not just direct calls
+- [ ] Migrate the remaining behavior currently owned by `Channels.java` and `TextFormatSupport.java` into compiled Perseus stdlib `.alg` units, leaving only minimal ordinary external Java interop at the boundary
 - [ ] Remove compiler-side stdio/channel state assumptions that currently live in `ChannelIOGenerator` (for example literal-only `outformat`/`informat` paths and constant-channel bookkeeping) by moving that behavior behind ordinary compiled stdlib code where practical
 - [ ] Add regression coverage showing the migrated stdlib paths still work without those helper classes
 
@@ -282,6 +284,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - Perseus now has a source-level `null` literal for object references.
 - Object-reference comparisons currently support `=` and `<>`, which lower to JVM reference equality/inequality.
 - Ordered comparisons such as `<` and `>` remain numeric-only and produce a diagnostic if used with object references.
+- Recent milestone 38 regression coverage now includes direct ordinary procedures, external Java procedures, and higher-order procedure-parameter cases for `boolean` and `ref(...)` signatures.
 
 ## Milestone 39 - CLI Follow-On
 
