@@ -255,7 +255,8 @@ The standard-environment surface now divides into three architectural layers:
     `System.out` / `System.err`
 - **Narrow Java runtime helpers**
   - still used only where Perseus source does not yet express the full runtime
-    mechanism cleanly, such as `TextInputSupport` and `FaultSupport`
+    mechanism cleanly, such as `ChannelsSupport`, `TextInputSupport`,
+    `TextFormatSupport`, and `FaultSupport`
 
 This keeps the environmental block as a real library surface while still
 leaving a small practical bridge for the parts of JVM interaction that remain
@@ -272,7 +273,7 @@ The code generation phase (Pass 2) uses a modular, delegation-based architecture
 - **StatementGenerator:** Handles statement-level code generation, including assignments, control flow (`if`, `for`, `goto`), and procedure calls.
 - **ProcedureGenerator:** Handles procedure declarations, procedure references (lifting static methods to objects), procedure variable calls, and thunk class generation for call-by-name parameters.
 - **BuiltinFunctionGenerator:** Handles expression-position environmental functions and other built-in value-returning operations.
-- **ChannelIOGenerator:** Handles channel-backed I/O procedures such as `openfile`, `openstring`, `closefile`, `outstring`, `outformat`, and `informat`.
+- **ChannelIOGenerator:** Handles channel-backed I/O procedures such as `openfile`, `openstring`, `closefile`, `outstring`, `outformat`, and `informat`, while delegating current formatted rendering/parsing and channel-state mechanics to the shared runtime support layer.
 - **ExceptionGenerator:** Handles `begin ... exception ... end` lowering, resolves exception patterns to JVM exception classes, and emits nested JVM `try/catch` regions in lexical order.
 - **ClassGenerator:** Handles Perseus class declarations, object construction, instance members, and related synthetic class emission.
 - **ContextManager:** Centralizes all shared state (symbol tables, local indices, output buffers, and synthetic class definitions for thunks and procedure references).
@@ -360,7 +361,6 @@ uses a few focused support classes.
 
 - `perseus.lang.MathEnv`
 - `perseus.text.Strings`
-- `perseus.io.Channels`
 - `perseus.io.TextInput`
 - `perseus.io.TextOutput`
 - `perseus.runtime.Faults`
@@ -372,17 +372,14 @@ uses a few focused support classes.
 - `perseus.text.Strings`
   - String-oriented helpers such as `length`, `concat`, and `substring`, plus a natural home for future
       standard string support.
-- `perseus.io.Channels`
-  - Channel registry, standard stream bindings, and the lower-level runtime
-    support behind file and string channels.
 - `perseus.io.TextInput`
   - Input-oriented environmental procedures such as `inchar`, `ininteger`, and
-    `inreal`, including the current standard-input scanning bridge and later
-    channel-aware parsing support.
+    `inreal`, including the current shared runtime support behind standard-input
+    scanning, file-channel reads, and formatted input parsing.
 - `perseus.io.TextOutput`
   - Output-oriented environmental procedures such as `outchar`, `outstring`,
-    `outinteger`, `outreal`, and `outterminator`, including the current stream
-    dispatch bridge and later channel-aware formatting support.
+    `outinteger`, `outreal`, and `outterminator`, including the current shared
+    runtime support behind channel-aware dispatch and formatted output rendering.
 - `perseus.runtime.Faults`
   - Runtime fault raising such as `fault`, while `stop` remains a
     compiler/runtime intrinsic.
@@ -391,6 +388,11 @@ This split keeps the public environmental surface familiar while allowing the
 implementation to group related runtime concerns together. It also fits the
 current class and `namespace` work better than leaving the environmental block
 as a large hardcoded compiler special case.
+
+At the moment, the heavier channel model is still split between compiled stdlib
+surface code and the Java-side `ChannelsSupport` helper. A future compiled
+`perseus.io.Channels` unit remains the intended consolidation point once the
+remaining reference-state features are in place.
 
 The standard-environment source belongs under:
 
@@ -527,5 +529,5 @@ This command compiles `hello.alg` into `Hello.j`, any needed companion `.j` file
 
 ---
 
-_Last updated: March 24, 2026_
+_Last updated: April 4, 2026_
 
