@@ -54,7 +54,7 @@ compoundStatement
   ;
 
 statement
-  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalValueDecl | externalProcedureDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | block)?
+  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalValueDecl | externalProcedureDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | signalStatement | block)?
   ;
 
 classDecl
@@ -222,6 +222,10 @@ forStatement
   : FOR identifier (':=' | '=') forList DO statement
   ;
 
+signalStatement
+  : SIGNAL expr
+  ;
+
 forList
   : forElement (',' forElement)*
   ;
@@ -338,6 +342,7 @@ FALSE : 'false';
 EXCEPTION : 'exception';
 WHEN : 'when';
 AS : 'as';
+SIGNAL : 'signal';
 
 NOT : 'not';
 AND_KW : 'and';

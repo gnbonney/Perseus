@@ -744,24 +744,35 @@ This gives Perseus a model closer to structured exception handling than to resum
 
 ## Raising Exceptions
 
-Perseus does not yet define a general source-level `raise` or `signal` form. If one is added later, it would likely look something like:
+Perseus uses a source-level `signal expr` statement as its primitive explicit exception-raising form.
+
+Example:
 
 ```algol
-signal IOException;
-signal java(java.lang.IllegalStateException, "bad state");
+begin
+    ...
+exception
+    when IOException as ex do
+        signal ex
+end
 ```
 
-The important current point is that Perseus already:
+This choice fits the existing exception vocabulary better than `throw`, because Perseus uses block-oriented `exception` / `when ... do ...` handling rather than Java-style `try` / `catch`.
 
-- translate internal runtime problems into ordinary Java exception objects where appropriate, and
-- catch Java exceptions thrown from `external java` calls
+The semantics are:
 
-before growing a richer explicit raising syntax.
+- `signal expr` is a statement, not an expression
+- `expr` must evaluate to an exception object reference
+- control does not continue after the `signal` statement
+- matching and propagation use the existing `begin ... exception ... end` mechanism
+
+This makes `signal` the primitive raising form, while higher-level procedures such as `fault(...)` are implemented in terms of constructing and signaling an ordinary Java-backed runtime exception.
 
 ## Interaction with Existing Procedures
 
-- `fault(...)` raises a runtime exception carrying the fault message.
-- Over time, some operations that currently go straight to `fault(...)` could instead raise catchable Java-backed exceptions that user code may handle.
+- `fault(...)` remains the convenience environmental procedure for straightforward runtime failure.
+- `fault(...)` is implemented by constructing a runtime exception object and signaling it with `signal expr`.
+- Operations that currently go straight to `fault(...)` may instead raise catchable Java-backed exceptions that user code may handle where that gives a better exception model.
 - This would let programs choose between:
   - fail-fast behavior
   - local recovery
@@ -796,6 +807,7 @@ To keep the design robust:
 - handlers should attach only to `begin ... end` blocks, not individual statements
 - matching should be by exception name/class only, not arbitrary Boolean guard expressions
 - handlers should not resume execution at the throw site
+- `signal expr` should remain the only general explicit raising statement rather than introducing a larger family of exception-control forms immediately
 - the language may later add `finally`/cleanup syntax, but it is not part of the current model
 - bound exception values currently expose practical Java-style method access rather than a separate Perseus-specific helper layer
 
@@ -819,6 +831,8 @@ but this should be a later layer, not part of the minimum design.
 - `when Name do ...` handles direct Java exception names from the built-in shorthand set.
 - `when java(Fully.Qualified.Exception) as ex do ...` handles precise Java interop failures.
 - `when ... as ex do ...` supports practical inspection through ordinary Java exception methods such as `ex.getMessage()`.
+- `signal expr` is the explicit raising form for exception objects.
+- A later convenience refinement may allow the common built-in Java exception names used in `when` patterns to also be available directly as constructor targets in expressions such as `signal new RuntimeException("boom")`, without requiring separate external declarations.
 - This design makes external Java/class interop safer and more expressive without inventing a separate Perseus exception universe.
 
 ## Lambda Notation

@@ -1521,6 +1521,13 @@ public class CodeGenerator extends PerseusBaseListener {
         emitGotoDesignationalExpr(ctx.designationalExpr());
     }
 
+    @Override
+    public void exitSignalStatement(PerseusParser.SignalStatementContext ctx) {
+        if (skippingClassSubtree()) return;
+        activeOutput.append(generateExpr(ctx.expr()));
+        activeOutput.append("athrow\n");
+    }
+
     // -------------------------------------------------------------------------
     // if / then / else
     // -------------------------------------------------------------------------

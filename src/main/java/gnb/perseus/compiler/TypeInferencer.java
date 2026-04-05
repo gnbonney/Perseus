@@ -97,6 +97,14 @@ public class TypeInferencer extends PerseusBaseListener {
     }
 
     @Override
+    public void exitSignalStatement(PerseusParser.SignalStatementContext ctx) {
+        String exprType = exprTypes.get(ctx.expr());
+        if (!isThrowableReferenceType(exprType)) {
+            throw error(ctx, "PERS2011", "signal requires an exception object reference");
+        }
+    }
+
+    @Override
     public void exitRelExpr(PerseusParser.RelExprContext ctx) {
         exprTypes.put(ctx, "boolean");
     }
@@ -534,5 +542,34 @@ public class TypeInferencer extends PerseusBaseListener {
 
     private DiagnosticException error(org.antlr.v4.runtime.ParserRuleContext ctx, String code, String message) {
         return new DiagnosticException(CompilerDiagnostic.error(code, ctx.getStart(), sourceName, message));
+    }
+
+    private boolean isThrowableReferenceType(String type) {
+        if (type == null || !type.startsWith("ref:")) {
+            return false;
+        }
+        String className = type.substring("ref:".length());
+        return isThrowableClassName(className, new java.util.HashSet<>());
+    }
+
+    private boolean isThrowableClassName(String className, java.util.Set<String> seen) {
+        if (!seen.add(className)) {
+            return false;
+        }
+        SymbolTableBuilder.ClassInfo cls = classes.get(className);
+        if (cls == null) {
+            return false;
+        }
+        if (cls.externalJava && cls.externalJavaQualifiedName != null) {
+            try {
+                return Throwable.class.isAssignableFrom(Class.forName(cls.externalJavaQualifiedName));
+            } catch (ClassNotFoundException e) {
+                return false;
+            }
+        }
+        if (cls.parentName != null) {
+            return isThrowableClassName(cls.parentName, seen);
+        }
+        return false;
     }
 }

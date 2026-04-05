@@ -165,4 +165,26 @@ public class ExceptionsTest extends CompilerTest {
         assertEquals("11", output.trim(),
                 "The inner exception block should handle its own failure without falling through to the outer handler");
     }
+
+    @Test
+    public void signal_runtime_exception_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/exceptions/signal_runtime_exception.alg",
+                "gnb/perseus/programs",
+                "SignalRuntimeException",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+        assertTrue(jasminSource.contains("athrow"),
+                "signal should lower to JVM exception throwing");
+        assertTrue(jasminSource.contains(".catch java/lang/RuntimeException"),
+                "signaled RuntimeException should be catchable through the existing exception model");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.SignalRuntimeException");
+        assertEquals("1", output.trim(),
+                "signal new RuntimeException(...) should integrate with block exception handling");
+    }
 }

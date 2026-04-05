@@ -1,6 +1,7 @@
 package gnb.perseus.compiler;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import gnb.tools.PerseusStdlibBuilder;
@@ -110,6 +111,8 @@ public class StdlibTest extends CompilerTest {
 
         assertTrue(Files.exists(clientDir.resolve("perseus/runtime/Faults.class")),
                 "Normal compilation should provision Faults automatically");
+        assertFalse(Files.exists(clientDir.resolve("gnb/perseus/runtime/FaultSupport.class")),
+                "Faults should no longer require the old Java bridge helper");
 
         String output = runClass(clientDir, "gnb.perseus.programs.StdlibFaultClient");
         assertEquals("1", output.trim(),

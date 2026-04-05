@@ -181,7 +181,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - This milestone grows out of concrete friction discovered while moving `TextOutput` and `MathEnv` into the compiled standard environment.
 - The direct Java interop surface now covers aliased external Java static fields, imported object-valued bindings, chained instance calls through those bindings, direct reads of public Java instance fields, Java constants and enum-like members, and overload resolution by argument type for both Java methods and Java constructors.
 - Diagnostics now distinguish ambiguous Java overloads from unsupported Java member calls instead of collapsing them into generic unknown-member errors.
-- `MathEnv` and `TextOutput` now use the richer interop directly, so the obsolete `MathConstantsSupport` and `TextOutputSupport` bridge helpers are gone. `FaultSupport` remains for the narrower runtime case that still needs a bridge.
+- `MathEnv`, `TextOutput`, and `Faults` now use the richer interop directly, so the obsolete `MathConstantsSupport`, `TextOutputSupport`, and `FaultSupport` bridge helpers are gone.
 - Milestone 36 is now complete at the current intended scope.
 
 ## Milestone 37 - Dynamic Channels and Formatted I/O Follow-On
@@ -258,8 +258,8 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Goal:** Remove the remaining Java runtime bridge helpers by extending Perseus source/runtime support until the compiled standard environment can express these cases directly.
 
-- [ ] Identify the remaining Java runtime support classes still required by the compiled standard environment
-- [ ] Add a real source-level `throw` / `signal` form so `fault` can raise Java-backed exceptions without `FaultSupport`
+- [x] Identify the remaining Java runtime support classes still required by the compiled standard environment
+- [x] Add a real source-level `signal expr` statement so `fault` can raise Java-backed exceptions without `FaultSupport`
 - [ ] Add reference-typed arrays so compiled stdlib units can keep channel, reader, writer, and scanner state in Perseus source instead of Java-side registries
 - [ ] Add a source-level `null` reference value and the needed reference comparisons so compiled stdlib code can test open/closed or initialized/uninitialized object slots directly
 - [ ] Add the boxing and `ref(Object)` array support needed for compiled stdlib code to build Java `Object[]` argument lists directly, removing the need for `TextFormatSupport`
@@ -270,7 +270,6 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 **Current helper targets:**
 - `gnb.perseus.runtime.Channels`
-- `gnb.perseus.runtime.FaultSupport`
 - `gnb.perseus.runtime.TextFormatSupport`
 
 ## Milestone 39 - CLI Follow-On
