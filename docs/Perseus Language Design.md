@@ -245,6 +245,27 @@ Perseus supports associating a channel with a string variable, enabling output p
 | `openstring` | `openstring(channel, stringvar)` | **Extension.** Associates a channel with a string variable as a writable buffer. Output to this channel is appended to the string, enabling formatted string construction. |
 | `closefile` | `closefile(channel)` | **Extension.** Closes the string buffer associated with the channel. |
 
+### Procedure Signature Surface
+
+Perseus now supports a wider procedure-signature surface than classic scalar-only Algol subsets.
+
+- Ordinary procedure declarations may be untyped (`procedure p;`) or may declare returns of `integer`, `real`, `string`, `boolean`, or `ref(T)`.
+- Ordinary formal parameters may be declared as scalar `integer`, `real`, `string`, `boolean`, or `ref(T)` values, as arrays, or as procedure parameters where that part of the language is already supported.
+- `boolean` procedure results are represented with the same JVM integer-style truth convention Perseus already uses for boolean expressions and variables.
+- `ref(T)` procedure results and parameters are intended for object references, Java interop, and standard-library code that needs to move object values through ordinary Perseus procedures.
+
+Examples:
+
+```algol
+boolean procedure positive(x);
+    value x;
+    integer x;
+
+ref(StringBuilder) procedure builder(text);
+    value text;
+    string text;
+```
+
 ## Example Usage
 
 ```algol
@@ -294,7 +315,9 @@ Perseus makes the target model explicit:
 
 ```algol
 external(Package.ClassName) real procedure f(real x);
+external(Package.ClassName) boolean procedure ready(ref(Stream) s);
 external java static(java.lang.Math) real procedure cos(real x);
+external java static(java.util.Objects) boolean procedure isNull(ref(Object) candidate);
 external java static(java.lang.System) ref(java.io.PrintStream) out as stdout;
 ```
 
@@ -411,6 +434,9 @@ Examples:
 ```algol
 external java static(java.lang.Math) real procedure cos(real x);
 external java static(java.lang.Integer) integer procedure parseInt(string s);
+external java static(java.util.Objects) boolean procedure isNull(ref(Object) candidate);
+external java static(java.util.Objects)
+    ref(Object) procedure requireNonNullElse(ref(Object) candidate; ref(Object) fallback);
 external java static(java.lang.System) ref(java.io.PrintStream) out as stdout;
 ```
 
@@ -454,8 +480,9 @@ Recommended first-pass mapping:
 |---|---|
 | `integer` | `int` |
 | `real` | `double` |
-| `Boolean` / boolean-valued expression | `boolean` |
+| `boolean` | `boolean` |
 | `string` | `java.lang.String` |
+| `ref(T)` | matching reference type when `T` is an imported Java/Perseus class; otherwise object-compatible reference handling |
 | `procedure` value | Not supported in first version, unless mapped explicitly to a JVM interface |
 | `array` | Not supported in first version |
 | `label` | Not supported |
@@ -604,13 +631,22 @@ For the first version, that likely means:
 |---|---|
 | `integer` parameter | `I` |
 | `real` parameter | `D` |
+| `boolean` parameter | `I` for Perseus external ABI, `Z` for `external java` |
 | `string` parameter | `Ljava/lang/String;` |
+| `ref(T)` parameter | object reference descriptor |
 | procedure return `integer` | `I` |
 | procedure return `real` | `D` |
+| procedure return `boolean` | `I` for Perseus external ABI, `Z` for `external java` |
 | procedure return `string` | `Ljava/lang/String;` |
+| procedure return `ref(T)` | object reference descriptor |
 | no declared return type | `V` |
 
-This first table intentionally covers the scalar/string cases that already map cleanly onto JVM method descriptors. A later external-Perseus ABI table should add:
+This table now needs to be read in two layers:
+
+- Perseus-to-Perseus external linkage keeps Perseus's own calling convention, including integer-backed booleans.
+- `external java` lowers declared `boolean` signatures to JVM `Z` and declared `ref(T)` signatures to JVM reference descriptors.
+
+A later external-Perseus ABI table should add:
 
 - one-dimensional array parameters, including hidden bounds
 - multidimensional arrays if and when formal multidimensional arrays are supported
