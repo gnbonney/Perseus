@@ -121,6 +121,15 @@ public final class ChannelsSupport {
         }
     }
 
+    public static String inToken(int channel) {
+        InputChannel reader = requireReadChannel(channel);
+        try {
+            return reader.readToken(channel);
+        } catch (IOException e) {
+            throw rethrowUnchecked(e);
+        }
+    }
+
     private static RuntimeException rethrowUnchecked(Throwable throwable) {
         ChannelsSupport.<RuntimeException>sneakyThrow(throwable);
         throw new AssertionError("unreachable");

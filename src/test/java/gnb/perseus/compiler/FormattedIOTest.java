@@ -126,6 +126,29 @@ public class FormattedIOTest extends CompilerTest {
     }
 
     @Test
+    public void informat_file_channel_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/io/informat_file_channel.alg",
+                "gnb/perseus/programs",
+                "InformatFileChannel",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== INFORMAT FILE CHANNEL JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END INFORMAT FILE CHANNEL ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.InformatFileChannel");
+        assertEquals("Hello:42:3.1", output.trim(),
+                "informat should parse through file channels via shared runtime support");
+    }
+
+    @Test
     public void mixed_string_channel_format_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/io/mixed_string_channel_format.alg",

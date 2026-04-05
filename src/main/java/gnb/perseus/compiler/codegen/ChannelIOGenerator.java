@@ -1,7 +1,7 @@
 package gnb.perseus.compiler.codegen;
 
+import gnb.perseus.runtime.TextInputSupport;
 import gnb.perseus.compiler.antlr.PerseusParser;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,8 +24,6 @@ public class ChannelIOGenerator {
         this.packageName = packageName;
         this.className = className;
     }
-
-    private record FormatSpec(char kind, int width, int precision) {}
 
     public boolean tryEmitProcedureCall(
             String name,
@@ -51,11 +49,11 @@ public class ChannelIOGenerator {
             case "outinteger" -> emitOutInteger(args, activeOutput, generateExpr, getChannelStream, lookupVarType,
                     currentLocalIndex, staticFieldName, allocateNewLocal);
             case "outterminator" -> emitOutTerminator(args, activeOutput, generateExpr, getChannelStream, lookupVarType,
-                    currentLocalIndex, staticFieldName, allocateNewLocal);
+                      currentLocalIndex, staticFieldName, allocateNewLocal);
             case "outformat" -> emitOutformat(args, activeOutput, generateExpr, exprTypeResolver, getChannelStream,
-                    lookupVarType, currentLocalIndex, staticFieldName, allocateNewLocal);
-            case "informat" -> emitInformat(args, activeOutput, allocateNewLocal, currentLocalIndex, currentSymbolTable,
-                    mainSymbolTable, staticFieldName);
+                      lookupVarType, currentLocalIndex, staticFieldName, allocateNewLocal);
+            case "informat" -> emitInformat(args, activeOutput, generateExpr, allocateNewLocal, currentLocalIndex,
+                    currentSymbolTable, mainSymbolTable, staticFieldName);
             case "instring" -> emitInstring(args, activeOutput, generateExpr, allocateNewLocal, currentLocalIndex,
                     currentSymbolTable, mainSymbolTable, staticFieldName);
             default -> false;
@@ -95,36 +93,6 @@ public class ChannelIOGenerator {
             return varExpr.identifier().getText();
         }
         return null;
-    }
-
-    private String unquote(String literal) {
-        if (literal == null || literal.length() < 2 || literal.charAt(0) != '"' || literal.charAt(literal.length() - 1) != '"') {
-            return literal;
-        }
-        return literal.substring(1, literal.length() - 1).replace("\\\"", "\"").replace("\\n", "\n");
-    }
-
-    private List<FormatSpec> parseFormatSpecs(String formatLiteral) {
-        String raw = unquote(formatLiteral);
-        List<FormatSpec> specs = new ArrayList<>();
-        for (String token : raw.split("[,\\s]+")) {
-            if (token.isBlank()) {
-                continue;
-            }
-            char kind = Character.toUpperCase(token.charAt(0));
-            if (kind == 'I' || kind == 'A') {
-                int width = Integer.parseInt(token.substring(1));
-                specs.add(new FormatSpec(kind, width, -1));
-            } else if (kind == 'F') {
-                int dot = token.indexOf('.');
-                int width = Integer.parseInt(token.substring(1, dot));
-                int precision = Integer.parseInt(token.substring(dot + 1));
-                specs.add(new FormatSpec(kind, width, precision));
-            } else {
-                throw new IllegalArgumentException("Unsupported format token: " + token);
-            }
-        }
-        return specs;
     }
 
     private String generateFormattedString(String formatLiteral, List<PerseusParser.ArgContext> valueArgs,
@@ -362,6 +330,7 @@ public class ChannelIOGenerator {
     }
 
     private boolean emitInformat(List<PerseusParser.ArgContext> args, StringBuilder activeOutput,
+            Function<PerseusParser.ExprContext, String> generateExpr,
             Function<String, Integer> allocateNewLocal,
             Map<String, Integer> currentLocalIndex,
             Map<String, String> currentSymbolTable,
@@ -376,33 +345,26 @@ public class ChannelIOGenerator {
             activeOutput.append("; ERROR: informat currently requires a string-literal format\n");
             return true;
         }
-        List<FormatSpec> specs = parseFormatSpecs(formatLiteral);
-        if (specs.size() != args.size() - 2) {
+        char[] kinds;
+        try {
+            kinds = TextInputSupport.informatKinds(formatLiteral);
+        } catch (IllegalArgumentException e) {
+            activeOutput.append("; ERROR: ").append(e.getMessage()).append("\n");
+            return true;
+        }
+        if (kinds.length != args.size() - 2) {
             activeOutput.append("; ERROR: format/argument count mismatch\n");
             return true;
         }
 
-        Integer channel = getConstantChannelValue(args.get(0));
-        String scannerLoad;
-        Integer scannerSlot = null;
-        if (channel != null && constantFileChannels.containsKey(channel) && "r".equals(constantFileChannels.get(channel).mode())) {
-            scannerSlot = allocateNewLocal.apply("formatScanner");
-            FileChannelBinding binding = constantFileChannels.get(channel);
-            activeOutput.append("new java/util/Scanner\n")
-                    .append("dup\n")
-                    .append("new java/io/FileInputStream\n")
-                    .append("dup\n")
-                    .append("ldc ").append(binding.filenameLiteral()).append("\n")
-                    .append("invokespecial java/io/FileInputStream/<init>(Ljava/lang/String;)V\n")
-                    .append("invokespecial java/util/Scanner/<init>(Ljava/io/InputStream;)V\n")
-                    .append("astore ").append(scannerSlot).append("\n");
-            scannerLoad = "aload " + scannerSlot + "\n";
-        } else {
-            scannerLoad = "getstatic " + packageName + "/" + className + "/__scanner Ljava/util/Scanner;\n";
-        }
+        Integer valuesSlot = allocateNewLocal.apply("informatValues");
+        appendChannelValue(args.get(0), activeOutput, generateExpr);
+        activeOutput.append("ldc ").append(formatLiteral).append("\n")
+                .append("invokestatic gnb/perseus/runtime/TextInputSupport/informatValues(ILjava/lang/String;)[Ljava/lang/Object;\n")
+                .append("astore ").append(valuesSlot).append("\n");
 
-        for (int i = 0; i < specs.size(); i++) {
-            FormatSpec spec = specs.get(i);
+        for (int i = 0; i < kinds.length; i++) {
+            char kind = kinds[i];
             PerseusParser.ArgContext arg = args.get(i + 2);
             String varName = getVariableName(arg);
             if (varName == null) {
@@ -415,30 +377,29 @@ public class ChannelIOGenerator {
                 varType = mainSymbolTable.get(varName);
             }
 
-            activeOutput.append(scannerLoad);
-            switch (spec.kind()) {
-                case 'I' -> activeOutput.append("invokevirtual java/util/Scanner/nextInt()I\n");
-                case 'F' -> activeOutput.append("invokevirtual java/util/Scanner/nextDouble()D\n");
-                case 'A' -> activeOutput.append("invokevirtual java/util/Scanner/next()Ljava/lang/String;\n");
+            activeOutput.append("aload ").append(valuesSlot).append("\n")
+                    .append("ldc ").append(i).append("\n")
+                    .append("aaload\n");
+            switch (kind) {
+                case 'I' -> activeOutput.append("checkcast java/lang/Integer\n")
+                        .append("invokevirtual java/lang/Integer/intValue()I\n");
+                case 'F' -> activeOutput.append("checkcast java/lang/Double\n")
+                        .append("invokevirtual java/lang/Double/doubleValue()D\n");
+                case 'A' -> activeOutput.append("checkcast java/lang/String\n");
                 default -> activeOutput.append("; ERROR: unsupported informat specifier\n");
             }
 
             if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:")
                     && !varType.startsWith("thunk:")) {
-                String desc = spec.kind() == 'F' ? "D" : spec.kind() == 'A' ? "Ljava/lang/String;" : "I";
+                String desc = kind == 'F' ? "D" : kind == 'A' ? "Ljava/lang/String;" : "I";
                 activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                         .append("/").append(staticFieldName.apply(varName, varType)).append(" ").append(desc).append("\n");
             } else if (varSlot == null) {
                 activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
             } else {
-                String store = spec.kind() == 'F' ? "dstore " : spec.kind() == 'A' ? "astore " : "istore ";
+                String store = kind == 'F' ? "dstore " : kind == 'A' ? "astore " : "istore ";
                 activeOutput.append(store).append(varSlot).append("\n");
             }
-        }
-
-        if (scannerSlot != null) {
-            activeOutput.append("aload ").append(scannerSlot).append("\n")
-                    .append("invokevirtual java/util/Scanner/close()V\n");
         }
         return true;
     }

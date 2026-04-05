@@ -127,6 +127,10 @@ Perseus keeps these as the user-facing formatted-I/O procedures:
 - `informat` currently keeps the narrower `I`, `F`, and `A` subset.
 - Commas or spaces separate descriptors.
 
+This asymmetry is intentional. Formatted output remains useful for reports, tables, finance-style output, and teaching examples, while formatted input is a less central modern need. Real input data is more often delimited or structured than fixed-width, and richer input parsing is usually better handled through ordinary string processing or library interop than through a large built-in descriptor language. Perseus therefore keeps `informat` as a small convenience unless stronger real-world use cases later justify expanding it.
+
+The current `informat` implementation now shares runtime support for format parsing and value-reading, even though its descriptor family remains intentionally smaller than `outformat`.
+
 ### Expanded conservative direction
 
 The current `I`, `F`, and `A` subset is a good base, but Perseus should grow the format language in a deliberately small and practical way rather than trying to reproduce the full breadth of Fortran edit descriptors.
