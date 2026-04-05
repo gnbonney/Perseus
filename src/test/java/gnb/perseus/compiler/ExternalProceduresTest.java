@@ -191,6 +191,31 @@ public class ExternalProceduresTest extends CompilerTest {
 	}
 
 	@Test
+	public void external_java_ref_array_boxing_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_java_ref_array_boxing.alg", "gnb/perseus/programs", "ExternalJavaRefArrayBoxing", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== EXTERNAL JAVA REF ARRAY BOXING JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END EXTERNAL JAVA REF ARRAY BOXING ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;"),
+				"Integer values stored into a ref array should be boxed");
+		assertTrue(jasminSource.contains("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;"),
+				"Real values stored into a ref array should be boxed");
+		assertTrue(jasminSource.contains("aastore"),
+				"Reference array assignment should use aastore");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalJavaRefArrayBoxing");
+		System.out.println("external_java_ref_array_boxing output: [" + output + "]");
+		assertEquals("1 2.5 hi", output.trim(),
+				"Reference arrays should box primitive values so toString() produces the expected output");
+	}
+
+	@Test
 	public void external_java_instance_fields_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/external/external_java_instance_fields.alg", "gnb/perseus/programs", "ExternalJavaInstanceFields", BUILD_DIR);

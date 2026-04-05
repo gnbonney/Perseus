@@ -262,7 +262,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Add a real source-level `signal expr` statement so `fault` can raise Java-backed exceptions without `FaultSupport`
 - [x] Add reference-typed arrays so compiled stdlib units can keep channel, reader, writer, and scanner state in Perseus source instead of Java-side registries
 - [x] Add a source-level `null` reference value and the needed reference comparisons so compiled stdlib code can test open/closed or initialized/uninitialized object slots directly
-- [ ] Add the boxing and `ref(Object)` array support needed for compiled stdlib code to build Java `Object[]` argument lists directly, removing the need for `TextFormatSupport`
+- [x] Add the boxing and `ref(Object)` array support needed for compiled stdlib code to build Java `Object[]` argument lists directly, removing the need for `TextFormatSupport`
 - [ ] Move the current consolidated scanner and file-reader state from `gnb.perseus.runtime.Channels` into compiled Perseus stdlib code once the reference-state features above exist
 - [ ] Implement a real compiled `perseus.io.Channels` unit that owns channel state directly and removes the remaining Java-side `Channels` runtime helper
 - [ ] Refactor the compiled standard environment to stop depending on all remaining Java runtime bridge helpers

@@ -1010,6 +1010,15 @@ public class CodeGenerator extends PerseusBaseListener {
                 activeOutput.append("i2d\n");
             }
             boolean refArray = elemType != null && elemType.startsWith("ref:") && elemType.endsWith("[]");
+            if (refArray) {
+                if ("integer".equals(rhsType)) {
+                    activeOutput.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+                } else if ("real".equals(rhsType)) {
+                    activeOutput.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+                } else if ("boolean".equals(rhsType)) {
+                    activeOutput.append("invokestatic java/lang/Boolean/valueOf(Z)Ljava/lang/Boolean;\n");
+                }
+            }
             activeOutput.append("real[]".equals(elemType) ? "dastore\n"
                     : "boolean[]".equals(elemType) ? "bastore\n"
                     : ("string[]".equals(elemType) || refArray) ? "aastore\n"
