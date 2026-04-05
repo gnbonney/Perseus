@@ -263,9 +263,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Add reference-typed arrays so compiled stdlib units can keep channel, reader, writer, and scanner state in Perseus source instead of Java-side registries
 - [x] Add a source-level `null` reference value and the needed reference comparisons so compiled stdlib code can test open/closed or initialized/uninitialized object slots directly
 - [x] Add the boxing and `ref(Object)` array support needed for compiled stdlib code to build Java `Object[]` argument lists directly, removing the need for `TextFormatSupport`
-- [ ] Move the current consolidated scanner and file-reader state from `gnb.perseus.runtime.Channels` into compiled Perseus stdlib code once the reference-state features above exist
-- [ ] Implement a real compiled `perseus.io.Channels` unit that owns channel state directly and removes the remaining Java-side `Channels` runtime helper
-- [ ] Refactor the compiled standard environment to stop depending on all remaining Java runtime bridge helpers
+- [ ] Define a clear path to a virtually pure perseus alg file stdio lib which can rely on external java classes, but should not require java support classes such as those currently in gnb.perseus.runtime package and should not rely on hardcoded jasmin code generated out of the compiler code generator. What additional syntax needs to be added to the perseus language to make this possible?
 - [ ] Add regression coverage showing the migrated stdlib paths still work without those helper classes
 
 **Current helper targets:**
