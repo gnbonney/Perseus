@@ -170,6 +170,27 @@ public class ExternalProceduresTest extends CompilerTest {
 	}
 
 	@Test
+	public void external_java_ref_array_basic_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_java_ref_array_basic.alg", "gnb/perseus/programs", "ExternalJavaRefArrayBasic", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== EXTERNAL JAVA REF ARRAY BASIC JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END EXTERNAL JAVA REF ARRAY BASIC ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("anewarray java/lang/Object"),
+				"Reference arrays should lower to JVM object arrays");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalJavaRefArrayBasic");
+		System.out.println("external_java_ref_array_basic output: [" + output + "]");
+		assertEquals("123", output.trim(),
+				"Reference arrays should support assignment, null checks, and equality comparisons");
+	}
+
+	@Test
 	public void external_java_instance_fields_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/external/external_java_instance_fields.alg", "gnb/perseus/programs", "ExternalJavaInstanceFields", BUILD_DIR);

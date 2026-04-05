@@ -11,6 +11,7 @@ public class CodeGenUtils {
 
     public static String arrayTypeToJvmDesc(String type) {
         if (type == null) return "[I";
+        if (type.startsWith("ref:") && type.endsWith("[]")) return "[Ljava/lang/Object;";
         return switch (type) {
             case "boolean[]" -> "[Z";
             case "integer[]" -> "[I";

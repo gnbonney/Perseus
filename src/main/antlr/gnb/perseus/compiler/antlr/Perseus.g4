@@ -90,6 +90,10 @@ refDecl
   : REF '(' identifier ')' varList
   ;
 
+refType
+  : REF '(' identifier ')'
+  ;
+
 block
   : BEGIN compoundStatement exceptionPart? END endComment?
   | '{' compoundStatement '}'
@@ -161,6 +165,7 @@ paramSpecType
   : REAL PROCEDURE    # RealProcedureParamType
   | INTEGER PROCEDURE # IntegerProcedureParamType
   | STRING PROCEDURE  # StringProcedureParamType
+  | refType ARRAY     # RefArrayParamType
   | REAL ARRAY        # RealArrayParamType
   | INTEGER ARRAY     # IntegerArrayParamType
   | STRING ARRAY      # StringArrayParamType
@@ -187,7 +192,7 @@ varDecl
   ;
 
 arrayDecl
-  : OWN? (INTEGER | REAL | BOOLEAN | STRING | PROCEDURE)? ARRAY identifier '[' boundPair (',' boundPair)* ']'
+  : OWN? (INTEGER | REAL | BOOLEAN | STRING | PROCEDURE | refType)? ARRAY identifier '[' boundPair (',' boundPair)* ']'
   ;
 
 boundPair

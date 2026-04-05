@@ -18,6 +18,7 @@ Perseus arrays follow Algol-family conventions rather than Java's array syntax a
 - Lower bounds do not have to be zero; they may be one-based or even negative.
 - Multidimensional arrays are written as a single array with multiple bound pairs, for example `integer array a[-1:0, 1:2];`.
 - Access uses comma-separated subscripts such as `a[i, j]`, not chained Java-style indexing like `a[i][j]`.
+- Reference-typed arrays are supported with `ref(T) array a[1:n];` when a program needs arrays of object references.
 
 That means a Perseus array declaration describes an abstract index space, while a Java array mainly describes storage with zero-based offsets. Perseus preserves the Algol view at the language level and hides the offset arithmetic from the programmer.
 

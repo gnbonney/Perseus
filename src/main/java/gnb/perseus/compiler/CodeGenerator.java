@@ -439,8 +439,13 @@ public class CodeGenerator extends PerseusBaseListener {
             List<int[]> bounds = lookupDeclaredArrayBoundPairs(varName);
             if (bounds == null || bounds.isEmpty()) continue;
             int size = computeFlattenedArraySize(bounds);
-            String elemType = "real[]".equals(type) ? "double" : "boolean[]".equals(type) ? "boolean" : "string[]".equals(type) ? "java/lang/String" : "int";
-            String newarrayInstr = "string[]".equals(type) ? "anewarray" : "newarray";
+            boolean isRefArray = type.startsWith("ref:") && type.endsWith("[]");
+            String elemType = isRefArray ? "java/lang/Object"
+                    : "real[]".equals(type) ? "double"
+                    : "boolean[]".equals(type) ? "boolean"
+                    : "string[]".equals(type) ? "java/lang/String"
+                    : "int";
+            String newarrayInstr = ("string[]".equals(type) || isRefArray) ? "anewarray" : "newarray";
             mainCode.append("ldc ").append(size).append("\n")
                     .append(newarrayInstr).append(" ").append(elemType).append("\n")
                     .append("putstatic ").append(packageName).append("/").append(className)
@@ -1004,7 +1009,11 @@ public class CodeGenerator extends PerseusBaseListener {
             if ("real[]".equals(elemType) && "integer".equals(rhsType)) {
                 activeOutput.append("i2d\n");
             }
-            activeOutput.append("real[]".equals(elemType) ? "dastore\n" : "boolean[]".equals(elemType) ? "bastore\n" : "string[]".equals(elemType) ? "aastore\n" : "iastore\n");
+            boolean refArray = elemType != null && elemType.startsWith("ref:") && elemType.endsWith("[]");
+            activeOutput.append("real[]".equals(elemType) ? "dastore\n"
+                    : "boolean[]".equals(elemType) ? "bastore\n"
+                    : ("string[]".equals(elemType) || refArray) ? "aastore\n"
+                    : "iastore\n");
             return;
         }
 
@@ -4129,7 +4138,11 @@ public class CodeGenerator extends PerseusBaseListener {
             StringBuilder sb = new StringBuilder();
             sb.append(generateLoadVar(arrName));
             sb.append(generateArrayElementIndex(arrName, e.expr(), varToFieldIndex));
-            sb.append("real[]".equals(elemType) ? "daload\n" : "boolean[]".equals(elemType) ? "baload\n" : "string[]".equals(elemType) ? "aaload\n" : "iaload\n");
+            boolean refArray = elemType != null && elemType.startsWith("ref:") && elemType.endsWith("[]");
+            sb.append("real[]".equals(elemType) ? "daload\n"
+                    : "boolean[]".equals(elemType) ? "baload\n"
+                    : ("string[]".equals(elemType) || refArray) ? "aaload\n"
+                    : "iaload\n");
             return sb.toString();
         } else if (ctx instanceof PerseusParser.ProcCallExprContext e) {
             String procName = e.identifier().getText();

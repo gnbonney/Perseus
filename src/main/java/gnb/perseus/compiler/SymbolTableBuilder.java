@@ -515,6 +515,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         else if (ctx.REAL() != null) elemType = "real";
         else if (ctx.STRING() != null) elemType = "string";
         else if (ctx.BOOLEAN() != null) elemType = "boolean";
+        else if (ctx.refType() != null) elemType = "ref:" + ctx.refType().identifier().getText();
         else elemType = "real";
         String arrType = elemType + "[]";
         String name = ctx.identifier().getText();
@@ -573,6 +574,9 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         if (typeCtx instanceof PerseusParser.IntegerProcedureParamTypeContext) return "procedure:integer";
         if (typeCtx instanceof PerseusParser.StringProcedureParamTypeContext) return "procedure:string";
         if (typeCtx instanceof PerseusParser.VoidProcedureParamTypeContext) return "procedure:void";
+        if (typeCtx instanceof PerseusParser.RefArrayParamTypeContext refArrayCtx) {
+            return "ref:" + refArrayCtx.refType().identifier().getText() + "[]";
+        }
         if (typeCtx instanceof PerseusParser.RealArrayParamTypeContext) return "real[]";
         if (typeCtx instanceof PerseusParser.IntegerArrayParamTypeContext) return "integer[]";
         if (typeCtx instanceof PerseusParser.StringArrayParamTypeContext) return "string[]";
