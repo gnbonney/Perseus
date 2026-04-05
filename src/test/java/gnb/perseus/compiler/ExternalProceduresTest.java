@@ -78,6 +78,28 @@ public class ExternalProceduresTest extends CompilerTest {
 	}
 
 	@Test
+	public void external_java_ref_and_boolean_signature_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_java_ref_and_boolean_signature.alg",
+				"gnb/perseus/programs",
+				"ExternalJavaRefAndBooleanSignature",
+				BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("invokestatic java/util/Objects/isNull(Ljava/lang/Object;)Z"),
+				"External Java signatures should allow ref parameters plus boolean returns");
+		assertTrue(jasminSource.contains("invokestatic java/util/Objects/requireNonNullElse(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;"),
+				"External Java signatures should allow ref parameters plus ref returns");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalJavaRefAndBooleanSignature");
+		assertEquals("NEO", output.trim(),
+				"External Java signatures should support boolean results and object-reference arguments/results");
+	}
+
+	@Test
 	public void external_java_static_alias_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/external/external_java_static_alias.alg", "gnb/perseus/programs", "ExternalJavaStaticAlias", BUILD_DIR);

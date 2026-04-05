@@ -86,6 +86,27 @@ public class ProcedureGenerator implements GeneratorDelegate {
         return info.valueParams.contains(paramName) ? "integer" : "deferred";
     }
 
+    private static boolean isObjectType(String type) {
+        return "string".equals(type) || (type != null && type.startsWith("ref:"));
+    }
+
+    private static String procedureInterfaceName(String returnType) {
+        if (returnType != null && returnType.startsWith("ref:")) {
+            return "ReferenceProcedure";
+        }
+        return switch (returnType) {
+            case "void" -> "VoidProcedure";
+            case "real" -> "RealProcedure";
+            case "string" -> "StringProcedure";
+            case "boolean", "integer" -> "IntegerProcedure";
+            default -> throw new RuntimeException("Unknown procedure return type: " + returnType);
+        };
+    }
+
+    private static String parameterDescriptor(String type) {
+        return CodeGenUtils.getReturnTypeDescriptor(type);
+    }
+
     private Set<String> collectVarNames(ParseTree tree) {
         Set<String> names = new LinkedHashSet<>();
         if (tree instanceof PerseusParser.VarExprContext) {
@@ -273,9 +294,11 @@ public class ProcedureGenerator implements GeneratorDelegate {
         }
 
         String paramDesc = info.paramNames.stream()
-                .map(p -> info.valueParams.contains(p) ? (info.paramTypes.getOrDefault(p, "integer").equals("real") ? "D" : "I") : "Lgnb/perseus/runtime/Thunk;")
+                .map(p -> info.valueParams.contains(p)
+                        ? parameterDescriptor(info.paramTypes.getOrDefault(p, "integer"))
+                        : "Lgnb/perseus/runtime/Thunk;")
                 .collect(Collectors.joining());
-        String retDesc = "void".equals(info.returnType) ? "V" : (info.returnType.equals("real") ? "D" : (info.returnType.equals("string") ? "Ljava/lang/String;" : "I"));
+        String retDesc = CodeGenUtils.getReturnTypeDescriptor(info.returnType);
         
         sb.append("invokestatic ").append(context.getPackageName()).append("/").append(context.getClassName())
           .append("/").append(name).append("(").append(paramDesc).append(")").append(retDesc).append("\n");
@@ -342,9 +365,11 @@ public class ProcedureGenerator implements GeneratorDelegate {
 
         StringBuilder sb = new StringBuilder();
         String paramDesc = info.paramNames.stream()
-                .map(p -> info.valueParams.contains(p) ? (info.paramTypes.getOrDefault(p, "integer").equals("real") ? "D" : "I") : "Lgnb/perseus/runtime/Thunk;")
+                .map(p -> info.valueParams.contains(p)
+                        ? CodeGenUtils.getReturnTypeDescriptor(info.paramTypes.getOrDefault(p, "integer"))
+                        : "Lgnb/perseus/runtime/Thunk;")
                 .collect(Collectors.joining());
-        String retDesc = "void".equals(info.returnType) ? "V" : (info.returnType.equals("real") ? "D" : (info.returnType.equals("string") ? "Ljava/lang/String;" : "I"));
+        String retDesc = CodeGenUtils.getReturnTypeDescriptor(info.returnType);
 
         sb.append("\n.method public static ").append(procName).append("(").append(paramDesc).append(")").append(retDesc).append("\n");
         sb.append(".limit stack 64\n.limit locals 64\n"); // TODO: calculate required stack and locals
@@ -355,10 +380,13 @@ public class ProcedureGenerator implements GeneratorDelegate {
             int slot = e.getValue();
             if ("real".equals(varType)) sb.append("dconst_0\ndstore ").append(slot).append("\n");
             else if ("string".equals(varType)) sb.append("ldc \"\"\nastore ").append(slot).append("\n");
+            else if (varType != null && varType.startsWith("ref:")) sb.append("aconst_null\nastore ").append(slot).append("\n");
             else sb.append("iconst_0\nistore ").append(slot).append("\n");
         }
         if (retvalSlot >= 0) {
             if ("real".equals(info.returnType)) sb.append("dconst_0\ndstore ").append(retvalSlot).append("\n");
+            else if ("string".equals(info.returnType)) sb.append("ldc \"\"\nastore ").append(retvalSlot).append("\n");
+            else if (info.returnType != null && info.returnType.startsWith("ref:")) sb.append("aconst_null\nastore ").append(retvalSlot).append("\n");
             else sb.append("iconst_0\nistore ").append(retvalSlot).append("\n");
         }
 
@@ -374,7 +402,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
 
         if ("void".equals(retType)) sb.append("return\n");
         else if ("real".equals(retType)) sb.append("dload ").append(slot).append("\ndreturn\n");
-        else if ("string".equals(retType)) sb.append("aload ").append(slot).append("\nareturn\n");
+        else if (isObjectType(retType)) sb.append("aload ").append(slot).append("\nareturn\n");
         else sb.append("iload ").append(slot).append("\nireturn\n");
 
         sb.append(".end method\n");
@@ -391,14 +419,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
      */
     public String generateProcedureVariableCall(String varName, String varType, List<PerseusParser.ArgContext> args) {
         String returnType = varType.substring("procedure:".length());
-        String interfaceName;
-        switch (returnType) {
-            case "void":    interfaceName = "VoidProcedure";    break;
-            case "real":    interfaceName = "RealProcedure";    break;
-            case "integer": interfaceName = "IntegerProcedure"; break;
-            case "string":  interfaceName = "StringProcedure";  break;
-            default: throw new RuntimeException("Unknown procedure return type: " + returnType);
-        }
+        String interfaceName = procedureInterfaceName(returnType);
 
         StringBuilder sb = new StringBuilder();
 
@@ -464,7 +485,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
                     if ("real".equals(argType)) {
                         sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
                     } else if ("integer".equals(argType) || "boolean".equals(argType)) {
-                        sb.append("invokestatic java/lang/Integer.valueOf(I)Ljava/lang/Integer;\n");
+                        sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
                     }
                 }
 
@@ -504,14 +525,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
     public String generateProcedureReference(String procName, SymbolTableBuilder.ProcInfo procInfo) {
         String returnType = procInfo.returnType;
 
-        String interfaceName;
-        switch (returnType) {
-            case "void":    interfaceName = "VoidProcedure";    break;
-            case "real":    interfaceName = "RealProcedure";    break;
-            case "integer": interfaceName = "IntegerProcedure"; break;
-            case "string":  interfaceName = "StringProcedure";  break;
-            default: throw new RuntimeException("Unknown procedure return type: " + returnType);
-        }
+        String interfaceName = procedureInterfaceName(returnType);
 
         // Capture surrounding procedure environment when creating a ProcRef inside another procedure.
         // This ensures closures capture the correct values instead of sharing global env fields.
@@ -536,8 +550,11 @@ public class ProcedureGenerator implements GeneratorDelegate {
                             case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
                             case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
                             case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
+                            case "boolean" -> "Lgnb/perseus/compiler/IntegerProcedure;";
                             default -> "Lgnb/perseus/compiler/VoidProcedure;";
                         };
+                    } else if (pType.startsWith("ref:")) {
+                        desc = "Ljava/lang/Object;";
                     } else {
                         desc = "I";
                     }
@@ -548,8 +565,12 @@ public class ProcedureGenerator implements GeneratorDelegate {
                 String retDesc = switch (outerInfo.returnType) {
                     case "real" -> "D";
                     case "string" -> "Ljava/lang/String;";
+                    case "boolean" -> "I";
                     default -> "I";
                 };
+                if (outerInfo.returnType.startsWith("ref:")) {
+                    retDesc = "Ljava/lang/Object;";
+                }
                 envFields.add(new EnvField("ret", envReturnFieldName(outerProc), retDesc));
             }
         }
@@ -678,22 +699,13 @@ public class ProcedureGenerator implements GeneratorDelegate {
             .map(p -> {
                 if (procInfo.valueParams.contains(p)) {
                     String type = procInfo.paramTypes.getOrDefault(p, "integer");
-                    return switch (type) {
-                        case "real"   -> "D";
-                        case "string" -> "Ljava/lang/String;";
-                        default -> "I";
-                    };
+                    return parameterDescriptor(type);
                 } else {
                     return "Lgnb/perseus/compiler/Thunk;";
                 }
             })
             .collect(Collectors.joining());
-        String retDesc = switch (returnType) {
-            case "void"   -> "V";
-            case "real"   -> "D";
-            case "string" -> "Ljava/lang/String;";
-            default -> "I";
-        };
+        String retDesc = CodeGenUtils.getReturnTypeDescriptor(returnType);
         jasmin.append("    invokestatic ").append(packageName).append("/").append(className)
               .append("/").append(procName).append("(").append(paramDesc).append(")").append(retDesc).append("\n");
 

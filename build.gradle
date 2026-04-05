@@ -48,7 +48,7 @@ test {
                 from srcDir
                 into destDir
                 include 'Thunk.class', 'VoidProcedure.class', 'IntegerProcedure.class',
-                        'RealProcedure.class', 'StringProcedure.class'
+                        'RealProcedure.class', 'StringProcedure.class', 'ReferenceProcedure.class'
             }
         }
     }

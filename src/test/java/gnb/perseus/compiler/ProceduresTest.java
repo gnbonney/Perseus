@@ -249,6 +249,27 @@ end
 		assertEquals("3,-3", output.trim());
 	}
 
+	@Test
+	public void boolean_and_ref_return_procedures_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+			"test/algol/procedures/proc_boolean_and_ref_returns.alg",
+			"gnb/perseus/programs",
+			"ProcBooleanAndRefReturns",
+			BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+		assertTrue(jasminSource.contains(".method public static positive(I)I"),
+			"Boolean procedures should lower to JVM int/boolean return conventions");
+		assertTrue(jasminSource.contains(".method public static builder(Ljava/lang/String;)Ljava/lang/Object;"),
+			"Reference-returning procedures should lower to JVM object returns");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ProcBooleanAndRefReturns");
+		assertEquals("TFabc", output.trim());
+	}
+
     @Test
     public void deferred_name_params_mixed_type_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(

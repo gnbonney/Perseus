@@ -54,7 +54,7 @@ compoundStatement
   ;
 
 statement
-  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalValueDecl | externalProcedureDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | signalStatement | block)?
+  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalProcedureDecl | externalValueDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | signalStatement | block)?
   ;
 
 classDecl
@@ -117,14 +117,14 @@ endComment
   ;
 
 procedureDecl
-  : (INTEGER | REAL | STRING)? PROCEDURE identifier ('(' paramList? ')')? ';'
+  : (INTEGER | REAL | STRING | BOOLEAN | refType)? PROCEDURE identifier ('(' paramList? ')')? ';'
     valueSpec?
     paramSpec*
     statement
   ;
 
 externalProcedureDecl
-  : EXTERNAL externalProcSpec (INTEGER | REAL | STRING)? PROCEDURE identifier ('(' externalFormalList? ')')? (AS identifier)?
+  : EXTERNAL externalProcSpec (INTEGER | REAL | STRING | BOOLEAN | refType)? PROCEDURE identifier ('(' externalFormalList? ')')? (AS identifier)?
   ;
 
 externalProcSpec
@@ -142,7 +142,8 @@ externalFormalGroup
   ;
 
 externalParamSpecType
-  : REAL ARRAY        # ExternalRealArrayParamType
+  : refType           # ExternalRefParamType
+  | REAL ARRAY        # ExternalRealArrayParamType
   | INTEGER ARRAY     # ExternalIntegerArrayParamType
   | STRING ARRAY      # ExternalStringArrayParamType
   | BOOLEAN ARRAY     # ExternalBooleanArrayParamType
@@ -165,6 +166,7 @@ paramSpecType
   : REAL PROCEDURE    # RealProcedureParamType
   | INTEGER PROCEDURE # IntegerProcedureParamType
   | STRING PROCEDURE  # StringProcedureParamType
+  | refType           # RefParamType
   | refType ARRAY     # RefArrayParamType
   | REAL ARRAY        # RealArrayParamType
   | INTEGER ARRAY     # IntegerArrayParamType

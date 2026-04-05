@@ -226,7 +226,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     @Override
     public void enterProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
         if (currentClass() != null) {
-            String returnType = getDeclaredReturnType(ctx.getStart().getText());
+            String returnType = getDeclaredProcedureReturnType(ctx);
             String name = ctx.identifier().getText();
             MethodInfo method = new MethodInfo(returnType, ctx);
             if (ctx.paramList() != null) {
@@ -239,7 +239,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             return;
         }
 
-        String returnType = getDeclaredReturnType(ctx.getStart().getText());
+        String returnType = getDeclaredProcedureReturnType(ctx);
         String name = ctx.identifier().getText();
         symbolTable.put(name, "procedure:" + returnType);
 
@@ -261,11 +261,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
     @Override
     public void enterExternalProcedureDecl(PerseusParser.ExternalProcedureDeclContext ctx) {
-        String returnType;
-        if (ctx.INTEGER() != null) returnType = "integer";
-        else if (ctx.REAL() != null) returnType = "real";
-        else if (ctx.STRING() != null) returnType = "string";
-        else returnType = "void";
+        String returnType = getDeclaredExternalProcedureReturnType(ctx);
         String declaredName = ctx.identifier(0).getText();
         String name = ctx.identifier().size() > 1 ? ctx.identifier(1).getText() : declaredName;
 
@@ -549,14 +545,28 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         labels.add(ctx.getStart().getText());
     }
 
-    private String getDeclaredReturnType(String firstToken) {
-        if ("integer".equals(firstToken)) return "integer";
-        if ("real".equals(firstToken)) return "real";
-        if ("string".equals(firstToken)) return "string";
+    private String getDeclaredProcedureReturnType(PerseusParser.ProcedureDeclContext ctx) {
+        if (ctx.INTEGER() != null) return "integer";
+        if (ctx.REAL() != null) return "real";
+        if (ctx.STRING() != null) return "string";
+        if (ctx.BOOLEAN() != null) return "boolean";
+        if (ctx.refType() != null) return "ref:" + ctx.refType().identifier().getText();
+        return "void";
+    }
+
+    private String getDeclaredExternalProcedureReturnType(PerseusParser.ExternalProcedureDeclContext ctx) {
+        if (ctx.INTEGER() != null) return "integer";
+        if (ctx.REAL() != null) return "real";
+        if (ctx.STRING() != null) return "string";
+        if (ctx.BOOLEAN() != null) return "boolean";
+        if (ctx.refType() != null) return "ref:" + ctx.refType().identifier().getText();
         return "void";
     }
 
     private String mapExternalParamType(PerseusParser.ExternalParamSpecTypeContext typeCtx) {
+        if (typeCtx instanceof PerseusParser.ExternalRefParamTypeContext refParamCtx) {
+            return "ref:" + refParamCtx.refType().identifier().getText();
+        }
         if (typeCtx instanceof PerseusParser.ExternalRealArrayParamTypeContext) return "real[]";
         if (typeCtx instanceof PerseusParser.ExternalIntegerArrayParamTypeContext) return "integer[]";
         if (typeCtx instanceof PerseusParser.ExternalStringArrayParamTypeContext) return "string[]";
@@ -574,6 +584,9 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         if (typeCtx instanceof PerseusParser.IntegerProcedureParamTypeContext) return "procedure:integer";
         if (typeCtx instanceof PerseusParser.StringProcedureParamTypeContext) return "procedure:string";
         if (typeCtx instanceof PerseusParser.VoidProcedureParamTypeContext) return "procedure:void";
+        if (typeCtx instanceof PerseusParser.RefParamTypeContext refParamCtx) {
+            return "ref:" + refParamCtx.refType().identifier().getText();
+        }
         if (typeCtx instanceof PerseusParser.RefArrayParamTypeContext refArrayCtx) {
             return "ref:" + refArrayCtx.refType().identifier().getText() + "[]";
         }

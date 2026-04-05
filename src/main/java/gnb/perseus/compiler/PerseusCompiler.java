@@ -65,7 +65,10 @@ public class PerseusCompiler {
 		".method public abstract invoke([Ljava/lang/Object;)I\n.end method\n\n" +
 		".interface public gnb/perseus/compiler/StringProcedure\n" +
 		".super java/lang/Object\n\n" +
-		".method public abstract invoke([Ljava/lang/Object;)Ljava/lang/String;\n.end method\n";
+		".method public abstract invoke([Ljava/lang/Object;)Ljava/lang/String;\n.end method\n\n" +
+		".interface public gnb/perseus/compiler/ReferenceProcedure\n" +
+		".super java/lang/Object\n\n" +
+		".method public abstract invoke([Ljava/lang/Object;)Ljava/lang/Object;\n.end method\n";
 
 	public static Path compileToFile(String algolFile, String packageName, String className, Path outputDir)
 			throws IOException {
@@ -293,9 +296,10 @@ public class PerseusCompiler {
 		Map<String, java.util.List<int[]>> arrayBoundPairs = symBuilder.getArrayBoundPairs();
 		Map<String, SymbolTableBuilder.ProcInfo> procedures = symBuilder.getProcedures();
 		Map<String, SymbolTableBuilder.ClassInfo> classes = symBuilder.getClasses();
+		Map<String, String> externalJavaClasses = symBuilder.getExternalJavaClasses();
 		Map<String, PerseusParser.SwitchDeclContext> switchDeclarations = symBuilder.getSwitchDeclarations();
 		String classPackageName = normalizeInternalPackageName(symBuilder.getNamespaceName());
-		validateExternalProcedures(fileName, procedures, externalClassRoots);
+		validateExternalProcedures(fileName, procedures, externalJavaClasses, externalClassRoots);
 		validateExternalJavaStaticValues(fileName, symBuilder.getExternalJavaStaticValues(),
 				symBuilder.getExternalJavaClasses(), externalClassRoots);
 
@@ -434,6 +438,7 @@ public class PerseusCompiler {
 
 	private static void validateExternalProcedures(String fileName,
 			Map<String, SymbolTableBuilder.ProcInfo> procedures,
+			Map<String, String> externalJavaClasses,
 			List<Path> externalClassRoots) throws CompilationFailedException {
 		java.util.ArrayList<CompilerDiagnostic> diagnostics = new java.util.ArrayList<>();
 		for (Map.Entry<String, SymbolTableBuilder.ProcInfo> entry : procedures.entrySet()) {
@@ -450,7 +455,7 @@ public class PerseusCompiler {
 			try {
 				Class<?> owner = loadExternalOwner(info.externalTargetClass, externalClassRoots);
 				String targetMethodName = info.externalTargetMethod != null ? info.externalTargetMethod : procName;
-				ExternalMethodMatch match = findMatchingExternalMethod(owner, procName, targetMethodName, info);
+				ExternalMethodMatch match = findMatchingExternalMethod(owner, procName, targetMethodName, info, externalJavaClasses);
 				if (match.method() == null) {
 					diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
 							match.message()));
@@ -535,6 +540,9 @@ public class PerseusCompiler {
 		if (type.endsWith("[]")) {
 			return !isReturnType && !"java-static".equals(externalKind);
 		}
+		if (type.startsWith("ref:")) {
+			return "java-static".equals(externalKind);
+		}
 		return switch (type) {
 			case "void", "integer", "real", "string" -> true;
 			case "boolean" -> "java-static".equals(externalKind);
@@ -545,8 +553,8 @@ public class PerseusCompiler {
 	private record ExternalMethodMatch(Method method, String message) {}
 
 	private static ExternalMethodMatch findMatchingExternalMethod(Class<?> owner, String procName, String targetMethodName,
-			SymbolTableBuilder.ProcInfo info) {
-		String expectedDescriptor = getExpectedExternalMethodDescriptor(info);
+			SymbolTableBuilder.ProcInfo info, Map<String, String> externalJavaClasses) {
+		String expectedDescriptor = getExpectedExternalMethodDescriptor(info, externalJavaClasses);
 		Method firstSameName = null;
 		Method sameNameStatic = null;
 		Method sameNameArity = null;
@@ -570,7 +578,7 @@ public class PerseusCompiler {
 			if (method.getParameterCount() == info.paramNames.size() && sameNameArity == null) {
 				sameNameArity = method;
 			}
-			if (parameterDescriptor(method).equals(expectedParameterDescriptor(info)) && sameParamsDifferentReturn == null) {
+			if (parameterDescriptor(method).equals(expectedParameterDescriptor(info, externalJavaClasses)) && sameParamsDifferentReturn == null) {
 				sameParamsDifferentReturn = method;
 			}
 		}
@@ -579,11 +587,11 @@ public class PerseusCompiler {
 			return new ExternalMethodMatch(null,
 					"External procedure " + procName + " resolved in " + info.externalTargetClass
 							+ " but the return type did not match the declaration; expected "
-							+ externalTypeToJvmDescriptor(info.returnType, info.externalKind)
+							+ externalTypeToJvmDescriptor(info.returnType, info.externalKind, externalJavaClasses)
 							+ " but found " + toJvmDescriptor(sameParamsDifferentReturn.getReturnType()));
 		}
 		if (sameNameArity != null) {
-			String expectedParams = expectedParameterDescriptor(info);
+			String expectedParams = expectedParameterDescriptor(info, externalJavaClasses);
 			String actualParams = parameterDescriptor(sameNameArity);
 			String kind = (expectedParams.contains("[") || actualParams.contains("[")) ? "array parameter ABI" : "parameter types";
 			return new ExternalMethodMatch(null,
@@ -605,19 +613,21 @@ public class PerseusCompiler {
 		return new ExternalMethodMatch(null, "External method not found: " + qualifiedName);
 	}
 
-	private static String getExpectedExternalMethodDescriptor(SymbolTableBuilder.ProcInfo info) {
+	private static String getExpectedExternalMethodDescriptor(SymbolTableBuilder.ProcInfo info,
+			Map<String, String> externalJavaClasses) {
 		StringBuilder desc = new StringBuilder("(");
 		for (String paramName : info.paramNames) {
-			desc.append(externalTypeToJvmDescriptor(info.paramTypes.get(paramName), info.externalKind));
+			desc.append(externalTypeToJvmDescriptor(info.paramTypes.get(paramName), info.externalKind, externalJavaClasses));
 		}
-		desc.append(")").append(externalTypeToJvmDescriptor(info.returnType, info.externalKind));
+		desc.append(")").append(externalTypeToJvmDescriptor(info.returnType, info.externalKind, externalJavaClasses));
 		return desc.toString();
 	}
 
-	private static String expectedParameterDescriptor(SymbolTableBuilder.ProcInfo info) {
+	private static String expectedParameterDescriptor(SymbolTableBuilder.ProcInfo info,
+			Map<String, String> externalJavaClasses) {
 		StringBuilder desc = new StringBuilder("(");
 		for (String paramName : info.paramNames) {
-			desc.append(externalTypeToJvmDescriptor(info.paramTypes.get(paramName), info.externalKind));
+			desc.append(externalTypeToJvmDescriptor(info.paramTypes.get(paramName), info.externalKind, externalJavaClasses));
 		}
 		desc.append(")");
 		return desc.toString();
@@ -636,9 +646,15 @@ public class PerseusCompiler {
 		return desc.toString();
 	}
 
-	private static String externalTypeToJvmDescriptor(String type, String externalKind) {
+	private static String externalTypeToJvmDescriptor(String type, String externalKind,
+			Map<String, String> externalJavaClasses) {
 		if (type == null) {
 			return "V";
+		}
+		if (type.startsWith("ref:")) {
+			String simpleName = type.substring("ref:".length());
+			String qualified = externalJavaClasses != null ? externalJavaClasses.get(simpleName) : null;
+			return qualified != null ? "L" + qualified.replace('.', '/') + ";" : "Ljava/lang/Object;";
 		}
 		if ("java-static".equals(externalKind)) {
 			return switch (type) {
@@ -667,7 +683,7 @@ public class PerseusCompiler {
 			}
 			return "L" + qualified.replace('.', '/') + ";";
 		}
-		return externalTypeToJvmDescriptor(type, "java-static");
+		return externalTypeToJvmDescriptor(type, "java-static", externalJavaClasses);
 	}
 
 	private static String toJvmDescriptor(Class<?> type) {
