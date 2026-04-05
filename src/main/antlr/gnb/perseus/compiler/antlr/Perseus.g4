@@ -274,6 +274,7 @@ expr
   | string                               # StringLiteralExpr
   | identifier                           # VarExpr
   | '(' expr ')'                         # ParenExpr
+  | NULL                                 # NullLiteralExpr
   | TRUE                                 # TrueLiteralExpr
   | FALSE                                # FalseLiteralExpr
   ;
@@ -339,6 +340,7 @@ REF : 'ref';
 NEW : 'new';
 TRUE : 'true';
 FALSE : 'false';
+NULL : 'null';
 EXCEPTION : 'exception';
 WHEN : 'when';
 AS : 'as';

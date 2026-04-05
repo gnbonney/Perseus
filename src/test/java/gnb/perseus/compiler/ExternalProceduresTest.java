@@ -147,6 +147,29 @@ public class ExternalProceduresTest extends CompilerTest {
 	}
 
 	@Test
+	public void external_java_null_reference_comparison_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_java_null_reference_comparison.alg", "gnb/perseus/programs", "ExternalJavaNullReferenceComparison", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== EXTERNAL JAVA NULL REFERENCE COMPARISON JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END EXTERNAL JAVA NULL REFERENCE COMPARISON ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("aconst_null"),
+				"Source-level null should lower to a JVM null reference literal");
+		assertTrue(jasminSource.contains("if_acmpeq") || jasminSource.contains("if_acmpne"),
+				"Reference equality and inequality should lower to JVM reference comparisons");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalJavaNullReferenceComparison");
+		System.out.println("external_java_null_reference_comparison output: [" + output + "]");
+		assertEquals("123", output.trim(),
+				"Perseus should support null literals plus = and <> comparisons for object references");
+	}
+
+	@Test
 	public void external_java_instance_fields_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/external/external_java_instance_fields.alg", "gnb/perseus/programs", "ExternalJavaInstanceFields", BUILD_DIR);
@@ -286,6 +309,17 @@ public class ExternalProceduresTest extends CompilerTest {
 				"Diagnostic should explain that no Java overload matched the supplied argument types");
 		assertTrue(e.getDiagnostics().get(0).message().contains("java.awt.Point.move"),
 				"Diagnostic should name the Java member that failed to resolve");
+	}
+
+	@Test
+	public void external_java_invalid_reference_comparison_diagnostic_test() throws Exception {
+		CompilationFailedException e = expectExternalCompilationFailure(
+				"test/algol/external/external_java_invalid_reference_comparison.alg",
+				"ExternalJavaInvalidReferenceComparison");
+
+		assertEquals("PERS2012", e.getDiagnostics().get(0).code());
+		assertTrue(e.getDiagnostics().get(0).message().contains("reference comparisons only support = and <>"),
+				"Diagnostic should explain that object references only support equality and inequality comparisons");
 	}
 
 	@Test

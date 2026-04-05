@@ -106,6 +106,16 @@ public class TypeInferencer extends PerseusBaseListener {
 
     @Override
     public void exitRelExpr(PerseusParser.RelExprContext ctx) {
+        String leftType = exprTypes.get(ctx.expr(0));
+        String rightType = exprTypes.get(ctx.expr(1));
+        if (isReferenceComparison(leftType, rightType)) {
+            String op = ctx.op.getText();
+            if (!"=".equals(op) && !"<>".equals(op)) {
+                throw error(ctx, "PERS2012", "reference comparisons only support = and <>");
+            }
+        } else if ("null".equals(leftType) || "null".equals(rightType)) {
+            throw error(ctx, "PERS2012", "null comparisons require an object reference on the other side");
+        }
         exprTypes.put(ctx, "boolean");
     }
 
@@ -220,6 +230,11 @@ public class TypeInferencer extends PerseusBaseListener {
     @Override
     public void exitFalseLiteralExpr(PerseusParser.FalseLiteralExprContext ctx) {
         exprTypes.put(ctx, "boolean");
+    }
+
+    @Override
+    public void exitNullLiteralExpr(PerseusParser.NullLiteralExprContext ctx) {
+        exprTypes.put(ctx, "null");
     }
 
     @Override
@@ -550,6 +565,14 @@ public class TypeInferencer extends PerseusBaseListener {
         }
         String className = type.substring("ref:".length());
         return isThrowableClassName(className, new java.util.HashSet<>());
+    }
+
+    private boolean isReferenceComparison(String leftType, String rightType) {
+        return isReferenceLike(leftType) && isReferenceLike(rightType);
+    }
+
+    private boolean isReferenceLike(String type) {
+        return "null".equals(type) || (type != null && type.startsWith("ref:"));
     }
 
     private boolean isThrowableClassName(String className, java.util.Set<String> seen) {

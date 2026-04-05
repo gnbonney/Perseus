@@ -506,6 +506,28 @@ That includes:
 
 This gives Perseus a source-level model for Java objects as values, not just Java methods as call targets.
 
+#### Null and Reference Comparisons
+
+Perseus includes a source-level `null` literal for object references.
+
+Examples:
+
+```algol
+ref(PrintStream) p;
+
+p := null;
+if p = null then ...
+if p <> null then ...
+```
+
+The comparison rules are:
+
+- `=` and `<>` are valid for object references
+- ordered comparisons such as `<`, `<=`, `>`, and `>=` remain numeric comparisons and are not valid for object references
+- `null` is intended for `ref(...)` values rather than as a general-purpose primitive value
+
+This gives compiled stdlib code a direct way to test whether object-valued slots are initialized, open, or closed without relying on Java-side helper registries for that state check.
+
 #### Chained Java Member Access
 
 Once object-valued bindings exist, Perseus will allow chained access through those values.

@@ -261,7 +261,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Identify the remaining Java runtime support classes still required by the compiled standard environment
 - [x] Add a real source-level `signal expr` statement so `fault` can raise Java-backed exceptions without `FaultSupport`
 - [ ] Add reference-typed arrays so compiled stdlib units can keep channel, reader, writer, and scanner state in Perseus source instead of Java-side registries
-- [ ] Add a source-level `null` reference value and the needed reference comparisons so compiled stdlib code can test open/closed or initialized/uninitialized object slots directly
+- [x] Add a source-level `null` reference value and the needed reference comparisons so compiled stdlib code can test open/closed or initialized/uninitialized object slots directly
 - [ ] Add the boxing and `ref(Object)` array support needed for compiled stdlib code to build Java `Object[]` argument lists directly, removing the need for `TextFormatSupport`
 - [ ] Move the current consolidated scanner and file-reader state from `gnb.perseus.runtime.Channels` into compiled Perseus stdlib code once the reference-state features above exist
 - [ ] Implement a real compiled `perseus.io.Channels` unit that owns channel state directly and removes the remaining Java-side `Channels` runtime helper
@@ -271,6 +271,11 @@ The milestones below collect follow-on work that was intentionally deferred whil
 **Current helper targets:**
 - `gnb.perseus.runtime.Channels`
 - `gnb.perseus.runtime.TextFormatSupport`
+
+**Implementation notes:**
+- Perseus now has a source-level `null` literal for object references.
+- Object-reference comparisons currently support `=` and `<>`, which lower to JVM reference equality/inequality.
+- Ordered comparisons such as `<` and `>` remain numeric-only and produce a diagnostic if used with object references.
 
 ## Milestone 39 - CLI Follow-On
 

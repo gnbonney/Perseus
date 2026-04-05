@@ -1632,7 +1632,10 @@ public class CodeGenerator extends PerseusBaseListener {
             String op = rel.op.getText();
             activeOutput.append(leftCode);
             activeOutput.append(rightCode);
-            if ("real".equals(leftType) || "real".equals(rightType)) {
+            if (isReferenceComparison(leftType, rightType)) {
+                String cmpInstr = "=".equals(op) ? "if_acmpeq" : "if_acmpne";
+                activeOutput.append(cmpInstr).append(" ").append(thenLabel).append("\n");
+            } else if ("real".equals(leftType) || "real".equals(rightType)) {
                 // Real comparison: dcmpg result -1/0/1, then branch
                 activeOutput.append("dcmpg\n");
                 String cmpInstr = switch (op) {
@@ -3641,6 +3644,14 @@ public class CodeGenerator extends PerseusBaseListener {
         return bounds;
     }
 
+    private boolean isReferenceComparison(String leftType, String rightType) {
+        return isReferenceLike(leftType) && isReferenceLike(rightType);
+    }
+
+    private boolean isReferenceLike(String type) {
+        return "null".equals(type) || (type != null && type.startsWith("ref:"));
+    }
+
     // -------------------------------------------------------------------------
     // Expression code generation
     // -------------------------------------------------------------------------
@@ -3663,7 +3674,17 @@ public class CodeGenerator extends PerseusBaseListener {
             String op = e.op.getText();
             String trueLabel = generateUniqueLabel("rel_true");
             String endLabel  = generateUniqueLabel("rel_end");
-            if ("real".equals(leftType) || "real".equals(rightType)) {
+            if (isReferenceComparison(leftType, rightType)) {
+                String cmpInstr = switch (op) {
+                    case "=" -> "if_acmpeq";
+                    case "<>" -> "if_acmpne";
+                    default -> throw new RuntimeException("Unknown reference rel op " + op);
+                };
+                return leftCode + rightCode + cmpInstr + " " + trueLabel + "\n" +
+                    "iconst_0\ngoto " + endLabel + "\n" +
+                    trueLabel + ":\niconst_1\n" +
+                    endLabel + ":\n";
+            } else if ("real".equals(leftType) || "real".equals(rightType)) {
                 // Real comparison: coerce to double, use dcmpg + branch
                 if ("integer".equals(leftType))  leftCode  += "i2d\n";
                 if ("integer".equals(rightType)) rightCode += "i2d\n";
@@ -4177,6 +4198,8 @@ public class CodeGenerator extends PerseusBaseListener {
             return "ldc " + e.unsignedInt().getText() + "\n";
         } else if (ctx instanceof PerseusParser.StringLiteralExprContext e) {
             return "ldc " + e.string().getText() + "\n";
+        } else if (ctx instanceof PerseusParser.NullLiteralExprContext) {
+            return "aconst_null\n";
         } else if (ctx instanceof PerseusParser.TrueLiteralExprContext) {
             return "iconst_1\n";
         } else if (ctx instanceof PerseusParser.FalseLiteralExprContext) {
