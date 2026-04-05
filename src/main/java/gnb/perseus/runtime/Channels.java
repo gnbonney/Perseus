@@ -80,18 +80,6 @@ public final class Channels {
         }
     }
 
-    public static void outReal(int channel, double number) {
-        outString(channel, Double.toString(number));
-    }
-
-    public static void outInteger(int channel, int number) {
-        outString(channel, Integer.toString(number));
-    }
-
-    public static void outTerminator(int channel) {
-        outString(channel, " ");
-    }
-
     public static String inString(int channel) {
         InputChannel reader = requireReadChannel(channel);
         try {

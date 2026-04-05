@@ -82,6 +82,32 @@ public class StdlibTest extends CompilerTest {
     }
 
     @Test
+    public void stdlib_textoutput_helper_reduction_test() throws Exception {
+        Path outDir = Files.createTempDirectory(BUILD_DIR, "stdlib-textoutput-jasmin");
+        Path jasminFile = PerseusCompiler.compileToFileInternal(
+                "src/main/perseus/stdlib/perseus/io/TextOutput.alg",
+                "perseus/io",
+                "TextOutput",
+                outDir,
+                java.util.List.of(outDir),
+                false);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertTrue(jasminSource.contains("invokestatic gnb/perseus/runtime/Channels/outString(ILjava/lang/String;)V"),
+                "TextOutput should still use the shared dynamic channel write primitive");
+        assertTrue(jasminSource.contains("invokestatic java/lang/Integer/toString(I)Ljava/lang/String;"),
+                "Integer output should now format through ordinary Java interop in compiled stdlib code");
+        assertTrue(jasminSource.contains("invokestatic java/lang/Double/toString(D)Ljava/lang/String;"),
+                "Real output should now format through ordinary Java interop in compiled stdlib code");
+        assertFalse(jasminSource.contains("Channels/outInteger"),
+                "TextOutput should no longer depend on the dedicated Channels.outInteger helper");
+        assertFalse(jasminSource.contains("Channels/outReal"),
+                "TextOutput should no longer depend on the dedicated Channels.outReal helper");
+        assertFalse(jasminSource.contains("Channels/outTerminator"),
+                "TextOutput should no longer depend on the dedicated Channels.outTerminator helper");
+    }
+
+    @Test
     public void automatic_stdlib_textinput_test() throws Exception {
         Path clientDir = Files.createTempDirectory(BUILD_DIR, "stdlib-textinput-client");
         Path clientJasmin = PerseusCompiler.compileToFile(

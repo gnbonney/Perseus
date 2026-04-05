@@ -4,12 +4,10 @@ namespace perseus.io;
 external java class java.io.PrintStream;
 external java static(gnb.perseus.runtime.Channels)
     procedure outString(integer channel; string text) as runtime_outstring;
-external java static(gnb.perseus.runtime.Channels)
-    procedure outReal(integer channel; real number) as runtime_outreal;
-external java static(gnb.perseus.runtime.Channels)
-    procedure outInteger(integer channel; integer number) as runtime_outinteger;
-external java static(gnb.perseus.runtime.Channels)
-    procedure outTerminator(integer channel) as runtime_outterminator;
+external java static(java.lang.Double)
+    string procedure toString(real number) as real_toString;
+external java static(java.lang.Integer)
+    string procedure toString(integer number) as integer_toString;
 
 external java static(java.lang.System)
     ref(PrintStream) out as stdout;
@@ -33,7 +31,7 @@ procedure outreal(channel, number);
 begin
     if channel = 0 then stderr.print(number)
     else if channel = 1 then stdout.print(number)
-    else runtime_outreal(channel, number)
+    else runtime_outstring(channel, real_toString(number))
 end;
 
 procedure outinteger(channel, number);
@@ -42,7 +40,7 @@ procedure outinteger(channel, number);
 begin
     if channel = 0 then stderr.print(number)
     else if channel = 1 then stdout.print(number)
-    else runtime_outinteger(channel, number)
+    else runtime_outstring(channel, integer_toString(number))
 end;
 
 procedure outterminator(channel);
@@ -51,7 +49,7 @@ procedure outterminator(channel);
 begin
     if channel = 0 then stderr.print(" ")
     else if channel = 1 then stdout.print(" ")
-    else runtime_outterminator(channel)
+    else runtime_outstring(channel, " ")
 end;
 
 procedure outchar(channel, text, position);
