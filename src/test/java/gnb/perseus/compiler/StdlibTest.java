@@ -99,12 +99,20 @@ public class StdlibTest extends CompilerTest {
                 "Integer output should now format through ordinary Java interop in compiled stdlib code");
         assertTrue(jasminSource.contains("invokestatic java/lang/Double/toString(D)Ljava/lang/String;"),
                 "Real output should now format through ordinary Java interop in compiled stdlib code");
+        assertTrue(jasminSource.contains("invokestatic java/lang/String/valueOf(Ljava/lang/Object;)Ljava/lang/String;"),
+                "TextOutput should now render A-format descriptors directly in compiled stdlib code");
+        assertTrue(jasminSource.contains("invokestatic java/lang/Integer/parseInt(Ljava/lang/String;)I"),
+                "TextOutput should now parse Aw and nX widths directly in compiled stdlib code");
+        assertTrue(jasminSource.contains("invokestatic gnb/perseus/runtime/TextFormatSupport/formatOne(Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/String;"),
+                "TextOutput should delegate only the remaining hard single-value descriptors to TextFormatSupport");
         assertFalse(jasminSource.contains("Channels/outInteger"),
                 "TextOutput should no longer depend on the dedicated Channels.outInteger helper");
         assertFalse(jasminSource.contains("Channels/outReal"),
                 "TextOutput should no longer depend on the dedicated Channels.outReal helper");
         assertFalse(jasminSource.contains("Channels/outTerminator"),
                 "TextOutput should no longer depend on the dedicated Channels.outTerminator helper");
+        assertFalse(jasminSource.contains("TextFormatSupport/format(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;"),
+                "TextOutput should no longer delegate whole-format parsing back to TextFormatSupport");
     }
 
     @Test

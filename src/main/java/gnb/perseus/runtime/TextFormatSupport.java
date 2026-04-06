@@ -38,6 +38,14 @@ public final class TextFormatSupport {
         return out.toString();
     }
 
+    public static String formatOne(String formatSpec, Object value) {
+        List<String> specs = parseFormatSpecs(formatSpec);
+        if (specs.size() != 1 || !isValueSpec(specs.get(0))) {
+            throw new IllegalArgumentException("Unsupported format token: " + formatSpec);
+        }
+        return formatValue(specs.get(0), value);
+    }
+
     private static boolean needsImplicitSeparator(String previousSpec, String currentSpec) {
         if (previousSpec == null) {
             return false;

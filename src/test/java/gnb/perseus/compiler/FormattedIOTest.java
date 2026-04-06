@@ -27,7 +27,7 @@ public class FormattedIOTest extends CompilerTest {
                 "Compilation should not produce an error");
         assertFalse(jasminSource.contains("gnb/perseus/runtime/TextFormatSupport/format"),
                 "Outformat should no longer emit a direct compiler-side call to TextFormatSupport");
-        assertEquals(1, countOccurrences(jasminSource, "invokestatic perseus/io/TextOutput/formatvalues(Ljava/lang/String;[Ljava/lang/Object;II)Ljava/lang/String;"),
+        assertEquals(1, countOccurrences(jasminSource, "invokestatic perseus/io/TextOutput/formatvalues(Ljava/lang/String;[Ljava/lang/Object;III)Ljava/lang/String;"),
                 "Outformat should route formatted rendering through the compiled TextOutput stdlib unit");
 
         PerseusCompiler.assemble(jasminFile, BUILD_DIR);
