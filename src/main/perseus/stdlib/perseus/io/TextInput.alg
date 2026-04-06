@@ -2,6 +2,7 @@ comment Compiled standard-environment slice for text input helpers.;
 namespace perseus.io;
 
 external java class java.lang.Object;
+external java class java.lang.IllegalArgumentException;
 external java static(gnb.perseus.runtime.Channels)
     integer procedure ininteger(integer channel) as runtime_ininteger;
 external java static(gnb.perseus.runtime.Channels)
@@ -9,7 +10,44 @@ external java static(gnb.perseus.runtime.Channels)
 external java static(gnb.perseus.runtime.Channels)
     integer procedure inchar(integer channel; string text) as runtime_inchar;
 external java static(gnb.perseus.runtime.Channels)
-    procedure informatValuesInto(integer channel; string formatLiteral; ref(Object) array values) as runtime_informatValuesInto;
+    string procedure inToken(integer channel) as runtime_intoken;
+
+boolean procedure informatdelimiter(ch);
+    value ch;
+    integer ch;
+begin
+    informatdelimiter := ch = 44 | ch = 32 | ch = 9 | ch = 10 | ch = 13
+end;
+
+boolean procedure informatdigit(ch);
+    value ch;
+    integer ch;
+begin
+    informatdigit := ch >= 48 & ch <= 57
+end;
+
+boolean procedure informatdigits(text);
+    value text;
+    string text;
+begin
+    integer i;
+
+    if text.length() = 0 then
+        informatdigits := false
+    else begin
+        informatdigits := true;
+        for i := 1 step 1 until text.length() do
+            if ~informatdigit(text.charAt(i - 1)) then
+                informatdigits := false
+    end
+end;
+
+procedure informatsignalunsupported(token);
+    value token;
+    string token;
+begin
+    signal new IllegalArgumentException(concat("Unsupported format token: ", token))
+end;
 
 procedure informatvalues(channel, formatLiteral, values);
     value channel, formatLiteral, values;
@@ -17,7 +55,57 @@ procedure informatvalues(channel, formatLiteral, values);
     string formatLiteral;
     ref(Object) array values;
 begin
-    runtime_informatValuesInto(channel, formatLiteral, values)
+    integer i, len, tokenStart, valueIndex, kind, dot;
+    string token;
+
+    len := formatLiteral.length();
+    valueIndex := 1;
+    i := 1;
+
+scan:
+    if i > len then
+        goto done;
+
+    if informatdelimiter(formatLiteral.charAt(i - 1)) then begin
+        i := i + 1;
+        goto scan
+    end;
+
+    tokenStart := i;
+tokencollect:
+    if i > len then
+        goto tokenready;
+    if informatdelimiter(formatLiteral.charAt(i - 1)) then
+        goto tokenready;
+    i := i + 1;
+    goto tokencollect;
+tokenready:
+    token := formatLiteral.substring(tokenStart - 1, i - 1);
+    kind := token.charAt(0);
+
+    if kind = 73 | kind = 105 then begin
+        if ~informatdigits(token.substring(1)) then
+            informatsignalunsupported(token);
+        values[valueIndex] := ininteger(channel)
+    end else if kind = 65 | kind = 97 then begin
+        if ~informatdigits(token.substring(1)) then
+            informatsignalunsupported(token);
+        values[valueIndex] := runtime_intoken(channel)
+    end else if kind = 70 | kind = 102 then begin
+        dot := token.indexOf(".");
+        if dot < 0 then
+            informatsignalunsupported(token);
+        if ~informatdigits(token.substring(1, dot)) then
+            informatsignalunsupported(token);
+        if ~informatdigits(token.substring(dot + 1)) then
+            informatsignalunsupported(token);
+        values[valueIndex] := inreal(channel)
+    end else
+        informatsignalunsupported(token);
+
+    valueIndex := valueIndex + 1;
+    goto scan;
+done:
 end;
 
 integer procedure ininteger(channel);

@@ -8,9 +8,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
@@ -138,73 +135,7 @@ public final class Channels {
         }
     }
 
-    public static char[] informatKinds(String formatLiteral) {
-        List<Character> kinds = parseInformatKinds(formatLiteral);
-        char[] result = new char[kinds.size()];
-        for (int i = 0; i < kinds.size(); i++) {
-            result[i] = kinds.get(i);
-        }
-        return result;
-    }
-
-    public static Object[] informatValues(int channel, String formatLiteral) {
-        List<Character> kinds = parseInformatKinds(formatLiteral);
-        Object[] values = new Object[kinds.size()];
-        for (int i = 0; i < kinds.size(); i++) {
-            values[i] = switch (kinds.get(i)) {
-                case 'I' -> Integer.valueOf(ininteger(channel));
-                case 'F' -> Double.valueOf(inreal(channel));
-                case 'A' -> inToken(channel);
-                default -> throw new IllegalArgumentException("Unsupported informat specifier");
-            };
-        }
-        return values;
-    }
-
-    public static void informatValuesInto(int channel, String formatLiteral, Object[] values) {
-        Object[] parsedValues = informatValues(channel, formatLiteral);
-        if (parsedValues.length != values.length) {
-            throw new IllegalArgumentException("format/argument count mismatch");
-        }
-        System.arraycopy(parsedValues, 0, values, 0, parsedValues.length);
-    }
-
-    private static List<Character> parseInformatKinds(String formatLiteral) {
-        String raw = unquote(formatLiteral);
-        List<Character> kinds = new ArrayList<>();
-        for (String token : raw.split("[,\\s]+")) {
-            if (token.isBlank()) {
-                continue;
-            }
-            String upper = token.toUpperCase(Locale.ROOT);
-            char kind = upper.charAt(0);
-            if (kind == 'I' || kind == 'A') {
-                requireDigits(token, upper.substring(1));
-                kinds.add(kind);
-            } else if (kind == 'F') {
-                int dot = upper.indexOf('.');
-                if (dot < 0) {
-                    throw new IllegalArgumentException("Unsupported format token: " + token);
-                }
-                requireDigits(token, upper.substring(1, dot));
-                requireDigits(token, upper.substring(dot + 1));
-                kinds.add(kind);
-            } else {
-                throw new IllegalArgumentException("Unsupported format token: " + token);
-            }
-        }
-        return kinds;
-    }
-
-    private static void requireDigits(String token, String digits) {
-        try {
-            Integer.parseInt(digits);
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException("Unsupported format token: " + token, e);
-        }
-    }
-
-    private static String inToken(int channel) {
+    public static String inToken(int channel) {
         if (channel >= 2) {
             return readDynamicToken(channel);
         }
@@ -218,15 +149,6 @@ public final class Channels {
         } catch (IOException e) {
             throw rethrowUnchecked(e);
         }
-    }
-
-    private static String unquote(String literal) {
-        if (literal == null || literal.length() < 2 || literal.charAt(0) != '"' || literal.charAt(literal.length() - 1) != '"') {
-            return literal;
-        }
-        return literal.substring(1, literal.length() - 1)
-                .replace("\\\"", "\"")
-                .replace("\\n", "\n");
     }
 
     private static RuntimeException rethrowUnchecked(Throwable throwable) {

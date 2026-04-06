@@ -126,6 +126,32 @@ public class StdlibTest extends CompilerTest {
     }
 
     @Test
+    public void stdlib_textinput_helper_reduction_test() throws Exception {
+        Path outDir = Files.createTempDirectory(BUILD_DIR, "stdlib-textinput-jasmin");
+        Path jasminFile = PerseusCompiler.compileToFileInternal(
+                "src/main/perseus/stdlib/perseus/io/TextInput.alg",
+                "perseus/io",
+                "TextInput",
+                outDir,
+                java.util.List.of(outDir),
+                false);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertTrue(jasminSource.contains("invokestatic gnb/perseus/runtime/Channels/ininteger(I)I"),
+                "TextInput should still use the shared low-level integer read primitive");
+        assertTrue(jasminSource.contains("invokestatic gnb/perseus/runtime/Channels/inreal(I)D"),
+                "TextInput should still use the shared low-level real read primitive");
+        assertTrue(jasminSource.contains("invokestatic gnb/perseus/runtime/Channels/inToken(I)Ljava/lang/String;"),
+                "TextInput should now use the shared token read primitive for A-format descriptors");
+        assertFalse(jasminSource.contains("Channels/informatKinds"),
+                "TextInput should no longer depend on the old Channels.informatKinds helper");
+        assertFalse(jasminSource.contains("Channels/informatValues"),
+                "TextInput should no longer depend on the old Channels.informatValues helper");
+        assertFalse(jasminSource.contains("Channels/informatValuesInto"),
+                "TextInput should no longer depend on the old Channels.informatValuesInto helper");
+    }
+
+    @Test
     public void automatic_stdlib_faults_test() throws Exception {
         Path clientDir = Files.createTempDirectory(BUILD_DIR, "stdlib-faults-client");
         Path clientJasmin = PerseusCompiler.compileToFile(

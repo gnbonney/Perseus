@@ -1,7 +1,7 @@
 package gnb.perseus.compiler.codegen;
 
-import gnb.perseus.runtime.Channels;
 import gnb.perseus.compiler.antlr.PerseusParser;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -349,7 +349,7 @@ public class ChannelIOGenerator {
         }
         char[] kinds;
         try {
-            kinds = Channels.informatKinds(formatLiteral);
+            kinds = parseInformatKinds(formatLiteral);
         } catch (IllegalArgumentException e) {
             activeOutput.append("; ERROR: ").append(e.getMessage()).append("\n");
             return true;
@@ -409,6 +409,56 @@ public class ChannelIOGenerator {
             }
         }
         return true;
+    }
+
+    private char[] parseInformatKinds(String formatLiteral) {
+        String raw = unquoteLiteral(formatLiteral);
+        List<Character> kinds = new ArrayList<>();
+        for (String token : raw.split("[,\\s]+")) {
+            if (token.isBlank()) {
+                continue;
+            }
+            char kind = Character.toUpperCase(token.charAt(0));
+            if (kind == 'I' || kind == 'A') {
+                requireDigits(token, token.substring(1));
+                kinds.add(kind);
+            } else if (kind == 'F') {
+                int dot = token.indexOf('.');
+                if (dot < 0) {
+                    throw new IllegalArgumentException("Unsupported format token: " + token);
+                }
+                requireDigits(token, token.substring(1, dot));
+                requireDigits(token, token.substring(dot + 1));
+                kinds.add(kind);
+            } else {
+                throw new IllegalArgumentException("Unsupported format token: " + token);
+            }
+        }
+        char[] result = new char[kinds.size()];
+        for (int i = 0; i < kinds.size(); i++) {
+            result[i] = kinds.get(i);
+        }
+        return result;
+    }
+
+    private void requireDigits(String token, String digits) {
+        if (digits.isEmpty()) {
+            throw new IllegalArgumentException("Unsupported format token: " + token);
+        }
+        for (int i = 0; i < digits.length(); i++) {
+            if (!Character.isDigit(digits.charAt(i))) {
+                throw new IllegalArgumentException("Unsupported format token: " + token);
+            }
+        }
+    }
+
+    private String unquoteLiteral(String literal) {
+        if (literal == null || literal.length() < 2 || literal.charAt(0) != '"' || literal.charAt(literal.length() - 1) != '"') {
+            return literal;
+        }
+        return literal.substring(1, literal.length() - 1)
+                .replace("\\\"", "\"")
+                .replace("\\n", "\n");
     }
 
     private boolean emitStringChannelWrite(int channel, String valueCode, StringBuilder activeOutput,

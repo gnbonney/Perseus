@@ -270,7 +270,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Move the dynamic-channel integer, real, and terminator output formatting path out of `Channels.java` and into compiled `TextOutput.alg` code using ordinary Java interop plus the remaining `outString(...)` primitive
 - [x] Route `outformat` formatting through a compiled `TextOutput.alg` helper instead of emitting a direct compiler-side call to `TextFormatSupport`, even while the underlying formatter logic still lives there for now
 - [x] Route `informat` value loading through a compiled `TextInput.alg` helper instead of emitting a direct compiler-side call to `Channels.informatValues(...)`, even while the underlying parsing logic still lives there for now
-- [ ] Move `informat` descriptor parsing and validation out of `Channels.java` and into compiled `TextInput.alg`, while keeping only the lower-level primitive reads at the runtime boundary
+- [x] Move `informat` descriptor parsing and validation out of `Channels.java` and into compiled `TextInput.alg`, while keeping only the lower-level primitive reads at the runtime boundary
 - [ ] Move the simpler `outformat` descriptor handling cases such as `A`, `Aw`, `nX`, and `/` out of `TextFormatSupport.java` and into compiled `TextOutput.alg`
 - [ ] Migrate the remaining numeric/logical `outformat` rendering cases such as `I`, `F`, `E`, and `L` out of `TextFormatSupport.java` and into compiled `TextOutput.alg`
 - [ ] Remove the now-obsolete helper entry points from `Channels.java` and `TextFormatSupport.java` as each compiled stdlib replacement lands
@@ -297,6 +297,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - `TextOutput.alg` now handles dynamic-channel integer, real, and terminator rendering itself via `java.lang.Integer.toString`, `java.lang.Double.toString`, and ordinary string output, so `Channels.java` no longer owns those wrapper methods.
 - The compiler-side `outformat` path now routes formatted rendering through a helper in compiled `TextOutput.alg`, so the generator no longer emits a direct stdio-specific call to `TextFormatSupport`.
 - The compiler-side `informat` path now routes parsed value loading through a helper in compiled `TextInput.alg`, so generated client code no longer emits a direct call to `Channels.informatValues(...)`.
+- `TextInput.alg` now owns `informat` token parsing and validation itself, while `Channels.java` has been reduced to the lower-level numeric/token read primitives still needed at that boundary.
 - Milestone 38 now has a clearer staged helper-reduction path: first route compiler behavior through compiled stdlib helpers, then migrate parsing/formatting logic into `.alg`, and finally delete the obsolete Java bridge entry points.
 
 ## Milestone 39 - CLI Follow-On
