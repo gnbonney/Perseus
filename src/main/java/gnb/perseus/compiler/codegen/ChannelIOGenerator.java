@@ -95,12 +95,12 @@ public class ChannelIOGenerator {
         return null;
     }
 
-    private String generateFormattedString(String formatLiteral, List<PerseusParser.ArgContext> valueArgs,
+    private String generateFormattedString(PerseusParser.ExprContext formatExpr, List<PerseusParser.ArgContext> valueArgs,
             Function<PerseusParser.ExprContext, String> generateExpr,
             Function<PerseusParser.ExprContext, String> exprTypeResolver,
             StringBuilder activeOutput) {
         StringBuilder sb = new StringBuilder();
-        sb.append("ldc ").append(formatLiteral).append("\n");
+        sb.append(generateExpr.apply(formatExpr));
         sb.append("ldc ").append(valueArgs.size()).append("\n");
         sb.append("anewarray java/lang/Object\n");
         for (int i = 0; i < valueArgs.size(); i++) {
@@ -278,12 +278,12 @@ public class ChannelIOGenerator {
             activeOutput.append("; ERROR: outformat requires at least a channel and format string\n");
             return true;
         }
-        String formatLiteral = getStringLiteralText(args.get(1));
-        if (formatLiteral == null) {
-            activeOutput.append("; ERROR: outformat currently requires a string-literal format\n");
+        PerseusParser.ExprContext formatExpr = args.get(1).expr();
+        if (formatExpr == null) {
+            activeOutput.append("; ERROR: outformat requires a format string\n");
             return true;
         }
-        String formattedValue = generateFormattedString(formatLiteral, args.subList(2, args.size()), generateExpr, exprTypeResolver,
+        String formattedValue = generateFormattedString(formatExpr, args.subList(2, args.size()), generateExpr, exprTypeResolver,
                 activeOutput);
         PerseusParser.ArgContext channelArg = args.get(0);
         if (emitStringOrFileOutput(channelArg, "Ljava/lang/String;", formattedValue, activeOutput, lookupVarType,

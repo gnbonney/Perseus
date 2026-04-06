@@ -13,7 +13,7 @@ import java.util.Scanner;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Shared runtime owner for dynamic channel state and channel-aware I/O helpers.
+ * Shared runtime owner for dynamic channel state and low-level channel-aware I/O primitives.
  */
 public final class Channels {
     private static final int NO_BUFFERED_CHAR = -2;
@@ -81,55 +81,6 @@ public final class Channels {
         InputChannel reader = requireReadChannel(channel);
         try {
             return reader.readLine(channel);
-        } catch (IOException e) {
-            throw rethrowUnchecked(e);
-        }
-    }
-
-    public static int ininteger(int channel) {
-        if (channel >= 2) {
-            return inInteger(channel);
-        }
-        return STDIN_SCANNER.nextInt();
-    }
-
-    public static int inInteger(int channel) {
-        InputChannel reader = requireReadChannel(channel);
-        try {
-            return Integer.parseInt(reader.readToken(channel));
-        } catch (IOException e) {
-            throw rethrowUnchecked(e);
-        }
-    }
-
-    public static double inreal(int channel) {
-        if (channel >= 2) {
-            return inReal(channel);
-        }
-        return STDIN_SCANNER.nextDouble();
-    }
-
-    public static double inReal(int channel) {
-        InputChannel reader = requireReadChannel(channel);
-        try {
-            return Double.parseDouble(reader.readToken(channel));
-        } catch (IOException e) {
-            throw rethrowUnchecked(e);
-        }
-    }
-
-    public static int inchar(int channel, String text) {
-        if (channel >= 2) {
-            return inChar(channel, text);
-        }
-        return text.indexOf(STDIN_SCANNER.next().charAt(0));
-    }
-
-    public static int inChar(int channel, String text) {
-        InputChannel reader = requireReadChannel(channel);
-        try {
-            String token = reader.readToken(channel);
-            return text.indexOf(token.charAt(0));
         } catch (IOException e) {
             throw rethrowUnchecked(e);
         }

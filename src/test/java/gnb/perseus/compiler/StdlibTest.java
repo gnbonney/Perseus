@@ -153,12 +153,18 @@ public class StdlibTest extends CompilerTest {
                 false);
         String jasminSource = Files.readString(jasminFile);
 
-        assertTrue(jasminSource.contains("invokestatic gnb/perseus/runtime/Channels/ininteger(I)I"),
-                "TextInput should still use the shared low-level integer read primitive");
-        assertTrue(jasminSource.contains("invokestatic gnb/perseus/runtime/Channels/inreal(I)D"),
-                "TextInput should still use the shared low-level real read primitive");
         assertTrue(jasminSource.contains("invokestatic gnb/perseus/runtime/Channels/inToken(I)Ljava/lang/String;"),
-                "TextInput should now use the shared token read primitive for A-format descriptors");
+                "TextInput should now use the shared token read primitive at the runtime boundary");
+        assertTrue(jasminSource.contains("invokestatic java/lang/Integer/parseInt(Ljava/lang/String;)I"),
+                "TextInput should now parse integer input directly in compiled stdlib code");
+        assertTrue(jasminSource.contains("invokestatic java/lang/Double/parseDouble(Ljava/lang/String;)D"),
+                "TextInput should now parse real input directly in compiled stdlib code");
+        assertFalse(jasminSource.contains("Channels/ininteger"),
+                "TextInput should no longer depend on the old Channels integer parsing helper");
+        assertFalse(jasminSource.contains("Channels/inreal"),
+                "TextInput should no longer depend on the old Channels real parsing helper");
+        assertFalse(jasminSource.contains("Channels/inchar"),
+                "TextInput should no longer depend on the old Channels character parsing helper");
         assertFalse(jasminSource.contains("Channels/informatKinds"),
                 "TextInput should no longer depend on the old Channels.informatKinds helper");
         assertFalse(jasminSource.contains("Channels/informatValues"),

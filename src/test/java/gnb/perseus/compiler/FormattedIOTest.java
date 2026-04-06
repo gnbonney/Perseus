@@ -107,6 +107,27 @@ public class FormattedIOTest extends CompilerTest {
     }
 
     @Test
+    public void outformat_dynamic_format_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/io/outformat_dynamic_format.alg",
+                "gnb/perseus/programs",
+                "OutformatDynamicFormat",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not require a string-literal format expression");
+        assertEquals(1, countOccurrences(jasminSource, "invokestatic perseus/io/TextOutput/formatvalues(Ljava/lang/String;[Ljava/lang/Object;III)Ljava/lang/String;"),
+                "Dynamic outformat should still route through the compiled TextOutput stdlib unit");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.OutformatDynamicFormat");
+        assertEquals("   42     3.14", output,
+                "outformat should accept a runtime string expression for the format");
+    }
+
+    @Test
     public void informat_basic_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/io/informat_basic.alg",

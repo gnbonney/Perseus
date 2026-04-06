@@ -394,6 +394,11 @@ surface remains in `perseus.io.TextInput` and `perseus.io.TextOutput`. A future
 compiled `perseus.io.Channels` unit remains the intended next consolidation
 point once the remaining reference-state features are in place.
 
+Recent helper-reduction work has already moved integer, real, and character
+input parsing into compiled `perseus.io.TextInput`, leaving `Channels` closer
+to a raw token/line and dynamic-channel ownership boundary rather than a fuller
+formatting/parsing helper layer.
+
 The standard-environment source belongs under:
 
 - `src/main/perseus/stdlib`

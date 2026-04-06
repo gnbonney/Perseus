@@ -4,13 +4,11 @@ namespace perseus.io;
 external java class java.lang.Object;
 external java class java.lang.IllegalArgumentException;
 external java static(gnb.perseus.runtime.Channels)
-    integer procedure ininteger(integer channel) as runtime_ininteger;
-external java static(gnb.perseus.runtime.Channels)
-    real procedure inreal(integer channel) as runtime_inreal;
-external java static(gnb.perseus.runtime.Channels)
-    integer procedure inchar(integer channel; string text) as runtime_inchar;
-external java static(gnb.perseus.runtime.Channels)
     string procedure inToken(integer channel) as runtime_intoken;
+external java static(java.lang.Integer)
+    integer procedure parseInt(string text) as integer_parseInt;
+external java static(java.lang.Double)
+    real procedure parseDouble(string text) as real_parseDouble;
 
 boolean procedure informatdelimiter(ch);
     value ch;
@@ -112,14 +110,14 @@ integer procedure ininteger(channel);
     value channel;
     integer channel;
 begin
-    ininteger := runtime_ininteger(channel)
+    ininteger := integer_parseInt(runtime_intoken(channel))
 end;
 
 real procedure inreal(channel);
     value channel;
     integer channel;
 begin
-    inreal := runtime_inreal(channel)
+    inreal := real_parseDouble(runtime_intoken(channel))
 end;
 
 integer procedure inchar(channel, text);
@@ -127,5 +125,8 @@ integer procedure inchar(channel, text);
     integer channel;
     string text;
 begin
-    inchar := runtime_inchar(channel, text)
+    string token;
+
+    token := runtime_intoken(channel);
+    inchar := text.indexOf(token.charAt(0))
 end
