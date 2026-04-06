@@ -286,6 +286,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - The compiled stdlib no longer depends on Java bridge classes in `gnb.perseus.runtime` for channel ownership, formatted output, or formatted input support
 - The compiler no longer relies on hardcoded stdio-specific Jasmin emission paths to implement the migrated stdlib behavior
 - `PerseusStdlibBuilder` no longer needs to copy `Channels` or `TextFormatSupport` into stdlib outputs
+- A fresh clone of the repository can build the Java compiler and then compile the standard environment from source without requiring any prebuilt stdlib jar, checked-in generated classes, or previously installed Perseus distribution
 
 **Implementation notes:**
 - Perseus now has a source-level `null` literal for object references.
