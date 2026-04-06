@@ -255,7 +255,7 @@ The standard-environment surface now divides into three architectural layers:
     `System.out` / `System.err`
 - **Narrow Java runtime helpers**
   - still used only where Perseus source does not yet express the full runtime
-    mechanism cleanly, such as `Channels` and `TextFormatSupport`
+    mechanism cleanly, such as `Channels`
 
 This keeps the environmental block as a real library surface while still
 leaving a small practical bridge for the parts of JVM interaction that remain
