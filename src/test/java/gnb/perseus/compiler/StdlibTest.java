@@ -25,6 +25,8 @@ public class StdlibTest extends CompilerTest {
                 "The stdlib builder should compile MathEnv under its namespace");
         assertTrue(Files.exists(stdlibJar),
                 "The stdlib builder should package the compiled classes into a jar");
+        assertFalse(Files.exists(stdlibClasses.resolve("gnb/perseus/runtime/TextFormatSupport.class")),
+                "The stdlib builder should no longer copy TextFormatSupport into stdlib outputs");
     }
 
     @Test
@@ -102,15 +104,21 @@ public class StdlibTest extends CompilerTest {
         assertTrue(jasminSource.contains("invokestatic java/lang/String/valueOf(Ljava/lang/Object;)Ljava/lang/String;"),
                 "TextOutput should now render A-format descriptors directly in compiled stdlib code");
         assertTrue(jasminSource.contains("invokestatic java/lang/Integer/parseInt(Ljava/lang/String;)I"),
-                "TextOutput should now parse Aw and nX widths directly in compiled stdlib code");
-        assertTrue(jasminSource.contains("invokestatic gnb/perseus/runtime/TextFormatSupport/formatOne(Ljava/lang/String;Ljava/lang/Object;)Ljava/lang/String;"),
-                "TextOutput should delegate only the remaining hard single-value descriptors to TextFormatSupport");
+                "TextOutput should now parse descriptor widths directly in compiled stdlib code");
+        assertTrue(jasminSource.contains("invokestatic java/lang/Double/parseDouble(Ljava/lang/String;)D"),
+                "TextOutput should now parse boxed numeric values directly in compiled stdlib code");
+        assertTrue(jasminSource.contains("invokestatic java/lang/Math/floor(D)D"),
+                "TextOutput should now handle fixed and scientific rounding directly in compiled stdlib code");
+        assertTrue(jasminSource.contains("invokestatic java/lang/Math/abs(D)D"),
+                "TextOutput should now normalize scientific values directly in compiled stdlib code");
         assertFalse(jasminSource.contains("Channels/outInteger"),
                 "TextOutput should no longer depend on the dedicated Channels.outInteger helper");
         assertFalse(jasminSource.contains("Channels/outReal"),
                 "TextOutput should no longer depend on the dedicated Channels.outReal helper");
         assertFalse(jasminSource.contains("Channels/outTerminator"),
                 "TextOutput should no longer depend on the dedicated Channels.outTerminator helper");
+        assertFalse(jasminSource.contains("TextFormatSupport"),
+                "TextOutput should no longer depend on TextFormatSupport for any descriptor rendering");
         assertFalse(jasminSource.contains("TextFormatSupport/format(Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;"),
                 "TextOutput should no longer delegate whole-format parsing back to TextFormatSupport");
     }

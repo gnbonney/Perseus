@@ -272,7 +272,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Route `informat` value loading through a compiled `TextInput.alg` helper instead of emitting a direct compiler-side call to `Channels.informatValues(...)`, even while the underlying parsing logic still lives there for now
 - [x] Move `informat` descriptor parsing and validation out of `Channels.java` and into compiled `TextInput.alg`, while keeping only the lower-level primitive reads at the runtime boundary
 - [x] Move the simpler `outformat` descriptor handling cases such as `A`, `Aw`, `nX`, and `/` out of `TextFormatSupport.java` and into compiled `TextOutput.alg`
-- [ ] Migrate the remaining numeric/logical `outformat` rendering cases such as `I`, `F`, `E`, and `L` out of `TextFormatSupport.java` and into compiled `TextOutput.alg`
+- [x] Migrate the remaining numeric/logical `outformat` rendering cases such as `I`, `F`, `E`, and `L` out of `TextFormatSupport.java` and into compiled `TextOutput.alg`
 - [ ] Remove the now-obsolete helper entry points from `Channels.java` and `TextFormatSupport.java` as each compiled stdlib replacement lands
 - [ ] Remove compiler-side stdio/channel state assumptions that currently live in `ChannelIOGenerator` (for example literal-only `outformat`/`informat` paths and constant-channel bookkeeping) by moving that behavior behind ordinary compiled stdlib code where practical
 - [ ] Add regression coverage showing the migrated stdlib paths still work without those helper classes
@@ -299,6 +299,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - The compiler-side `informat` path now routes parsed value loading through a helper in compiled `TextInput.alg`, so generated client code no longer emits a direct call to `Channels.informatValues(...)`.
 - `TextInput.alg` now owns `informat` token parsing and validation itself, while `Channels.java` has been reduced to the lower-level numeric/token read primitives still needed at that boundary.
 - `TextOutput.alg` now owns tokenization plus the simpler `outformat` descriptors `A`, `Aw`, `nX`, and `/`, while `TextFormatSupport.java` has been narrowed from whole-format rendering down to the remaining single-token numeric/logical cases.
+- `TextOutput.alg` now also owns the remaining numeric/logical `outformat` descriptors `I`, `F`, `E`, and `L`, so compiled stdlib formatting no longer depends on `TextFormatSupport.java` at runtime and the stdlib builder no longer needs to copy that helper into stdlib outputs.
 - Milestone 38 now has a clearer staged helper-reduction path: first route compiler behavior through compiled stdlib helpers, then migrate parsing/formatting logic into `.alg`, and finally delete the obsolete Java bridge entry points.
 
 ## Milestone 39 - CLI Follow-On
