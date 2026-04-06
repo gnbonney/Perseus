@@ -161,6 +161,14 @@ public final class Channels {
         return values;
     }
 
+    public static void informatValuesInto(int channel, String formatLiteral, Object[] values) {
+        Object[] parsedValues = informatValues(channel, formatLiteral);
+        if (parsedValues.length != values.length) {
+            throw new IllegalArgumentException("format/argument count mismatch");
+        }
+        System.arraycopy(parsedValues, 0, values, 0, parsedValues.length);
+    }
+
     private static List<Character> parseInformatKinds(String formatLiteral) {
         String raw = unquote(formatLiteral);
         List<Character> kinds = new ArrayList<>();

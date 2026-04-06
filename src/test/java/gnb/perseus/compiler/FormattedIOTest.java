@@ -121,6 +121,10 @@ public class FormattedIOTest extends CompilerTest {
 
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error");
+        assertFalse(jasminSource.contains("gnb/perseus/runtime/Channels/informatValues"),
+                "Informat should no longer emit a direct compiler-side call to Channels.informatValues");
+        assertEquals(1, countOccurrences(jasminSource, "invokestatic perseus/io/TextInput/informatvalues(ILjava/lang/String;[Ljava/lang/Object;II)V"),
+                "Informat should route value loading through the compiled TextInput stdlib unit");
 
         PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 

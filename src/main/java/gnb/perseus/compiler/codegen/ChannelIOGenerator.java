@@ -360,10 +360,15 @@ public class ChannelIOGenerator {
         }
 
         Integer valuesSlot = allocateNewLocal.apply("informatValues");
+        activeOutput.append("ldc ").append(kinds.length).append("\n")
+                .append("anewarray java/lang/Object\n")
+                .append("astore ").append(valuesSlot).append("\n");
         appendChannelValue(args.get(0), activeOutput, generateExpr);
         activeOutput.append("ldc ").append(formatLiteral).append("\n")
-                .append("invokestatic gnb/perseus/runtime/Channels/informatValues(ILjava/lang/String;)[Ljava/lang/Object;\n")
-                .append("astore ").append(valuesSlot).append("\n");
+                .append("aload ").append(valuesSlot).append("\n")
+                .append("ldc 1\n")
+                .append("ldc ").append(kinds.length).append("\n")
+                .append("invokestatic perseus/io/TextInput/informatvalues(ILjava/lang/String;[Ljava/lang/Object;II)V\n");
 
         for (int i = 0; i < kinds.length; i++) {
             char kind = kinds[i];
