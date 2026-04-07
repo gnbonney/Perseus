@@ -120,6 +120,8 @@ public class CodeGenerator extends PerseusBaseListener {
     // For for loops
     private String currentForLoopLabel;
     private String currentForEndLabel;
+    private final Deque<String> loopStartLabelStack = new ArrayDeque<>();
+    private final Deque<String> loopEndLabelStack = new ArrayDeque<>();
 
     // Stack for capturing for-loop body code (enables multi-element for-list by body-inline duplication)
     private final Deque<StringBuilder> forBodyStack = new ArrayDeque<>();
@@ -1522,6 +1524,49 @@ public class CodeGenerator extends PerseusBaseListener {
         if (skippingClassSubtree()) return;
         activeOutput.append(generateExpr(ctx.expr()));
         activeOutput.append("athrow\n");
+    }
+
+    @Override
+    public void enterLoopStatement(PerseusParser.LoopStatementContext ctx) {
+        if (skippingClassSubtree()) return;
+        String loopLabel = generateUniqueLabel("loop");
+        String endLabel = generateUniqueLabel("endloop");
+        loopStartLabelStack.push(loopLabel);
+        loopEndLabelStack.push(endLabel);
+        activeOutput.append(loopLabel).append(":\n");
+    }
+
+    @Override
+    public void exitLoopStatement(PerseusParser.LoopStatementContext ctx) {
+        if (skippingClassSubtree()) return;
+        if (loopStartLabelStack.isEmpty() || loopEndLabelStack.isEmpty()) {
+            activeOutput.append("; ERROR: loop-label stack underflow\n");
+            return;
+        }
+        String loopLabel = loopStartLabelStack.pop();
+        String endLabel = loopEndLabelStack.pop();
+        activeOutput.append("goto ").append(loopLabel).append("\n");
+        activeOutput.append(endLabel).append(":\n");
+    }
+
+    @Override
+    public void exitBreakStatement(PerseusParser.BreakStatementContext ctx) {
+        if (skippingClassSubtree()) return;
+        if (loopEndLabelStack.isEmpty()) {
+            activeOutput.append("; ERROR: break used outside loop\n");
+            return;
+        }
+        activeOutput.append("goto ").append(loopEndLabelStack.peek()).append("\n");
+    }
+
+    @Override
+    public void exitContinueStatement(PerseusParser.ContinueStatementContext ctx) {
+        if (skippingClassSubtree()) return;
+        if (loopStartLabelStack.isEmpty()) {
+            activeOutput.append("; ERROR: continue used outside loop\n");
+            return;
+        }
+        activeOutput.append("goto ").append(loopStartLabelStack.peek()).append("\n");
     }
 
     // -------------------------------------------------------------------------

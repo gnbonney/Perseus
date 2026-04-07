@@ -24,6 +24,31 @@ That means a Perseus array declaration describes an abstract index space, while 
 
 On the JVM, Perseus currently lowers declared arrays to ordinary JVM arrays and performs the bound normalization in generated code. Here "lowers" means "translates a Perseus source construct into its underlying JVM form." Non-zero lower bounds are handled by subtracting the declared lower bound, and multidimensional arrays are flattened in row-major order rather than emitted as Java arrays-of-arrays. This keeps the surface language close to Algol while still mapping cleanly onto JVM bytecode.
 
+## Looping Extensions
+
+Perseus keeps the original Algol `for ... step ... until ... do` statement, but it is also beginning to add a more modern loop surface.
+
+The first looping extension is a general `loop` form:
+
+```algol
+loop
+begin
+    ...
+    if done then break;
+    ...
+    if skiprest then continue;
+    ...
+end loop;
+```
+
+This form is intended to cover the cases where an open-ended repetition is clearer than forcing the older Algol `for` shapes. It also gives Perseus a structured alternative to some uses of local `goto`.
+
+The current semantics are:
+
+- `loop begin ... end` repeats until a `break` transfers control to the statement after the loop.
+- `continue` skips the remainder of the current iteration and resumes at the top of the same `loop`.
+- The historical `end loop` spelling continues to be accepted as an `end` comment as well, so older Algol-style samples are not broken by reserving `loop` as a keyword.
+
 ## Strings
 
 Many historic Algol compilers (e.g., NU Algol, Data General Extended Algol, Algol W, Simula) introduced a string type or class, often as a variable-length array of characters or a record with a length and character array. Simula's `Text` class and Algol W's `string` type are notable examples.

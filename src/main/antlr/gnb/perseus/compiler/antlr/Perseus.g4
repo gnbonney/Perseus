@@ -54,7 +54,7 @@ compoundStatement
   ;
 
 statement
-  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalProcedureDecl | externalValueDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | signalStatement | block)?
+  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalProcedureDecl | externalValueDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | loopStatement | breakStatement | continueStatement | signalStatement | block)?
   ;
 
 classDecl
@@ -114,6 +114,7 @@ exceptionPattern
 
 endComment
   : IDENT
+  | LOOP
   ;
 
 procedureDecl
@@ -232,6 +233,18 @@ forStatement
   : FOR identifier (':=' | '=') forList DO statement
   ;
 
+loopStatement
+  : LOOP block
+  ;
+
+breakStatement
+  : BREAK
+  ;
+
+continueStatement
+  : CONTINUE
+  ;
+
 signalStatement
   : SIGNAL expr
   ;
@@ -336,6 +349,9 @@ STEP : 'step';
 UNTIL : 'until';
 WHILE : 'while';
 DO : 'do';
+LOOP : 'loop';
+BREAK : 'break';
+CONTINUE : 'continue';
 GOTO : 'goto';
 SWITCH : 'switch';
 OWN : 'own';

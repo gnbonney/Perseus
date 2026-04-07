@@ -181,6 +181,29 @@ public class CoreLanguageTest extends CompilerTest{
 	}
 
 	@Test
+	public void loop_break_continue_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/core/loop_break_continue.alg", "gnb/perseus/programs", "LoopBreakContinueTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== LOOP BREAK CONTINUE JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END LOOP BREAK CONTINUE ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("goto loop_"),
+				"loop should emit a back-edge to the loop start");
+		assertTrue(jasminSource.contains("endloop_"),
+				"loop should emit a distinct break target label");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.LoopBreakContinueTest");
+		System.out.println("loop_break_continue output: [" + output + "]");
+		assertEquals("12", output.trim(),
+				"loop, break, and continue should support the expected control-flow behavior");
+	}
+
+	@Test
 	public void boolean_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/core/boolean.alg", "gnb/perseus/programs", "Boolean", BUILD_DIR);

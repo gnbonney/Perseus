@@ -23,11 +23,15 @@ The current intended order is:
 **Goal:** Extend Perseus with more modern looping forms while preserving the original Algol `for` statement for compatibility (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
 
 - [ ] Add `for ... in ... do` iteration over ranges and existing array forms
-- [ ] Add a general `loop ... end` construct
-- [ ] Add `break` and `continue`
+- [x] Add a general `loop ... end` construct
+- [x] Add `break` and `continue`
 - [ ] Define range syntax such as `..` and `..<`
 - [ ] Define scope and evaluation rules for loop-local iteration variables
 - [ ] Add focused sample programs and regression tests for the new loop forms
+
+**Implementation notes:**
+- The first Milestone 41 slice landed `loop begin ... end` with `break` and `continue`.
+- Historical `end loop` spellings continue to parse as `end` comments for compatibility, but plain `end` remains the structural closer.
 
 ## Milestone 42 - Lambda Notation
 
