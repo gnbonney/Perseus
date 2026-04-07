@@ -332,7 +332,7 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Verify end-to-end `inchar(channel, str, var)` behavior through the compiled stdlib path
 - [ ] Add a direct regression around [`input_procedures.alg`](../test/algol/io/input_procedures.alg) rather than relying only on equivalent coverage
 - [x] Decide whether the current console/scanner/channel model for input procedures matches the intended environmental-block semantics closely enough
-- [ ] Update the current environmental-block and language-design documentation once that behavior is explicitly confirmed
+- [x] Update the current environmental-block and language-design documentation once that behavior is explicitly confirmed
 
 **Implementation notes:**
 - Current regression coverage already exercises the three ordinary input procedures through both the compiled `TextInput` stdlib path and dynamic file-channel scenarios.
