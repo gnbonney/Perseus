@@ -539,6 +539,27 @@ end
     }
 
     @Test
+    public void console_input_rejects_channel_zero_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/io/console_input_channel_validation.alg", "gnb/perseus/programs",
+                "ConsoleInputChannelValidation", BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        System.out.println("=== CONSOLE INPUT CHANNEL VALIDATION JASMIN ===");
+        System.out.println(jasminSource);
+        System.out.println("=== END CONSOLE INPUT CHANNEL VALIDATION ===");
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ConsoleInputChannelValidation");
+        assertEquals("1", output.trim(),
+                "Console input should reject channel 0 so standard input is reserved for channel 1");
+    }
+
+    @Test
     public void file_channel_eof_exception_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/io/file_channel_eof_exception.alg", "gnb/perseus/programs",

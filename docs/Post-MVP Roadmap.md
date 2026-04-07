@@ -325,14 +325,18 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 ## Milestone 40 - Input Procedures Cleanup
 
-**Goal:** Revisit the input-side environmental procedures that were marked complete during the MVP path and confirm that they really work end to end in realistic programs.
+**Goal:** Close out the remaining questions around input-side environmental procedures now that the implementation has moved onto the compiled standard environment.
 
-- [ ] Add a real regression around [`input_procedures.alg`](../test/algol/io/input_procedures.alg)
-- [ ] Verify and, if necessary, fix ininteger(channel, var) runtime behavior
-- [ ] Verify and, if necessary, fix inreal(channel, var) runtime behavior
-- [ ] Verify and, if necessary, fix inchar(channel, str, var) runtime behavior
-- [ ] Decide whether the current scanner/channel model for input procedures matches the intended environmental-block semantics closely enough
-- [ ] Update the MVP and environmental-block documentation once the behavior is confirmed
+- [x] Verify end-to-end `ininteger(channel, var)` behavior through the compiled stdlib path
+- [x] Verify end-to-end `inreal(channel, var)` behavior through the compiled stdlib path
+- [x] Verify end-to-end `inchar(channel, str, var)` behavior through the compiled stdlib path
+- [ ] Add a direct regression around [`input_procedures.alg`](../test/algol/io/input_procedures.alg) rather than relying only on equivalent coverage
+- [x] Decide whether the current console/scanner/channel model for input procedures matches the intended environmental-block semantics closely enough
+- [ ] Update the current environmental-block and language-design documentation once that behavior is explicitly confirmed
+
+**Implementation notes:**
+- Current regression coverage already exercises the three ordinary input procedures through both the compiled `TextInput` stdlib path and dynamic file-channel scenarios.
+- The main remaining question is no longer whether `ininteger`, `inreal`, and `inchar` work at all, but whether the current channel/console semantics are the right long-term environmental-block model and are documented clearly enough.
 
 ## Future Direction Milestones
 

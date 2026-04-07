@@ -103,13 +103,23 @@ begin
     end
 end;
 
+procedure ensureconsoleinputchannel(channel);
+    value channel;
+    integer channel;
+begin
+    if channel = 0 then
+        signal new IllegalArgumentException("Channel 0 is reserved for standard error output");
+    if channel <> 1 then
+        ensuredynamicchannel(channel)
+end;
+
 procedure unreadchar(channel, ch);
     value channel, ch;
     integer channel, ch;
 begin
     ref(Integer) key;
 
-    if channel < 2 then begin
+    if channel = 1 then begin
         stdinbufferedflag := 1;
         stdinbufferedchar := ch
     end else begin
@@ -128,7 +138,7 @@ begin
     ref(BufferedReader) reader;
     ref(Integer) boxedchar;
 
-    if channel < 2 then begin
+    if channel = 1 then begin
         ensurestdin;
         if stdinbufferedflag <> 0 then begin
             readchar := stdinbufferedchar;
@@ -136,8 +146,8 @@ begin
         end else
             readchar := stdinreader.read
     end else begin
+        ensureconsoleinputchannel(channel);
         ensurestate;
-        ensuredynamicchannel(channel);
         key := channelkey(channel);
         reader := readchannels.get(key);
         if reader = null then
