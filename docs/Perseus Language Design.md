@@ -99,7 +99,7 @@ This approach is consistent with the Modified Report's philosophy of implementat
 
 Many historic Algol compilers provided formatted I/O, but there was no single standard Algol 60 format language. Perseus therefore treats formatted I/O as an intentional extension with a small descriptor-based syntax that is Algol-friendly, strongly reminiscent of classic Fortran formatting, and practical on the JVM.
 
-The current implementation renders output-side Perseus format descriptors through shared runtime formatting support. That keeps the user-facing model compact while letting the runtime reuse JVM formatting behavior where it fits naturally.
+The current implementation renders output-side Perseus format descriptors through compiled standard-environment code in `perseus.io.TextOutput`. That keeps the user-facing model compact while still letting the implementation use ordinary JVM interop where it fits naturally.
 
 ## Rationale
 
@@ -130,7 +130,7 @@ Perseus keeps these as the user-facing formatted-I/O procedures:
 
 This asymmetry is intentional. Formatted output remains useful for reports, tables, finance-style output, and teaching examples, while formatted input is a less central modern need. Real input data is more often delimited or structured than fixed-width, and richer input parsing is usually better handled through ordinary string processing or library interop than through a large built-in descriptor language. Perseus therefore keeps `informat` as a small convenience unless stronger real-world use cases later justify expanding it.
 
-The current `informat` implementation now shares runtime support for format parsing and value-reading, even though its descriptor family remains intentionally smaller than `outformat`.
+The current `informat` implementation also lives in compiled standard-environment code (`perseus.io.TextInput`), even though its descriptor family remains intentionally smaller than `outformat`.
 
 ### Expanded conservative direction
 
@@ -282,6 +282,7 @@ closefile(5);
 - Higher channel numbers (e.g., 2+) can be dynamically assigned to files or other streams via `openfile`, or to string buffers via `openstring`.
 - All I/O procedures accept a channel parameter, which determines the target stream, file, or string buffer.
 - When a channel is mapped to a string variable, output procedures append to the string, enabling formatted string construction (like `sprintf` in C or `StringWriter` in Java).
+- In the current implementation, that string-channel behavior is owned by the compiled `perseus.io.Channels` standard-environment unit rather than by compiler-emitted special append code.
 - Error handling for invalid channels, file not found, or permission errors should be integrated with the `fault` procedure.
 - These extensions are not defined in the Algol 60 Modified Report, but are essential for modern usability and compatibility with historical Algol implementations.
 

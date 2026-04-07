@@ -229,6 +229,7 @@ The migrated environmental units are:
 
 - `perseus.lang.MathEnv`
 - `perseus.text.Strings`
+- `perseus.io.Channels`
 - `perseus.io.TextInput`
 - `perseus.io.TextOutput`
 - `perseus.runtime.Faults`
@@ -240,26 +241,20 @@ artifact.
 The remaining intrinsic core is intentionally small:
 
 - `stop` remains a compiler/runtime intrinsic.
-- `Channels` is still the next heavier runtime layer and remains part of the
-  later dynamic-channel work.
 
 ### Current Lowering Split
 
-The standard-environment surface now divides into three architectural layers:
+The standard-environment surface now divides into two architectural layers:
 
 - **Compiled Perseus stdlib code**
-  - `MathEnv`, `Strings`, `TextOutput`, `TextInput`, and `Faults`
+  - `MathEnv`, `Strings`, `Channels`, `TextOutput`, `TextInput`, and `Faults`
 - **Direct Java interop from stdlib code**
-  - used where Perseus source can now express the needed Java members directly,
-    such as `MathEnv` numeric constants and `TextOutput` access to
-    `System.out` / `System.err`
-- **Narrow Java runtime helpers**
-  - still used only where Perseus source does not yet express the full runtime
-    mechanism cleanly, such as `Channels`
+  - used where Perseus source can express the needed JVM members directly,
+    such as math constants, file/stream objects, standard streams, exceptions,
+    and thunk-backed string-channel targets
 
-This keeps the environmental block as a real library surface while still
-leaving a small practical bridge for the parts of JVM interaction that remain
-outside the current Perseus source model.
+This keeps the environmental block as a real library surface rather than a mix
+of compiled stdlib code plus Java helper ownership.
 
 ---
 
@@ -272,7 +267,7 @@ The code generation phase (Pass 2) uses a modular, delegation-based architecture
 - **StatementGenerator:** Handles statement-level code generation, including assignments, control flow (`if`, `for`, `goto`), and procedure calls.
 - **ProcedureGenerator:** Handles procedure declarations, procedure references (lifting static methods to objects), procedure variable calls, and thunk class generation for call-by-name parameters.
 - **BuiltinFunctionGenerator:** Handles expression-position environmental functions and other built-in value-returning operations.
-- **ChannelIOGenerator:** Handles channel-backed I/O procedures such as `openfile`, `openstring`, `closefile`, `outstring`, `outformat`, and `informat`, while delegating current formatted rendering/parsing and channel-state mechanics to the shared runtime support layer.
+- **ChannelIOGenerator:** Handles channel-backed I/O procedures such as `openfile`, `openstring`, `closefile`, `outstring`, `outformat`, and `informat`, but now lowers them to the compiled stdlib surface (`perseus.io.Channels`, `perseus.io.TextInput`, and `perseus.io.TextOutput`) rather than owning special-case formatting or channel-state behavior itself.
 - **ExceptionGenerator:** Handles `begin ... exception ... end` lowering, resolves exception patterns to JVM exception classes, and emits nested JVM `try/catch` regions in lexical order.
 - **ClassGenerator:** Handles Perseus class declarations, object construction, instance members, and related synthetic class emission.
 - **ContextManager:** Centralizes all shared state (symbol tables, local indices, output buffers, and synthetic class definitions for thunks and procedure references).
@@ -360,6 +355,7 @@ uses a few focused support classes.
 
 - `perseus.lang.MathEnv`
 - `perseus.text.Strings`
+- `perseus.io.Channels`
 - `perseus.io.TextInput`
 - `perseus.io.TextOutput`
 - `perseus.runtime.Faults`
@@ -371,14 +367,17 @@ uses a few focused support classes.
 - `perseus.text.Strings`
   - String-oriented helpers such as `length`, `concat`, and `substring`, plus a natural home for future
       standard string support.
+- `perseus.io.Channels`
+  - Dynamic channel ownership/state plus the lower-level token, line, file, and
+    string-channel primitives that the text I/O units build on.
 - `perseus.io.TextInput`
   - Input-oriented environmental procedures such as `inchar`, `ininteger`, and
-    `inreal`, including the current shared runtime support behind standard-input
-    scanning, file-channel reads, and formatted input parsing.
+    `inreal`, including compiled stdlib parsing and formatted-input handling on
+    top of the channel primitives.
 - `perseus.io.TextOutput`
   - Output-oriented environmental procedures such as `outchar`, `outstring`,
-    `outinteger`, `outreal`, and `outterminator`, including the current shared
-    runtime support behind channel-aware dispatch and formatted output rendering.
+    `outinteger`, `outreal`, and `outterminator`, including compiled stdlib
+    formatting and channel-aware dispatch.
 - `perseus.runtime.Faults`
   - Runtime fault raising such as `fault`, while `stop` remains a
     compiler/runtime intrinsic.
@@ -396,6 +395,9 @@ stream boundary.
 Recent helper-reduction work also moved integer, real, and character input
 parsing into compiled `perseus.io.TextInput`, so the standard text-I/O surface
 is no longer split across a Java-side runtime helper and compiled stdlib code.
+String-channel accumulation also now lives behind the compiled `Channels` unit
+through a generic thunk-backed target, so `openstring` is no longer implemented
+by compiler-emitted append logic.
 
 The standard-environment source belongs under:
 
