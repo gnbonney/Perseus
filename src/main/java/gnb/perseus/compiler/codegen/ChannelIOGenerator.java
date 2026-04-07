@@ -2,7 +2,6 @@ package gnb.perseus.compiler.codegen;
 
 import gnb.perseus.compiler.antlr.PerseusParser;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
@@ -15,10 +14,6 @@ import java.util.function.Function;
 public class ChannelIOGenerator {
     private final String packageName;
     private final String className;
-    private final Map<Integer, FileChannelBinding> constantFileChannels = new LinkedHashMap<>();
-    private final Map<Integer, String> constantStringChannels = new LinkedHashMap<>();
-
-    private record FileChannelBinding(String filenameLiteral, String mode) {}
 
     public ChannelIOGenerator(String packageName, String className) {
         this.packageName = packageName;
@@ -37,10 +32,11 @@ public class ChannelIOGenerator {
             Function<String, Integer> allocateNewLocal,
             Function<PerseusParser.ArgContext, String> getChannelStream,
             Function<String, String> lookupVarType,
-            BiFunction<String, String, String> staticFieldName) {
+            BiFunction<String, String, String> staticFieldName,
+            Function<PerseusParser.ArgContext, String> generateOpenStringTarget) {
         return switch (name) {
             case "openfile" -> emitOpenFile(args, activeOutput, generateExpr);
-            case "openstring" -> emitOpenString(args, activeOutput);
+            case "openstring" -> emitOpenString(args, activeOutput, generateExpr, generateOpenStringTarget);
             case "closefile" -> emitCloseFile(args, activeOutput, generateExpr);
             case "outstring" -> emitOutString(args, activeOutput, generateExpr, getChannelStream, lookupVarType,
                     currentLocalIndex, staticFieldName, allocateNewLocal);
@@ -133,21 +129,6 @@ public class ChannelIOGenerator {
             activeOutput.append("; ERROR: openfile requires channel, filename, and mode\n");
             return true;
         }
-        Integer channel = getConstantChannelValue(args.get(0));
-        String filenameLiteral = getStringLiteralText(args.get(1));
-        String modeLiteral = getStringLiteralText(args.get(2));
-        if (channel != null && filenameLiteral != null && modeLiteral != null) {
-            String mode = switch (modeLiteral) {
-                case "\"w\"" -> "w";
-                case "\"r\"" -> "r";
-                case "\"a\"" -> "a";
-                default -> null;
-            };
-            if (mode != null) {
-                constantFileChannels.put(channel, new FileChannelBinding(filenameLiteral, mode));
-                constantStringChannels.remove(channel);
-            }
-        }
         appendChannelValue(args.get(0), activeOutput, generateExpr);
         activeOutput.append(args.get(1).expr() != null ? generateExpr.apply(args.get(1).expr()) : "ldc \"\"\n");
         activeOutput.append(args.get(2).expr() != null ? generateExpr.apply(args.get(2).expr()) : "ldc \"\"\n");
@@ -155,19 +136,21 @@ public class ChannelIOGenerator {
         return true;
     }
 
-    private boolean emitOpenString(List<PerseusParser.ArgContext> args, StringBuilder activeOutput) {
+    private boolean emitOpenString(List<PerseusParser.ArgContext> args, StringBuilder activeOutput,
+            Function<PerseusParser.ExprContext, String> generateExpr,
+            Function<PerseusParser.ArgContext, String> generateOpenStringTarget) {
         if (args.size() < 2) {
             activeOutput.append("; ERROR: openstring requires channel and target string variable\n");
             return true;
         }
-        Integer channel = getConstantChannelValue(args.get(0));
-        String variableName = getVariableName(args.get(1));
-        if (channel == null || variableName == null) {
-            activeOutput.append("; ERROR: openstring currently requires a constant channel and a string variable\n");
+        String targetThunk = generateOpenStringTarget.apply(args.get(1));
+        if (targetThunk == null) {
+            activeOutput.append("; ERROR: openstring requires a supported writable string variable target\n");
             return true;
         }
-        constantStringChannels.put(channel, variableName);
-        constantFileChannels.remove(channel);
+        appendChannelValue(args.get(0), activeOutput, generateExpr);
+        activeOutput.append(targetThunk);
+        activeOutput.append("invokestatic perseus/io/Channels/openstring(ILjava/lang/Object;)V\n");
         return true;
     }
 
@@ -176,11 +159,6 @@ public class ChannelIOGenerator {
         if (args.isEmpty()) {
             activeOutput.append("; ERROR: closefile requires a channel\n");
             return true;
-        }
-        Integer channel = getConstantChannelValue(args.get(0));
-        if (channel != null) {
-            constantFileChannels.remove(channel);
-            constantStringChannels.remove(channel);
         }
         appendChannelValue(args.get(0), activeOutput, generateExpr);
         activeOutput.append("invokestatic perseus/io/Channels/closefile(I)V\n");
@@ -195,13 +173,9 @@ public class ChannelIOGenerator {
             BiFunction<String, String, String> staticFieldName,
             Function<String, Integer> allocateNewLocal) {
         PerseusParser.ArgContext channelArg = args.size() > 1 ? args.get(0) : null;
-        if (!emitStringOrFileOutput(channelArg, "Ljava/lang/String;",
-                generateExpr.apply(args.get(args.size() - 1).expr()), activeOutput, lookupVarType, currentLocalIndex,
-                staticFieldName, allocateNewLocal)) {
-            appendChannelValue(channelArg, activeOutput, generateExpr);
-            activeOutput.append(generateExpr.apply(args.get(args.size() - 1).expr()))
-                    .append("invokestatic perseus/io/TextOutput/outstring(ILjava/lang/String;)V\n");
-        }
+        appendChannelValue(channelArg, activeOutput, generateExpr);
+        activeOutput.append(generateExpr.apply(args.get(args.size() - 1).expr()))
+                .append("invokestatic perseus/io/TextOutput/outstring(ILjava/lang/String;)V\n");
         return true;
     }
 
@@ -213,13 +187,9 @@ public class ChannelIOGenerator {
             BiFunction<String, String, String> staticFieldName,
             Function<String, Integer> allocateNewLocal) {
         PerseusParser.ArgContext channelArg = args.size() > 1 ? args.get(0) : null;
-        if (!emitStringOrFileOutput(channelArg, "D",
-                generateExpr.apply(args.get(args.size() - 1).expr()), activeOutput, lookupVarType, currentLocalIndex,
-                staticFieldName, allocateNewLocal)) {
-            appendChannelValue(channelArg, activeOutput, generateExpr);
-            activeOutput.append(generateExpr.apply(args.get(args.size() - 1).expr()))
-                    .append("invokestatic perseus/io/TextOutput/outreal(ID)V\n");
-        }
+        appendChannelValue(channelArg, activeOutput, generateExpr);
+        activeOutput.append(generateExpr.apply(args.get(args.size() - 1).expr()))
+                .append("invokestatic perseus/io/TextOutput/outreal(ID)V\n");
         return true;
     }
 
@@ -231,13 +201,9 @@ public class ChannelIOGenerator {
             BiFunction<String, String, String> staticFieldName,
             Function<String, Integer> allocateNewLocal) {
         PerseusParser.ArgContext channelArg = args.size() > 1 ? args.get(0) : null;
-        if (!emitStringOrFileOutput(channelArg, "I",
-                generateExpr.apply(args.get(args.size() - 1).expr()), activeOutput, lookupVarType, currentLocalIndex,
-                staticFieldName, allocateNewLocal)) {
-            appendChannelValue(channelArg, activeOutput, generateExpr);
-            activeOutput.append(generateExpr.apply(args.get(args.size() - 1).expr()))
-                    .append("invokestatic perseus/io/TextOutput/outinteger(II)V\n");
-        }
+        appendChannelValue(channelArg, activeOutput, generateExpr);
+        activeOutput.append(generateExpr.apply(args.get(args.size() - 1).expr()))
+                .append("invokestatic perseus/io/TextOutput/outinteger(II)V\n");
         return true;
     }
 
@@ -249,11 +215,8 @@ public class ChannelIOGenerator {
             BiFunction<String, String, String> staticFieldName,
             Function<String, Integer> allocateNewLocal) {
         PerseusParser.ArgContext channelArg = args.size() > 0 ? args.get(0) : null;
-        if (!emitStringOrFileOutput(channelArg, "Ljava/lang/String;", "ldc \" \"\n", activeOutput, lookupVarType,
-                currentLocalIndex, staticFieldName, allocateNewLocal)) {
-            appendChannelValue(channelArg, activeOutput, generateExpr);
-            activeOutput.append("invokestatic perseus/io/TextOutput/outterminator(I)V\n");
-        }
+        appendChannelValue(channelArg, activeOutput, generateExpr);
+        activeOutput.append("invokestatic perseus/io/TextOutput/outterminator(I)V\n");
         return true;
     }
 
@@ -286,10 +249,6 @@ public class ChannelIOGenerator {
         String formattedValue = generateFormattedString(formatExpr, args.subList(2, args.size()), generateExpr, exprTypeResolver,
                 activeOutput);
         PerseusParser.ArgContext channelArg = args.get(0);
-        if (emitStringOrFileOutput(channelArg, "Ljava/lang/String;", formattedValue, activeOutput, lookupVarType,
-                currentLocalIndex, staticFieldName, allocateNewLocal)) {
-            return true;
-        }
         appendChannelValue(channelArg, activeOutput, generateExpr);
         activeOutput.append(formattedValue)
                 .append("invokestatic perseus/io/TextOutput/outstring(ILjava/lang/String;)V\n");
@@ -418,96 +377,6 @@ public class ChannelIOGenerator {
         return true;
     }
 
-    private boolean emitStringChannelWrite(int channel, String valueCode, StringBuilder activeOutput,
-            Function<String, String> lookupVarType,
-            Map<String, Integer> currentLocalIndex,
-            BiFunction<String, String, String> staticFieldName) {
-        String variableName = constantStringChannels.get(channel);
-        if (variableName == null) {
-            return false;
-        }
-        String varType = lookupVarType.apply(variableName);
-        if (!"string".equals(varType)) {
-            activeOutput.append("; ERROR: openstring target must be a string variable\n");
-            return true;
-        }
-
-        Integer slot = currentLocalIndex.get(variableName);
-        if (slot != null) {
-            activeOutput.append("new java/lang/StringBuilder\n")
-                    .append("dup\n")
-                    .append("invokespecial java/lang/StringBuilder/<init>()V\n")
-                    .append("aload ").append(slot).append("\n")
-                    .append("invokevirtual java/lang/StringBuilder/append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n")
-                    .append(valueCode)
-                    .append("invokevirtual java/lang/StringBuilder/append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n")
-                    .append("invokevirtual java/lang/StringBuilder/toString()Ljava/lang/String;\n")
-                    .append("astore ").append(slot).append("\n");
-        } else {
-            activeOutput.append("new java/lang/StringBuilder\n")
-                    .append("dup\n")
-                    .append("invokespecial java/lang/StringBuilder/<init>()V\n")
-                    .append("getstatic ").append(packageName).append("/").append(className)
-                    .append("/").append(staticFieldName.apply(variableName, varType)).append(" Ljava/lang/String;\n")
-                    .append("invokevirtual java/lang/StringBuilder/append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n")
-                    .append(valueCode)
-                    .append("invokevirtual java/lang/StringBuilder/append(Ljava/lang/String;)Ljava/lang/StringBuilder;\n")
-                    .append("invokevirtual java/lang/StringBuilder/toString()Ljava/lang/String;\n")
-                    .append("putstatic ").append(packageName).append("/").append(className)
-                    .append("/").append(staticFieldName.apply(variableName, varType)).append(" Ljava/lang/String;\n");
-        }
-        return true;
-    }
-
-    private boolean emitFileChannelPrint(int channel, String printDescriptor, String valueCode, StringBuilder activeOutput,
-            Function<String, Integer> allocateNewLocal) {
-        FileChannelBinding binding = constantFileChannels.get(channel);
-        if (binding == null) {
-            return false;
-        }
-        if (!"w".equals(binding.mode())) {
-            activeOutput.append("; ERROR: output attempted on file channel not opened for write\n");
-            return true;
-        }
-
-        int streamSlot = allocateNewLocal.apply("filePrintStream");
-        activeOutput.append("new java/io/PrintStream\n")
-                .append("dup\n")
-                .append("new java/io/FileOutputStream\n")
-                .append("dup\n")
-                .append("ldc ").append(binding.filenameLiteral()).append("\n")
-                .append("iconst_1\n")
-                .append("invokespecial java/io/FileOutputStream/<init>(Ljava/lang/String;Z)V\n")
-                .append("invokespecial java/io/PrintStream/<init>(Ljava/io/OutputStream;)V\n")
-                .append("astore ").append(streamSlot).append("\n")
-                .append("aload ").append(streamSlot).append("\n")
-                .append(valueCode)
-                .append("invokevirtual java/io/PrintStream/print(").append(printDescriptor).append(")V\n")
-                .append("aload ").append(streamSlot).append("\n")
-                .append("invokevirtual java/io/PrintStream/close()V\n");
-        return true;
-    }
-
-    private boolean emitStringOrFileOutput(PerseusParser.ArgContext channelArg, String printDescriptor, String valueCode,
-            StringBuilder activeOutput, Function<String, String> lookupVarType, Map<String, Integer> currentLocalIndex,
-            BiFunction<String, String, String> staticFieldName, Function<String, Integer> allocateNewLocal) {
-        Integer channel = getConstantChannelValue(channelArg);
-        if (channel == null) {
-            return false;
-        }
-        if (constantStringChannels.containsKey(channel)) {
-            String appendValueCode = valueCode;
-            if ("I".equals(printDescriptor)) {
-                appendValueCode += "invokestatic java/lang/String/valueOf(I)Ljava/lang/String;\n";
-            } else if ("D".equals(printDescriptor)) {
-                appendValueCode += "invokestatic java/lang/String/valueOf(D)Ljava/lang/String;\n";
-            }
-            return emitStringChannelWrite(channel, appendValueCode, activeOutput, lookupVarType, currentLocalIndex,
-                    staticFieldName);
-        }
-        return false;
-    }
-
     private boolean emitFileChannelInstring(List<PerseusParser.ArgContext> args, StringBuilder activeOutput,
             Function<PerseusParser.ExprContext, String> generateExpr,
             Function<String, Integer> allocateNewLocal, Map<String, Integer> currentLocalIndex,
@@ -520,9 +389,6 @@ public class ChannelIOGenerator {
 
         Integer channel = getConstantChannelValue(args.get(0));
         if (channel != null && channel < 2) {
-            return false;
-        }
-        if (channel != null && constantStringChannels.containsKey(channel)) {
             return false;
         }
 

@@ -27,6 +27,8 @@ public class StdlibTest extends CompilerTest {
                 "The stdlib builder should package the compiled classes into a jar");
         assertTrue(Files.exists(stdlibClasses.resolve("perseus/io/Channels.class")),
                 "The stdlib builder should compile the stdlib-owned Channels unit");
+        assertTrue(Files.exists(stdlibClasses.resolve("gnb/perseus/compiler/Thunk.class")),
+                "The stdlib builder should provision the generic Thunk support class needed by stdlib-owned string channels");
         assertFalse(Files.exists(stdlibClasses.resolve("gnb/perseus/runtime/Channels.class")),
                 "The stdlib builder should no longer copy the old runtime Channels helper into stdlib outputs");
         assertFalse(Files.exists(stdlibClasses.resolve("gnb/perseus/runtime/TextFormatSupport.class")),
@@ -179,6 +181,28 @@ public class StdlibTest extends CompilerTest {
                 "TextInput should no longer depend on the old Channels.informatValues helper");
         assertFalse(jasminSource.contains("Channels/informatValuesInto"),
                 "TextInput should no longer depend on the old Channels.informatValuesInto helper");
+    }
+
+    @Test
+    public void stdlib_channels_string_channel_ownership_test() throws Exception {
+        Path outDir = Files.createTempDirectory(BUILD_DIR, "stdlib-channels-jasmin");
+        Path jasminFile = PerseusCompiler.compileToFileInternal(
+                "src/main/perseus/stdlib/perseus/io/Channels.alg",
+                "perseus/io",
+                "Channels",
+                outDir,
+                java.util.List.of(outDir),
+                false);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertTrue(jasminSource.contains("invokeinterface gnb/perseus/compiler/Thunk/get()Ljava/lang/Object; 1"),
+                "Channels should now read string-channel contents through the generic thunk target");
+        assertTrue(jasminSource.contains("invokeinterface gnb/perseus/compiler/Thunk/set(Ljava/lang/Object;)V 2"),
+                "Channels should now update string-channel contents through the generic thunk target");
+        assertTrue(jasminSource.contains("putstatic perseus/io/Channels/stringchannels Ljava/lang/Object;"),
+                "Channels should now own stdlib-side string-channel state");
+        assertFalse(jasminSource.contains("gnb/perseus/runtime/Channels"),
+                "Compiled Channels stdlib code should no longer depend on the removed runtime Channels helper");
     }
 
     private static void compileStdlibChannels(Path outDir) throws Exception {

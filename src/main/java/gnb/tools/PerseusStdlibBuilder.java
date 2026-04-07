@@ -32,6 +32,7 @@ public final class PerseusStdlibBuilder {
 
     public static void buildClasses(Path sourceRoot, Path classOutputDir) throws Exception {
         Files.createDirectories(classOutputDir);
+        copyRuntimeSupportClass("gnb/perseus/compiler/Thunk.class", classOutputDir);
 
         List<Path> sources = collectSources(sourceRoot);
         if (sources.isEmpty()) {

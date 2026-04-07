@@ -1,4 +1,4 @@
-comment Compiled standard-environment slice for basic numeric helpers.;
+comment Standard environment math support.;
 namespace perseus.lang;
 
 external java static(java.lang.Math)

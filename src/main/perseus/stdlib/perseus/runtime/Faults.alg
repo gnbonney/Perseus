@@ -1,4 +1,4 @@
-comment Compiled standard-environment slice for fault handling.;
+comment Standard environment fault support.;
 namespace perseus.runtime;
 
 external java class java.lang.RuntimeException;

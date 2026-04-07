@@ -442,6 +442,10 @@ end
 
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error");
+        assertTrue(jasminSource.contains("invokestatic perseus/io/Channels/openstring(ILjava/lang/Object;)V"),
+                "openstring should now route through the compiled Channels stdlib unit");
+        assertFalse(jasminSource.contains("java/lang/StringBuilder/append(Ljava/lang/String;)Ljava/lang/StringBuilder;"),
+                "The client program should no longer inline string-channel append logic in compiler-emitted code");
 
         PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 

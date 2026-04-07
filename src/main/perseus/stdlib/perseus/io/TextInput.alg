@@ -1,4 +1,4 @@
-comment Compiled standard-environment slice for text input helpers.;
+comment Standard environment text input support.;
 namespace perseus.io;
 
 external java class java.lang.Object;

@@ -1,4 +1,4 @@
-comment Compiled standard-environment slice for text output helpers.;
+comment Standard environment text output support.;
 namespace perseus.io;
 
 external java class java.io.PrintStream;

@@ -276,8 +276,8 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Delete the obsolete `TextFormatSupport.java` helper now that compiled stdlib formatting no longer depends on it
 - [x] Trim `Channels.java` down to only the remaining low-level Java boundary for dynamic channel ownership plus raw token/line/write primitives
 - [x] Resolve the final `Channels.java` boundary by migrating channel ownership/state out of `gnb.perseus.runtime.Channels` and into compiled `perseus.io.Channels` stdlib code
-- [ ] Remove compiler-side stdio/channel assumptions that currently live in `ChannelIOGenerator` by moving more behavior behind ordinary compiled stdlib code, especially literal-only `informat` handling, compile-time `informat` spec parsing, and constant-channel / `openstring` bookkeeping
-- [ ] Add regression coverage showing the migrated stdlib paths still work after the helper deletion and compiler cleanup, including structural assertions that generated code no longer depends on the removed bridge surface
+- [x] Remove compiler-side stdio/channel assumptions that currently live in `ChannelIOGenerator` by moving more behavior behind ordinary compiled stdlib code, including literal-only `informat` handling, compile-time `informat` spec parsing, and constant-channel / `openstring` bookkeeping
+- [x] Add regression coverage showing the migrated stdlib paths still work after the helper deletion and compiler cleanup, including structural assertions that generated code no longer depends on the removed bridge surface
 
 **Acceptance criteria:**
 - The standard text I/O library can be expressed primarily as Perseus `.alg` units using ordinary compiled stdlib code plus direct external Java interop
@@ -301,6 +301,9 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - `TextOutput.alg` now owns tokenization plus the simpler `outformat` descriptors `A`, `Aw`, `nX`, and `/`, while `TextFormatSupport.java` has been narrowed from whole-format rendering down to the remaining single-token numeric/logical cases.
 - `TextOutput.alg` now also owns the remaining numeric/logical `outformat` descriptors `I`, `F`, `E`, and `L`, so compiled stdlib formatting no longer depends on `TextFormatSupport.java` at runtime and the stdlib builder no longer needs to copy that helper into stdlib outputs.
 - The dead `TextFormatSupport.java` helper has now been deleted entirely, so `Channels.java` is the only remaining milestone 38 Java helper target.
+- `ChannelIOGenerator` no longer keeps constant-channel bookkeeping for file or string output routing; `openstring` now lowers to the compiled `perseus.io.Channels` path and string-channel accumulation lives behind stdlib-owned channel state.
+- Regression coverage now also checks that generated clients route `openstring` through `perseus.io.Channels` and that compiled `Channels.alg` owns thunk-backed string-channel mutation directly.
+- `PerseusStdlibBuilder` now provisions the generic `Thunk` support class required by stdlib-owned string channels during from-source standard-environment builds.
 - Milestone 38 now has a clearer staged helper-reduction path: first route compiler behavior through compiled stdlib helpers, then migrate parsing/formatting logic into `.alg`, and finally delete the obsolete Java bridge entry points.
 
 ## Milestone 39 - CLI Follow-On

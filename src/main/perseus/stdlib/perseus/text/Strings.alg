@@ -1,4 +1,4 @@
-comment Compiled standard-environment slice for string helpers.;
+comment Standard environment string support.;
 namespace perseus.text;
 
 integer procedure length(str);
