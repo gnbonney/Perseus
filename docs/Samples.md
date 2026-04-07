@@ -12,10 +12,14 @@ Perseus now has a broad set of sample Algol programs under [`test/algol`](../tes
   Environmental procedures, strings, channels, file and string I/O, formatted I/O, constants, and input/output behavior.
 - [`test/algol/external`](../test/algol/external)
   External Perseus and external Java interop samples.
+- [`test/algol/namespaces`](../test/algol/namespaces)
+  Source-level `namespace` and separately compiled multi-file library samples.
 - [`test/algol/classes`](../test/algol/classes)
   Simula-style class and object samples.
 - [`test/algol/exceptions`](../test/algol/exceptions)
   Structured exception-handling samples.
+- [`test/algol/stdlib`](../test/algol/stdlib)
+  Client programs that exercise the compiled standard environment directly.
 - [`test/algol/historical`](../test/algol/historical)
   Larger historic and stress-oriented examples such as `manboy`, `primes`, and the `pi` programs.
 - [`test/algol/misc`](../test/algol/misc)
@@ -23,7 +27,7 @@ Perseus now has a broad set of sample Algol programs under [`test/algol`](../tes
 
 ## Source Background
 
-Many of the samples are adapted from historically important Algol material, including:
+The initial core of code samples were adapted from historically important Algol material, including:
 
 - A. N. Habermann and other introductory Algol material
 - E. W. Dijkstra, especially the `primer` programs
@@ -49,16 +53,9 @@ The sample suite now exercises most of the implemented language surface, includi
 - `own` variables
 - environmental output and much of the current input/output model
 - string channels, file channels, and formatted I/O
-- external Algol and Java static interop
+- compiled standard-environment clients
+- external Perseus linkage plus richer Java interop, including fields, overloads, references, and arrays
+- `namespace` declarations and multi-file library compilation
 - classes and objects
 - structured exceptions
 - historically difficult recursive and thunk-heavy programs such as `manboy`
-
-## Current Follow-On Samples
-
-One sample currently remains outside the active regression suite and points to follow-on work:
-
-- [`test/algol/io/input_procedures.alg`](../test/algol/io/input_procedures.alg)
-  This appears to be a valid sample for `ininteger`, `inreal`, and `inchar`, but current exploratory runs suggest those input procedures were marked complete too optimistically. This now maps to post-MVP cleanup work.
-
-An older experimental sample, `proc_typed.alg`, was removed after review because it did not appear to be a valid Algol program.
