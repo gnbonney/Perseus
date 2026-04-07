@@ -343,123 +343,79 @@ public class ChannelIOGenerator {
             activeOutput.append("; ERROR: informat requires at least a channel and format string\n");
             return true;
         }
-        String formatLiteral = getStringLiteralText(args.get(1));
-        if (formatLiteral == null) {
-            activeOutput.append("; ERROR: informat currently requires a string-literal format\n");
-            return true;
-        }
-        char[] kinds;
-        try {
-            kinds = parseInformatKinds(formatLiteral);
-        } catch (IllegalArgumentException e) {
-            activeOutput.append("; ERROR: ").append(e.getMessage()).append("\n");
-            return true;
-        }
-        if (kinds.length != args.size() - 2) {
-            activeOutput.append("; ERROR: format/argument count mismatch\n");
-            return true;
-        }
+        StringBuilder expectedKinds = new StringBuilder();
+        List<String> targetTypes = new ArrayList<>();
+        List<String> targetNames = new ArrayList<>();
 
-        Integer valuesSlot = allocateNewLocal.apply("informatValues");
-        activeOutput.append("ldc ").append(kinds.length).append("\n")
-                .append("anewarray java/lang/Object\n")
-                .append("astore ").append(valuesSlot).append("\n");
-        appendChannelValue(args.get(0), activeOutput, generateExpr);
-        activeOutput.append("ldc ").append(formatLiteral).append("\n")
-                .append("aload ").append(valuesSlot).append("\n")
-                .append("ldc 1\n")
-                .append("ldc ").append(kinds.length).append("\n")
-                .append("invokestatic perseus/io/TextInput/informatvalues(ILjava/lang/String;[Ljava/lang/Object;II)V\n");
-
-        for (int i = 0; i < kinds.length; i++) {
-            char kind = kinds[i];
-            PerseusParser.ArgContext arg = args.get(i + 2);
-            String varName = getVariableName(arg);
+        for (int i = 2; i < args.size(); i++) {
+            String varName = getVariableName(args.get(i));
             if (varName == null) {
                 activeOutput.append("; ERROR: informat requires variables after the format string\n");
-                continue;
+                return true;
             }
-            Integer varSlot = currentLocalIndex.get(varName);
             String varType = currentSymbolTable.get(varName);
             if (varType == null && mainSymbolTable != null) {
                 varType = mainSymbolTable.get(varName);
             }
+            if ("integer".equals(varType)) {
+                expectedKinds.append('I');
+            } else if ("real".equals(varType)) {
+                expectedKinds.append('F');
+            } else if ("string".equals(varType)) {
+                expectedKinds.append('A');
+            } else {
+                activeOutput.append("; ERROR: informat target must be an integer, real, or string variable\n");
+                return true;
+            }
+            targetTypes.add(varType);
+            targetNames.add(varName);
+        }
+
+        Integer valuesSlot = allocateNewLocal.apply("informatValues");
+        activeOutput.append("ldc ").append(targetTypes.size()).append("\n")
+                .append("anewarray java/lang/Object\n")
+                .append("astore ").append(valuesSlot).append("\n");
+        appendChannelValue(args.get(0), activeOutput, generateExpr);
+        activeOutput.append(generateExpr.apply(args.get(1).expr()))
+                .append("aload ").append(valuesSlot).append("\n")
+                .append("ldc 1\n")
+                .append("ldc ").append(targetTypes.size()).append("\n")
+                .append("ldc \"").append(expectedKinds).append("\"\n")
+                .append("invokestatic perseus/io/TextInput/informatvalues(ILjava/lang/String;[Ljava/lang/Object;IILjava/lang/String;)V\n");
+
+        for (int i = 0; i < targetTypes.size(); i++) {
+            String varName = targetNames.get(i);
+            Integer varSlot = currentLocalIndex.get(varName);
+            String varType = targetTypes.get(i);
 
             activeOutput.append("aload ").append(valuesSlot).append("\n")
                     .append("ldc ").append(i).append("\n")
                     .append("aaload\n");
-            switch (kind) {
-                case 'I' -> activeOutput.append("checkcast java/lang/Integer\n")
+            switch (varType) {
+                case "integer" -> activeOutput.append("checkcast java/lang/Integer\n")
                         .append("invokevirtual java/lang/Integer/intValue()I\n");
-                case 'F' -> activeOutput.append("checkcast java/lang/Double\n")
+                case "real" -> activeOutput.append("checkcast java/lang/Double\n")
                         .append("invokevirtual java/lang/Double/doubleValue()D\n");
-                case 'A' -> activeOutput.append("checkcast java/lang/String\n");
-                default -> activeOutput.append("; ERROR: unsupported informat specifier\n");
+                case "string" -> activeOutput.append("checkcast java/lang/String\n");
+                default -> {
+                    activeOutput.append("; ERROR: unsupported informat target type\n");
+                    continue;
+                }
             }
 
             if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:")
                     && !varType.startsWith("thunk:")) {
-                String desc = kind == 'F' ? "D" : kind == 'A' ? "Ljava/lang/String;" : "I";
+                String desc = "real".equals(varType) ? "D" : "string".equals(varType) ? "Ljava/lang/String;" : "I";
                 activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                         .append("/").append(staticFieldName.apply(varName, varType)).append(" ").append(desc).append("\n");
             } else if (varSlot == null) {
                 activeOutput.append("; ERROR: undefined variable ").append(varName).append("\n");
             } else {
-                String store = kind == 'F' ? "dstore " : kind == 'A' ? "astore " : "istore ";
+                String store = "real".equals(varType) ? "dstore " : "string".equals(varType) ? "astore " : "istore ";
                 activeOutput.append(store).append(varSlot).append("\n");
             }
         }
         return true;
-    }
-
-    private char[] parseInformatKinds(String formatLiteral) {
-        String raw = unquoteLiteral(formatLiteral);
-        List<Character> kinds = new ArrayList<>();
-        for (String token : raw.split("[,\\s]+")) {
-            if (token.isBlank()) {
-                continue;
-            }
-            char kind = Character.toUpperCase(token.charAt(0));
-            if (kind == 'I' || kind == 'A') {
-                requireDigits(token, token.substring(1));
-                kinds.add(kind);
-            } else if (kind == 'F') {
-                int dot = token.indexOf('.');
-                if (dot < 0) {
-                    throw new IllegalArgumentException("Unsupported format token: " + token);
-                }
-                requireDigits(token, token.substring(1, dot));
-                requireDigits(token, token.substring(dot + 1));
-                kinds.add(kind);
-            } else {
-                throw new IllegalArgumentException("Unsupported format token: " + token);
-            }
-        }
-        char[] result = new char[kinds.size()];
-        for (int i = 0; i < kinds.size(); i++) {
-            result[i] = kinds.get(i);
-        }
-        return result;
-    }
-
-    private void requireDigits(String token, String digits) {
-        if (digits.isEmpty()) {
-            throw new IllegalArgumentException("Unsupported format token: " + token);
-        }
-        for (int i = 0; i < digits.length(); i++) {
-            if (!Character.isDigit(digits.charAt(i))) {
-                throw new IllegalArgumentException("Unsupported format token: " + token);
-            }
-        }
-    }
-
-    private String unquoteLiteral(String literal) {
-        if (literal == null || literal.length() < 2 || literal.charAt(0) != '"' || literal.charAt(literal.length() - 1) != '"') {
-            return literal;
-        }
-        return literal.substring(1, literal.length() - 1)
-                .replace("\\\"", "\"")
-                .replace("\\n", "\n");
     }
 
     private boolean emitStringChannelWrite(int channel, String valueCode, StringBuilder activeOutput,

@@ -144,7 +144,7 @@ public class FormattedIOTest extends CompilerTest {
                 "Compilation should not produce an error");
         assertFalse(jasminSource.contains("gnb/perseus/runtime/Channels/informatValues"),
                 "Informat should no longer emit a direct compiler-side call to Channels.informatValues");
-        assertEquals(1, countOccurrences(jasminSource, "invokestatic perseus/io/TextInput/informatvalues(ILjava/lang/String;[Ljava/lang/Object;II)V"),
+        assertEquals(1, countOccurrences(jasminSource, "invokestatic perseus/io/TextInput/informatvalues(ILjava/lang/String;[Ljava/lang/Object;IILjava/lang/String;)V"),
                 "Informat should route value loading through the compiled TextInput stdlib unit");
 
         PerseusCompiler.assemble(jasminFile, BUILD_DIR);
@@ -152,6 +152,27 @@ public class FormattedIOTest extends CompilerTest {
         String output = runClassWithInput(BUILD_DIR, "gnb.perseus.programs.InformatBasic", " 42  3.1 Hello\n");
         assertEquals("42 3.1 Hello", output.trim(),
                 "informat should parse formatted input into integer, real, and string variables");
+    }
+
+    @Test
+    public void informat_dynamic_format_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/io/informat_dynamic_format.alg",
+                "gnb/perseus/programs",
+                "InformatDynamicFormat",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not require a string-literal informat format expression");
+        assertEquals(1, countOccurrences(jasminSource, "invokestatic perseus/io/TextInput/informatvalues(ILjava/lang/String;[Ljava/lang/Object;IILjava/lang/String;)V"),
+                "Dynamic informat should route value loading through the compiled TextInput stdlib unit");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClassWithInput(BUILD_DIR, "gnb.perseus.programs.InformatDynamicFormat", " 42  3.1 Hello\n");
+        assertEquals("42 3.1 Hello", output.trim(),
+                "informat should accept a runtime string expression for the format");
     }
 
     @Test

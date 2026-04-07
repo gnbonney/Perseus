@@ -47,13 +47,19 @@ begin
     signal new IllegalArgumentException(concat("Unsupported format token: ", token))
 end;
 
-procedure informatvalues(channel, formatLiteral, values);
-    value channel, formatLiteral, values;
+procedure informatsignalmismatch;
+begin
+    signal new IllegalArgumentException("format/argument count mismatch")
+end;
+
+procedure informatvalues(channel, formatLiteral, values, expectedKinds);
+    value channel, formatLiteral, values, expectedKinds;
     integer channel;
     string formatLiteral;
     ref(Object) array values;
+    string expectedKinds;
 begin
-    integer i, len, tokenStart, valueIndex, kind, dot;
+    integer i, len, tokenStart, valueIndex, kind, dot, expectedKind;
     string token;
 
     len := formatLiteral.length();
@@ -79,17 +85,26 @@ tokencollect:
     goto tokencollect;
 tokenready:
     token := formatLiteral.substring(tokenStart - 1, i - 1);
+    if valueIndex > expectedKinds.length() then
+        informatsignalmismatch;
     kind := token.charAt(0);
+    expectedKind := expectedKinds.charAt(valueIndex - 1);
 
     if kind = 73 | kind = 105 then begin
+        if expectedKind <> 73 then
+            informatsignalmismatch;
         if ~informatdigits(token.substring(1)) then
             informatsignalunsupported(token);
         values[valueIndex] := ininteger(channel)
     end else if kind = 65 | kind = 97 then begin
+        if expectedKind <> 65 then
+            informatsignalmismatch;
         if ~informatdigits(token.substring(1)) then
             informatsignalunsupported(token);
         values[valueIndex] := channel_intoken(channel)
     end else if kind = 70 | kind = 102 then begin
+        if expectedKind <> 70 then
+            informatsignalmismatch;
         dot := token.indexOf(".");
         if dot < 0 then
             informatsignalunsupported(token);
@@ -104,6 +119,8 @@ tokenready:
     valueIndex := valueIndex + 1;
     goto scan;
 done:
+    if valueIndex <> expectedKinds.length() + 1 then
+        informatsignalmismatch
 end;
 
 integer procedure ininteger(channel);
