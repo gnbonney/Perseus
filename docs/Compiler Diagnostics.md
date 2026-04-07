@@ -5,7 +5,7 @@ This document records the current compiler-diagnostics implementation in Perseus
 It complements:
 
 - [Architecture.md](Architecture.md), which describes the current compiler structure and stage boundaries
-- [Post-MVP Roadmap.md](Post-MVP%20Roadmap.md), which tracks unfinished diagnostics and tooling work
+- [Development Roadmap.md](Development%20Roadmap.md), which tracks unfinished diagnostics and tooling work
 
 The focus here is practical: what diagnostics exist today, how they are represented, and what gaps remain.
 
@@ -145,4 +145,4 @@ The next likely improvements are:
 - support multiple semantic diagnostics per run
 - add a machine-readable diagnostics format
 
-Those goals are still tracked in [Post-MVP Roadmap.md](Post-MVP%20Roadmap.md) and fit the broader compiler structure described in [Architecture.md](Architecture.md).
+Those goals are still tracked in [Development Roadmap.md](Development%20Roadmap.md) and fit the broader compiler structure described in [Architecture.md](Architecture.md).
