@@ -312,11 +312,16 @@ The milestones below collect follow-on work that was intentionally deferred whil
 
 - [x] Support compiling multiple Perseus source files in one CLI invocation
 - [ ] Define clearer output conventions for reusable separately compiled Perseus libraries
-- [ ] Improve handling of external inputs from both directories and JAR files in library-oriented workflows
-- [ ] Decide whether the CLI should support more explicit library-oriented packaging or commands beyond raw class-file output
+- [x] Improve handling of external inputs from both directories and JAR files in library-oriented workflows
+- [x] Decide whether the CLI should support more explicit library-oriented packaging or commands beyond raw class-file output
 - [ ] Optional installer/distribution packaging beyond `installDist`
 - [ ] Further exit-code and machine-facing CLI refinements
 - [ ] Additional commands such as `check` or `emit-jasmin` if they remain desirable after the MVP
+
+**Implementation notes:**
+- The CLI already supports multi-file compilation, `--package`, optional `--jar` packaging, and `-cp` / `--classpath` workflows for separately compiled Perseus and Java dependencies.
+- External resolution now accepts both directory and JAR classpath roots in library-oriented workflows, matching the intended JVM-style classpath model.
+- The current CLI direction is now clear enough to treat ordinary class-file output as the default, with optional runnable JAR packaging, rather than requiring a heavier library-specific packaging mode before Milestone 39 can progress.
 
 ## Milestone 40 - Input Procedures Cleanup
 
