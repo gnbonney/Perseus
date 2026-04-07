@@ -2,7 +2,21 @@
 
 This document tracks the active and longer-term roadmap for Perseus after the completed milestone history summarized in [Completed Milestones.md](Completed%20Milestones.md).
 
+The near-term direction should reflect Perseus's center of gravity more clearly. That means prioritizing features that improve readable executable mathematics on the JVM, while still leaving room for the language's experimental edge. For the mathematical side of that vision, see [Mathematical Computing Design Spec.md](Mathematical%20Computing%20Design%20Spec.md).
+
 ## Active Milestones
+
+The current intended order is:
+
+1. Milestone 41: modern looping forms
+2. Milestone 42: lambda notation
+3. Milestone 43: collections, iterators, and Java-container interop
+4. Milestone 44: complex numbers and mathematical types
+5. Milestone 45: mathematical arrays and numerically oriented procedure features
+6. Milestone 46: numeric precision and extended arithmetic
+7. Milestone 47: numerical standard library foundations
+8. Milestone 48: actors
+9. Milestone 49: CLI polish and tooling
 
 ## Milestone 41 - Looping Extensions
 
@@ -21,21 +35,84 @@ This document tracks the active and longer-term roadmap for Perseus after the co
 
 - [ ] Syntax and parsing for lambda-style procedure literals
 - [ ] Lowering strategy onto existing procedure-reference infrastructure
-- [ ] Tests for higher-order procedure use cases
+- [ ] Tests for higher-order procedure use cases, including numerically oriented examples
 
-## Milestone 43 - Collections and Iterators
+## Milestone 43 - Collections, Iterators, and Java Container Interop
 
-**Goal:** Add higher-level collection types and iteration protocols suitable for more general-purpose programming (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
+**Goal:** Add collection and iterator support in a way that helps both Perseus's own `for ... in ... do` direction and practical interop with Java-hosted iterable/container APIs (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
 
 - [ ] Add collection types such as `vector`, `map`, and `set`
 - [ ] Add collection literals and basic collection operations
 - [ ] Extend `for ... in ... do` from ranges/arrays to collection and iterator-protocol-based iteration
 - [ ] Define an iterator protocol that works with `for ... in ... do`
+- [ ] Decide how Java `Iterable`-style interop should fit into the Perseus iterator model
+- [ ] Decide how array- and range-oriented iteration relate to the same protocol
 - [ ] Decide how collection libraries fit into the standard environment / standard library story
 - [ ] Add sample programs and regression tests for collection use cases
 - [ ] Decide how iterator pipelines such as `map` and `filter` should depend on Milestone 42 lambda notation
 
-## Milestone 44 - Actors
+**Implementation notes:**
+- This milestone should not be treated as "collections for their own sake."
+- It is also the bridge between Perseus's emerging modern loop forms and its JVM interop story for iterables and container-like APIs.
+- If mathematical arrays later grow richer traversal or section semantics, that work should align with this iterator model rather than bypass it completely.
+
+## Milestone 44 - Complex Numbers and Mathematical Types
+
+**Goal:** Add the first explicitly mathematics-oriented type-system extensions that would make Perseus more natural for scientific and engineering work (see [Mathematical Computing Design Spec.md](Mathematical%20Computing%20Design%20Spec.md)).
+
+- [ ] Add a source-level `complex` type
+- [ ] Define complex literals or constructors in a form that fits Perseus cleanly
+- [ ] Support complex arithmetic through the ordinary operator surface where appropriate
+- [ ] Support arrays of complex values
+- [ ] Define how complex values should interoperate with Java and the standard library
+- [ ] Add focused sample programs and regression tests for scientific/numerical use cases
+
+## Milestone 45 - Mathematical Arrays and Numerical Procedures
+
+**Goal:** Make numerical code more expressive by improving array-oriented notation and by adding procedure features that fit mathematical programming well (see [Mathematical Computing Design Spec.md](Mathematical%20Computing%20Design%20Spec.md)).
+
+- [ ] Add array sections or slices in a form consistent with Perseus's bounded-array model
+- [ ] Add carefully chosen whole-array expressions where they clearly improve readability
+- [ ] Decide whether vector/matrix-oriented operations belong partly in syntax or entirely in the standard library
+- [ ] Add `pure` procedures or an equivalent purity marker for mathematically side-effect-free routines
+- [ ] Add `elemental` procedures or an equivalent mechanism for array-lifted scalar procedures
+- [ ] Consider lightweight tuple or multiple-return-value support for numerical procedures that naturally return values plus status or error information
+- [ ] Add focused numerical sample programs and regression tests
+
+## Milestone 46 - Numeric Precision and Extended Arithmetic
+
+**Goal:** Add a small, explicit extended numeric model for mathematical and scientific work without turning Perseus into a large precision-taxonomy language (see [Mathematical Computing Design Spec.md](Mathematical%20Computing%20Design%20Spec.md)).
+
+- [ ] Decide whether the first extension should be `bigreal`, `decimal`, `bigint`, or a narrower initial subset
+- [ ] Define syntax, constructors, or literal rules for the added numeric types
+- [ ] Define mixed-type arithmetic and coercion rules
+- [ ] Define how the added numeric types interact with arrays and procedures
+- [ ] Define the Java interop model for the new numeric types
+- [ ] Add focused sample programs and regression tests for precision-sensitive mathematical cases
+
+**Implementation notes:**
+- Perseus currently keeps a deliberately simple numeric model, with `real` corresponding to JVM `double`.
+- The main design challenge is not whether more precision can exist at all, but how to add it without making the language significantly less readable.
+- A small explicit model is preferred over a large Fortran-style family of precision kinds unless real use cases later justify more complexity.
+
+## Milestone 47 - Numerical Standard Library Foundations
+
+**Goal:** Build out the first substantial mathematical standard-library layer beyond the minimal environmental procedures (see [Mathematical Computing Design Spec.md](Mathematical%20Computing%20Design%20Spec.md)).
+
+- [ ] Add foundational linear algebra support
+- [ ] Add interpolation and approximation routines
+- [ ] Add quadrature and numerical integration support
+- [ ] Add optimization and least-squares building blocks
+- [ ] Add special-function support where it fits naturally
+- [ ] Decide how much of this layer should be implemented in Perseus source versus direct Java-backed interop
+- [ ] Add focused sample programs and regression tests based on real numerical-methods examples
+
+**Implementation notes:**
+- This milestone is about the standard library, not just the language core.
+- Historical libraries such as NUMAL are relevant inspiration here, even if Perseus does not try to reproduce them wholesale.
+- The strongest goal is to make Perseus a better language for expressing and packaging real numerical methods, not merely to accumulate standalone helper functions.
+
+## Milestone 48 - Actors
 
 **Goal:** Explore actors as a distinctive future direction for Perseus once the MVP and key follow-on milestones are in place (see [Actors Design Spec.md](Actors%20Design%20Spec.md)).
 
@@ -51,7 +128,7 @@ This document tracks the active and longer-term roadmap for Perseus after the co
 - The runtime could begin either as a small dedicated actor-support jar or as generated support code if avoiding runtime dependencies remains a priority.
 - Later refinements could add `replyto` syntax and pattern-matching sugar once the base actor model is settled.
 
-## Milestone 45 - CLI Polish and Tooling
+## Milestone 49 - CLI Polish and Tooling
 
 **Goal:** Finish the lower-priority CLI and productization work that remains after the main CLI and library-workflow milestones.
 
@@ -126,4 +203,3 @@ The following cross-cutting compiler/tooling improvements remain desirable as Pe
 - Consistent debug metadata such as line number tables, local variable tables, and source-to-bytecode mapping
 - Improved JVM verifier feedback that can be explained in terms of Perseus source and compiler phases
 - Versioned diagnostic schemas, stable IR formats, and eventual LSP integration
-

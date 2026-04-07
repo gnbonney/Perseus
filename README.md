@@ -12,6 +12,17 @@ Algol is "...the common ancestor of C, Pascal, Algol-68, Modula, Ada, and most o
 
 Perseus exists to carry the Algol tradition into a practical JVM-based language: preserving block structure, procedural clarity, and call-by-name semantics where they remain valuable, while also supporting classes, exceptions, interoperation with Java, and experimentation with later Algol-family ideas in a compiler that can run in modern toolchains and deployment environments.
 
+Its center of gravity is executable mathematics: numerical methods, scientific algorithms, and classic algorithmic literature expressed in a form that stays readable as code while still compiling into ordinary JVM artifacts. Perseus is not trying to compete head-on with Python as a general-purpose AI-era scripting language. Its more specific aim is to be a good language for algorithms whose structure matters, especially in mathematical, scientific, and engineering settings.
+
+## Center of Gravity and Experimental Edge
+
+Perseus has a deliberate split identity:
+
+- its center of gravity is readable executable mathematics on the JVM
+- its experimental edge is the freedom to explore carefully chosen language ideas beyond historical Algol
+
+In practice, that means Perseus should be a strong fit for numerical methods, scientific software, algorithm translation, and JVM-hosted tools that benefit from clear procedural structure. At the same time, it should remain open to distinctive future features such as modern looping forms, lambdas, richer collections, and actors when they strengthen the language rather than blur its purpose.
+
 ## Project Status
 
 Perseus development follows a test-driven, iterative approach built around a broad set of sample programs and regression tests.
@@ -176,6 +187,7 @@ The `test/algol/` directory contains sample Algol-family programs used for testi
 Perseus aims to balance several goals:
 
 * Preserve the clarity, structure, and procedural strengths of ALGOL-family languages
+* Serve as a good language for readable numerical and scientific algorithms on the JVM
 * Support historical ALGOL programs where practical
 * Introduce modern features deliberately rather than as ad hoc additions
 * Fit naturally into the JVM ecosystem and interoperate well with Java
