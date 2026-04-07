@@ -151,7 +151,7 @@ public class ChannelIOGenerator {
         appendChannelValue(args.get(0), activeOutput, generateExpr);
         activeOutput.append(args.get(1).expr() != null ? generateExpr.apply(args.get(1).expr()) : "ldc \"\"\n");
         activeOutput.append(args.get(2).expr() != null ? generateExpr.apply(args.get(2).expr()) : "ldc \"\"\n");
-            activeOutput.append("invokestatic gnb/perseus/runtime/Channels/openFile(ILjava/lang/String;Ljava/lang/String;)V\n");
+            activeOutput.append("invokestatic perseus/io/Channels/openfile(ILjava/lang/String;Ljava/lang/String;)V\n");
         return true;
     }
 
@@ -183,7 +183,7 @@ public class ChannelIOGenerator {
             constantStringChannels.remove(channel);
         }
         appendChannelValue(args.get(0), activeOutput, generateExpr);
-        activeOutput.append("invokestatic gnb/perseus/runtime/Channels/closeFile(I)V\n");
+        activeOutput.append("invokestatic perseus/io/Channels/closefile(I)V\n");
         return true;
     }
 
@@ -584,7 +584,7 @@ public class ChannelIOGenerator {
         }
 
         appendChannelValue(args.get(0), activeOutput, generateExpr);
-        activeOutput.append("invokestatic gnb/perseus/runtime/Channels/inString(I)Ljava/lang/String;\n");
+        activeOutput.append("invokestatic perseus/io/Channels/instring(I)Ljava/lang/String;\n");
 
         if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:")
                 && !varType.startsWith("thunk:")) {

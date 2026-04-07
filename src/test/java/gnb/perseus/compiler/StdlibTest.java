@@ -25,6 +25,10 @@ public class StdlibTest extends CompilerTest {
                 "The stdlib builder should compile MathEnv under its namespace");
         assertTrue(Files.exists(stdlibJar),
                 "The stdlib builder should package the compiled classes into a jar");
+        assertTrue(Files.exists(stdlibClasses.resolve("perseus/io/Channels.class")),
+                "The stdlib builder should compile the stdlib-owned Channels unit");
+        assertFalse(Files.exists(stdlibClasses.resolve("gnb/perseus/runtime/Channels.class")),
+                "The stdlib builder should no longer copy the old runtime Channels helper into stdlib outputs");
         assertFalse(Files.exists(stdlibClasses.resolve("gnb/perseus/runtime/TextFormatSupport.class")),
                 "The stdlib builder should no longer copy TextFormatSupport into stdlib outputs");
     }
@@ -86,6 +90,7 @@ public class StdlibTest extends CompilerTest {
     @Test
     public void stdlib_textoutput_helper_reduction_test() throws Exception {
         Path outDir = Files.createTempDirectory(BUILD_DIR, "stdlib-textoutput-jasmin");
+        compileStdlibChannels(outDir);
         Path jasminFile = PerseusCompiler.compileToFileInternal(
                 "src/main/perseus/stdlib/perseus/io/TextOutput.alg",
                 "perseus/io",
@@ -95,8 +100,8 @@ public class StdlibTest extends CompilerTest {
                 false);
         String jasminSource = Files.readString(jasminFile);
 
-        assertTrue(jasminSource.contains("invokestatic gnb/perseus/runtime/Channels/outString(ILjava/lang/String;)V"),
-                "TextOutput should still use the shared dynamic channel write primitive");
+        assertTrue(jasminSource.contains("invokestatic perseus/io/Channels/outstring(ILjava/lang/String;)V"),
+                "TextOutput should now use the stdlib-owned dynamic channel write primitive");
         assertTrue(jasminSource.contains("invokestatic java/lang/Integer/toString(I)Ljava/lang/String;"),
                 "Integer output should now format through ordinary Java interop in compiled stdlib code");
         assertTrue(jasminSource.contains("invokestatic java/lang/Double/toString(D)Ljava/lang/String;"),
@@ -144,6 +149,7 @@ public class StdlibTest extends CompilerTest {
     @Test
     public void stdlib_textinput_helper_reduction_test() throws Exception {
         Path outDir = Files.createTempDirectory(BUILD_DIR, "stdlib-textinput-jasmin");
+        compileStdlibChannels(outDir);
         Path jasminFile = PerseusCompiler.compileToFileInternal(
                 "src/main/perseus/stdlib/perseus/io/TextInput.alg",
                 "perseus/io",
@@ -153,12 +159,14 @@ public class StdlibTest extends CompilerTest {
                 false);
         String jasminSource = Files.readString(jasminFile);
 
-        assertTrue(jasminSource.contains("invokestatic gnb/perseus/runtime/Channels/inToken(I)Ljava/lang/String;"),
-                "TextInput should now use the shared token read primitive at the runtime boundary");
+        assertTrue(jasminSource.contains("invokestatic perseus/io/Channels/intoken(I)Ljava/lang/String;"),
+                "TextInput should now use the stdlib-owned token read primitive at the runtime boundary");
         assertTrue(jasminSource.contains("invokestatic java/lang/Integer/parseInt(Ljava/lang/String;)I"),
                 "TextInput should now parse integer input directly in compiled stdlib code");
         assertTrue(jasminSource.contains("invokestatic java/lang/Double/parseDouble(Ljava/lang/String;)D"),
                 "TextInput should now parse real input directly in compiled stdlib code");
+        assertFalse(jasminSource.contains("gnb/perseus/runtime/Channels"),
+                "TextInput should no longer depend on the old runtime Channels helper");
         assertFalse(jasminSource.contains("Channels/ininteger"),
                 "TextInput should no longer depend on the old Channels integer parsing helper");
         assertFalse(jasminSource.contains("Channels/inreal"),
@@ -171,6 +179,17 @@ public class StdlibTest extends CompilerTest {
                 "TextInput should no longer depend on the old Channels.informatValues helper");
         assertFalse(jasminSource.contains("Channels/informatValuesInto"),
                 "TextInput should no longer depend on the old Channels.informatValuesInto helper");
+    }
+
+    private static void compileStdlibChannels(Path outDir) throws Exception {
+        Path channelsJasmin = PerseusCompiler.compileToFileInternal(
+                "src/main/perseus/stdlib/perseus/io/Channels.alg",
+                "perseus/io",
+                "Channels",
+                outDir,
+                java.util.List.of(outDir),
+                false);
+        PerseusCompiler.assemble(channelsJasmin, outDir);
     }
 
     @Test

@@ -388,16 +388,14 @@ implementation to group related runtime concerns together. It also fits the
 current class and `namespace` work better than leaving the environmental block
 as a large hardcoded compiler special case.
 
-At the moment, the heavier channel model is owned by the Java-side
-`gnb.perseus.runtime.Channels` runtime helper, while the compiled stdlib
-surface remains in `perseus.io.TextInput` and `perseus.io.TextOutput`. A future
-compiled `perseus.io.Channels` unit remains the intended next consolidation
-point once the remaining reference-state features are in place.
+Dynamic channel ownership is now compiled into the stdlib-owned
+`perseus.io.Channels` unit, which sits alongside `perseus.io.TextInput` and
+`perseus.io.TextOutput` and uses ordinary external Java interop at the file and
+stream boundary.
 
-Recent helper-reduction work has already moved integer, real, and character
-input parsing into compiled `perseus.io.TextInput`, leaving `Channels` closer
-to a raw token/line and dynamic-channel ownership boundary rather than a fuller
-formatting/parsing helper layer.
+Recent helper-reduction work also moved integer, real, and character input
+parsing into compiled `perseus.io.TextInput`, so the standard text-I/O surface
+is no longer split across a Java-side runtime helper and compiled stdlib code.
 
 The standard-environment source belongs under:
 

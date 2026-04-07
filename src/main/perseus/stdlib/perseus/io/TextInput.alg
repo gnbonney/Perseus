@@ -3,12 +3,12 @@ namespace perseus.io;
 
 external java class java.lang.Object;
 external java class java.lang.IllegalArgumentException;
-external java static(gnb.perseus.runtime.Channels)
-    string procedure inToken(integer channel) as runtime_intoken;
 external java static(java.lang.Integer)
     integer procedure parseInt(string text) as integer_parseInt;
 external java static(java.lang.Double)
     real procedure parseDouble(string text) as real_parseDouble;
+external(perseus.io.Channels)
+    string procedure intoken(integer channel) as channel_intoken;
 
 boolean procedure informatdelimiter(ch);
     value ch;
@@ -88,7 +88,7 @@ tokenready:
     end else if kind = 65 | kind = 97 then begin
         if ~informatdigits(token.substring(1)) then
             informatsignalunsupported(token);
-        values[valueIndex] := runtime_intoken(channel)
+        values[valueIndex] := channel_intoken(channel)
     end else if kind = 70 | kind = 102 then begin
         dot := token.indexOf(".");
         if dot < 0 then
@@ -110,14 +110,14 @@ integer procedure ininteger(channel);
     value channel;
     integer channel;
 begin
-    ininteger := integer_parseInt(runtime_intoken(channel))
+    ininteger := integer_parseInt(channel_intoken(channel))
 end;
 
 real procedure inreal(channel);
     value channel;
     integer channel;
 begin
-    inreal := real_parseDouble(runtime_intoken(channel))
+    inreal := real_parseDouble(channel_intoken(channel))
 end;
 
 integer procedure inchar(channel, text);
@@ -127,6 +127,6 @@ integer procedure inchar(channel, text);
 begin
     string token;
 
-    token := runtime_intoken(channel);
+    token := channel_intoken(channel);
     inchar := text.indexOf(token.charAt(0))
 end

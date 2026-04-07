@@ -275,12 +275,9 @@ The milestones below collect follow-on work that was intentionally deferred whil
 - [x] Migrate the remaining numeric/logical `outformat` rendering cases such as `I`, `F`, `E`, and `L` out of `TextFormatSupport.java` and into compiled `TextOutput.alg`
 - [x] Delete the obsolete `TextFormatSupport.java` helper now that compiled stdlib formatting no longer depends on it
 - [x] Trim `Channels.java` down to only the remaining low-level Java boundary for dynamic channel ownership plus raw token/line/write primitives
-- [ ] Resolve the final `Channels.java` boundary explicitly: either migrate channel ownership/state out of `gnb.perseus.runtime.Channels` into compiled stdlib code, or narrow and document `Channels` as the intentional minimal Java runtime kernel if that proves to be the better bootstrap boundary
+- [x] Resolve the final `Channels.java` boundary by migrating channel ownership/state out of `gnb.perseus.runtime.Channels` and into compiled `perseus.io.Channels` stdlib code
 - [ ] Remove compiler-side stdio/channel assumptions that currently live in `ChannelIOGenerator` by moving more behavior behind ordinary compiled stdlib code, especially literal-only `informat` handling, compile-time `informat` spec parsing, and constant-channel / `openstring` bookkeeping
 - [ ] Add regression coverage showing the migrated stdlib paths still work after the helper deletion and compiler cleanup, including structural assertions that generated code no longer depends on the removed bridge surface
-
-**Current helper targets:**
-- `gnb.perseus.runtime.Channels`
 
 **Acceptance criteria:**
 - The standard text I/O library can be expressed primarily as Perseus `.alg` units using ordinary compiled stdlib code plus direct external Java interop

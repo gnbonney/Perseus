@@ -217,7 +217,7 @@ At the current stage:
 - `MathEnv`, `Strings`, `TextOutput`, `TextInput`, and `Faults` are already on
   the compiled standard-environment path.
 - `stop` intentionally remains intrinsic.
-- The next heavier channel step is a future compiled `perseus.io.Channels` unit; current dynamic channel state is owned by the shared Java-side `gnb.perseus.runtime.Channels` helper.
+- Dynamic channel state is now owned by the compiled `perseus.io.Channels` unit rather than a shared Java-side runtime helper.
 
 Some JVM-facing details still use narrow Java helper classes where Perseus
 source does not yet express the needed mechanism directly. That is now the
