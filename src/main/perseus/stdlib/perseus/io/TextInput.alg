@@ -61,64 +61,72 @@ procedure informatvalues(channel, formatLiteral, values, expectedKinds);
 begin
     integer i, len, tokenStart, valueIndex, kind, dot, expectedKind;
     string token;
+    boolean scanning, collecting, skipping;
 
     len := formatLiteral.length();
     valueIndex := 1;
     i := 1;
+    scanning := true;
 
-scan:
-    if i > len then
-        goto done;
+    while scanning do begin
+        skipping := true;
+        while skipping do
+            if i > len then
+                skipping := false
+            else if informatdelimiter(formatLiteral.charAt(i - 1)) then
+                i := i + 1
+            else
+                skipping := false;
 
-    if informatdelimiter(formatLiteral.charAt(i - 1)) then begin
-        i := i + 1;
-        goto scan
+        if i > len then
+            scanning := false
+        else begin
+            tokenStart := i;
+            collecting := true;
+            while collecting do
+                if i > len then
+                    collecting := false
+                else if informatdelimiter(formatLiteral.charAt(i - 1)) then
+                    collecting := false
+                else
+                    i := i + 1;
+
+            token := formatLiteral.substring(tokenStart - 1, i - 1);
+            if valueIndex > expectedKinds.length() then
+                informatsignalmismatch;
+            kind := token.charAt(0);
+            expectedKind := expectedKinds.charAt(valueIndex - 1);
+
+            if kind = 73 | kind = 105 then begin
+                if expectedKind <> 73 then
+                    informatsignalmismatch;
+                if ~informatdigits(token.substring(1)) then
+                    informatsignalunsupported(token);
+                values[valueIndex] := ininteger(channel)
+            end else if kind = 65 | kind = 97 then begin
+                if expectedKind <> 65 then
+                    informatsignalmismatch;
+                if ~informatdigits(token.substring(1)) then
+                    informatsignalunsupported(token);
+                values[valueIndex] := channel_intoken(channel)
+            end else if kind = 70 | kind = 102 then begin
+                if expectedKind <> 70 then
+                    informatsignalmismatch;
+                dot := token.indexOf(".");
+                if dot < 0 then
+                    informatsignalunsupported(token);
+                if ~informatdigits(token.substring(1, dot)) then
+                    informatsignalunsupported(token);
+                if ~informatdigits(token.substring(dot + 1)) then
+                    informatsignalunsupported(token);
+                values[valueIndex] := inreal(channel)
+            end else
+                informatsignalunsupported(token);
+
+            valueIndex := valueIndex + 1
+        end
     end;
 
-    tokenStart := i;
-tokencollect:
-    if i > len then
-        goto tokenready;
-    if informatdelimiter(formatLiteral.charAt(i - 1)) then
-        goto tokenready;
-    i := i + 1;
-    goto tokencollect;
-tokenready:
-    token := formatLiteral.substring(tokenStart - 1, i - 1);
-    if valueIndex > expectedKinds.length() then
-        informatsignalmismatch;
-    kind := token.charAt(0);
-    expectedKind := expectedKinds.charAt(valueIndex - 1);
-
-    if kind = 73 | kind = 105 then begin
-        if expectedKind <> 73 then
-            informatsignalmismatch;
-        if ~informatdigits(token.substring(1)) then
-            informatsignalunsupported(token);
-        values[valueIndex] := ininteger(channel)
-    end else if kind = 65 | kind = 97 then begin
-        if expectedKind <> 65 then
-            informatsignalmismatch;
-        if ~informatdigits(token.substring(1)) then
-            informatsignalunsupported(token);
-        values[valueIndex] := channel_intoken(channel)
-    end else if kind = 70 | kind = 102 then begin
-        if expectedKind <> 70 then
-            informatsignalmismatch;
-        dot := token.indexOf(".");
-        if dot < 0 then
-            informatsignalunsupported(token);
-        if ~informatdigits(token.substring(1, dot)) then
-            informatsignalunsupported(token);
-        if ~informatdigits(token.substring(dot + 1)) then
-            informatsignalunsupported(token);
-        values[valueIndex] := inreal(channel)
-    end else
-        informatsignalunsupported(token);
-
-    valueIndex := valueIndex + 1;
-    goto scan;
-done:
     if valueIndex <> expectedKinds.length() + 1 then
         informatsignalmismatch
 end;

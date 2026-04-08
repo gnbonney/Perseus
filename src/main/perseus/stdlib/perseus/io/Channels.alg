@@ -253,22 +253,21 @@ begin
             current := ""
         else
             current := string_valueOf(currentobject);
-        stringtarget.set(current.concat(text));
-        goto done
+        stringtarget.set(current.concat(text))
+    end else begin
+        writer := writechannels.get(key);
+        if writer = null then
+            if readchannels.containsKey(key) then
+                signal new IllegalStateException(channelmessage("Channel ", channel, " is not open for write"))
+            else if stringchannels.containsKey(key) then
+                signal new IllegalStateException(channelmessage("Channel ", channel, " is not open for write"))
+            else
+                signal new IllegalStateException(channelmessage("Channel ", channel, " is not open"))
+        else begin
+            writer.write(text);
+            writer.flush
+        end
     end;
-    writer := writechannels.get(key);
-    if writer = null then
-        if readchannels.containsKey(key) then
-            signal new IllegalStateException(channelmessage("Channel ", channel, " is not open for write"))
-        else if stringchannels.containsKey(key) then
-            signal new IllegalStateException(channelmessage("Channel ", channel, " is not open for write"))
-        else
-            signal new IllegalStateException(channelmessage("Channel ", channel, " is not open"))
-    else begin
-        writer.write(text);
-        writer.flush
-    end;
-done:
 end;
 
 string procedure intoken(channel);
@@ -277,26 +276,30 @@ string procedure intoken(channel);
 begin
     integer ch;
     ref(StringBuilder) token;
+    boolean collecting;
 
     token := new StringBuilder;
-skip:
-    ch := readchar(channel);
-    if ch = -1 then
-        signal new EOFException(eofmessage(channel));
-    if whitespace(ch) then
-        goto skip;
+    collecting := false;
 
-collect:
-    token.appendCodePoint(ch);
-    ch := readchar(channel);
-    if ch = -1 then
-        goto done;
-    if whitespace(ch) then begin
-        unreadchar(channel, ch);
-        goto done
+    while ~collecting do begin
+        ch := readchar(channel);
+        if ch = -1 then
+            signal new EOFException(eofmessage(channel));
+        if ~whitespace(ch) then
+            collecting := true
     end;
-    goto collect;
-done:
+
+    while collecting do begin
+        token.appendCodePoint(ch);
+        ch := readchar(channel);
+        if ch = -1 then
+            collecting := false
+        else if whitespace(ch) then begin
+            unreadchar(channel, ch);
+            collecting := false
+        end
+    end;
+
     intoken := token.toString()
 end;
 
@@ -307,28 +310,29 @@ begin
     integer ch;
     ref(StringBuilder) line;
     string text;
+    boolean reading;
 
     line := new StringBuilder;
-scan:
-    ch := readchar(channel);
-    if ch = -1 then begin
-        text := line.toString();
-        if text.length() = 0 then
-            signal new EOFException(eofmessage(channel))
-        else
-            goto done
-    end;
-    if ch = 10 then
-        goto done;
-    if ch = 13 then begin
+    reading := true;
+
+    while reading do begin
         ch := readchar(channel);
-        if ch <> 10 and ch <> -1 then
-            unreadchar(channel, ch);
-        goto done
+        if ch = -1 then begin
+            text := line.toString();
+            if text.length() = 0 then
+                signal new EOFException(eofmessage(channel))
+            else
+                reading := false
+        end else if ch = 10 then
+            reading := false
+        else if ch = 13 then begin
+            ch := readchar(channel);
+            if ch <> 10 and ch <> -1 then
+                unreadchar(channel, ch);
+            reading := false
+        end else
+            line.appendCodePoint(ch)
     end;
 
-    line.appendCodePoint(ch);
-    goto scan;
-done:
     instring := line.toString()
 end

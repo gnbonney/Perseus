@@ -383,69 +383,77 @@ begin
     integer i, len, tokenStart, valueIndex, kind;
     boolean previousValueSpec, currentValueSpec;
     string token, result;
+    boolean scanning, collecting, skipping;
 
     len := formatLiteral.length();
     valueIndex := 1;
     previousValueSpec := false;
     result := "";
     i := 1;
+    scanning := true;
 
-scan:
-    if i > len then
-        goto done;
+    while scanning do begin
+        skipping := true;
+        while skipping do
+            if i > len then
+                skipping := false
+            else if formatdelimiter(formatLiteral.charAt(i - 1)) then
+                i := i + 1
+            else
+                skipping := false;
 
-    if formatdelimiter(formatLiteral.charAt(i - 1)) then begin
-        i := i + 1;
-        goto scan
-    end;
+        if i > len then
+            scanning := false
+        else begin
+            tokenStart := i;
+            collecting := true;
+            while collecting do
+                if i > len then
+                    collecting := false
+                else if formatdelimiter(formatLiteral.charAt(i - 1)) then
+                    collecting := false
+                else
+                    i := i + 1;
 
-    tokenStart := i;
-tokencollect:
-    if i > len then
-        goto tokenready;
-    if formatdelimiter(formatLiteral.charAt(i - 1)) then
-        goto tokenready;
-    i := i + 1;
-    goto tokencollect;
-tokenready:
-    token := formatLiteral.substring(tokenStart - 1, i - 1);
-    currentValueSpec := formatvaluespec(token);
+            token := formatLiteral.substring(tokenStart - 1, i - 1);
+            currentValueSpec := formatvaluespec(token);
 
-    if previousValueSpec & currentValueSpec then
-        result := result.concat(" ");
+            if previousValueSpec & currentValueSpec then
+                result := result.concat(" ");
 
-    if token.length() = 1 then begin
-        kind := token.charAt(0);
-        if kind = 47 then
-            result := result.concat("\n")
-        else if kind = 65 | kind = 97 then begin
-            if valueIndex > valueCount then
-                signalformatmismatch;
-            result := result.concat(formatstringtoken(token, string_valueOf(values[valueIndex])));
-            valueIndex := valueIndex + 1
-        end else begin
-            if valueIndex > valueCount then
-                signalformatmismatch;
-            result := result.concat(formatvaluetoken(token, string_valueOf(values[valueIndex])));
-            valueIndex := valueIndex + 1
+            if token.length() = 1 then begin
+                kind := token.charAt(0);
+                if kind = 47 then
+                    result := result.concat("\n")
+                else if kind = 65 | kind = 97 then begin
+                    if valueIndex > valueCount then
+                        signalformatmismatch;
+                    result := result.concat(formatstringtoken(token, string_valueOf(values[valueIndex])));
+                    valueIndex := valueIndex + 1
+                end else begin
+                    if valueIndex > valueCount then
+                        signalformatmismatch;
+                    result := result.concat(formatvaluetoken(token, string_valueOf(values[valueIndex])));
+                    valueIndex := valueIndex + 1
+                end
+            end else if formatxspec(token) then
+                result := result.concat(repeatspaces(integer_parseInt(token.substring(0, token.length() - 1))))
+            else if token.charAt(0) = 65 | token.charAt(0) = 97 then begin
+                if valueIndex > valueCount then
+                    signalformatmismatch;
+                result := result.concat(formatstringtoken(token, string_valueOf(values[valueIndex])));
+                valueIndex := valueIndex + 1
+            end else begin
+                if valueIndex > valueCount then
+                    signalformatmismatch;
+                result := result.concat(formatvaluetoken(token, string_valueOf(values[valueIndex])));
+                valueIndex := valueIndex + 1
+            end;
+
+            previousValueSpec := currentValueSpec
         end
-    end else if formatxspec(token) then
-        result := result.concat(repeatspaces(integer_parseInt(token.substring(0, token.length() - 1))))
-    else if token.charAt(0) = 65 | token.charAt(0) = 97 then begin
-        if valueIndex > valueCount then
-            signalformatmismatch;
-        result := result.concat(formatstringtoken(token, string_valueOf(values[valueIndex])));
-        valueIndex := valueIndex + 1
-    end else begin
-        if valueIndex > valueCount then
-            signalformatmismatch;
-        result := result.concat(formatvaluetoken(token, string_valueOf(values[valueIndex])));
-        valueIndex := valueIndex + 1
     end;
 
-    previousValueSpec := currentValueSpec;
-    goto scan;
-done:
     if valueIndex <> valueCount + 1 then
         signalformatmismatch;
     formatvalues := result
