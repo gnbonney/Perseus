@@ -28,10 +28,17 @@ proc (parameter-list) result-type : body
 - `:` - separates the header from the body (ALGOL-like and easy to read).
 - `body` - either a single expression or a compound statement (`begin ... end`).
 
-**Shorthand variations** (for convenience):
-- Single parameter without parentheses: `proc real x real : x * x`
-- No parameters: `proc void : print("hello")`
-- Void result (procedure, not function): `proc (integer i) : print(i)`
+For the initial Perseus design, the anonymous-procedure surface should remain fully explicit:
+- Parentheses are always required around the parameter list, even for a single parameter.
+- A result-type spelling is always required.
+- `void` is the explicit result type for a no-result anonymous procedure.
+
+Examples:
+```algol
+proc (real x) real : x * x
+proc () void : outstring(1, "hello")
+proc (integer i) void : outinteger(1, i)
+```
 
 **Assignment example:**
 ```algol
@@ -44,6 +51,13 @@ real procedure (real) square := proc (real x) real : x * x;
 - Full static type checking - consistent with Perseus's ALGOL-style strong typing.
 - Efficient compilation: trivial anonymous procedures can be inlined; closures that capture variables are implemented with minimal overhead.
 - Can be used anywhere a named procedure designator or formal parameter of procedure mode is expected.
+
+More specifically, closure capture is intended to work like this:
+- An anonymous procedure may refer to enclosing local variables, enclosing procedure parameters, and enclosing procedure names.
+- Anonymous-procedure parameters shadow outer names of the same spelling in the normal ALGOL block-structured way.
+- Capture is lexical: the anonymous procedure keeps referring to the surrounding binding it was created against.
+- With the default reference-capture model, later updates to a captured variable remain visible through the anonymous procedure.
+- The capture model should align with Perseus's existing nested-procedure behavior rather than introducing a separate scope model just for anonymous procedures.
 
 #### 4. Code Samples
 
@@ -81,10 +95,10 @@ print(above_threshold(15.0));  // 0.0  (reflects change via reference capture)
 
 **Example 4: Custom comparator for sorting**
 ```algol
-procedure sort_real(real array A[1:n]; proc (real, real) bool compare);
+procedure sort_real(real array A[1:n]; proc (real, real) boolean compare);
   ... bubble sort or quicksort using compare ...
 
-sort_real(data, proc (real a, real b) bool : abs(a) < abs(b));
+sort_real(data, proc (real a, real b) boolean : abs(a) < abs(b));
 ```
 
 **Example 5: Multi-statement body**
@@ -99,7 +113,7 @@ integer procedure (integer) factorial := proc (integer n) integer :
 ```
 
 #### 5. Alternative Syntax Options
-If `proc ... :` doesn't feel right, here are other easy-to-type alternatives:
+If `proc ... :` doesn't feel right, here are other possible alternatives:
 - **Keyword `lambda`** (most common in modern languages like Python):
   `lambda (real x) real : x * x`
 - **Arrow syntax** (popular in JavaScript, C#, Java, Julia):
@@ -107,7 +121,7 @@ If `proc ... :` doesn't feel right, here are other easy-to-type alternatives:
 - **Short `fn`** (used in Rust, Swift-inspired):
   `fn (real x) real : x * x`
 
-I recommend starting with **`proc`** because it aligns best with Perseus being an ALGOL descendant and avoids any conflict if you later add other keywords.
+`proc` aligns best with Perseus being an ALGOL descendant and avoids conflict if other keywords are added later. For the initial design, the fully explicit `proc (parameter-list) result-type : body` form remains the only supported surface.
 
 #### 6. Implementation Notes
 - The parser treats `proc` as a new reserved word in expression context.

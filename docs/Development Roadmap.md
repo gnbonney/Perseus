@@ -61,15 +61,13 @@ The current intended order is:
 
 - [x] Add `proc` as the anonymous-procedure introducer in expression position
 - [x] Support the first-slice `proc (parameter-list) result-type : body` surface for expression-bodied anonymous procedures
-- [ ] Decide the exact first-slice rules for shorthand forms such as omitted parentheses for a single parameter and omitted result-type spelling for no-result procedures
-- [ ] Define how the first slice maps proposal terms such as `bool` and `void` onto actual Perseus type syntax
 - [x] Support expression-bodied anonymous procedures
-- [ ] Decide whether the first implementation slice also supports `begin ... end` multi-statement bodies
+- [ ] Implement `void` anonymous procedures using explicit `proc (...) void : ...` syntax
+- [ ] Implement `begin ... end` multi-statement anonymous-procedure bodies
 - [ ] Support assignment of anonymous procedures to procedure-typed variables
 - [x] Support passing anonymous procedures to procedure parameters
 - [ ] Support returning anonymous procedures from procedures where the surrounding procedure-value machinery already permits it
-- [ ] Define and implement closure capture rules for outer locals, parameters, and nested procedure names
-- [ ] Keep the initial capture model aligned with existing nested-procedure and procedure-reference behavior
+- [ ] Implement closure capture for anonymous procedures so they can refer to enclosing locals, parameters, and procedure names using the capture model described in the proposal
 - [x] Extend semantic analysis so anonymous procedures are checked against existing procedure-value and procedure-parameter types
 - [x] Lower anonymous procedures onto the existing generated procedure-reference machinery rather than inventing a separate runtime model
 - [x] Document the current first-slice restrictions around closure capture, procedure-variable rebinding, block bodies, and other procedure features that do not fit cleanly yet
@@ -84,7 +82,10 @@ The current intended order is:
 - This milestone should follow the dedicated anonymous-procedures proposal rather than the older historical lambda discussion in the general language-design document.
 - `proc` is currently the preferred spelling because it fits Perseus's Algol-descended style better than `lambda`, `fn`, or arrow syntax.
 - The first slice now supports typed, expression-bodied `proc` forms that can be passed to existing procedure parameters without introducing a separate runtime model.
+- The anonymous-procedure surface remains fully explicit: `proc (parameter-list) result-type : body`, with no shorthand omission of parentheses or result type in the initial design.
+- No-result anonymous procedures use explicit `void` in the design, but support for that form is still follow-on implementation work.
 - The first slice should continue to reuse the compiler's existing procedure-value and closure machinery as much as possible.
+- Closure capture should stay aligned with existing nested-procedure and procedure-reference behavior rather than introducing a separate scope/runtime model for anonymous procedures.
 - Closure capture, assignment to ordinary procedure variables, returning anonymous procedures, and `begin ... end` anonymous-procedure bodies remain follow-on work rather than part of the initial landing.
 - Public external ABIs should stay out of scope for the initial anonymous-procedure implementation.
 
