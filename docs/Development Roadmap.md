@@ -22,16 +22,16 @@ The current intended order is:
 
 **Goal:** Extend Perseus with more modern looping forms while preserving the original Algol `for` statement for compatibility (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
 
-- [ ] Add `for ... in ... do` iteration over ranges and existing array forms
+- [ ] Add `for ... in ... do` iteration over existing array forms
 - [x] Add a general `loop ... end` construct
 - [x] Add `break` and `continue`
-- [ ] Define range syntax such as `..` and `..<`
 - [ ] Define scope and evaluation rules for loop-local iteration variables
 - [ ] Add focused sample programs and regression tests for the new loop forms
 
 **Implementation notes:**
 - The first Milestone 41 slice landed `loop begin ... end` with `break` and `continue`.
 - Historical `end loop` spellings continue to parse as `end` comments for compatibility, but plain `end` remains the structural closer.
+- Numeric counting remains the job of the traditional Algol `for i := ... step ... until ... do` form rather than a new symbolic range syntax.
 
 ## Milestone 42 - Lambda Notation
 
@@ -47,10 +47,10 @@ The current intended order is:
 
 - [ ] Add collection types such as `vector`, `map`, and `set`
 - [ ] Add collection literals and basic collection operations
-- [ ] Extend `for ... in ... do` from ranges/arrays to collection and iterator-protocol-based iteration
+- [ ] Extend `for ... in ... do` from arrays to collection and iterator-protocol-based iteration
 - [ ] Define an iterator protocol that works with `for ... in ... do`
 - [ ] Decide how Java `Iterable`-style interop should fit into the Perseus iterator model
-- [ ] Decide how array- and range-oriented iteration relate to the same protocol
+- [ ] Decide how array-oriented iteration should relate to the same iterator protocol
 - [ ] Decide how collection libraries fit into the standard environment / standard library story
 - [ ] Add sample programs and regression tests for collection use cases
 - [ ] Decide how iterator pipelines such as `map` and `filter` should depend on Milestone 42 lambda notation

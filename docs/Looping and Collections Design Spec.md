@@ -8,7 +8,7 @@
 Algol 60 provides a powerful but limited `for` statement (with `step … until` and `while` forms) and fixed-size `array` declarations. These work well for numerical computing but feel restrictive for general-purpose programming in 2026.
 
 Perseus extends Algol 60 with:
-- Safer, more expressive **bounded iteration** over ranges and collections.
+- Safer, more expressive **container-oriented iteration** over arrays and later collections.
 - A general-purpose **infinite loop** primitive.
 - Dynamic, high-level **collections** (`vector`, `map`, `set`) with clean syntax and rich iterator support.
 - Higher-order operations via **iterator pipelines** (composable `map`, `filter`, etc.).
@@ -29,29 +29,22 @@ for i := 1, 3, 7, 20 while x > 0 do
 ```
 
 ##### 2.2 New Bounded Iteration: `for … in … do`
-A clean, modern for-each style that works with ranges and collections.
+A clean, modern for-each style that works with arrays first and later collections.
 
 **Syntax**:
 ```algol
-for <variable> in <range or collection> do <statement>
+for <variable> in <array or collection> do <statement>
 
 for <pattern> in <collection> do <statement>   // future pattern matching
 ```
 
 **Examples**:
 ```algol
-// Numeric ranges (inclusive or exclusive)
-for i in 1 .. 100 do
+// Numeric counting remains with the traditional Algol for statement
+for i := 1 step 1 until 100 do
     sum := sum + i;
 
-for i in 0 ..< n do          // half-open range, like 0 to n-1
-    process(i);
-
-// Step variant (natural extension of Algol style)
-for i in 0 step 2 until 20 do
-    print(i);
-
-// Over collections
+// Over arrays and collections
 vector integer data := [5, 12, 8, 3, 19];
 
 for val in data do
@@ -64,8 +57,8 @@ for (idx, val) in enumerate(data) do
 
 **Semantics**:
 - The control variable is local to the loop (new scope).
-- Ranges are evaluated once at entry.
-- Works efficiently with `vector`, fixed `array`, `map`, `set`, and any type implementing the **Iterator** protocol.
+- Works efficiently with fixed `array`, `vector`, `map`, `set`, and any type implementing the **Iterator** protocol.
+- Numeric progression remains with the original Algol `for ... step ... until ... do` form rather than a separate symbolic range syntax.
 
 ##### 2.3 While Loop (clarified and retained)
 ```algol
@@ -147,7 +140,7 @@ for val in uniques do print(val);
 All collections support a standard **Iterator** interface. This enables powerful, declarative pipelines:
 
 ```algol
-let result := [1 .. 100]
+let result := data
     .filter(λ x: x mod 2 = 0)
     .map(λ x: x * x)
     .take(10)
@@ -190,6 +183,11 @@ end
 - **Safety**: Control variables in `for … in` are scoped to the loop. Bounds checking on by default (with escape hatches).
 - **Performance**: `vector` and fixed `array` compile to efficient contiguous memory; iterators allow zero-cost abstractions.
 - **Extensibility**: New collection types can implement the Iterator protocol.
+
+This suggests a clear division of responsibility:
+- classic Algol `for` remains the numeric counting form
+- `for ... in ... do` is the element-iteration form
+- `loop` is the open-ended repetition form
 
 #### 6. Optional Syntax Sugar
 - Allow `{ … }` blocks as alternative to `begin … end` for teams coming from C-like languages.
