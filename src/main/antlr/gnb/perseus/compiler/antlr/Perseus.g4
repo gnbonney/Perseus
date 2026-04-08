@@ -75,7 +75,12 @@ externalClassDecl
   ;
 
 externalValueDecl
-  : EXTERNAL JAVA STATIC '(' qualifiedName ')' externalValueType identifier AS identifier
+  : EXTERNAL JAVA STATIC '(' qualifiedName ')' externalValueType externalJavaIdentifier AS identifier
+  ;
+
+externalJavaIdentifier
+  : IDENT
+  | IN
   ;
 
 externalValueType
@@ -230,7 +235,12 @@ ifStatement
   ;
 
 forStatement
-  : FOR identifier (':=' | '=') forList DO statement
+  : FOR identifier forClause DO statement
+  ;
+
+forClause
+  : (':=' | '=') forList   # TraditionalForClause
+  | IN expr                # InArrayForClause
   ;
 
 loopStatement
@@ -349,6 +359,7 @@ STEP : 'step';
 UNTIL : 'until';
 WHILE : 'while';
 DO : 'do';
+IN : 'in';
 LOOP : 'loop';
 BREAK : 'break';
 CONTINUE : 'continue';

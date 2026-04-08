@@ -496,8 +496,8 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         } else {
             declaredType = "integer";
         }
-        String targetMember = ctx.identifier(0).getText();
-        String localName = ctx.identifier(1).getText();
+        String targetMember = ctx.externalJavaIdentifier().getText();
+        String localName = ctx.identifier().getText();
         symbolTable.put(localName, declaredType);
         mainSymbolTable.put(localName, declaredType);
         externalJavaStaticValues.put(localName, new ExternalValueInfo(localName, declaredType, ownerClass, targetMember));

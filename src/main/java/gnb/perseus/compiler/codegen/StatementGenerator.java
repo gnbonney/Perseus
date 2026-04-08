@@ -173,13 +173,14 @@ public class StatementGenerator implements GeneratorDelegate {
         String varName = ctx.identifier().getText();
         Integer varIndex = context.getLocalIndex().get(varName);
         if (varIndex == null) return;
+        if (!(ctx.forClause() instanceof PerseusParser.TraditionalForClauseContext traditionalClause)) return;
 
         currentForLoopLabel = CodeGenUtils.generateUniqueLabel("loop");
         currentForEndLabel = CodeGenUtils.generateUniqueLabel("endfor");
 
         // Only handle the first for-element for simple step/until support in this delegate
-        if (!ctx.forList().forElement().isEmpty()) {
-            PerseusParser.ForElementContext elem = ctx.forList().forElement().get(0);
+        if (!traditionalClause.forList().forElement().isEmpty()) {
+            PerseusParser.ForElementContext elem = traditionalClause.forList().forElement().get(0);
             if (elem instanceof PerseusParser.StepUntilElementContext e) {
                 activeOutput.append(exprGen.generateExpr(e.expr(0)));
                 activeOutput.append("istore ").append(varIndex).append("\n");
@@ -193,8 +194,9 @@ public class StatementGenerator implements GeneratorDelegate {
 
     public void exitForStatement(PerseusParser.ForStatementContext ctx, StringBuilder activeOutput) {
         if (isInProcedureDecl && !inProcedureWalk) return;
-        if (!ctx.forList().forElement().isEmpty()) {
-            PerseusParser.ForElementContext elem = ctx.forList().forElement().get(0);
+        if (!(ctx.forClause() instanceof PerseusParser.TraditionalForClauseContext traditionalClause)) return;
+        if (!traditionalClause.forList().forElement().isEmpty()) {
+            PerseusParser.ForElementContext elem = traditionalClause.forList().forElement().get(0);
             if (elem instanceof PerseusParser.StepUntilElementContext e) {
                 String varName = ctx.identifier().getText();
                 Integer varIndex = context.getLocalIndex().get(varName);

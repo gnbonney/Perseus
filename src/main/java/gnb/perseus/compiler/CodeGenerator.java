@@ -1757,8 +1757,15 @@ public class CodeGenerator extends PerseusBaseListener {
             ("real".equals(varType) ? "dload " + varIndex + "\n" : "iload " + varIndex + "\n");
 
         String afterAllLabel = generateUniqueLabel("endfor");
+        if (ctx.forClause() instanceof PerseusParser.InArrayForClauseContext inClause) {
+            emitForInArrayLoop(inClause, bodyCode, varName, varIndex, varType, isStaticScalar, afterAllLabel);
+            activeOutput.append(afterAllLabel).append(":\n");
+            return;
+        }
 
-        for (PerseusParser.ForElementContext elem : ctx.forList().forElement()) {
+        PerseusParser.TraditionalForClauseContext traditionalClause =
+                (PerseusParser.TraditionalForClauseContext) ctx.forClause();
+        for (PerseusParser.ForElementContext elem : traditionalClause.forList().forElement()) {
             if (elem instanceof PerseusParser.StepUntilElementContext e) {
                 String loopLabel = generateUniqueLabel("loop");
                 // init
@@ -1846,6 +1853,47 @@ public class CodeGenerator extends PerseusBaseListener {
         activeOutput.append(afterAllLabel).append(":\n");
     }
 
+    private void emitForInArrayLoop(PerseusParser.InArrayForClauseContext inClause, String bodyCode,
+            String varName, Integer varIndex, String varType, boolean isStaticScalar, String afterAllLabel) {
+        String iterableType = inferIterableType(inClause.expr());
+        if (iterableType == null || !iterableType.endsWith("[]")) {
+            activeOutput.append("; ERROR: for ... in ... do currently requires an array variable\n");
+            return;
+        }
+
+        String elementType = iterableType.substring(0, iterableType.length() - 2);
+        if (!isCompatibleIterationVariableType(varType, elementType)) {
+            activeOutput.append("; ERROR: iteration variable ").append(varName)
+                    .append(" has incompatible type ").append(varType)
+                    .append(" for array element type ").append(elementType).append("\n");
+            return;
+        }
+
+        int arraySlot = allocateNewLocal("iterArray");
+        int indexSlot = allocateNewLocal("iterIndex");
+        String loopLabel = generateUniqueLabel("loop");
+
+        activeOutput.append(generateExpr(inClause.expr()));
+        activeOutput.append("astore ").append(arraySlot).append("\n");
+        activeOutput.append("ldc 0\n");
+        activeOutput.append("istore ").append(indexSlot).append("\n");
+        activeOutput.append(loopLabel).append(":\n");
+        activeOutput.append("iload ").append(indexSlot).append("\n");
+        activeOutput.append("aload ").append(arraySlot).append("\n");
+        activeOutput.append("arraylength\n");
+        activeOutput.append("if_icmpge ").append(afterAllLabel).append("\n");
+        activeOutput.append("aload ").append(arraySlot).append("\n");
+        activeOutput.append("iload ").append(indexSlot).append("\n");
+        activeOutput.append(loadArrayElementInstruction(iterableType));
+        activeOutput.append(storeIterationVariableValue(varName, varType, varIndex, isStaticScalar, elementType));
+        activeOutput.append(bodyCode);
+        activeOutput.append("iload ").append(indexSlot).append("\n");
+        activeOutput.append("ldc 1\n");
+        activeOutput.append("iadd\n");
+        activeOutput.append("istore ").append(indexSlot).append("\n");
+        activeOutput.append("goto ").append(loopLabel).append("\n");
+    }
+
     /** Box the top-of-stack value and set it into a thunk via thunk.set(). */
     private void appendBoxAndSetThunk(int varIndex, String baseType) {
         if ("real".equals(baseType)) {
@@ -1866,6 +1914,51 @@ public class CodeGenerator extends PerseusBaseListener {
         } else {
             activeOutput.append("checkcast java/lang/Integer\ninvokevirtual java/lang/Integer/intValue()I\n");
         }
+    }
+
+    private String inferIterableType(ExprContext expr) {
+        if (expr instanceof PerseusParser.VarExprContext varExpr) {
+            return lookupVarType(varExpr.identifier().getText());
+        }
+        return null;
+    }
+
+    private boolean isCompatibleIterationVariableType(String variableType, String elementType) {
+        if (variableType == null || elementType == null) return false;
+        if (variableType.startsWith("thunk:")) {
+            variableType = variableType.substring("thunk:".length());
+        }
+        return variableType.equals(elementType);
+    }
+
+    private String loadArrayElementInstruction(String arrayType) {
+        boolean refArray = arrayType != null && arrayType.startsWith("ref:") && arrayType.endsWith("[]");
+        return "real[]".equals(arrayType) ? "daload\n"
+                : "boolean[]".equals(arrayType) ? "baload\n"
+                : ("string[]".equals(arrayType) || refArray) ? "aaload\n"
+                : "iaload\n";
+    }
+
+    private String storeIterationVariableValue(String varName, String varType, Integer varIndex,
+            boolean isStaticScalar, String elementType) {
+        String effectiveType = varType != null && varType.startsWith("thunk:") ? varType.substring("thunk:".length()) : varType;
+        if ("real".equals(effectiveType)) {
+            if (isStaticScalar) {
+                return "putstatic " + packageName + "/" + className + "/" + varName + " D\n";
+            }
+            return "dstore " + varIndex + "\n";
+        }
+        if ("integer".equals(effectiveType) || "boolean".equals(effectiveType)) {
+            if (isStaticScalar) {
+                return "putstatic " + packageName + "/" + className + "/" + varName + " I\n";
+            }
+            return "istore " + varIndex + "\n";
+        }
+        String desc = scalarTypeToJvmDesc(elementType);
+        if (isStaticScalar) {
+            return "putstatic " + packageName + "/" + className + "/" + varName + " " + desc + "\n";
+        }
+        return "astore " + varIndex + "\n";
     }
 
     // -------------------------------------------------------------------------

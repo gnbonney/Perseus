@@ -204,6 +204,29 @@ public class CoreLanguageTest extends CompilerTest{
 	}
 
 	@Test
+	public void for_in_array_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/core/for_in_array.alg", "gnb/perseus/programs", "ForInArrayTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== FOR IN ARRAY JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END FOR IN ARRAY ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("arraylength"),
+				"for ... in ... do over arrays should evaluate the array once and iterate by length");
+		assertTrue(jasminSource.contains("iaload"),
+				"integer array iteration should load each element through iaload");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ForInArrayTest");
+		System.out.println("for_in_array output: [" + output + "]");
+		assertEquals("104\n3", output.trim(),
+				"for ... in ... do should traverse array elements in order without changing the sequence when the iteration variable is assigned in the body");
+	}
+
+	@Test
 	public void boolean_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/core/boolean.alg", "gnb/perseus/programs", "Boolean", BUILD_DIR);

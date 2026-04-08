@@ -38,6 +38,8 @@ for <variable> in <array or collection> do <statement>
 for <pattern> in <collection> do <statement>   // future pattern matching
 ```
 
+The iteration variable should be an already-declared ordinary Perseus variable with a type compatible with the element type being traversed. In that respect, `for ... in ... do` should remain closer to Algol's existing `for` statement than to languages that treat the loop header as an implicit declaration form.
+
 **Examples**:
 ```algol
 // Numeric counting remains with the traditional Algol for statement
@@ -56,7 +58,10 @@ for (idx, val) in enumerate(data) do
 ```
 
 **Semantics**:
-- The control variable is local to the loop (new scope).
+- The control variable is an already-declared ordinary variable, not an implicit loop-local declaration.
+- If an explicit outer declaration is desired for a reference element, ordinary declarations such as `ref(Point) p;` should appear before the loop.
+- Assignment to the iteration variable inside the loop body does not change which element is visited next; the traversal order is controlled by the loop, as in the traditional Algol `for`.
+- The array or collection expression is evaluated once at loop entry rather than being re-evaluated on each iteration.
 - Works efficiently with fixed `array`, `vector`, `map`, `set`, and any type implementing the **Iterator** protocol.
 - Numeric progression remains with the original Algol `for ... step ... until ... do` form rather than a separate symbolic range syntax.
 

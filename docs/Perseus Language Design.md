@@ -49,6 +49,21 @@ The current semantics are:
 - `continue` skips the remainder of the current iteration and resumes at the top of the same `loop`.
 - The historical `end loop` spelling continues to be accepted as an `end` comment as well, so older Algol-style samples are not broken by reserving `loop` as a keyword.
 
+Perseus also now supports an array-iteration form:
+
+```algol
+integer value;
+for value in a do
+    ...
+```
+
+The current `for ... in ... do` rules are:
+
+- the iteration variable must already be declared with a compatible type
+- the traversed array expression is evaluated once at loop entry
+- assigning to the iteration variable inside the body does not change which element is visited next
+- numeric counting remains with the traditional Algol `for ... step ... until ... do` form rather than being folded into `for ... in ... do`
+
 ## Strings
 
 Many historic Algol compilers (e.g., NU Algol, Data General Extended Algol, Algol W, Simula) introduced a string type or class, often as a variable-length array of characters or a record with a length and character array. Simula's `Text` class and Algol W's `string` type are notable examples.

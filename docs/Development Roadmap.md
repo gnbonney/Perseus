@@ -22,16 +22,20 @@ The current intended order is:
 
 **Goal:** Extend Perseus with more modern looping forms while preserving the original Algol `for` statement for compatibility (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
 
-- [ ] Add `for ... in ... do` iteration over existing array forms
+- [x] Add `for ... in ... do` iteration over existing array forms
 - [x] Add a general `loop ... end` construct
 - [x] Add `break` and `continue`
-- [ ] Define scope and evaluation rules for loop-local iteration variables
+- [ ] Define scope and evaluation rules for `for ... in ... do` iteration variables, including the rule that the variable must already be declared with a compatible type, that assignments inside the loop body do not alter the traversal sequence, and that the traversed array or collection expression is evaluated once at loop entry
 - [ ] Add focused sample programs and regression tests for the new loop forms
 
 **Implementation notes:**
 - The first Milestone 41 slice landed `loop begin ... end` with `break` and `continue`.
+- A second Milestone 41 slice landed `for ... in ... do` over existing arrays using already-declared compatible variables.
 - Historical `end loop` spellings continue to parse as `end` comments for compatibility, but plain `end` remains the structural closer.
 - Numeric counting remains the job of the traditional Algol `for i := ... step ... until ... do` form rather than a new symbolic range syntax.
+- `for ... in ... do` should continue the Algol tradition that loop variables are ordinary declared variables, not hidden declarations introduced by the loop syntax.
+- As with the classic Algol `for`, the loop controls the traversal sequence even if user code assigns to the iteration variable inside the body.
+- The array or collection being traversed should be evaluated once before iteration begins, not re-evaluated on each pass.
 
 ## Milestone 42 - Lambda Notation
 
