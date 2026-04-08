@@ -9,15 +9,14 @@ The near-term direction should reflect Perseus's center of gravity more clearly.
 The current intended order is:
 
 1. Milestone 41: modern looping forms
-2. Milestone 41.1: classic loop-surface refinement
-3. Milestone 42: lambda notation
-4. Milestone 43: collections, iterators, and Java-container interop
-5. Milestone 44: complex numbers and mathematical types
-6. Milestone 45: mathematical arrays and numerically oriented procedure features
-7. Milestone 46: numeric precision and extended arithmetic
-8. Milestone 47: numerical standard library foundations
-9. Milestone 48: actors
-10. Milestone 49: CLI polish and tooling
+2. Milestone 42: lambda notation
+3. Milestone 43: collections, iterators, and Java-container interop
+4. Milestone 44: complex numbers and mathematical types
+5. Milestone 45: mathematical arrays and numerically oriented procedure features
+6. Milestone 46: numeric precision and extended arithmetic
+7. Milestone 47: numerical standard library foundations
+8. Milestone 48: actors
+9. Milestone 49: CLI polish and tooling
 
 ## Milestone 41 - Looping Extensions
 
@@ -42,19 +41,19 @@ The current intended order is:
 
 **Goal:** Convert the current `loop ... end` surface into clearer standalone `while ... do` and `repeat ... until` forms while keeping `break` and `continue` across the structured loop family (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
 
-- [ ] Convert `loop ... end` into standalone `while ... do`
-- [ ] Add standalone `repeat ... until`
-- [ ] Keep `break` and `continue` working in both forms
-- [ ] Remove `loop ... end`
-- [ ] Update the language docs and loop examples to present `while` / `repeat` as the preferred structured loop surface
-- [ ] Convert the current `loop` regressions to `while true do` regressions and add focused coverage for `repeat ... until`
+- [x] Convert `loop ... end` into standalone `while ... do`
+- [x] Add standalone `repeat ... until`
+- [x] Keep `break` and `continue` working in both forms
+- [x] Remove `loop ... end`
+- [x] Update the language docs and loop examples to present `while` / `repeat` as the preferred structured loop surface
+- [x] Convert the current `loop` regressions to `while true do` regressions and add focused coverage for `repeat ... until`
 
 **Implementation notes:**
 - The motivation here is readability and a cleaner fit with the broader Algol tradition, not JVM performance.
 - Perseus already has Algol's `for i := expr while cond do ...` form inside the classic `for` statement, but a direct `while ... do` loop is still worth adding because it is simpler to read, easier to teach, and easier for the compiler to lower into a tight structured loop shape.
-- `while true do ...` with `break` and `continue` should cover the ordinary open-ended repetition cases that previously motivated `loop ... end`.
-- The original Algol `for` still remains the expressive heritage form, while `while ... do` and `repeat ... until` become the ordinary structured pre-test and post-test loops.
-- `loop ... end` is not meant to remain as a parallel long-term loop form.
+- `while true do ...` with `break` and `continue` now covers the ordinary open-ended repetition cases that previously motivated `loop ... end`.
+- The original Algol `for` still remains the expressive heritage form, while `while ... do` and `repeat ... until` are now the ordinary structured pre-test and post-test loops.
+- `loop ... end` has been removed rather than kept as a parallel long-term loop form.
 
 ## Milestone 42 - Lambda Notation
 
