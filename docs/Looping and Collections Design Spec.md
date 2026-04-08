@@ -9,7 +9,7 @@ Algol 60 provides a powerful but limited `for` statement (with `step … until` 
 
 Perseus extends Algol 60 with:
 - Safer, more expressive **container-oriented iteration** over arrays and later collections.
-- A general-purpose **infinite loop** primitive.
+- Clearer structured **pre-test and post-test loops** alongside the classic Algol `for`.
 - Dynamic, high-level **collections** (`vector`, `map`, `set`) with clean syntax and rich iterator support.
 - Higher-order operations via **iterator pipelines** (composable `map`, `filter`, etc.).
 
@@ -27,6 +27,8 @@ for i := 1 step 1 until 100 do
 for i := 1, 3, 7, 20 while x > 0 do
     process(i);
 ```
+
+This form is deliberately retained for Algol compatibility rather than as a new "fast path" loop construct. Because `for`-list elements may need to be re-evaluated as iteration proceeds, code generation naturally uses a more general control-flow shape with multiple conditional branches and temporary locals for loop state. That is acceptable and appropriate for heritage code, but it should not be advertised as the preferred form for the hottest inner loops when a simpler loop construct expresses the same intent.
 
 ##### 2.2 New Bounded Iteration: `for … in … do`
 A clean, modern for-each style that works with arrays first and later collections.
@@ -65,29 +67,44 @@ for (idx, val) in enumerate(data) do
 - Works efficiently with fixed `array`, `vector`, `map`, `set`, and any type implementing the **Iterator** protocol.
 - Numeric progression remains with the original Algol `for ... step ... until ... do` form rather than a separate symbolic range syntax.
 
-##### 2.3 While Loop (clarified and retained)
+##### 2.3 Planned Structured Loops: `while ... do` and `repeat ... until`
 ```algol
 while <boolean expression> do
 begin
     ...
 end
-```
 
-##### 2.4 General Loop Primitive
-```algol
-loop
+repeat
 begin
     ...
-    if <condition> then break;
-    ...
 end
+until <boolean expression>
 ```
 
-This is the most general form. It replaces many uses of `while true` and makes termination explicit.
+These forms give Perseus a cleaner and more familiar loop family in the broader Algol tradition:
+
+- `while ... do` is the ordinary pre-test loop
+- `repeat ... until` is the ordinary post-test loop
+- `break` and `continue` remain available inside both forms
+
+This direction is preferred over keeping a dedicated infinite-loop keyword. In practice, an open-ended loop can be written clearly as `while true do ...` with `break` and `continue`, while the language also gains the more readable standalone `while` and `repeat ... until` forms.
 
 **Early exit**:
 - `break` — exits the innermost loop.
 - `continue` — skips to the next iteration (supported in all loop forms).
+
+##### 2.5 Relation to Knuth and Dahl
+Donald Knuth's discussion of structured looping in "Structured Programming with go to Statements" favors a small set of high-level loop forms that lower cleanly to simple control-flow graphs. In particular, he praises Ole-Johan Dahl's general loop style because it can express ordinary pre-test loops, post-test loops, and "test in the middle" loops without duplicating code.
+
+Perseus's current direction is compatible with that advice even though the source syntax is simpler and more conventional:
+
+- the original Algol `for` is retained as the expressive heritage form
+- `while ... do` and `repeat ... until` provide the main structured loop forms, with `break` and `continue` for early exit
+- `for ... in ... do` covers element-oriented traversal over arrays now and collections later
+
+For JVM code generation, this is a sensible compromise. `while ... do`, `repeat ... until`, and `for ... in ... do` naturally lower to a clear loop header, a small number of conditional branches, and a single back-edge `goto`, which is exactly the kind of shape the JVM handles well. The original Algol `for` remains more general and therefore less ideal as a hot-loop form, but that is acceptable because its main job is semantic fidelity and compatibility with classic Algol code.
+
+This means Perseus does not currently adopt Dahl's source syntax directly, but it does follow the same underlying principle: provide structured loop forms whose obvious lowering is already efficient, instead of depending on user-written `goto` for ordinary iteration.
 
 #### 3. Collections
 
@@ -184,15 +201,16 @@ end
 #### 5. Design Principles
 - **Orthogonality**: Few concepts that compose well (`for … in` works with any iterable).
 - **Backward compatibility**: Original Algol 60 `for`, `array`, and blocks continue to work.
-- **Readability**: Keywords like `in`, `loop`, `break`, `filter`, `map` are clear and Algol-like.
-- **Safety**: Control variables in `for … in` are scoped to the loop. Bounds checking on by default (with escape hatches).
+- **Readability**: Keywords like `while`, `repeat`, `until`, `in`, `break`, `filter`, and `map` are clear and Algol-like.
+- **Safety**: `for ... in ... do` reuses an already-declared compatible variable, while the loop itself still controls traversal order and evaluates the traversed expression once at entry. Bounds checking stays on by default (with escape hatches).
 - **Performance**: `vector` and fixed `array` compile to efficient contiguous memory; iterators allow zero-cost abstractions.
 - **Extensibility**: New collection types can implement the Iterator protocol.
 
 This suggests a clear division of responsibility:
 - classic Algol `for` remains the numeric counting form
 - `for ... in ... do` is the element-iteration form
-- `loop` is the open-ended repetition form
+- `while ... do` is the pre-test form
+- `repeat ... until` is the post-test form
 
 #### 6. Optional Syntax Sugar
 - Allow `{ … }` blocks as alternative to `begin … end` for teams coming from C-like languages.

@@ -26,28 +26,33 @@ On the JVM, Perseus currently lowers declared arrays to ordinary JVM arrays and 
 
 ## Looping Extensions
 
-Perseus keeps the original Algol `for ... step ... until ... do` statement, but it is also beginning to add a more modern loop surface.
+Perseus keeps the original Algol `for ... step ... until ... do` statement, but it is also moving toward a more modern structured loop surface.
 
-The first looping extension is a general `loop` form:
+The preferred direction is to provide standalone pre-test and post-test loops:
 
 ```algol
-loop
+while cond do
 begin
     ...
+    if skiprest then continue;
     if done then break;
     ...
-    if skiprest then continue;
+end;
+
+repeat
+begin
     ...
-end loop;
+until cond
 ```
 
-This form is intended to cover the cases where an open-ended repetition is clearer than forcing the older Algol `for` shapes. It also gives Perseus a structured alternative to some uses of local `goto`.
+These forms fit naturally with the broader Algol tradition, read more directly than a dedicated infinite-loop keyword, and still allow `break` and `continue` for early exit.
 
-The current semantics are:
+The currently implemented intermediate state is:
 
-- `loop begin ... end` repeats until a `break` transfers control to the statement after the loop.
-- `continue` skips the remainder of the current iteration and resumes at the top of the same `loop`.
-- The historical `end loop` spelling continues to be accepted as an `end` comment as well, so older Algol-style samples are not broken by reserving `loop` as a keyword.
+- a general `loop begin ... end` form with `break` and `continue`
+- continued acceptance of the historical `end loop` spelling as an `end` comment
+
+That `loop` form should be understood as a transitional surface rather than the long-term preferred loop syntax.
 
 Perseus also now supports an array-iteration form:
 
@@ -63,6 +68,8 @@ The current `for ... in ... do` rules are:
 - the traversed array expression is evaluated once at loop entry
 - assigning to the iteration variable inside the body does not change which element is visited next
 - numeric counting remains with the traditional Algol `for ... step ... until ... do` form rather than being folded into `for ... in ... do`
+
+The traditional Algol `for` form remains intentionally general. Its `for`-list elements may need to be re-evaluated as the loop proceeds, and the generated JVM code naturally reflects that with multiple branches and temporary locals for control state. That is the right tradeoff for historical correctness and translation of classic Algol code, but it also means this form should not be treated as the preferred choice for the hottest possible inner loops when a simpler loop shape would do.
 
 ## Strings
 

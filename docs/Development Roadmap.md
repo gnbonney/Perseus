@@ -9,14 +9,15 @@ The near-term direction should reflect Perseus's center of gravity more clearly.
 The current intended order is:
 
 1. Milestone 41: modern looping forms
-2. Milestone 42: lambda notation
-3. Milestone 43: collections, iterators, and Java-container interop
-4. Milestone 44: complex numbers and mathematical types
-5. Milestone 45: mathematical arrays and numerically oriented procedure features
-6. Milestone 46: numeric precision and extended arithmetic
-7. Milestone 47: numerical standard library foundations
-8. Milestone 48: actors
-9. Milestone 49: CLI polish and tooling
+2. Milestone 41.1: classic loop-surface refinement
+3. Milestone 42: lambda notation
+4. Milestone 43: collections, iterators, and Java-container interop
+5. Milestone 44: complex numbers and mathematical types
+6. Milestone 45: mathematical arrays and numerically oriented procedure features
+7. Milestone 46: numeric precision and extended arithmetic
+8. Milestone 47: numerical standard library foundations
+9. Milestone 48: actors
+10. Milestone 49: CLI polish and tooling
 
 ## Milestone 41 - Looping Extensions
 
@@ -25,8 +26,8 @@ The current intended order is:
 - [x] Add `for ... in ... do` iteration over existing array forms
 - [x] Add a general `loop ... end` construct
 - [x] Add `break` and `continue`
-- [ ] Define scope and evaluation rules for `for ... in ... do` iteration variables, including the rule that the variable must already be declared with a compatible type, that assignments inside the loop body do not alter the traversal sequence, and that the traversed array or collection expression is evaluated once at loop entry
-- [ ] Add focused sample programs and regression tests for the new loop forms
+- [x] Define scope and evaluation rules for `for ... in ... do` iteration variables, including the rule that the variable must already be declared with a compatible type, that assignments inside the loop body do not alter the traversal sequence, and that the traversed array or collection expression is evaluated once at loop entry
+- [x] Add focused sample programs and regression tests for the new loop forms
 
 **Implementation notes:**
 - The first Milestone 41 slice landed `loop begin ... end` with `break` and `continue`.
@@ -36,6 +37,22 @@ The current intended order is:
 - `for ... in ... do` should continue the Algol tradition that loop variables are ordinary declared variables, not hidden declarations introduced by the loop syntax.
 - As with the classic Algol `for`, the loop controls the traversal sequence even if user code assigns to the iteration variable inside the body.
 - The array or collection being traversed should be evaluated once before iteration begins, not re-evaluated on each pass.
+
+## Milestone 41.1 - Classic Loop-Surface Refinement
+
+**Goal:** Replace the dedicated `loop ... end` surface with clearer standalone `while ... do` and `repeat ... until` forms while keeping `break` and `continue` across the structured loop family (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
+
+- [ ] Add standalone `while ... do`
+- [ ] Add standalone `repeat ... until`
+- [ ] Keep `break` and `continue` working in both forms
+- [ ] Decide whether `loop ... end` should be removed entirely or retained temporarily as a compatibility alias
+- [ ] Update the language docs and loop examples to present `while` / `repeat` as the preferred structured loop surface
+- [ ] Add focused sample programs and regression tests for the new forms
+
+**Implementation notes:**
+- The motivation here is readability and a cleaner fit with the broader Algol tradition, not JVM performance.
+- `while true do ...` with `break` and `continue` should cover the ordinary open-ended repetition cases that previously motivated `loop ... end`.
+- The original Algol `for` still remains the expressive heritage form, while `while ... do` and `repeat ... until` become the ordinary structured pre-test and post-test loops.
 
 ## Milestone 42 - Lambda Notation
 
