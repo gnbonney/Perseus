@@ -64,7 +64,7 @@ The current intended order is:
 - [x] Support expression-bodied anonymous procedures
 - [x] Implement `void` anonymous procedures using explicit `proc (...) void : ...` syntax
 - [ ] Implement `begin ... end` multi-statement anonymous-procedure bodies
-- [ ] Support assignment of anonymous procedures to procedure-typed variables
+- [x] Support assignment of anonymous procedures to procedure-typed variables
 - [x] Support passing anonymous procedures to procedure parameters
 - [ ] Support returning anonymous procedures from procedures where the surrounding procedure-value machinery already permits it
 - [ ] Implement closure capture for anonymous procedures so they can refer to enclosing locals, parameters, and procedure names using the capture model described in the proposal
@@ -73,7 +73,7 @@ The current intended order is:
 - [x] Document the current first-slice restrictions around closure capture, procedure-variable rebinding, block bodies, and other procedure features that do not fit cleanly yet
 - [ ] Add focused regressions for:
 - [x] simple expression-bodied anonymous procedures
-- [ ] assignment to procedure variables
+- [x] assignment to procedure variables
 - [x] passing anonymous procedures as arguments
 - [ ] captured outer-variable cases
 - [ ] higher-order numerical examples
@@ -82,11 +82,11 @@ The current intended order is:
 - This milestone should follow the dedicated anonymous-procedures proposal rather than the older historical lambda discussion in the general language-design document.
 - `proc` is currently the preferred spelling because it fits Perseus's Algol-descended style better than `lambda`, `fn`, or arrow syntax.
 - The first slice now supports typed, expression-bodied `proc` forms that can be passed to existing procedure parameters without introducing a separate runtime model.
+- Anonymous procedures can now also be assigned to existing bindable procedure names and then invoked through the current procedure-variable machinery.
 - The anonymous-procedure surface remains fully explicit: `proc (parameter-list) result-type : body`, with no shorthand omission of parentheses or result type in the initial design.
-- No-result anonymous procedures use explicit `void` in the design, but support for that form is still follow-on implementation work.
 - The first slice should continue to reuse the compiler's existing procedure-value and closure machinery as much as possible.
 - Closure capture should stay aligned with existing nested-procedure and procedure-reference behavior rather than introducing a separate scope/runtime model for anonymous procedures.
-- Closure capture, assignment to ordinary procedure variables, returning anonymous procedures, and `begin ... end` anonymous-procedure bodies remain follow-on work rather than part of the initial landing.
+- Closure capture, returning anonymous procedures, and `begin ... end` anonymous-procedure bodies remain follow-on work rather than part of the initial landing.
 - Public external ABIs should stay out of scope for the initial anonymous-procedure implementation.
 
 ## Milestone 43 - Collections, Iterators, and Java Container Interop

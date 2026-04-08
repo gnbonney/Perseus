@@ -331,6 +331,44 @@ end
 		assertEquals("Hello", output.trim());
 	}
 
+	@Test
+	public void anonymous_proc_rebind_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+			"test/algol/procedures/anonymous_proc_rebind.alg",
+			"gnb/perseus/programs",
+			"AnonymousProcRebind",
+			BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+		assertTrue(jasminSource.contains("__anonproc"),
+			"Rebound anonymous procedures should lower to synthetic static helper methods");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.AnonymousProcRebind");
+		assertEquals("Hello", output.trim());
+	}
+
+	@Test
+	public void anonymous_proc_rebind_value_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+			"test/algol/procedures/anonymous_proc_rebind_value.alg",
+			"gnb/perseus/programs",
+			"AnonymousProcRebindValue",
+			BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+		assertTrue(jasminSource.contains("__anonproc"),
+			"Typed rebound anonymous procedures should lower to synthetic static helper methods");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.AnonymousProcRebindValue");
+		assertEquals("42", output.trim());
+	}
+
     @Test
     public void deferred_name_params_mixed_type_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(

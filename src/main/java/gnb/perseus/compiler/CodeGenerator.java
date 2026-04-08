@@ -3128,8 +3128,12 @@ public class CodeGenerator extends PerseusBaseListener {
 
     // Clean retyped: Checks if the given expression is a procedure reference
     private boolean isProcedureReferenceExpr(ExprContext expr) {
+        if (expr instanceof PerseusParser.AnonymousProcedureExprContext) {
+            return true;
+        }
         if (!(expr instanceof PerseusParser.VarExprContext ve)) {
-            return false;
+            String exprType = exprTypes.get(expr);
+            return exprType != null && exprType.startsWith("procedure:");
         }
         String name = ve.identifier().getText();
         if (procedures.containsKey(name)) {
