@@ -573,6 +573,26 @@ public class ProcedureGenerator implements GeneratorDelegate {
                 }
                 envFields.add(new EnvField("ret", envReturnFieldName(outerProc), retDesc));
             }
+            if (procName.startsWith("__anonproc")) {
+                for (Map.Entry<String, String> local : outerInfo.localVars.entrySet()) {
+                    String localName = local.getKey();
+                    String localType = local.getValue();
+                    if (outerInfo.ownVars.contains(localName) || localType == null
+                            || localType.endsWith("[]") || localType.startsWith("procedure:")) {
+                        continue;
+                    }
+                    String desc = switch (localType) {
+                        case "real" -> "D";
+                        case "string" -> "Ljava/lang/String;";
+                        case "boolean" -> "I";
+                        default -> "I";
+                    };
+                    if (localType.startsWith("ref:")) {
+                        desc = "Ljava/lang/Object;";
+                    }
+                    envFields.add(new EnvField(localName, envThunkFieldName(outerProc, localName), desc));
+                }
+            }
         }
         System.out.println("DEBUG: envFields=" + envFields.stream().map(f -> f.name).toList());
 

@@ -112,6 +112,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     // --- Procedure return-value tracking ---
     private String currentProcName = null;
+    private String currentClosureOwnerProcName = null;
     private String currentProcReturnType = null;
     private int    procRetvalSlot = -1;
     private Map<String, Integer> currentEnvParamSlots = new LinkedHashMap<>();
@@ -204,7 +205,8 @@ public class CodeGenerator extends PerseusBaseListener {
             this::lookupProcVarSlot,
             exprTypes,
             e -> generateExpr(e));
-        this.procGen.setCurrentProcNameSupplier(() -> this.currentProcName);
+        this.procGen.setCurrentProcNameSupplier(
+            () -> this.currentClosureOwnerProcName != null ? this.currentClosureOwnerProcName : this.currentProcName);
         this.procGen.setProceduresSupplier(() -> this.procedures);
         this.exceptionGen = new ExceptionGenerator(this::generateUniqueLabel);
         this.channelGen = new ChannelIOGenerator(packageName, className);
@@ -2243,6 +2245,9 @@ public class CodeGenerator extends PerseusBaseListener {
             type = rootMainSymbolTable.get(name);
             resolvedFromRootMain = type != null || resolvedFromRootMain;
         }
+        if (type == null) {
+            type = capturedClosureType(name);
+        }
         // If variable is not declared locally, check whether it is an env-bridge parameter
         // of an enclosing procedure (nested scope access).  In that case we can load it
         // from the corresponding static __env_<outer>_<name> field.
@@ -2283,6 +2288,10 @@ public class CodeGenerator extends PerseusBaseListener {
                 sb.append("invokevirtual java/lang/Integer/intValue()I\n");
             }
             return sb.toString();
+        }
+        String closureOwnerLoad = generateClosureOwnerEnvLoad(name, type);
+        if (closureOwnerLoad != null) {
+            return closureOwnerLoad;
         }
         if (idx == null) {
             if (externalValue != null) {
@@ -2334,8 +2343,9 @@ public class CodeGenerator extends PerseusBaseListener {
             // thunk formal inside caller? not expected here
             type = type.substring("thunk:".length());
         }
-        if ((idx == null || !currentLocalIndex.containsKey(name)) && useEnvBridge(currentProcName) && currentProcName != null) {
-            SymbolTableBuilder.ProcInfo cp = procedures.get(currentProcName);
+        String envProcName = currentClosureOwnerProcName != null ? currentClosureOwnerProcName : currentProcName;
+        if ((idx == null || !currentLocalIndex.containsKey(name)) && useEnvBridge(envProcName) && envProcName != null) {
+            SymbolTableBuilder.ProcInfo cp = procedures.get(envProcName);
             if (cp != null && cp.paramNames.contains(name) && cp.valueParams.contains(name)) {
                 String pType = getFormalBaseType(cp, name);
                 if (pType.endsWith("[]")) {
@@ -2349,11 +2359,11 @@ public class CodeGenerator extends PerseusBaseListener {
                 } else if (isObjectType(pType)) desc = CodeGenUtils.getReturnTypeDescriptor(pType);
                 else if ("deferred".equals(pType)) desc = "D";
                 else desc = "I";
-                return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentProcName, name) + " " + desc + "\n";
+                return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(envProcName, name) + " " + desc + "\n";
             }
         }
         if (isCurrentProcedureBridgedLocal(name)) {
-            return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentProcName, name)
+            return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(envProcName, name)
                 + " " + scalarTypeToJvmDesc(type) + "\n";
         }
         if ("integer".equals(type) || "boolean".equals(type)) {
@@ -3201,6 +3211,9 @@ public class CodeGenerator extends PerseusBaseListener {
         String type = currentSymbolTable.get(name);
         if (type == null && mainSymbolTable != null) type = mainSymbolTable.get(name);
         if (type == null && rootMainSymbolTable != null) type = rootMainSymbolTable.get(name);
+        if (type == null) {
+            type = capturedClosureType(name);
+        }
         if (type != null) return type;
 
         // If not found in the local or main symbol tables, check for env-bridge
@@ -3229,6 +3242,71 @@ public class CodeGenerator extends PerseusBaseListener {
             return procedures.get(outerProc);
         }
         return null;
+    }
+
+    private SymbolTableBuilder.ProcInfo getClosureOwnerInfo() {
+        if (currentClosureOwnerProcName == null) {
+            return null;
+        }
+        return procedures.get(currentClosureOwnerProcName);
+    }
+
+    private String capturedClosureType(String name) {
+        SymbolTableBuilder.ProcInfo ownerInfo = getClosureOwnerInfo();
+        if (ownerInfo == null || name == null) {
+            return null;
+        }
+        if (ownerInfo.paramNames.contains(name)) {
+            String baseType = getFormalBaseType(ownerInfo, name);
+            return ownerInfo.valueParams.contains(name) ? baseType : "thunk:" + baseType;
+        }
+        String localType = ownerInfo.localVars.get(name);
+        if (localType != null && !ownerInfo.ownVars.contains(name)
+                && !localType.endsWith("[]") && !localType.startsWith("procedure:")) {
+            return localType;
+        }
+        if (ownerInfo.nestedProcedures.contains(name)) {
+            SymbolTableBuilder.ProcInfo nestedInfo = procedures.get(name);
+            if (nestedInfo != null) {
+                return "procedure:" + nestedInfo.returnType;
+            }
+        }
+        return null;
+    }
+
+    private String generateClosureOwnerEnvLoad(String name, String type) {
+        SymbolTableBuilder.ProcInfo ownerInfo = getClosureOwnerInfo();
+        if (ownerInfo == null || currentClosureOwnerProcName == null || name == null || type == null) {
+            return null;
+        }
+        if (ownerInfo.paramNames.contains(name) && ownerInfo.valueParams.contains(name)) {
+            String pType = getFormalBaseType(ownerInfo, name);
+            if (pType.endsWith("[]")) {
+                return null;
+            }
+            String desc;
+            if ("real".equals(pType) || "deferred".equals(pType)) desc = "D";
+            else if ("string".equals(pType)) desc = "Ljava/lang/String;";
+            else if (pType.startsWith("procedure:")) desc = getProcedureInterfaceDescriptor(pType);
+            else if (isObjectType(pType)) desc = CodeGenUtils.getReturnTypeDescriptor(pType);
+            else desc = "I";
+            return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentClosureOwnerProcName, name)
+                + " " + desc + "\n";
+        }
+        String localType = ownerInfo.localVars.get(name);
+        if (localType != null && !ownerInfo.ownVars.contains(name)
+                && !localType.endsWith("[]") && !localType.startsWith("procedure:")) {
+            return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentClosureOwnerProcName, name)
+                + " " + scalarTypeToJvmDesc(localType) + "\n";
+        }
+        return null;
+    }
+
+    private String nearestCapturedOuterProcName() {
+        if (currentClosureOwnerProcName != null) {
+            return currentClosureOwnerProcName;
+        }
+        return savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
     }
 
     private String exceptionPatternRefType(PerseusParser.ExceptionPatternContext ctx) {
@@ -3816,12 +3894,13 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private boolean procedureNeedsLocalBridge(SymbolTableBuilder.ProcInfo info) {
-        return info != null && !info.nestedProcedures.isEmpty();
+        return info != null && (!info.nestedProcedures.isEmpty() || info.containsAnonymousProcedures);
     }
 
     private boolean isCurrentProcedureBridgedLocal(String name) {
-        if (currentProcName == null || name == null || !useEnvBridge(currentProcName)) return false;
-        SymbolTableBuilder.ProcInfo info = procedures.get(currentProcName);
+        String procName = currentClosureOwnerProcName != null ? currentClosureOwnerProcName : currentProcName;
+        if (procName == null || name == null || !useEnvBridge(procName)) return false;
+        SymbolTableBuilder.ProcInfo info = procedures.get(procName);
         if (!procedureNeedsLocalBridge(info)) return false;
         String localType = info.localVars.get(name);
         return localType != null
@@ -3835,7 +3914,13 @@ public class CodeGenerator extends PerseusBaseListener {
         if (idx != null) {
             return "aload " + idx + "\n";
         }
-        String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
+        SymbolTableBuilder.ProcInfo closureOwnerInfo = getClosureOwnerInfo();
+        if (closureOwnerInfo != null && closureOwnerInfo.paramNames.contains(name)
+                && !closureOwnerInfo.valueParams.contains(name)) {
+            return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentClosureOwnerProcName, name)
+                + " Lgnb/perseus/compiler/Thunk;\n";
+        }
+        String outerProc = nearestCapturedOuterProcName();
         if (useEnvBridge(outerProc) && outerProc != null) {
             return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(outerProc, name)
                 + " Lgnb/perseus/compiler/Thunk;\n";
@@ -4173,154 +4258,36 @@ public class CodeGenerator extends PerseusBaseListener {
                         + " " + externalValueJvmDesc(externalValue.type) + "\n";
             }
 
-            // Regular variable lookup
-            Integer idx = currentLocalIndex.get(name);
-            String type = currentSymbolTable.get(name);
-            boolean resolvedFromRootMain = false;
-            if (idx == null && mainLocalIndex != null) {
-                idx = mainLocalIndex.get(name);
-            }
-            if (type == null && mainSymbolTable != null) {
-                type = mainSymbolTable.get(name);
-            }
-            if (idx == null && rootMainLocalIndex != null && rootMainLocalIndex.containsKey(name)) {
-                idx = rootMainLocalIndex.get(name);
-                resolvedFromRootMain = true;
-            }
-            if (type == null && rootMainSymbolTable != null) {
-                type = rootMainSymbolTable.get(name);
-                resolvedFromRootMain = type != null || resolvedFromRootMain;
-            }
-
-            // If not found locally, check for env bridge parameters from enclosing procedures
-            if (type == null && idx == null) {
-                for (String outerProc : savedProcNameStack) {
-                    if (outerProc == null) continue;
-                    SymbolTableBuilder.ProcInfo outerInfo = procedures.get(outerProc);
-                    if (outerInfo == null) continue;
-                    if (!useEnvBridge(outerProc)) continue;
-                    if (!outerInfo.paramNames.contains(name)) continue;
-
-                    String baseType = getFormalBaseType(outerInfo, name);
-                    if (!outerInfo.valueParams.contains(name)) {
-                        type = "thunk:" + baseType;
-                    } else {
-                        type = baseType;
-                    }
-                    break;
-                }
-            }
-
-            // support call-by-name thunk parameters (local or env bridge) before idx==null early return
-            if (type != null && type.startsWith("thunk:")) {
-                String baseType = type.substring("thunk:".length());
-                StringBuilder sb2 = new StringBuilder();
+            String lookupType = lookupVarType(name);
+            if (lookupType != null && lookupType.startsWith("thunk:")) {
+                String baseType = lookupType.substring("thunk:".length());
+                StringBuilder sb = new StringBuilder();
+                Integer idx = currentLocalIndex.get(name);
                 if (idx != null) {
-                    sb2.append("aload ").append(idx).append("\n");
+                    sb.append("aload ").append(idx).append("\n");
                 } else {
-                    sb2.append(generateLoadThunkRef(name));
+                    sb.append(generateLoadThunkRef(name));
                 }
-                sb2.append("invokeinterface gnb/perseus/compiler/Thunk/get()Ljava/lang/Object; 1\n");
+                sb.append("invokeinterface gnb/perseus/compiler/Thunk/get()Ljava/lang/Object; 1\n");
                 switch (baseType) {
                     case "real" -> {
-                        sb2.append("checkcast java/lang/Double\n");
-                        sb2.append("invokevirtual java/lang/Double/doubleValue()D\n");
+                        sb.append("checkcast java/lang/Double\n");
+                        sb.append("invokevirtual java/lang/Double/doubleValue()D\n");
                     }
                     case "deferred" -> {
                         String inferredType = exprTypes.getOrDefault(ctx, "real");
-                        sb2.append(dynamicUnboxDeferredValue(inferredType));
+                        sb.append(dynamicUnboxDeferredValue(inferredType));
                     }
-                    case "string" -> sb2.append("checkcast java/lang/String\n");
+                    case "string" -> sb.append("checkcast java/lang/String\n");
                     default -> {
-                        sb2.append("checkcast java/lang/Integer\n");
-                        sb2.append("invokevirtual java/lang/Integer/intValue()I\n");
+                        sb.append("checkcast java/lang/Integer\n");
+                        sb.append("invokevirtual java/lang/Integer/intValue()I\n");
                     }
                 }
-                return sb2.toString();
+                return sb.toString();
             }
 
-            if (idx == null) {
-                // Check if this is a static scalar (no local slot, but exists in symbol table)
-                if (type != null && !type.endsWith("[]") && !type.startsWith("procedure:") && !type.startsWith("thunk:")) {
-                    // Static scalar: emit getstatic
-                    String jvmDesc = scalarTypeToJvmDesc(type);
-                    String fieldName = resolveOuterFieldName(name, type, resolvedFromRootMain);
-                    return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + jvmDesc + "\n";
-                }
-                if (type != null && type.endsWith("[]")) {
-                    String jvmDesc = arrayTypeToJvmDesc(type);
-                    String fieldName = resolveOuterFieldName(name, type, resolvedFromRootMain);
-                    return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + jvmDesc + "\n";
-                }
-                // Check main symbol table for outer scope static scalars
-                if (mainSymbolTable != null) {
-                    String mainType = mainSymbolTable.get(name);
-                    if (mainType != null && !mainType.endsWith("[]") && !mainType.startsWith("procedure:") && !mainType.startsWith("thunk:")) {
-                        // Static scalar from outer scope: emit getstatic
-                        String jvmDesc = scalarTypeToJvmDesc(mainType);
-                        String fieldName = resolveOuterFieldName(name, mainType, resolvedFromRootMain);
-                        return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + jvmDesc + "\n";
-                    } else if (mainType != null && mainType.endsWith("[]")) {
-                        String jvmDesc = arrayTypeToJvmDesc(mainType);
-                        String fieldName = resolveOuterFieldName(name, mainType, resolvedFromRootMain);
-                        return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + jvmDesc + "\n";
-                    }
-                }
-                return "; ERROR: undeclared variable " + name + "\n";
-            }
-            if (!currentLocalIndex.containsKey(name)) {
-                if (type != null && type.startsWith("procedure:")) {
-                    String desc = getProcedureInterfaceDescriptor(type);
-                    String fieldName = resolveOuterFieldName(name, type, resolvedFromRootMain);
-                    return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + desc + "\n";
-                }
-                if (type != null && !type.endsWith("[]") && !type.startsWith("thunk:")) {
-                    String jvmDesc = scalarTypeToJvmDesc(type);
-                    String fieldName = resolveOuterFieldName(name, type, resolvedFromRootMain);
-                    return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + jvmDesc + "\n";
-                }
-                if (type != null && type.endsWith("[]")) {
-                    String jvmDesc = arrayTypeToJvmDesc(type);
-                    String fieldName = resolveOuterFieldName(name, type, resolvedFromRootMain);
-                    return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + jvmDesc + "\n";
-                }
-            }
-            if ((idx == null || !currentLocalIndex.containsKey(name)) && useEnvBridge(currentProcName) && currentProcName != null) {
-                SymbolTableBuilder.ProcInfo cp = procedures.get(currentProcName);
-                if (cp != null && cp.paramNames.contains(name) && cp.valueParams.contains(name)) {
-                    String pType = getFormalBaseType(cp, name);
-                    if (pType.endsWith("[]")) {
-                        return "aload " + idx + "\n";
-                    }
-                    String desc;
-                    if ("real".equals(pType) || "deferred".equals(pType)) desc = "D";
-                    else if ("string".equals(pType)) desc = "Ljava/lang/String;";
-                    else if (pType.startsWith("procedure:")) {
-                        desc = getProcedureInterfaceDescriptor(pType);
-                    } else if (isObjectType(pType)) {
-                        desc = CodeGenUtils.getReturnTypeDescriptor(pType);
-                    } else desc = "I";
-                    return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentProcName, name) + " " + desc + "\n";
-                }
-            }
-            if (isCurrentProcedureBridgedLocal(name)) {
-                return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(currentProcName, name)
-                    + " " + scalarTypeToJvmDesc(type) + "\n";
-            }
-            if ("integer".equals(type) || "boolean".equals(type)) {
-                return "iload " + idx + "\n";
-            } else if ("real".equals(type) || "deferred".equals(type)) {
-                return "dload " + idx + "\n";
-            } else if ("string".equals(type) || (type != null && type.startsWith("ref:"))) {
-                return "aload " + idx + "\n";
-            } else if (type != null && type.endsWith("[]")) {
-                return "aload " + idx + "\n";
-            } else if (type != null && type.startsWith("procedure:")) {
-                // Procedure variable: call through the stored reference
-                return generateProcedureVariableCall(name, type, List.of());
-            } else {
-                return "; ERROR: unknown variable type " + type + "\n";
-            }
+            return generateLoadVar(name);
         } else if (ctx instanceof PerseusParser.ArrayAccessExprContext e) {
             String arrName = e.identifier().getText();
             String elemType = lookupVarType(arrName);
@@ -4530,27 +4497,6 @@ public class CodeGenerator extends PerseusBaseListener {
             return generateProcedureReference(existing, procedures.get(existing));
         }
 
-        if (currentProcName != null) {
-            SymbolTableBuilder.ProcInfo outerInfo = procedures.get(currentProcName);
-            if (outerInfo != null) {
-                Set<String> names = collectVarNames(ctx.expr());
-                Set<String> lambdaParams = new LinkedHashSet<>();
-                if (ctx.lambdaParamList() != null) {
-                    for (PerseusParser.LambdaParamContext param : ctx.lambdaParamList().lambdaParam()) {
-                        lambdaParams.add(param.identifier().getText());
-                    }
-                }
-                for (String name : names) {
-                    if (lambdaParams.contains(name)) {
-                        continue;
-                    }
-                    if (outerInfo.paramTypes.containsKey(name) || outerInfo.localVars.containsKey(name) || outerInfo.nestedProcedures.contains(name)) {
-                        throw new RuntimeException("Anonymous procedures do not yet support capturing outer procedure state: " + name);
-                    }
-                }
-            }
-        }
-
         String procName = "__anonproc" + anonymousProcedureCounter++;
         anonymousProcedureNames.put(ctx, procName);
 
@@ -4570,6 +4516,7 @@ public class CodeGenerator extends PerseusBaseListener {
         Map<String, Integer> savedLocalIndex = currentLocalIndex;
         int savedNumLocals = currentNumLocals;
         String savedProcName = currentProcName;
+        String savedClosureOwnerProcName = currentClosureOwnerProcName;
         String savedProcReturnType = currentProcReturnType;
         int savedProcRetvalSlot = procRetvalSlot;
         StringBuilder savedActiveOutput = activeOutput;
@@ -4579,10 +4526,8 @@ public class CodeGenerator extends PerseusBaseListener {
         currentSymbolTable = new LinkedHashMap<>();
         currentLocalIndex = new LinkedHashMap<>();
         currentNumLocals = 0;
-        // Anonymous procedures in the first slice lower to self-contained helper
-        // methods with ordinary JVM parameters. Keep them out of the env-bridge
-        // path until closure capture is implemented.
         currentProcName = null;
+        currentClosureOwnerProcName = savedProcName != null ? savedProcName : savedClosureOwnerProcName;
         currentProcReturnType = procInfo.returnType;
         procRetvalSlot = -1;
 
@@ -4613,6 +4558,7 @@ public class CodeGenerator extends PerseusBaseListener {
         currentLocalIndex = savedLocalIndex;
         currentNumLocals = savedNumLocals;
         currentProcName = savedProcName;
+        currentClosureOwnerProcName = savedClosureOwnerProcName;
         currentProcReturnType = savedProcReturnType;
         procRetvalSlot = savedProcRetvalSlot;
 

@@ -332,6 +332,29 @@ end
 	}
 
 	@Test
+	public void anonymous_proc_capture_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+			"test/algol/procedures/anonymous_proc_capture.alg",
+			"gnb/perseus/programs",
+			"AnonymousProcCapture",
+			BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+		assertTrue(jasminSource.contains("__anonproc"),
+			"Captured anonymous procedures should lower to synthetic static helper methods");
+		assertTrue(jasminSource.contains("__env_outer_base"),
+			"Captured anonymous procedures should load the enclosing procedure parameter bridge");
+		assertTrue(jasminSource.contains("__env_outer_offset"),
+			"Captured anonymous procedures should load the enclosing procedure local bridge");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.AnonymousProcCapture");
+		assertEquals("79", output.trim());
+	}
+
+	@Test
 	public void anonymous_proc_rebind_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
 			"test/algol/procedures/anonymous_proc_rebind.alg",

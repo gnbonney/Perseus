@@ -74,6 +74,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         public final Set<String> ownVars = new LinkedHashSet<>();
         public final Set<String> ownArrays = new LinkedHashSet<>();
         public final List<String> nestedProcedures = new ArrayList<>();
+        public boolean containsAnonymousProcedures;
         public boolean external;
         public String externalKind;
         public String externalTargetClass;
@@ -359,6 +360,14 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             for (PerseusParser.IdentifierContext id : ctx.paramList().identifier()) {
                 proc.valueParams.add(id.getText());
             }
+        }
+    }
+
+    @Override
+    public void enterAnonymousProcedureExpr(PerseusParser.AnonymousProcedureExprContext ctx) {
+        ProcInfo proc = currentProc();
+        if (proc != null) {
+            proc.containsAnonymousProcedures = true;
         }
     }
 
