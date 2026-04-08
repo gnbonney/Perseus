@@ -467,6 +467,7 @@ public class TypeInferencer extends PerseusBaseListener {
 
     private String mapLambdaReturnType(PerseusParser.LambdaReturnTypeContext typeCtx) {
         if (typeCtx == null) return "integer";
+        if (typeCtx.VOID() != null) return "void";
         if (typeCtx.REAL() != null) return "real";
         if (typeCtx.INTEGER() != null) return "integer";
         if (typeCtx.STRING() != null) return "string";
@@ -480,6 +481,9 @@ public class TypeInferencer extends PerseusBaseListener {
             return false;
         }
         if (declaredReturnType.equals(bodyType)) {
+            return true;
+        }
+        if ("void".equals(declaredReturnType) && "void".equals(bodyType)) {
             return true;
         }
         if ("real".equals(declaredReturnType) && "integer".equals(bodyType)) {
@@ -614,6 +618,7 @@ public class TypeInferencer extends PerseusBaseListener {
             case "sqrt", "abs", "sin", "cos", "arctan", "ln", "exp" -> "real";
             case "iabs", "sign", "entier", "length" -> "integer";
             case "substring", "concat" -> "string";
+            case "outstring", "outreal", "outinteger", "outchar", "outterminator" -> "void";
             default -> null;
         };
     }

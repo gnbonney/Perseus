@@ -310,6 +310,27 @@ end
 		assertEquals("42", output.trim());
 	}
 
+	@Test
+	public void anonymous_proc_void_param_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+			"test/algol/procedures/anonymous_proc_void_param.alg",
+			"gnb/perseus/programs",
+			"AnonymousProcVoidParam",
+			BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+		assertTrue(jasminSource.contains("__anonproc"),
+			"Void anonymous procedures should lower to synthetic static helper methods");
+		assertTrue(jasminSource.contains("VoidProcedure"),
+			"Void anonymous procedures should lower through the void procedure interface");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.AnonymousProcVoidParam");
+		assertEquals("Hello", output.trim());
+	}
+
     @Test
     public void deferred_name_params_mixed_type_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(

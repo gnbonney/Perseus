@@ -337,6 +337,7 @@ lambdaReturnType
   | INTEGER
   | STRING
   | BOOLEAN
+  | VOID
   | refType
   ;
 
@@ -411,6 +412,7 @@ WHEN : 'when';
 AS : 'as';
 SIGNAL : 'signal';
 PROC : 'proc';
+VOID : 'void';
 
 NOT : 'not';
 AND_KW : 'and';

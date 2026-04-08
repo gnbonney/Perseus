@@ -46,9 +46,10 @@ public class CodeGenUtils {
     }
 
     public static String getReturnInstruction(String type) {
-        if (type == null) return "ireturn";
+        if (type == null) return "return";
         if (type.startsWith("ref:")) return "areturn";
         return switch (type) {
+            case "void"   -> "return";
             case "real"   -> "dreturn";
             case "deferred" -> "dreturn";
             case "string" -> "areturn";

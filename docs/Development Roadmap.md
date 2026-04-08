@@ -62,7 +62,7 @@ The current intended order is:
 - [x] Add `proc` as the anonymous-procedure introducer in expression position
 - [x] Support the first-slice `proc (parameter-list) result-type : body` surface for expression-bodied anonymous procedures
 - [x] Support expression-bodied anonymous procedures
-- [ ] Implement `void` anonymous procedures using explicit `proc (...) void : ...` syntax
+- [x] Implement `void` anonymous procedures using explicit `proc (...) void : ...` syntax
 - [ ] Implement `begin ... end` multi-statement anonymous-procedure bodies
 - [ ] Support assignment of anonymous procedures to procedure-typed variables
 - [x] Support passing anonymous procedures to procedure parameters

@@ -4346,6 +4346,10 @@ public class CodeGenerator extends PerseusBaseListener {
         } else if (ctx instanceof PerseusParser.ProcCallExprContext e) {
             String procName = e.identifier().getText();
             List<PerseusParser.ArgContext> callArgs = e.argList() != null ? e.argList().arg() : List.of();
+            String builtinProcedureCode = generateBuiltinProcedureExpr(procName, callArgs);
+            if (builtinProcedureCode != null) {
+                return builtinProcedureCode;
+            }
 
             // Check if this name refers to a procedure variable
             String varType = lookupVarType(procName);
@@ -4439,6 +4443,33 @@ public class CodeGenerator extends PerseusBaseListener {
         return builtinGen.generate(funcName, ctx);
     }
 
+    private String generateBuiltinProcedureExpr(String name, List<PerseusParser.ArgContext> args) {
+        StringBuilder sb = new StringBuilder();
+        if (channelGen.tryEmitProcedureCall(name, args, sb, currentLocalIndex, currentSymbolTable,
+                mainSymbolTable, this::generateExpr, e -> exprTypes.getOrDefault(e, "integer"),
+                this::allocateNewLocal, this::getChannelStream, this::lookupVarType,
+                this::staticFieldName, this::generateOpenStringTargetThunk)) {
+            return sb.toString();
+        }
+        if ("outchar".equals(name)) {
+            if (args.size() > 0 && args.get(0).expr() != null) {
+                sb.append(generateExpr(args.get(0).expr()));
+            } else {
+                sb.append("iconst_1\n");
+            }
+            sb.append(generateExpr(args.get(1).expr()))
+              .append(generateExpr(args.get(2).expr()))
+              .append("invokestatic perseus/io/TextOutput/outchar(ILjava/lang/String;I)V\n");
+            return sb.toString();
+        }
+        if ("stop".equals(name)) {
+            sb.append("iconst_0\n")
+              .append("invokestatic java/lang/System/exit(I)V\n");
+            return sb.toString();
+        }
+        return null;
+    }
+
     /**
      * Generates code to create a procedure reference object for the given procedure.
      * Creates a synthetic class that implements the appropriate procedure interface
@@ -4472,6 +4503,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     private String mapLambdaReturnType(PerseusParser.LambdaReturnTypeContext typeCtx) {
         if (typeCtx == null) return "integer";
+        if (typeCtx.VOID() != null) return "void";
         if (typeCtx.REAL() != null) return "real";
         if (typeCtx.INTEGER() != null) return "integer";
         if (typeCtx.STRING() != null) return "string";
