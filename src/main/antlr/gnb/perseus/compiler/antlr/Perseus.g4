@@ -54,7 +54,7 @@ compoundStatement
   ;
 
 statement
-  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalProcedureDecl | externalValueDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | loopStatement | breakStatement | continueStatement | signalStatement | block)?
+  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalProcedureDecl | externalValueDecl | procedureDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | whileStatement | repeatStatement | breakStatement | continueStatement | signalStatement | block)?
   ;
 
 classDecl
@@ -119,7 +119,6 @@ exceptionPattern
 
 endComment
   : IDENT
-  | LOOP
   ;
 
 procedureDecl
@@ -243,8 +242,12 @@ forClause
   | IN expr                # InArrayForClause
   ;
 
-loopStatement
-  : LOOP block
+whileStatement
+  : WHILE expr DO statement
+  ;
+
+repeatStatement
+  : REPEAT statement UNTIL expr
   ;
 
 breakStatement
@@ -360,9 +363,9 @@ UNTIL : 'until';
 WHILE : 'while';
 DO : 'do';
 IN : 'in';
-LOOP : 'loop';
 BREAK : 'break';
 CONTINUE : 'continue';
+REPEAT : 'repeat';
 GOTO : 'goto';
 SWITCH : 'switch';
 OWN : 'own';

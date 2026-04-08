@@ -181,26 +181,49 @@ public class CoreLanguageTest extends CompilerTest{
 	}
 
 	@Test
-	public void loop_break_continue_test() throws Exception {
+	public void while_true_break_continue_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/core/loop_break_continue.alg", "gnb/perseus/programs", "LoopBreakContinueTest", BUILD_DIR);
+				"test/algol/core/while_true_break_continue.alg", "gnb/perseus/programs", "WhileTrueBreakContinueTest", BUILD_DIR);
 		String jasminSource = Files.readString(jasminFile);
-		System.out.println("=== LOOP BREAK CONTINUE JASMIN ===");
+		System.out.println("=== WHILE TRUE BREAK CONTINUE JASMIN ===");
 		System.out.println(jasminSource);
-		System.out.println("=== END LOOP BREAK CONTINUE ===");
+		System.out.println("=== END WHILE TRUE BREAK CONTINUE ===");
 
 		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
-		assertTrue(jasminSource.contains("goto loop_"),
-				"loop should emit a back-edge to the loop start");
-		assertTrue(jasminSource.contains("endloop_"),
-				"loop should emit a distinct break target label");
+		assertTrue(jasminSource.contains("goto whilecond_"),
+				"while true should emit a back-edge to the condition check");
+		assertTrue(jasminSource.contains("endwhile_"),
+				"while true should emit a distinct break target label");
 
 		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
-		String output = runClass(BUILD_DIR, "gnb.perseus.programs.LoopBreakContinueTest");
-		System.out.println("loop_break_continue output: [" + output + "]");
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.WhileTrueBreakContinueTest");
+		System.out.println("while_true_break_continue output: [" + output + "]");
 		assertEquals("12", output.trim(),
-				"loop, break, and continue should support the expected control-flow behavior");
+				"while true, break, and continue should support the expected control-flow behavior");
+	}
+
+	@Test
+	public void repeat_until_break_continue_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/core/repeat_until_break_continue.alg", "gnb/perseus/programs", "RepeatUntilBreakContinueTest", BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+		System.out.println("=== REPEAT UNTIL BREAK CONTINUE JASMIN ===");
+		System.out.println(jasminSource);
+		System.out.println("=== END REPEAT UNTIL BREAK CONTINUE ===");
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("repeatcond_"),
+				"repeat until should emit a distinct condition label for continue and exit testing");
+		assertTrue(jasminSource.contains("endrepeat_"),
+				"repeat until should emit a distinct break target label");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.RepeatUntilBreakContinueTest");
+		System.out.println("repeat_until_break_continue output: [" + output + "]");
+		assertEquals("8", output.trim(),
+				"repeat until should execute at least once and support both continue and break");
 	}
 
 	@Test

@@ -26,9 +26,7 @@ On the JVM, Perseus currently lowers declared arrays to ordinary JVM arrays and 
 
 ## Looping Extensions
 
-Perseus keeps the original Algol `for ... step ... until ... do` statement, but it is also moving toward a more modern structured loop surface.
-
-The preferred direction is to provide standalone pre-test and post-test loops:
+Perseus keeps the original Algol `for ... step ... until ... do` statement, and it now also provides a more modern structured loop surface:
 
 ```algol
 while cond do
@@ -46,13 +44,6 @@ until cond
 ```
 
 These forms fit naturally with the broader Algol tradition, read more directly than a dedicated infinite-loop keyword, and still allow `break` and `continue` for early exit.
-
-The currently implemented intermediate state is:
-
-- a general `loop begin ... end` form with `break` and `continue`
-- continued acceptance of the historical `end loop` spelling as an `end` comment
-
-That `loop` form should be understood as a transitional surface rather than the long-term preferred loop syntax.
 
 Perseus also now supports an array-iteration form:
 

@@ -67,7 +67,7 @@ for (idx, val) in enumerate(data) do
 - Works efficiently with fixed `array`, `vector`, `map`, `set`, and any type implementing the **Iterator** protocol.
 - Numeric progression remains with the original Algol `for ... step ... until ... do` form rather than a separate symbolic range syntax.
 
-##### 2.3 Planned Structured Loops: `while ... do` and `repeat ... until`
+##### 2.3 Structured Loops: `while ... do` and `repeat ... until`
 ```algol
 while <boolean expression> do
 begin

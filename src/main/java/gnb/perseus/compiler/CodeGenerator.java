@@ -120,8 +120,10 @@ public class CodeGenerator extends PerseusBaseListener {
     // For for loops
     private String currentForLoopLabel;
     private String currentForEndLabel;
-    private final Deque<String> loopStartLabelStack = new ArrayDeque<>();
-    private final Deque<String> loopEndLabelStack = new ArrayDeque<>();
+    private final Deque<String> loopBackEdgeLabelStack = new ArrayDeque<>();
+    private final Deque<String> loopContinueLabelStack = new ArrayDeque<>();
+    private final Deque<String> loopBreakLabelStack = new ArrayDeque<>();
+    private final Deque<String> repeatBodyLabelStack = new ArrayDeque<>();
 
     // Stack for capturing for-loop body code (enables multi-element for-list by body-inline duplication)
     private final Deque<StringBuilder> forBodyStack = new ArrayDeque<>();
@@ -1527,46 +1529,81 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     @Override
-    public void enterLoopStatement(PerseusParser.LoopStatementContext ctx) {
+    public void enterWhileStatement(PerseusParser.WhileStatementContext ctx) {
         if (skippingClassSubtree()) return;
-        String loopLabel = generateUniqueLabel("loop");
-        String endLabel = generateUniqueLabel("endloop");
-        loopStartLabelStack.push(loopLabel);
-        loopEndLabelStack.push(endLabel);
-        activeOutput.append(loopLabel).append(":\n");
+        String condLabel = generateUniqueLabel("whilecond");
+        String endLabel = generateUniqueLabel("endwhile");
+        loopBackEdgeLabelStack.push(condLabel);
+        loopContinueLabelStack.push(condLabel);
+        loopBreakLabelStack.push(endLabel);
+        activeOutput.append(condLabel).append(":\n");
+        activeOutput.append(generateExpr(ctx.expr()));
+        activeOutput.append("ifeq ").append(endLabel).append("\n");
     }
 
     @Override
-    public void exitLoopStatement(PerseusParser.LoopStatementContext ctx) {
+    public void exitWhileStatement(PerseusParser.WhileStatementContext ctx) {
         if (skippingClassSubtree()) return;
-        if (loopStartLabelStack.isEmpty() || loopEndLabelStack.isEmpty()) {
-            activeOutput.append("; ERROR: loop-label stack underflow\n");
+        if (loopBackEdgeLabelStack.isEmpty() || loopContinueLabelStack.isEmpty() || loopBreakLabelStack.isEmpty()) {
+            activeOutput.append("; ERROR: while-label stack underflow\n");
             return;
         }
-        String loopLabel = loopStartLabelStack.pop();
-        String endLabel = loopEndLabelStack.pop();
-        activeOutput.append("goto ").append(loopLabel).append("\n");
+        String backEdgeLabel = loopBackEdgeLabelStack.pop();
+        loopContinueLabelStack.pop();
+        String endLabel = loopBreakLabelStack.pop();
+        activeOutput.append("goto ").append(backEdgeLabel).append("\n");
+        activeOutput.append(endLabel).append(":\n");
+    }
+
+    @Override
+    public void enterRepeatStatement(PerseusParser.RepeatStatementContext ctx) {
+        if (skippingClassSubtree()) return;
+        String bodyLabel = generateUniqueLabel("repeat");
+        String condLabel = generateUniqueLabel("repeatcond");
+        String endLabel = generateUniqueLabel("endrepeat");
+        repeatBodyLabelStack.push(bodyLabel);
+        loopBackEdgeLabelStack.push(bodyLabel);
+        loopContinueLabelStack.push(condLabel);
+        loopBreakLabelStack.push(endLabel);
+        activeOutput.append(bodyLabel).append(":\n");
+    }
+
+    @Override
+    public void exitRepeatStatement(PerseusParser.RepeatStatementContext ctx) {
+        if (skippingClassSubtree()) return;
+        if (repeatBodyLabelStack.isEmpty() || loopBackEdgeLabelStack.isEmpty()
+                || loopContinueLabelStack.isEmpty() || loopBreakLabelStack.isEmpty()) {
+            activeOutput.append("; ERROR: repeat-label stack underflow\n");
+            return;
+        }
+        String bodyLabel = repeatBodyLabelStack.pop();
+        loopBackEdgeLabelStack.pop();
+        String condLabel = loopContinueLabelStack.pop();
+        String endLabel = loopBreakLabelStack.pop();
+        activeOutput.append(condLabel).append(":\n");
+        activeOutput.append(generateExpr(ctx.expr()));
+        activeOutput.append("ifeq ").append(bodyLabel).append("\n");
         activeOutput.append(endLabel).append(":\n");
     }
 
     @Override
     public void exitBreakStatement(PerseusParser.BreakStatementContext ctx) {
         if (skippingClassSubtree()) return;
-        if (loopEndLabelStack.isEmpty()) {
+        if (loopBreakLabelStack.isEmpty()) {
             activeOutput.append("; ERROR: break used outside loop\n");
             return;
         }
-        activeOutput.append("goto ").append(loopEndLabelStack.peek()).append("\n");
+        activeOutput.append("goto ").append(loopBreakLabelStack.peek()).append("\n");
     }
 
     @Override
     public void exitContinueStatement(PerseusParser.ContinueStatementContext ctx) {
         if (skippingClassSubtree()) return;
-        if (loopStartLabelStack.isEmpty()) {
+        if (loopContinueLabelStack.isEmpty()) {
             activeOutput.append("; ERROR: continue used outside loop\n");
             return;
         }
-        activeOutput.append("goto ").append(loopStartLabelStack.peek()).append("\n");
+        activeOutput.append("goto ").append(loopContinueLabelStack.peek()).append("\n");
     }
 
     // -------------------------------------------------------------------------
