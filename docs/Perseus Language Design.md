@@ -935,55 +935,9 @@ but this should be a later layer, not part of the minimum design.
 
 ## Lambda Notation
 
-Rutishauser proposed, in the Handbook for Automatic Computation - Description of Algol, an extension that would replace Jensen's-Device-style call-by-name array expressions with Church's lambda notation for arrays. This approach is based on Alonzo Church's lambda calculus, which is the mathematical foundation for anonymous functions ("lambda functions") in modern programming languages.
+Perseus uses "lambda notation" in the modern sense: anonymous procedures that can be written inline, assigned, passed, returned, and closed over surrounding scope.
 
-## Background
-- In lambda calculus, a lambda expression defines an anonymous function.
-- In programming, lambda functions (or closures) are direct descendants of this idea.
-- In the context of Algol, using lambda notation for arrays means treating an array as a function from indices to values, and passing/using them as such.
-- This generalizes indexed array access: instead of relying on a call-by-name expression such as `A[i]`, you pass a function (lambda) that computes the value for each index.
-
-## Relation to Jensen's Device
-Jensen's device allows you to pass an expression (like A[i]) by name, so that it is re-evaluated for each value of i. Lambda notation formalizes this by passing a function of i.
-
-## Example (Conceptual Algol-like Syntax)
-
-Suppose you want to sum the elements of an array A from 1 to N:
-
-```algol
-sum := 0;
-for i := 1 step 1 until N do
-		sum := sum + A[i];
-```
-
-With lambda notation, you could write a procedure that takes a function (lambda) as a parameter:
-
-```algol
-procedure sum_by(f, lo, hi);
-		value lo, hi;
-		integer lo, hi;
-		real procedure f;
-begin
-		sum := 0;
-		for i := lo step 1 until hi do
-				sum := sum + f(i);
-end;
-
-% Call with a lambda for A[i]:
-sum_by(lambda i: A[i], 1, N);
-```
-
-Or, for a more modern pseudo-Algol:
-
-```algol
-sum_by((i) => A[i], 1, N);
-```
-
-This makes the parameter-passing mechanism explicit and generalizes it to any computable function of the index, not just array lookups.
-
-## Summary
-- Church's lambda notation for arrays is a formal, functional way to generalize array access and Jensen's-Device-style call-by-name expressions using anonymous functions.
-- It is the conceptual ancestor of lambda functions and closures in modern languages.
+The current design for that feature lives in [Anonymous Procedures Proposal.md](Anonymous%20Procedures%20Proposal.md). That document should be treated as the main source for syntax, semantics, and implementation direction.
 
 ## Simula-Style Classes
 

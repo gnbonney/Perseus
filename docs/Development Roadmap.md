@@ -55,13 +55,36 @@ The current intended order is:
 - The original Algol `for` still remains the expressive heritage form, while `while ... do` and `repeat ... until` are now the ordinary structured pre-test and post-test loops.
 - `loop ... end` has been removed rather than kept as a parallel long-term loop form.
 
-## Milestone 42 - Lambda Notation
+## Milestone 42 - Anonymous Procedures
 
-**Goal:** Add anonymous procedure expressions as a higher-level extension on top of the procedure-value machinery (see [Perseus Language Design.md](Perseus%20Language%20Design.md)).
+**Goal:** Add anonymous procedures as first-class inline values using the `proc`-based design in [Anonymous Procedures Proposal.md](Anonymous%20Procedures%20Proposal.md).
 
-- [ ] Syntax and parsing for lambda-style procedure literals
-- [ ] Lowering strategy onto existing procedure-reference infrastructure
-- [ ] Tests for higher-order procedure use cases, including numerically oriented examples
+- [ ] Add `proc` as the anonymous-procedure introducer in expression position
+- [ ] Support the core `proc (parameter-list) result-type : body` surface
+- [ ] Decide the exact first-slice rules for shorthand forms such as omitted parentheses for a single parameter and omitted result-type spelling for no-result procedures
+- [ ] Define how the first slice maps proposal terms such as `bool` and `void` onto actual Perseus type syntax
+- [ ] Support expression-bodied anonymous procedures
+- [ ] Decide whether the first implementation slice also supports `begin ... end` multi-statement bodies
+- [ ] Support assignment of anonymous procedures to procedure-typed variables
+- [ ] Support passing anonymous procedures to procedure parameters
+- [ ] Support returning anonymous procedures from procedures where the surrounding procedure-value machinery already permits it
+- [ ] Define and implement closure capture rules for outer locals, parameters, and nested procedure names
+- [ ] Keep the initial capture model aligned with existing nested-procedure and procedure-reference behavior
+- [ ] Extend semantic analysis so anonymous procedures are checked against existing procedure-value and procedure-parameter types
+- [ ] Lower anonymous procedures onto the existing generated procedure-reference machinery rather than inventing a separate runtime model
+- [ ] Document any first-slice restrictions around call-by-name parameters, external ABIs, and other procedure features that do not fit cleanly yet
+- [ ] Add focused regressions for:
+- [ ] simple expression-bodied anonymous procedures
+- [ ] assignment to procedure variables
+- [ ] passing anonymous procedures as arguments
+- [ ] captured outer-variable cases
+- [ ] higher-order numerical examples
+
+**Implementation notes:**
+- This milestone should follow the dedicated anonymous-procedures proposal rather than the older historical lambda discussion in the general language-design document.
+- `proc` is currently the preferred spelling because it fits Perseus's Algol-descended style better than `lambda`, `fn`, or arrow syntax.
+- The first slice should reuse the compiler's existing procedure-value and closure machinery as much as possible.
+- Public external ABIs should stay out of scope for the initial anonymous-procedure implementation.
 
 ## Milestone 43 - Collections, Iterators, and Java Container Interop
 
