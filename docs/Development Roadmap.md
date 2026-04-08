@@ -40,19 +40,21 @@ The current intended order is:
 
 ## Milestone 41.1 - Classic Loop-Surface Refinement
 
-**Goal:** Replace the dedicated `loop ... end` surface with clearer standalone `while ... do` and `repeat ... until` forms while keeping `break` and `continue` across the structured loop family (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
+**Goal:** Convert the current `loop ... end` surface into clearer standalone `while ... do` and `repeat ... until` forms while keeping `break` and `continue` across the structured loop family (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
 
-- [ ] Add standalone `while ... do`
+- [ ] Convert `loop ... end` into standalone `while ... do`
 - [ ] Add standalone `repeat ... until`
 - [ ] Keep `break` and `continue` working in both forms
-- [ ] Decide whether `loop ... end` should be removed entirely or retained temporarily as a compatibility alias
+- [ ] Remove `loop ... end`
 - [ ] Update the language docs and loop examples to present `while` / `repeat` as the preferred structured loop surface
-- [ ] Add focused sample programs and regression tests for the new forms
+- [ ] Convert the current `loop` regressions to `while true do` regressions and add focused coverage for `repeat ... until`
 
 **Implementation notes:**
 - The motivation here is readability and a cleaner fit with the broader Algol tradition, not JVM performance.
+- Perseus already has Algol's `for i := expr while cond do ...` form inside the classic `for` statement, but a direct `while ... do` loop is still worth adding because it is simpler to read, easier to teach, and easier for the compiler to lower into a tight structured loop shape.
 - `while true do ...` with `break` and `continue` should cover the ordinary open-ended repetition cases that previously motivated `loop ... end`.
 - The original Algol `for` still remains the expressive heritage form, while `while ... do` and `repeat ... until` become the ordinary structured pre-test and post-test loops.
+- `loop ... end` is not meant to remain as a parallel long-term loop form.
 
 ## Milestone 42 - Lambda Notation
 
