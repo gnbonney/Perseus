@@ -351,8 +351,12 @@ public class PerseusCompiler {
                                     procedureVariables.add(name);
                                 } else {
                                     // Typed procedure: treat as a procedure-variable assignment if the RHS
-                                    // is a direct procedure reference or returns a procedure.
+                                    // is a direct procedure reference, an anonymous procedure, or returns a procedure.
                                     PerseusParser.ExprContext rhs = ctx.expr();
+                                    if (rhs instanceof PerseusParser.AnonymousProcedureExprContext) {
+                                        procedureVariables.add(name);
+                                        continue;
+                                    }
                                     for (String rhsName : collectVarNames(rhs)) {
                                         if (procedures.containsKey(rhsName)) {
                                             procedureVariables.add(name);

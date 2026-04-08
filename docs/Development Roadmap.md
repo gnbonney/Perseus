@@ -9,7 +9,7 @@ The near-term direction should reflect Perseus's center of gravity more clearly.
 The current intended order is:
 
 1. Milestone 41: modern looping forms
-2. Milestone 42: lambda notation
+2. Milestone 42: anonymous procedures
 3. Milestone 43: collections, iterators, and Java-container interop
 4. Milestone 44: complex numbers and mathematical types
 5. Milestone 45: mathematical arrays and numerically oriented procedure features
@@ -59,31 +59,33 @@ The current intended order is:
 
 **Goal:** Add anonymous procedures as first-class inline values using the `proc`-based design in [Anonymous Procedures Proposal.md](Anonymous%20Procedures%20Proposal.md).
 
-- [ ] Add `proc` as the anonymous-procedure introducer in expression position
-- [ ] Support the core `proc (parameter-list) result-type : body` surface
+- [x] Add `proc` as the anonymous-procedure introducer in expression position
+- [x] Support the first-slice `proc (parameter-list) result-type : body` surface for expression-bodied anonymous procedures
 - [ ] Decide the exact first-slice rules for shorthand forms such as omitted parentheses for a single parameter and omitted result-type spelling for no-result procedures
 - [ ] Define how the first slice maps proposal terms such as `bool` and `void` onto actual Perseus type syntax
-- [ ] Support expression-bodied anonymous procedures
+- [x] Support expression-bodied anonymous procedures
 - [ ] Decide whether the first implementation slice also supports `begin ... end` multi-statement bodies
 - [ ] Support assignment of anonymous procedures to procedure-typed variables
-- [ ] Support passing anonymous procedures to procedure parameters
+- [x] Support passing anonymous procedures to procedure parameters
 - [ ] Support returning anonymous procedures from procedures where the surrounding procedure-value machinery already permits it
 - [ ] Define and implement closure capture rules for outer locals, parameters, and nested procedure names
 - [ ] Keep the initial capture model aligned with existing nested-procedure and procedure-reference behavior
-- [ ] Extend semantic analysis so anonymous procedures are checked against existing procedure-value and procedure-parameter types
-- [ ] Lower anonymous procedures onto the existing generated procedure-reference machinery rather than inventing a separate runtime model
-- [ ] Document any first-slice restrictions around call-by-name parameters, external ABIs, and other procedure features that do not fit cleanly yet
+- [x] Extend semantic analysis so anonymous procedures are checked against existing procedure-value and procedure-parameter types
+- [x] Lower anonymous procedures onto the existing generated procedure-reference machinery rather than inventing a separate runtime model
+- [x] Document the current first-slice restrictions around closure capture, procedure-variable rebinding, block bodies, and other procedure features that do not fit cleanly yet
 - [ ] Add focused regressions for:
-- [ ] simple expression-bodied anonymous procedures
+- [x] simple expression-bodied anonymous procedures
 - [ ] assignment to procedure variables
-- [ ] passing anonymous procedures as arguments
+- [x] passing anonymous procedures as arguments
 - [ ] captured outer-variable cases
 - [ ] higher-order numerical examples
 
 **Implementation notes:**
 - This milestone should follow the dedicated anonymous-procedures proposal rather than the older historical lambda discussion in the general language-design document.
 - `proc` is currently the preferred spelling because it fits Perseus's Algol-descended style better than `lambda`, `fn`, or arrow syntax.
-- The first slice should reuse the compiler's existing procedure-value and closure machinery as much as possible.
+- The first slice now supports typed, expression-bodied `proc` forms that can be passed to existing procedure parameters without introducing a separate runtime model.
+- The first slice should continue to reuse the compiler's existing procedure-value and closure machinery as much as possible.
+- Closure capture, assignment to ordinary procedure variables, returning anonymous procedures, and `begin ... end` anonymous-procedure bodies remain follow-on work rather than part of the initial landing.
 - Public external ABIs should stay out of scope for the initial anonymous-procedure implementation.
 
 ## Milestone 43 - Collections, Iterators, and Java Container Interop

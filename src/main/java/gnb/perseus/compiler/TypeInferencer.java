@@ -22,6 +22,7 @@ public class TypeInferencer extends PerseusBaseListener {
     private final Deque<SymbolTableBuilder.ProcInfo> procStack = new ArrayDeque<>();
     private final Deque<SymbolTableBuilder.MethodInfo> methodStack = new ArrayDeque<>();
     private final Deque<Map<String, String>> exceptionBindingStack = new ArrayDeque<>();
+    private final Deque<Map<String, String>> lambdaBindingStack = new ArrayDeque<>();
 
     public TypeInferencer(String sourceName, Map<String, String> symbolTable,
             Map<String, SymbolTableBuilder.ProcInfo> procedures,
@@ -253,6 +254,31 @@ public class TypeInferencer extends PerseusBaseListener {
     }
 
     @Override
+    public void enterAnonymousProcedureExpr(PerseusParser.AnonymousProcedureExprContext ctx) {
+        Map<String, String> bindings = new HashMap<>();
+        if (ctx.lambdaParamList() != null) {
+            for (PerseusParser.LambdaParamContext param : ctx.lambdaParamList().lambdaParam()) {
+                bindings.put(param.identifier().getText(), mapLambdaType(param.lambdaParamType()));
+            }
+        }
+        lambdaBindingStack.push(bindings);
+    }
+
+    @Override
+    public void exitAnonymousProcedureExpr(PerseusParser.AnonymousProcedureExprContext ctx) {
+        String declaredReturnType = mapLambdaReturnType(ctx.lambdaReturnType());
+        String bodyType = exprTypes.getOrDefault(ctx.expr(), "integer");
+        if (!isLambdaBodyCompatible(declaredReturnType, bodyType)) {
+            throw error(ctx, "PERS2013",
+                    "Anonymous procedure body type " + bodyType + " does not match declared return type " + declaredReturnType);
+        }
+        exprTypes.put(ctx, "procedure:" + declaredReturnType);
+        if (!lambdaBindingStack.isEmpty()) {
+            lambdaBindingStack.pop();
+        }
+    }
+
+    @Override
     public void exitProcCallExpr(PerseusParser.ProcCallExprContext ctx) {
         String procName = ctx.identifier().getText();
         java.util.List<String> argTypes = getArgTypes(ctx.argList());
@@ -392,6 +418,11 @@ public class TypeInferencer extends PerseusBaseListener {
     }
 
     private String lookupType(String name) {
+        for (Map<String, String> bindings : lambdaBindingStack) {
+            String type = bindings.get(name);
+            if (type != null) return type;
+        }
+
         for (Map<String, String> bindings : exceptionBindingStack) {
             String type = bindings.get(name);
             if (type != null) return type;
@@ -422,6 +453,42 @@ public class TypeInferencer extends PerseusBaseListener {
         }
 
         return symbolTable.get(name);
+    }
+
+    private String mapLambdaType(PerseusParser.LambdaParamTypeContext typeCtx) {
+        if (typeCtx == null) return "integer";
+        if (typeCtx.REAL() != null) return "real";
+        if (typeCtx.INTEGER() != null) return "integer";
+        if (typeCtx.STRING() != null) return "string";
+        if (typeCtx.BOOLEAN() != null) return "boolean";
+        if (typeCtx.refType() != null) return "ref:" + typeCtx.refType().identifier().getText();
+        return "integer";
+    }
+
+    private String mapLambdaReturnType(PerseusParser.LambdaReturnTypeContext typeCtx) {
+        if (typeCtx == null) return "integer";
+        if (typeCtx.REAL() != null) return "real";
+        if (typeCtx.INTEGER() != null) return "integer";
+        if (typeCtx.STRING() != null) return "string";
+        if (typeCtx.BOOLEAN() != null) return "boolean";
+        if (typeCtx.refType() != null) return "ref:" + typeCtx.refType().identifier().getText();
+        return "integer";
+    }
+
+    private boolean isLambdaBodyCompatible(String declaredReturnType, String bodyType) {
+        if (declaredReturnType == null || bodyType == null) {
+            return false;
+        }
+        if (declaredReturnType.equals(bodyType)) {
+            return true;
+        }
+        if ("real".equals(declaredReturnType) && "integer".equals(bodyType)) {
+            return true;
+        }
+        if (declaredReturnType.startsWith("ref:") && "null".equals(bodyType)) {
+            return true;
+        }
+        return false;
     }
     private SymbolTableBuilder.MethodInfo findMethodInHierarchy(SymbolTableBuilder.ClassInfo cls, String memberName) {
         SymbolTableBuilder.ClassInfo current = cls;

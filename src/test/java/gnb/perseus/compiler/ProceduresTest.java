@@ -291,6 +291,25 @@ end
 		assertEquals("abcT", output.trim());
 	}
 
+	@Test
+	public void anonymous_proc_param_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+			"test/algol/procedures/anonymous_proc_param.alg",
+			"gnb/perseus/programs",
+			"AnonymousProcParam",
+			BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+		assertTrue(jasminSource.contains("__anonproc"),
+			"Anonymous procedures should lower to synthetic static helper methods");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.AnonymousProcParam");
+		assertEquals("42", output.trim());
+	}
+
     @Test
     public void deferred_name_params_mixed_type_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(

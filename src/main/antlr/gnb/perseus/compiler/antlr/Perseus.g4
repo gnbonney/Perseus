@@ -292,6 +292,7 @@ simpleDesignationalExpr
 expr
   : '-' expr                             # UnaryMinusExpr
   | ('~' | NOT) expr                     # NotExpr
+  | PROC '(' lambdaParamList? ')' lambdaReturnType ':' expr # AnonymousProcedureExpr
   | NEW identifier ('(' argList? ')')?   # NewObjectExpr
   | identifier '.' identifier ('(' argList? ')')? # MemberCallExpr
   | expr op=('**'|'^') expr              # PowExpr
@@ -313,6 +314,30 @@ expr
   | NULL                                 # NullLiteralExpr
   | TRUE                                 # TrueLiteralExpr
   | FALSE                                # FalseLiteralExpr
+  ;
+
+lambdaParamList
+  : lambdaParam (',' lambdaParam)*
+  ;
+
+lambdaParam
+  : lambdaParamType identifier
+  ;
+
+lambdaParamType
+  : REAL
+  | INTEGER
+  | STRING
+  | BOOLEAN
+  | refType
+  ;
+
+lambdaReturnType
+  : REAL
+  | INTEGER
+  | STRING
+  | BOOLEAN
+  | refType
   ;
 
 procedureCall: identifier ('(' argList? ')')?;
@@ -385,6 +410,7 @@ EXCEPTION : 'exception';
 WHEN : 'when';
 AS : 'as';
 SIGNAL : 'signal';
+PROC : 'proc';
 
 NOT : 'not';
 AND_KW : 'and';

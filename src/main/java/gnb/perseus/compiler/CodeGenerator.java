@@ -16,6 +16,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
@@ -56,9 +57,11 @@ public class CodeGenerator extends PerseusBaseListener {
     // --- Procedure reference helper data ---
     // counter for generating unique procedure reference class names
     private int procRefCounter = 0;
+    private int anonymousProcedureCounter = 0;
     // collects (shortClassName, jasminSource) for generated procedure reference classes
     private final List<Map.Entry<String,String>> procRefClassDefinitions = new ArrayList<>();
     private final List<Map.Entry<String,String>> generatedClassDefinitions = new ArrayList<>();
+    private final Map<PerseusParser.AnonymousProcedureExprContext, String> anonymousProcedureNames = new IdentityHashMap<>();
 
     // --- Current context (swapped when entering/exiting procedures) ---
     private Map<String, String> currentSymbolTable;
@@ -2204,6 +2207,8 @@ public class CodeGenerator extends PerseusBaseListener {
         } else if (ctx instanceof PerseusParser.OrExprContext oe) {
             names.addAll(collectVarNames(oe.expr(0)));
             names.addAll(collectVarNames(oe.expr(1)));
+        } else if (ctx instanceof PerseusParser.AnonymousProcedureExprContext) {
+            return names;
         } else if (ctx instanceof PerseusParser.NotExprContext ne) {
             names.addAll(collectVarNames(ne.expr()));
         } else if (ctx instanceof PerseusParser.UnaryMinusExprContext ue) {
@@ -2329,7 +2334,7 @@ public class CodeGenerator extends PerseusBaseListener {
             // thunk formal inside caller? not expected here
             type = type.substring("thunk:".length());
         }
-        if (useEnvBridge(currentProcName) && currentProcName != null) {
+        if ((idx == null || !currentLocalIndex.containsKey(name)) && useEnvBridge(currentProcName) && currentProcName != null) {
             SymbolTableBuilder.ProcInfo cp = procedures.get(currentProcName);
             if (cp != null && cp.paramNames.contains(name) && cp.valueParams.contains(name)) {
                 String pType = getFormalBaseType(cp, name);
@@ -4068,6 +4073,8 @@ public class CodeGenerator extends PerseusBaseListener {
                     e.argList() != null ? e.argList().arg() : List.of(),
                     e.argList() != null,
                     false);
+        } else if (ctx instanceof PerseusParser.AnonymousProcedureExprContext e) {
+            return generateAnonymousProcedureReference(e);
         } else if (ctx instanceof PerseusParser.VarExprContext e) {
             String name = e.identifier().getText();
 
@@ -4274,7 +4281,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     return "getstatic " + packageName + "/" + className + "/" + fieldName + " " + jvmDesc + "\n";
                 }
             }
-            if (useEnvBridge(currentProcName) && currentProcName != null) {
+            if ((idx == null || !currentLocalIndex.containsKey(name)) && useEnvBridge(currentProcName) && currentProcName != null) {
                 SymbolTableBuilder.ProcInfo cp = procedures.get(currentProcName);
                 if (cp != null && cp.paramNames.contains(name) && cp.valueParams.contains(name)) {
                     String pType = getFormalBaseType(cp, name);
@@ -4451,6 +4458,130 @@ public class CodeGenerator extends PerseusBaseListener {
 
     private String getReturnInstruction(String returnType) {
         return CodeGenUtils.getReturnInstruction(returnType);
+    }
+
+    private String mapLambdaParamType(PerseusParser.LambdaParamTypeContext typeCtx) {
+        if (typeCtx == null) return "integer";
+        if (typeCtx.REAL() != null) return "real";
+        if (typeCtx.INTEGER() != null) return "integer";
+        if (typeCtx.STRING() != null) return "string";
+        if (typeCtx.BOOLEAN() != null) return "boolean";
+        if (typeCtx.refType() != null) return "ref:" + typeCtx.refType().identifier().getText();
+        return "integer";
+    }
+
+    private String mapLambdaReturnType(PerseusParser.LambdaReturnTypeContext typeCtx) {
+        if (typeCtx == null) return "integer";
+        if (typeCtx.REAL() != null) return "real";
+        if (typeCtx.INTEGER() != null) return "integer";
+        if (typeCtx.STRING() != null) return "string";
+        if (typeCtx.BOOLEAN() != null) return "boolean";
+        if (typeCtx.refType() != null) return "ref:" + typeCtx.refType().identifier().getText();
+        return "integer";
+    }
+
+    private String lambdaParameterDescriptor(String type) {
+        if (type == null) return "I";
+        if ("real".equals(type)) return "D";
+        if ("integer".equals(type) || "boolean".equals(type)) return "I";
+        if (isObjectType(type)) return CodeGenUtils.getReturnTypeDescriptor(type);
+        throw new RuntimeException("Unsupported anonymous procedure parameter type: " + type);
+    }
+
+    private String generateAnonymousProcedureReference(PerseusParser.AnonymousProcedureExprContext ctx) {
+        String existing = anonymousProcedureNames.get(ctx);
+        if (existing != null) {
+            return generateProcedureReference(existing, procedures.get(existing));
+        }
+
+        if (currentProcName != null) {
+            SymbolTableBuilder.ProcInfo outerInfo = procedures.get(currentProcName);
+            if (outerInfo != null) {
+                Set<String> names = collectVarNames(ctx.expr());
+                Set<String> lambdaParams = new LinkedHashSet<>();
+                if (ctx.lambdaParamList() != null) {
+                    for (PerseusParser.LambdaParamContext param : ctx.lambdaParamList().lambdaParam()) {
+                        lambdaParams.add(param.identifier().getText());
+                    }
+                }
+                for (String name : names) {
+                    if (lambdaParams.contains(name)) {
+                        continue;
+                    }
+                    if (outerInfo.paramTypes.containsKey(name) || outerInfo.localVars.containsKey(name) || outerInfo.nestedProcedures.contains(name)) {
+                        throw new RuntimeException("Anonymous procedures do not yet support capturing outer procedure state: " + name);
+                    }
+                }
+            }
+        }
+
+        String procName = "__anonproc" + anonymousProcedureCounter++;
+        anonymousProcedureNames.put(ctx, procName);
+
+        SymbolTableBuilder.ProcInfo procInfo = new SymbolTableBuilder.ProcInfo(mapLambdaReturnType(ctx.lambdaReturnType()));
+        if (ctx.lambdaParamList() != null) {
+            for (PerseusParser.LambdaParamContext param : ctx.lambdaParamList().lambdaParam()) {
+                String paramName = param.identifier().getText();
+                String paramType = mapLambdaParamType(param.lambdaParamType());
+                procInfo.paramNames.add(paramName);
+                procInfo.paramTypes.put(paramName, paramType);
+                procInfo.valueParams.add(paramName);
+            }
+        }
+        procedures.put(procName, procInfo);
+
+        Map<String, String> savedSymbolTable = currentSymbolTable;
+        Map<String, Integer> savedLocalIndex = currentLocalIndex;
+        int savedNumLocals = currentNumLocals;
+        String savedProcName = currentProcName;
+        String savedProcReturnType = currentProcReturnType;
+        int savedProcRetvalSlot = procRetvalSlot;
+        StringBuilder savedActiveOutput = activeOutput;
+
+        StringBuilder method = new StringBuilder();
+        activeOutput = method;
+        currentSymbolTable = new LinkedHashMap<>();
+        currentLocalIndex = new LinkedHashMap<>();
+        currentNumLocals = 0;
+        // Anonymous procedures in the first slice lower to self-contained helper
+        // methods with ordinary JVM parameters. Keep them out of the env-bridge
+        // path until closure capture is implemented.
+        currentProcName = null;
+        currentProcReturnType = procInfo.returnType;
+        procRetvalSlot = -1;
+
+        StringBuilder paramDesc = new StringBuilder();
+        for (String paramName : procInfo.paramNames) {
+            String paramType = procInfo.paramTypes.get(paramName);
+            currentSymbolTable.put(paramName, paramType);
+            currentLocalIndex.put(paramName, currentNumLocals);
+            paramDesc.append(lambdaParameterDescriptor(paramType));
+            currentNumLocals += "real".equals(paramType) ? 2 : 1;
+        }
+
+        method.append(".method public static ").append(procName)
+              .append("(").append(paramDesc).append(")")
+              .append(CodeGenUtils.getReturnTypeDescriptor(procInfo.returnType)).append("\n");
+        method.append(".limit stack 64\n");
+        method.append(".limit locals 64\n");
+        method.append(generateExpr(ctx.expr()));
+        String bodyType = exprTypes.getOrDefault(ctx.expr(), "integer");
+        if ("real".equals(procInfo.returnType) && "integer".equals(bodyType)) {
+            method.append("i2d\n");
+        }
+        method.append(getReturnInstruction(procInfo.returnType)).append("\n");
+        method.append(".end method\n\n");
+
+        activeOutput = savedActiveOutput;
+        currentSymbolTable = savedSymbolTable;
+        currentLocalIndex = savedLocalIndex;
+        currentNumLocals = savedNumLocals;
+        currentProcName = savedProcName;
+        currentProcReturnType = savedProcReturnType;
+        procRetvalSlot = savedProcRetvalSlot;
+
+        procMethods.add(method.toString());
+        return generateProcedureReference(procName, procInfo);
     }
 
     private static boolean isObjectType(String type) {
