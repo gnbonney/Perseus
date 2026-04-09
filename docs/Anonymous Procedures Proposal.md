@@ -112,6 +112,8 @@ integer procedure (integer) factorial := proc (integer n) integer :
   end;
 ```
 
+For non-`void` anonymous procedures, a block body should end with a final expression whose value becomes the procedure result. For `void` anonymous procedures, the block body may consist only of statements.
+
 #### 5. Alternative Syntax Options
 If `proc ... :` doesn't feel right, here are other possible alternatives:
 - **Keyword `lambda`** (most common in modern languages like Python):

@@ -63,7 +63,7 @@ The current intended order is:
 - [x] Support the first-slice `proc (parameter-list) result-type : body` surface for expression-bodied anonymous procedures
 - [x] Support expression-bodied anonymous procedures
 - [x] Implement `void` anonymous procedures using explicit `proc (...) void : ...` syntax
-- [ ] Implement `begin ... end` multi-statement anonymous-procedure bodies
+- [x] Implement `begin ... end` multi-statement anonymous-procedure bodies
 - [x] Support assignment of anonymous procedures to procedure-typed variables
 - [x] Support passing anonymous procedures to procedure parameters
 - [ ] Support returning anonymous procedures from procedures where the surrounding procedure-value machinery already permits it
@@ -87,7 +87,7 @@ The current intended order is:
 - The anonymous-procedure surface remains fully explicit: `proc (parameter-list) result-type : body`, with no shorthand omission of parentheses or result type in the initial design.
 - The first slice should continue to reuse the compiler's existing procedure-value and closure machinery as much as possible.
 - Closure capture should stay aligned with existing nested-procedure and procedure-reference behavior rather than introducing a separate scope/runtime model for anonymous procedures.
-- Returning anonymous procedures and `begin ... end` anonymous-procedure bodies remain follow-on work.
+- Returning anonymous procedures remain follow-on work.
 - Public external ABIs should stay out of scope for the initial anonymous-procedure implementation.
 
 ## Milestone 43 - Collections, Iterators, and Java Container Interop

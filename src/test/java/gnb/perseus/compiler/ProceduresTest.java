@@ -332,6 +332,44 @@ end
 	}
 
 	@Test
+	public void anonymous_proc_block_body_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+			"test/algol/procedures/anonymous_proc_block_body.alg",
+			"gnb/perseus/programs",
+			"AnonymousProcBlockBody",
+			BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+		assertTrue(jasminSource.contains("__anonproc"),
+			"Block-bodied anonymous procedures should lower to synthetic static helper methods");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.AnonymousProcBlockBody");
+		assertEquals("120", output.trim());
+	}
+
+	@Test
+	public void anonymous_proc_void_block_body_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+			"test/algol/procedures/anonymous_proc_void_block_body.alg",
+			"gnb/perseus/programs",
+			"AnonymousProcVoidBlockBody",
+			BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+		assertTrue(jasminSource.contains("__anonproc"),
+			"Void block-bodied anonymous procedures should lower to synthetic static helper methods");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.AnonymousProcVoidBlockBody");
+		assertEquals("Hello there", output.trim());
+	}
+
+	@Test
 	public void anonymous_proc_capture_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
 			"test/algol/procedures/anonymous_proc_capture.alg",

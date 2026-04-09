@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
 /**
  * Second-pass listener: emits Jasmin code using the pre-computed symbol table, local variable map, and expression types.
@@ -62,6 +63,8 @@ public class CodeGenerator extends PerseusBaseListener {
     private final List<Map.Entry<String,String>> procRefClassDefinitions = new ArrayList<>();
     private final List<Map.Entry<String,String>> generatedClassDefinitions = new ArrayList<>();
     private final Map<PerseusParser.AnonymousProcedureExprContext, String> anonymousProcedureNames = new IdentityHashMap<>();
+    private int anonymousBodySuppressionDepth = 0;
+    private boolean emittingAnonymousBody = false;
 
     // --- Current context (swapped when entering/exiting procedures) ---
     private Map<String, String> currentSymbolTable;
@@ -273,6 +276,10 @@ public class CodeGenerator extends PerseusBaseListener {
         return skippedClassDepth > 0;
     }
 
+    private boolean skippingCodegen() {
+        return skippingClassSubtree() || (anonymousBodySuppressionDepth > 0 && !emittingAnonymousBody);
+    }
+
     @Override
     public void enterClassDecl(PerseusParser.ClassDeclContext ctx) {
         skippedClassDepth++;
@@ -286,6 +293,24 @@ public class CodeGenerator extends PerseusBaseListener {
             generatedClassDefinitions.add(Map.entry(companionClassFileName(classDeclName), classGen.generateClassJasmin(cls)));
         }
         skippedClassDepth = Math.max(0, skippedClassDepth - 1);
+    }
+
+    @Override
+    public void enterAnonymousProcedureExpr(PerseusParser.AnonymousProcedureExprContext ctx) {
+        PerseusParser.AnonymousProcedureBodyContext body = ctx.anonymousProcedureBody();
+        if (body instanceof PerseusParser.AnonymousBlockProcedureBodyContext
+                || body instanceof PerseusParser.AnonymousBraceProcedureBodyContext) {
+            anonymousBodySuppressionDepth++;
+        }
+    }
+
+    @Override
+    public void exitAnonymousProcedureExpr(PerseusParser.AnonymousProcedureExprContext ctx) {
+        PerseusParser.AnonymousProcedureBodyContext body = ctx.anonymousProcedureBody();
+        if (body instanceof PerseusParser.AnonymousBlockProcedureBodyContext
+                || body instanceof PerseusParser.AnonymousBraceProcedureBodyContext) {
+            anonymousBodySuppressionDepth = Math.max(0, anonymousBodySuppressionDepth - 1);
+        }
     }
 
     private String companionClassFileName(String simpleClassName) {
@@ -486,7 +511,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void enterProcedureDecl(PerseusParser.ProcedureDeclContext ctx) {
-        if (skippingClassSubtree()) {
+        if (skippingCodegen()) {
             skipProcedureDeclStack.push(true);
             return;
         }
@@ -944,7 +969,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitAssignment(PerseusParser.AssignmentContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         if (currentProcName == null) mainHadExecutableStatements = true;
         List<PerseusParser.LvalueContext> lvalues = ctx.lvalue();
 
@@ -1376,8 +1401,8 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitProcedureCall(PerseusParser.ProcedureCallContext ctx) {
-        if (skippingClassSubtree()) return;
-        if (currentProcName == null) mainHadExecutableStatements = true;
+        if (skippingCodegen()) return;
+        if (currentProcName == null && !emittingAnonymousBody) mainHadExecutableStatements = true;
         String name = ctx.identifier().getText();
         System.out.println("Processing procedure call: " + name);
         List<PerseusParser.ArgContext> args = ctx.argList() != null ? ctx.argList().arg() : List.of();
@@ -1494,8 +1519,8 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitMemberCall(PerseusParser.MemberCallContext ctx) {
-        if (skippingClassSubtree()) return;
-        if (currentProcName == null) mainHadExecutableStatements = true;
+        if (skippingCodegen()) return;
+        if (currentProcName == null && !emittingAnonymousBody) mainHadExecutableStatements = true;
         activeOutput.append(generateMemberInvocation(
                 ctx.identifier(0).getText(),
                 ctx.identifier(1).getText(),
@@ -1510,7 +1535,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void enterLabel(PerseusParser.LabelContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         String labelName = ctx.getStart().getText();
         activeOutput.append(normalizeStatementLabel(labelName)).append(":\n");
     }
@@ -1522,20 +1547,20 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitGotoStatement(PerseusParser.GotoStatementContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         emitGotoDesignationalExpr(ctx.designationalExpr());
     }
 
     @Override
     public void exitSignalStatement(PerseusParser.SignalStatementContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         activeOutput.append(generateExpr(ctx.expr()));
         activeOutput.append("athrow\n");
     }
 
     @Override
     public void enterWhileStatement(PerseusParser.WhileStatementContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         String condLabel = generateUniqueLabel("whilecond");
         String endLabel = generateUniqueLabel("endwhile");
         loopBackEdgeLabelStack.push(condLabel);
@@ -1548,7 +1573,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitWhileStatement(PerseusParser.WhileStatementContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         if (loopBackEdgeLabelStack.isEmpty() || loopContinueLabelStack.isEmpty() || loopBreakLabelStack.isEmpty()) {
             activeOutput.append("; ERROR: while-label stack underflow\n");
             return;
@@ -1562,7 +1587,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void enterRepeatStatement(PerseusParser.RepeatStatementContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         String bodyLabel = generateUniqueLabel("repeat");
         String condLabel = generateUniqueLabel("repeatcond");
         String endLabel = generateUniqueLabel("endrepeat");
@@ -1575,7 +1600,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitRepeatStatement(PerseusParser.RepeatStatementContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         if (repeatBodyLabelStack.isEmpty() || loopBackEdgeLabelStack.isEmpty()
                 || loopContinueLabelStack.isEmpty() || loopBreakLabelStack.isEmpty()) {
             activeOutput.append("; ERROR: repeat-label stack underflow\n");
@@ -1593,7 +1618,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitBreakStatement(PerseusParser.BreakStatementContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         if (loopBreakLabelStack.isEmpty()) {
             activeOutput.append("; ERROR: break used outside loop\n");
             return;
@@ -1603,7 +1628,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitContinueStatement(PerseusParser.ContinueStatementContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         if (loopContinueLabelStack.isEmpty()) {
             activeOutput.append("; ERROR: continue used outside loop\n");
             return;
@@ -1617,7 +1642,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void enterStatement(PerseusParser.StatementContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         if (ctx.getParent() instanceof PerseusParser.IfStatementContext ifCtx
                 && ifCtx.statement().size() > 1
                 && ctx == ifCtx.statement(1)) {
@@ -1630,11 +1655,13 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void enterBlock(PerseusParser.BlockContext ctx) {
+        if (skippingCodegen()) return;
         exceptionGen.enterBlock(ctx, activeOutput);
     }
 
     @Override
     public void exitBlock(PerseusParser.BlockContext ctx) {
+        if (skippingCodegen()) return;
         exceptionGen.exitBlock(ctx, activeOutput);
     }
 
@@ -1645,11 +1672,13 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitCompoundStatement(PerseusParser.CompoundStatementContext ctx) {
+        if (skippingCodegen()) return;
         exceptionGen.exitCompoundStatement(ctx, activeOutput);
     }
 
     @Override
     public void enterExceptionHandler(PerseusParser.ExceptionHandlerContext ctx) {
+        if (skippingCodegen()) return;
         exceptionGen.enterExceptionHandler(ctx, activeOutput);
         if (ctx.identifier() == null) {
             exceptionBindingStateStack.push(NO_EXCEPTION_BINDING);
@@ -1671,6 +1700,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitExceptionHandler(PerseusParser.ExceptionHandlerContext ctx) {
+        if (skippingCodegen()) return;
         exceptionGen.exitExceptionHandler(ctx, activeOutput);
         if (exceptionBindingStateStack.isEmpty()) return;
         ExceptionBindingState state = exceptionBindingStateStack.pop();
@@ -1690,7 +1720,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void enterIfStatement(PerseusParser.IfStatementContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         PerseusParser.ExprContext cond = ctx.expr();
         boolean hasElse = ctx.statement().size() > 1;
         String endLabel = generateUniqueLabel("endif");
@@ -1753,7 +1783,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitIfStatement(PerseusParser.IfStatementContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         String endLabel = ifEndLabelStack.pop();
         ifElseLabelStack.pop();
         activeOutput.append(endLabel).append(":\n");
@@ -1765,7 +1795,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void enterForStatement(PerseusParser.ForStatementContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         // Redirect all body code to a capture buffer; exitForStatement will
         // reconstruct the complete for-list structure with inline body duplication.
         forBodyStack.push(activeOutput);
@@ -1774,7 +1804,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     @Override
     public void exitForStatement(PerseusParser.ForStatementContext ctx) {
-        if (skippingClassSubtree()) return;
+        if (skippingCodegen()) return;
         String bodyCode = activeOutput.toString();
         activeOutput = forBodyStack.pop();
 
@@ -4491,6 +4521,131 @@ public class CodeGenerator extends PerseusBaseListener {
         throw new RuntimeException("Unsupported anonymous procedure parameter type: " + type);
     }
 
+    private String mapAnonymousLocalVarType(PerseusParser.VarDeclContext ctx) {
+        if (ctx.REAL() != null) return "real";
+        if (ctx.INTEGER() != null) return "integer";
+        if (ctx.STRING() != null) return "string";
+        if (ctx.BOOLEAN() != null) return "boolean";
+        if (ctx.PROCEDURE() != null) return "procedure:void";
+        return "integer";
+    }
+
+    private record AnonymousLocalDecl(String name, String type) {}
+
+    private List<AnonymousLocalDecl> collectAnonymousBodyLocals(PerseusParser.AnonymousProcedureCompoundContext compoundCtx) {
+        List<AnonymousLocalDecl> locals = new ArrayList<>();
+        if (compoundCtx == null) {
+            return locals;
+        }
+        List<PerseusParser.StatementContext> statements = List.of();
+        if (compoundCtx instanceof PerseusParser.AnonymousStatementExprProcedureCompoundContext stmtExpr) {
+            statements = stmtExpr.statement();
+        } else if (compoundCtx instanceof PerseusParser.AnonymousStatementProcedureCompoundContext stmtsOnly) {
+            statements = stmtsOnly.statement();
+        }
+        for (PerseusParser.StatementContext stmt : statements) {
+            if (stmt.varDecl() != null) {
+                String type = mapAnonymousLocalVarType(stmt.varDecl());
+                if (type.startsWith("procedure:")) {
+                    throw new RuntimeException("Anonymous procedure block bodies do not yet support local procedure declarations");
+                }
+                for (PerseusParser.IdentifierContext id : stmt.varDecl().varList().identifier()) {
+                    locals.add(new AnonymousLocalDecl(id.getText(), type));
+                }
+            } else if (stmt.refDecl() != null) {
+                String type = "ref:" + stmt.refDecl().identifier().getText();
+                for (PerseusParser.IdentifierContext id : stmt.refDecl().varList().identifier()) {
+                    locals.add(new AnonymousLocalDecl(id.getText(), type));
+                }
+            } else if (stmt.arrayDecl() != null || stmt.procedureDecl() != null || stmt.classDecl() != null
+                    || stmt.externalClassDecl() != null || stmt.externalProcedureDecl() != null
+                    || stmt.externalValueDecl() != null || stmt.switchDecl() != null) {
+                throw new RuntimeException("Anonymous procedure block bodies do not yet support this kind of declaration");
+            }
+        }
+        return locals;
+    }
+
+    private void initializeAnonymousLocal(String name, String type) {
+        int slot = currentLocalIndex.get(name);
+        if ("real".equals(type) || "deferred".equals(type)) {
+            activeOutput.append("dconst_0\n");
+            emitStore("dstore", slot);
+        } else if ("string".equals(type)) {
+            activeOutput.append("ldc \"\"\n");
+            emitStore("astore", slot);
+        } else if (type != null && type.startsWith("ref:")) {
+            activeOutput.append("aconst_null\n");
+            emitStore("astore", slot);
+        } else {
+            activeOutput.append("iconst_0\n");
+            emitStore("istore", slot);
+        }
+    }
+
+    private PerseusParser.ExprContext anonymousBodyResultExpr(PerseusParser.AnonymousProcedureBodyContext bodyCtx) {
+        if (bodyCtx instanceof PerseusParser.AnonymousExprProcedureBodyContext exprBody) {
+            return exprBody.expr();
+        }
+        PerseusParser.AnonymousProcedureCompoundContext compound = null;
+        if (bodyCtx instanceof PerseusParser.AnonymousBlockProcedureBodyContext blockBody) {
+            compound = blockBody.anonymousProcedureCompound();
+        } else if (bodyCtx instanceof PerseusParser.AnonymousBraceProcedureBodyContext braceBody) {
+            compound = braceBody.anonymousProcedureCompound();
+        }
+        if (compound instanceof PerseusParser.AnonymousStatementExprProcedureCompoundContext stmtExpr) {
+            return stmtExpr.expr();
+        }
+        if (compound instanceof PerseusParser.AnonymousExprProcedureCompoundContext exprOnly) {
+            return exprOnly.expr();
+        }
+        return null;
+    }
+
+    private void emitAnonymousProcedureBody(PerseusParser.AnonymousProcedureBodyContext bodyCtx, SymbolTableBuilder.ProcInfo procInfo) {
+        if (bodyCtx instanceof PerseusParser.AnonymousExprProcedureBodyContext exprBody) {
+            activeOutput.append(generateExpr(exprBody.expr()));
+            return;
+        }
+
+        PerseusParser.AnonymousProcedureCompoundContext compound = null;
+        if (bodyCtx instanceof PerseusParser.AnonymousBlockProcedureBodyContext blockBody) {
+            compound = blockBody.anonymousProcedureCompound();
+        } else if (bodyCtx instanceof PerseusParser.AnonymousBraceProcedureBodyContext braceBody) {
+            compound = braceBody.anonymousProcedureCompound();
+        }
+        if (compound == null) {
+            return;
+        }
+
+        for (AnonymousLocalDecl local : collectAnonymousBodyLocals(compound)) {
+            if (currentSymbolTable.containsKey(local.name())) {
+                throw new RuntimeException("Duplicate anonymous procedure local: " + local.name());
+            }
+            int slot = currentNumLocals;
+            currentSymbolTable.put(local.name(), local.type());
+            currentLocalIndex.put(local.name(), slot);
+            currentNumLocals += "real".equals(local.type()) ? 2 : 1;
+            initializeAnonymousLocal(local.name(), local.type());
+        }
+        ensureLocalLimit(Math.max(currentNumLocals, 64));
+
+        boolean savedEmittingAnonymousBody = emittingAnonymousBody;
+        emittingAnonymousBody = true;
+        try {
+            ParseTreeWalker.DEFAULT.walk(this, compound);
+        } finally {
+            emittingAnonymousBody = savedEmittingAnonymousBody;
+        }
+
+        PerseusParser.ExprContext resultExpr = anonymousBodyResultExpr(bodyCtx);
+        if (resultExpr != null) {
+            activeOutput.append(generateExpr(resultExpr));
+        } else if (!"void".equals(procInfo.returnType)) {
+            throw new RuntimeException("Non-void anonymous procedure block bodies must end with a result expression");
+        }
+    }
+
     private String generateAnonymousProcedureReference(PerseusParser.AnonymousProcedureExprContext ctx) {
         String existing = anonymousProcedureNames.get(ctx);
         if (existing != null) {
@@ -4545,8 +4700,9 @@ public class CodeGenerator extends PerseusBaseListener {
               .append(CodeGenUtils.getReturnTypeDescriptor(procInfo.returnType)).append("\n");
         method.append(".limit stack 64\n");
         method.append(".limit locals 64\n");
-        method.append(generateExpr(ctx.expr()));
-        String bodyType = exprTypes.getOrDefault(ctx.expr(), "integer");
+        emitAnonymousProcedureBody(ctx.anonymousProcedureBody(), procInfo);
+        PerseusParser.ExprContext resultExpr = anonymousBodyResultExpr(ctx.anonymousProcedureBody());
+        String bodyType = resultExpr != null ? exprTypes.getOrDefault(resultExpr, "integer") : "void";
         if ("real".equals(procInfo.returnType) && "integer".equals(bodyType)) {
             method.append("i2d\n");
         }

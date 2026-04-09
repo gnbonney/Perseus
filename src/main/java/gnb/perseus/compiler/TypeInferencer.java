@@ -23,6 +23,7 @@ public class TypeInferencer extends PerseusBaseListener {
     private final Deque<SymbolTableBuilder.MethodInfo> methodStack = new ArrayDeque<>();
     private final Deque<Map<String, String>> exceptionBindingStack = new ArrayDeque<>();
     private final Deque<Map<String, String>> lambdaBindingStack = new ArrayDeque<>();
+    private final Deque<Map<String, String>> anonymousLocalBindingStack = new ArrayDeque<>();
 
     public TypeInferencer(String sourceName, Map<String, String> symbolTable,
             Map<String, SymbolTableBuilder.ProcInfo> procedures,
@@ -262,12 +263,13 @@ public class TypeInferencer extends PerseusBaseListener {
             }
         }
         lambdaBindingStack.push(bindings);
+        anonymousLocalBindingStack.push(new HashMap<>());
     }
 
     @Override
     public void exitAnonymousProcedureExpr(PerseusParser.AnonymousProcedureExprContext ctx) {
         String declaredReturnType = mapLambdaReturnType(ctx.lambdaReturnType());
-        String bodyType = exprTypes.getOrDefault(ctx.expr(), "integer");
+        String bodyType = anonymousProcedureBodyType(ctx);
         if (!isLambdaBodyCompatible(declaredReturnType, bodyType)) {
             throw error(ctx, "PERS2013",
                     "Anonymous procedure body type " + bodyType + " does not match declared return type " + declaredReturnType);
@@ -275,6 +277,31 @@ public class TypeInferencer extends PerseusBaseListener {
         exprTypes.put(ctx, "procedure:" + declaredReturnType);
         if (!lambdaBindingStack.isEmpty()) {
             lambdaBindingStack.pop();
+        }
+        if (!anonymousLocalBindingStack.isEmpty()) {
+            anonymousLocalBindingStack.pop();
+        }
+    }
+
+    @Override
+    public void enterVarDecl(PerseusParser.VarDeclContext ctx) {
+        if (anonymousLocalBindingStack.isEmpty()) {
+            return;
+        }
+        String type = mapVarDeclType(ctx);
+        for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
+            anonymousLocalBindingStack.peek().put(id.getText(), type);
+        }
+    }
+
+    @Override
+    public void enterRefDecl(PerseusParser.RefDeclContext ctx) {
+        if (anonymousLocalBindingStack.isEmpty()) {
+            return;
+        }
+        String type = "ref:" + ctx.identifier().getText();
+        for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
+            anonymousLocalBindingStack.peek().put(id.getText(), type);
         }
     }
 
@@ -423,6 +450,11 @@ public class TypeInferencer extends PerseusBaseListener {
             if (type != null) return type;
         }
 
+        for (Map<String, String> bindings : anonymousLocalBindingStack) {
+            String type = bindings.get(name);
+            if (type != null) return type;
+        }
+
         for (Map<String, String> bindings : exceptionBindingStack) {
             String type = bindings.get(name);
             if (type != null) return type;
@@ -474,6 +506,39 @@ public class TypeInferencer extends PerseusBaseListener {
         if (typeCtx.BOOLEAN() != null) return "boolean";
         if (typeCtx.refType() != null) return "ref:" + typeCtx.refType().identifier().getText();
         return "integer";
+    }
+
+    private String mapVarDeclType(PerseusParser.VarDeclContext ctx) {
+        if (ctx.REAL() != null) return "real";
+        if (ctx.INTEGER() != null) return "integer";
+        if (ctx.STRING() != null) return "string";
+        if (ctx.BOOLEAN() != null) return "boolean";
+        if (ctx.PROCEDURE() != null) return "procedure:void";
+        return "integer";
+    }
+
+    private String anonymousProcedureBodyType(PerseusParser.AnonymousProcedureExprContext ctx) {
+        PerseusParser.AnonymousProcedureBodyContext body = ctx.anonymousProcedureBody();
+        if (body instanceof PerseusParser.AnonymousExprProcedureBodyContext exprBody) {
+            return exprTypes.getOrDefault(exprBody.expr(), "integer");
+        }
+        if (body instanceof PerseusParser.AnonymousBlockProcedureBodyContext blockBody) {
+            return anonymousProcedureCompoundType(blockBody.anonymousProcedureCompound());
+        }
+        if (body instanceof PerseusParser.AnonymousBraceProcedureBodyContext braceBody) {
+            return anonymousProcedureCompoundType(braceBody.anonymousProcedureCompound());
+        }
+        return "void";
+    }
+
+    private String anonymousProcedureCompoundType(PerseusParser.AnonymousProcedureCompoundContext ctx) {
+        if (ctx instanceof PerseusParser.AnonymousStatementExprProcedureCompoundContext stmtExpr) {
+            return exprTypes.getOrDefault(stmtExpr.expr(), "integer");
+        }
+        if (ctx instanceof PerseusParser.AnonymousExprProcedureCompoundContext exprOnly) {
+            return exprTypes.getOrDefault(exprOnly.expr(), "integer");
+        }
+        return "void";
     }
 
     private boolean isLambdaBodyCompatible(String declaredReturnType, String bodyType) {
