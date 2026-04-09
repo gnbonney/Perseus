@@ -465,6 +465,36 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     }
 
     @Override
+    public void enterVectorDecl(PerseusParser.VectorDeclContext ctx) {
+        String elementType = mapVectorElementType(ctx.vectorElementType());
+        String vectorType = "vector:" + elementType;
+        for (PerseusParser.IdentifierContext idCtx : ctx.varList().identifier()) {
+            String name = idCtx.getText();
+
+            MethodInfo method = currentMethod();
+            if (method != null) {
+                method.localVars.put(name, vectorType);
+                symbolTable.put(name, vectorType);
+                continue;
+            }
+
+            ClassInfo cls = currentClass();
+            if (cls != null) {
+                cls.fields.put(name, vectorType);
+                continue;
+            }
+
+            ProcInfo proc = currentProc();
+            symbolTable.put(name, vectorType);
+            if (proc == null) {
+                mainSymbolTable.put(name, vectorType);
+            } else {
+                proc.localVars.put(name, vectorType);
+            }
+        }
+    }
+
+    @Override
     public void enterRefDecl(PerseusParser.RefDeclContext ctx) {
         String refType = "ref:" + ctx.identifier().getText();
         for (PerseusParser.IdentifierContext idCtx : ctx.varList().identifier()) {
@@ -627,6 +657,15 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         if (typeCtx instanceof PerseusParser.IntegerParamTypeContext) return "integer";
         if (typeCtx instanceof PerseusParser.StringParamTypeContext) return "string";
         if (typeCtx instanceof PerseusParser.BooleanParamTypeContext) return "boolean";
+        return "integer";
+    }
+
+    private String mapVectorElementType(PerseusParser.VectorElementTypeContext typeCtx) {
+        if (typeCtx.REAL() != null) return "real";
+        if (typeCtx.INTEGER() != null) return "integer";
+        if (typeCtx.BOOLEAN() != null) return "boolean";
+        if (typeCtx.STRING() != null) return "string";
+        if (typeCtx.refType() != null) return "ref:" + typeCtx.refType().identifier().getText();
         return "integer";
     }
 }

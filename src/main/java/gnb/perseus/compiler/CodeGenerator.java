@@ -426,7 +426,11 @@ public class CodeGenerator extends PerseusBaseListener {
             String type = symEntry.getValue();
             if (!type.endsWith("[]") && !type.startsWith("procedure:")) {
                 // Scalar variable: initialize via putstatic
-                if ("integer".equals(type) || "boolean".equals(type)) {
+                if (type.startsWith("vector:")) {
+                    mainCode.append("new java/util/ArrayList\n")
+                            .append("dup\n")
+                            .append("invokespecial java/util/ArrayList/<init>()V\n");
+                } else if ("integer".equals(type) || "boolean".equals(type)) {
                     mainCode.append("iconst_0\n");
                 } else if ("real".equals(type)) {
                     mainCode.append("dconst_0\n");
@@ -772,6 +776,11 @@ public class CodeGenerator extends PerseusBaseListener {
             int slot = e.getValue();
             if ("real".equals(varType) || "deferred".equals(varType)) {
                 activeOutput.append("dconst_0\n"); emitStore("dstore", slot);
+            } else if (varType != null && varType.startsWith("vector:")) {
+                activeOutput.append("new java/util/ArrayList\n");
+                activeOutput.append("dup\n");
+                activeOutput.append("invokespecial java/util/ArrayList/<init>()V\n");
+                emitStore("astore", slot);
             } else if ("string".equals(varType)) {
                 activeOutput.append("ldc \"\"\n"); emitStore("astore", slot);
             } else if (varType != null && varType.startsWith("ref:")) {
@@ -983,6 +992,22 @@ public class CodeGenerator extends PerseusBaseListener {
                 return;
             }
 
+            if (elemType.startsWith("vector:")) {
+                String vectorElementType = elemType.substring("vector:".length());
+                if (lv.expr().size() != 1) {
+                    activeOutput.append("; ERROR: vector indexing currently requires exactly one subscript\n");
+                    return;
+                }
+                String rhsType = exprTypes.getOrDefault(ctx.expr(), "integer");
+                activeOutput.append(generateLoadVar(arrName));
+                activeOutput.append(generateExpr(lv.expr(0)));
+                activeOutput.append(generateExpr(ctx.expr()));
+                activeOutput.append(boxVectorElementValue(vectorElementType, rhsType));
+                activeOutput.append("invokevirtual java/util/ArrayList/set(ILjava/lang/Object;)Ljava/lang/Object;\n");
+                activeOutput.append("pop\n");
+                return;
+            }
+
             // String scalar character mutation: s[i] := replacement
             // Rebuilds the string using StringBuilder: prefix + replacement + suffix
             if ("string".equals(elemType) && lv.expr().size() == 1) {
@@ -1080,7 +1105,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 vt = mainSymbolTable.get(lvName);
             }
             if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
-            return vt != null && vt.startsWith("ref:");
+            return vt != null && (vt.startsWith("ref:") || vt.startsWith("vector:"));
         });
         // A typed procedure name can denote either a procedure reference or the
         // procedure's implicit return variable. When the RHS is a procedure
@@ -1334,7 +1359,7 @@ public class CodeGenerator extends PerseusBaseListener {
                                     .append("/").append(envThunkFieldName(currentProcName, name)).append(" D\n");
                     }
                 }
-            } else if ("string".equals(varType) || (varType != null && varType.startsWith("ref:"))) {
+            } else if ("string".equals(varType) || (varType != null && (varType.startsWith("ref:") || varType.startsWith("vector:")))) {
                 emitStore("astore", idx);
                 if (currentProcName != null && currentLocalIndex.containsKey(name)) {
                     SymbolTableBuilder.ProcInfo currInfo = procedures.get(currentProcName);
@@ -1836,7 +1861,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
         String afterAllLabel = generateUniqueLabel("endfor");
         if (ctx.forClause() instanceof PerseusParser.InArrayForClauseContext inClause) {
-            emitForInArrayLoop(inClause, bodyCode, varName, varIndex, varType, isStaticScalar, afterAllLabel);
+            emitForInIterableLoop(inClause, bodyCode, varName, varIndex, varType, isStaticScalar, afterAllLabel);
             activeOutput.append(afterAllLabel).append(":\n");
             return;
         }
@@ -1931,19 +1956,21 @@ public class CodeGenerator extends PerseusBaseListener {
         activeOutput.append(afterAllLabel).append(":\n");
     }
 
-    private void emitForInArrayLoop(PerseusParser.InArrayForClauseContext inClause, String bodyCode,
+    private void emitForInIterableLoop(PerseusParser.InArrayForClauseContext inClause, String bodyCode,
             String varName, Integer varIndex, String varType, boolean isStaticScalar, String afterAllLabel) {
         String iterableType = inferIterableType(inClause.expr());
-        if (iterableType == null || !iterableType.endsWith("[]")) {
-            activeOutput.append("; ERROR: for ... in ... do currently requires an array variable\n");
+        if (iterableType == null || (!iterableType.endsWith("[]") && !iterableType.startsWith("vector:"))) {
+            activeOutput.append("; ERROR: for ... in ... do currently requires an array or vector variable\n");
             return;
         }
 
-        String elementType = iterableType.substring(0, iterableType.length() - 2);
+        String elementType = iterableType.startsWith("vector:")
+                ? iterableType.substring("vector:".length())
+                : iterableType.substring(0, iterableType.length() - 2);
         if (!isCompatibleIterationVariableType(varType, elementType)) {
             activeOutput.append("; ERROR: iteration variable ").append(varName)
                     .append(" has incompatible type ").append(varType)
-                    .append(" for array element type ").append(elementType).append("\n");
+                    .append(" for iterable element type ").append(elementType).append("\n");
             return;
         }
 
@@ -1958,11 +1985,20 @@ public class CodeGenerator extends PerseusBaseListener {
         activeOutput.append(loopLabel).append(":\n");
         activeOutput.append("iload ").append(indexSlot).append("\n");
         activeOutput.append("aload ").append(arraySlot).append("\n");
-        activeOutput.append("arraylength\n");
+        if (iterableType.startsWith("vector:")) {
+            activeOutput.append("invokevirtual java/util/ArrayList/size()I\n");
+        } else {
+            activeOutput.append("arraylength\n");
+        }
         activeOutput.append("if_icmpge ").append(afterAllLabel).append("\n");
         activeOutput.append("aload ").append(arraySlot).append("\n");
         activeOutput.append("iload ").append(indexSlot).append("\n");
-        activeOutput.append(loadArrayElementInstruction(iterableType));
+        if (iterableType.startsWith("vector:")) {
+            activeOutput.append("invokevirtual java/util/ArrayList/get(I)Ljava/lang/Object;\n");
+            activeOutput.append(unboxVectorElementValue(elementType));
+        } else {
+            activeOutput.append(loadArrayElementInstruction(iterableType));
+        }
         activeOutput.append(storeIterationVariableValue(varName, varType, varIndex, isStaticScalar, elementType));
         activeOutput.append(bodyCode);
         activeOutput.append("iload ").append(indexSlot).append("\n");
@@ -2015,6 +2051,37 @@ public class CodeGenerator extends PerseusBaseListener {
                 : "boolean[]".equals(arrayType) ? "baload\n"
                 : ("string[]".equals(arrayType) || refArray) ? "aaload\n"
                 : "iaload\n";
+    }
+
+    private String boxVectorElementValue(String elementType, String valueType) {
+        StringBuilder sb = new StringBuilder();
+        if ("real".equals(elementType) && "integer".equals(valueType)) {
+            sb.append("i2d\n");
+            valueType = "real";
+        }
+        if ("real".equals(elementType) || "real".equals(valueType)) {
+            sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+        } else if ("integer".equals(elementType) || "boolean".equals(elementType)
+                || "integer".equals(valueType) || "boolean".equals(valueType)) {
+            sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+        }
+        return sb.toString();
+    }
+
+    private String unboxVectorElementValue(String elementType) {
+        if ("real".equals(elementType)) {
+            return "checkcast java/lang/Double\ninvokevirtual java/lang/Double/doubleValue()D\n";
+        }
+        if ("integer".equals(elementType) || "boolean".equals(elementType)) {
+            return "checkcast java/lang/Integer\ninvokevirtual java/lang/Integer/intValue()I\n";
+        }
+        if ("string".equals(elementType)) {
+            return "checkcast java/lang/String\n";
+        }
+        if (elementType != null && (elementType.startsWith("ref:") || elementType.startsWith("vector:") || elementType.startsWith("procedure:"))) {
+            return "";
+        }
+        return "";
     }
 
     private String storeIterationVariableValue(String varName, String varType, Integer varIndex,
@@ -2406,7 +2473,7 @@ public class CodeGenerator extends PerseusBaseListener {
             return "iload " + idx + "\n";
         } else if ("real".equals(type) || "deferred".equals(type)) {
             return "dload " + idx + "\n";
-        } else if ("string".equals(type) || (type != null && type.startsWith("ref:"))) {
+        } else if ("string".equals(type) || (type != null && (type.startsWith("ref:") || type.startsWith("vector:")))) {
             return "aload " + idx + "\n";
         } else if (type != null && type.endsWith("[]")) {
             return "aload " + idx + "\n";
@@ -3675,6 +3742,36 @@ public class CodeGenerator extends PerseusBaseListener {
         if (receiverType == null) {
             return "; ERROR: member call requires typed receiver " + receiverName + "\n";
         }
+        if (receiverType.startsWith("vector:")) {
+            String elementType = receiverType.substring("vector:".length());
+            StringBuilder sb = new StringBuilder();
+            sb.append(generateLoadVar(receiverName));
+            if ("append".equals(memberName)) {
+                if (args.size() != 1) {
+                    return "; ERROR: vector append requires exactly one argument\n";
+                }
+                PerseusParser.ExprContext argExpr = args.get(0).expr();
+                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                sb.append(generateExpr(argExpr));
+                sb.append(boxVectorElementValue(elementType, argType));
+                sb.append("invokevirtual java/util/ArrayList/add(Ljava/lang/Object;)Z\n");
+                if (isStatement) {
+                    sb.append("pop\n");
+                }
+                return sb.toString();
+            }
+            if ("size".equals(memberName)) {
+                if (!args.isEmpty()) {
+                    return "; ERROR: vector size does not take arguments\n";
+                }
+                sb.append("invokevirtual java/util/ArrayList/size()I\n");
+                if (isStatement) {
+                    sb.append("pop\n");
+                }
+                return sb.toString();
+            }
+            return "; ERROR: unknown vector member " + memberName + "\n";
+        }
         if ("string".equals(receiverType)) {
             Method javaMethod = findJavaMethod("java.lang.String", memberName, args);
             if (javaMethod == null) {
@@ -4324,6 +4421,19 @@ public class CodeGenerator extends PerseusBaseListener {
             String elemType = lookupVarType(arrName);
             if (elemType == null) return "; ERROR: undeclared array " + arrName + "\n";
 
+            if (elemType.startsWith("vector:")) {
+                if (e.expr().size() != 1) {
+                    return "; ERROR: vector indexing currently requires exactly one subscript\n";
+                }
+                String vectorElementType = elemType.substring("vector:".length());
+                StringBuilder sb = new StringBuilder();
+                sb.append(generateLoadVar(arrName));
+                sb.append(generateExpr(e.expr(0), varToFieldIndex));
+                sb.append("invokevirtual java/util/ArrayList/get(I)Ljava/lang/Object;\n");
+                sb.append(unboxVectorElementValue(vectorElementType));
+                return sb.toString();
+            }
+
             // String scalar character access: s[i] -> s.substring(i-1, i)
             if ("string".equals(elemType) && e.expr().size() == 1) {
                 StringBuilder sb = new StringBuilder();
@@ -4531,6 +4641,15 @@ public class CodeGenerator extends PerseusBaseListener {
         return "integer";
     }
 
+    private String mapAnonymousVectorElementType(PerseusParser.VectorElementTypeContext ctx) {
+        if (ctx.REAL() != null) return "real";
+        if (ctx.INTEGER() != null) return "integer";
+        if (ctx.STRING() != null) return "string";
+        if (ctx.BOOLEAN() != null) return "boolean";
+        if (ctx.refType() != null) return "ref:" + ctx.refType().identifier().getText();
+        return "integer";
+    }
+
     private record AnonymousLocalDecl(String name, String type) {}
 
     private List<AnonymousLocalDecl> collectAnonymousBodyLocals(PerseusParser.AnonymousProcedureCompoundContext compoundCtx) {
@@ -4553,6 +4672,11 @@ public class CodeGenerator extends PerseusBaseListener {
                 for (PerseusParser.IdentifierContext id : stmt.varDecl().varList().identifier()) {
                     locals.add(new AnonymousLocalDecl(id.getText(), type));
                 }
+            } else if (stmt.vectorDecl() != null) {
+                String type = "vector:" + mapAnonymousVectorElementType(stmt.vectorDecl().vectorElementType());
+                for (PerseusParser.IdentifierContext id : stmt.vectorDecl().varList().identifier()) {
+                    locals.add(new AnonymousLocalDecl(id.getText(), type));
+                }
             } else if (stmt.refDecl() != null) {
                 String type = "ref:" + stmt.refDecl().identifier().getText();
                 for (PerseusParser.IdentifierContext id : stmt.refDecl().varList().identifier()) {
@@ -4572,6 +4696,11 @@ public class CodeGenerator extends PerseusBaseListener {
         if ("real".equals(type) || "deferred".equals(type)) {
             activeOutput.append("dconst_0\n");
             emitStore("dstore", slot);
+        } else if (type != null && type.startsWith("vector:")) {
+            activeOutput.append("new java/util/ArrayList\n");
+            activeOutput.append("dup\n");
+            activeOutput.append("invokespecial java/util/ArrayList/<init>()V\n");
+            emitStore("astore", slot);
         } else if ("string".equals(type)) {
             activeOutput.append("ldc \"\"\n");
             emitStore("astore", slot);
@@ -4725,7 +4854,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     private static boolean isObjectType(String type) {
         return "string".equals(type)
-                || (type != null && (type.startsWith("ref:") || type.startsWith("procedure:")));
+                || (type != null && (type.startsWith("ref:") || type.startsWith("vector:") || type.startsWith("procedure:")));
     }
 
     private String getProcedureInterfaceDescriptor(String procType) {

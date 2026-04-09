@@ -211,6 +211,10 @@ public class TypeInferencer extends PerseusBaseListener {
         String arrName = ctx.identifier().getText();
         String arrType = lookupType(arrName);
         if (arrType == null) throw error(ctx, "PERS2002", "Undeclared array: " + arrName);
+        if (arrType.startsWith("vector:")) {
+            exprTypes.put(ctx, arrType.substring("vector:".length()));
+            return;
+        }
         exprTypes.put(ctx, arrType.endsWith("[]") ? arrType.substring(0, arrType.length() - 2) : arrType);
     }
 
@@ -300,6 +304,17 @@ public class TypeInferencer extends PerseusBaseListener {
             return;
         }
         String type = "ref:" + ctx.identifier().getText();
+        for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
+            anonymousLocalBindingStack.peek().put(id.getText(), type);
+        }
+    }
+
+    @Override
+    public void enterVectorDecl(PerseusParser.VectorDeclContext ctx) {
+        if (anonymousLocalBindingStack.isEmpty()) {
+            return;
+        }
+        String type = "vector:" + mapVectorElementType(ctx.vectorElementType());
         for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
             anonymousLocalBindingStack.peek().put(id.getText(), type);
         }
@@ -398,6 +413,29 @@ public class TypeInferencer extends PerseusBaseListener {
                 return mapJavaType(resolution.method().getReturnType());
             }
             raiseMemberError(ctxForError, "PERS2010", resolution.diagnostic());
+        }
+        if (receiverType.startsWith("vector:")) {
+            if ("append".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "vector append requires call syntax");
+                }
+                if (argTypes.size() != 1) {
+                    raiseMemberError(ctxForError, "PERS2010", "vector append requires exactly one argument");
+                }
+                String elementType = receiverType.substring("vector:".length());
+                if (!isVectorElementCompatible(elementType, argTypes.get(0))) {
+                    raiseMemberError(ctxForError, "PERS2010",
+                            "vector append argument type " + argTypes.get(0) + " is incompatible with element type " + elementType);
+                }
+                return "boolean";
+            }
+            if ("size".equals(memberName)) {
+                if (explicitCall && !argTypes.isEmpty()) {
+                    raiseMemberError(ctxForError, "PERS2010", "vector size() does not take arguments");
+                }
+                return "integer";
+            }
+            raiseMemberError(ctxForError, "PERS2010", "Unknown vector member: " + memberName);
         }
         if (!receiverType.startsWith("ref:")) {
             raiseMemberError(ctxForError, "PERS2008", "Member call requires an object reference: " + receiverName + "." + memberName);
@@ -515,6 +553,28 @@ public class TypeInferencer extends PerseusBaseListener {
         if (ctx.BOOLEAN() != null) return "boolean";
         if (ctx.PROCEDURE() != null) return "procedure:void";
         return "integer";
+    }
+
+    private String mapVectorElementType(PerseusParser.VectorElementTypeContext ctx) {
+        if (ctx.REAL() != null) return "real";
+        if (ctx.INTEGER() != null) return "integer";
+        if (ctx.STRING() != null) return "string";
+        if (ctx.BOOLEAN() != null) return "boolean";
+        if (ctx.refType() != null) return "ref:" + ctx.refType().identifier().getText();
+        return "integer";
+    }
+
+    private boolean isVectorElementCompatible(String elementType, String valueType) {
+        if (elementType == null || valueType == null) {
+            return false;
+        }
+        if (elementType.equals(valueType)) {
+            return true;
+        }
+        if ("real".equals(elementType) && "integer".equals(valueType)) {
+            return true;
+        }
+        return elementType.startsWith("ref:") && "null".equals(valueType);
     }
 
     private String anonymousProcedureBodyType(PerseusParser.AnonymousProcedureExprContext ctx) {

@@ -97,8 +97,8 @@ The current intended order is:
 
 **Goal:** Add collection and iterator support in a way that helps both Perseus's own `for ... in ... do` direction and practical interop with Java-hosted iterable/container APIs (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
 
-- [ ] Introduce `vector` as the first Java-backed dynamic sequence collection type
-- [ ] Add `vector` construction, indexing, length/size access, and append-style growth operations on top of a Java runtime collection
+- [x] Introduce `vector` as the first Java-backed dynamic sequence collection type
+- [x] Add `vector` construction, indexing, length/size access, and append-style growth operations on top of a Java runtime collection
 - [ ] Decide whether `map` and `set` belong in the same first collection slice or a later follow-on slice
 - [ ] Add collection literals and basic collection operations
 - [ ] Extend `for ... in ... do` from arrays to collection and iterator-protocol-based iteration
@@ -115,6 +115,7 @@ The current intended order is:
 - It is also the bridge between Perseus's emerging modern loop forms and its JVM interop story for iterables and container-like APIs.
 - If mathematical arrays later grow richer traversal or section semantics, that work should align with this iterator model rather than bypass it completely.
 - The current design direction already assumes one iterator model shared across arrays first, then collections, then Java-hosted iterable/container interop.
+- A first implementation slice has already landed for Java-backed `vector` declarations with automatic empty construction, zero-based indexing, `append`, `length(...)`, `size`, `size()`, and direct `for ... in ... do` iteration.
 - The remaining open design question is mostly scope and sequencing: which collection families and literal forms should land first, not whether they belong in the same iterator story.
 - Collection implementations should be based on Java runtime collections rather than a separate Perseus-native storage/runtime hierarchy.
 - Java interop should include an easy, explicit way to convert Perseus collections to and from Java collection values returned by external Java classes.

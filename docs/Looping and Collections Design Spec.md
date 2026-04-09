@@ -115,6 +115,17 @@ The intended implementation direction is to back `vector` with an ordinary Java 
 
 That Java-backed direction should also make collection conversion easy at interop boundaries. Perseus code should have a straightforward way to wrap or convert Java collection values coming from external Java classes, and to hand Perseus collections back to Java code without awkward manual copying in user programs.
 
+The current first slice is narrower and already implemented:
+
+- `vector integer nums;` and the corresponding `real`, `boolean`, `string`, and `ref(T)` forms
+- automatic empty construction backed by `java.util.ArrayList`
+- zero-based indexing with `nums[i]` and `nums[i] := value`
+- append with `nums.append(value)`
+- size access through both `length(nums)` and `nums.size` / `nums.size()`
+- direct `for ... in ... do` traversal over vectors using the same loop-variable rules already established for arrays
+
+Vector literals and Java-conversion helpers remain later work.
+
 **Declaration and literals**:
 ```algol
 vector integer nums;                    // empty

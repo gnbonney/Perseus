@@ -59,8 +59,22 @@ The current `for ... in ... do` rules are:
 - the traversed array expression is evaluated once at loop entry
 - assigning to the iteration variable inside the body does not change which element is visited next
 - numeric counting remains with the traditional Algol `for ... step ... until ... do` form rather than being folded into `for ... in ... do`
+- the current implementation supports both fixed arrays and Java-backed `vector` collections
 
 The traditional Algol `for` form remains intentionally general. Its `for`-list elements may need to be re-evaluated as the loop proceeds, and the generated JVM code naturally reflects that with multiple branches and temporary locals for control state. That is the right tradeoff for historical correctness and translation of classic Algol code, but it also means this form should not be treated as the preferred choice for the hottest possible inner loops when a simpler loop shape would do.
+
+## Vectors
+
+Perseus now includes a first dynamic collection type:
+
+- declaration form: `vector integer nums;`
+- runtime model: Java-backed growable sequence storage
+- indexing: `nums[i]` and `nums[i] := value`
+- growth: `nums.append(value)`
+- size access: `length(nums)`, `nums.size`, or `nums.size()`
+- iteration: `for item in nums do ...`
+
+The current vector implementation is intentionally a first slice. It provides a practical Java-backed dynamic sequence type without yet committing to collection literals, a general iterator protocol, or the full Java collection-conversion surface.
 
 ## Strings
 

@@ -158,6 +158,12 @@ public class BuiltinFunctionGenerator {
 
         switch (funcName) {
             case "length":
+                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                if (argType.startsWith("vector:")) {
+                    sb.append(exprCodeGen.apply(argExpr));
+                    sb.append("invokevirtual java/util/ArrayList/size()I\n");
+                    return sb.toString();
+                }
                 // length(s) → s.length()
                 sb.append(exprCodeGen.apply(argExpr));
                 sb.append("invokestatic perseus/text/Strings/length(Ljava/lang/String;)I\n");
