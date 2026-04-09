@@ -99,14 +99,15 @@ The current intended order is:
 
 - [x] Introduce `vector` as the first Java-backed dynamic sequence collection type
 - [x] Add `vector` construction, indexing, length/size access, and append-style growth operations on top of a Java runtime collection
-- [ ] Decide whether `map` and `set` belong in the same first collection slice or a later follow-on slice
-- [ ] Add collection literals and basic collection operations
-- [ ] Extend `for ... in ... do` from arrays to collection and iterator-protocol-based iteration
+- [ ] Add straightforward conversion between Perseus `vector` values and external Java collection values at interop boundaries
+- [ ] Extend `for ... in ... do` from direct `vector` support to collection and iterator-protocol-based iteration
 - [ ] Define and implement an iterator protocol that works with `for ... in ... do`
 - [ ] Implement Java `Iterable`-style interop through the same iterator protocol
-- [ ] Add straightforward conversion between Perseus collections and external Java collection values at interop boundaries
+- [ ] Add collection literals and basic collection operations
 - [ ] Keep array-oriented iteration aligned with the same iterator protocol as collections
 - [ ] Add standard-library collection modules rather than compiler-hardcoded collection behavior
+- [ ] Add `map` as a later Java-backed collection slice
+- [ ] Add `set` as a later Java-backed collection slice
 - [ ] Add sample programs and regression tests for collection use cases
 - [ ] Add iterator-pipeline operations such as `map` and `filter` on top of anonymous procedures
 
@@ -116,7 +117,7 @@ The current intended order is:
 - If mathematical arrays later grow richer traversal or section semantics, that work should align with this iterator model rather than bypass it completely.
 - The current design direction already assumes one iterator model shared across arrays first, then collections, then Java-hosted iterable/container interop.
 - A first implementation slice has already landed for Java-backed `vector` declarations with automatic empty construction, zero-based indexing, `append`, `length(...)`, `size`, `size()`, and direct `for ... in ... do` iteration.
-- The remaining open design question is mostly scope and sequencing: which collection families and literal forms should land first, not whether they belong in the same iterator story.
+- The preferred order for the rest of the milestone is to finish the `vector` and iterator/interop path first, then add `map` and `set` as later follow-on collection slices.
 - Collection implementations should be based on Java runtime collections rather than a separate Perseus-native storage/runtime hierarchy.
 - Java interop should include an easy, explicit way to convert Perseus collections to and from Java collection values returned by external Java classes.
 
