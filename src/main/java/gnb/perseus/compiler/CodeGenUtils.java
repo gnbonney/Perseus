@@ -24,6 +24,7 @@ public class CodeGenUtils {
     public static String scalarTypeToJvmDesc(String type) {
         if (type == null) return "I";
         if (type.startsWith("ref:")) return "Ljava/lang/Object;";
+        if (type.startsWith("procedure:")) return getProcedureInterfaceDescriptor(type);
         return switch (type) {
             case "real"   -> "D";
             case "deferred" -> "D";
@@ -35,6 +36,7 @@ public class CodeGenUtils {
     public static String getReturnTypeDescriptor(String type) {
         if (type == null) return "V";
         if (type.startsWith("ref:")) return "Ljava/lang/Object;";
+        if (type.startsWith("procedure:")) return getProcedureInterfaceDescriptor(type);
         return switch (type) {
             case "void"              -> "V";
             case "real"              -> "D";
@@ -48,12 +50,30 @@ public class CodeGenUtils {
     public static String getReturnInstruction(String type) {
         if (type == null) return "return";
         if (type.startsWith("ref:")) return "areturn";
+        if (type.startsWith("procedure:")) return "areturn";
         return switch (type) {
             case "void"   -> "return";
             case "real"   -> "dreturn";
             case "deferred" -> "dreturn";
             case "string" -> "areturn";
             default -> "ireturn";
+        };
+    }
+
+    public static String getProcedureInterfaceDescriptor(String procType) {
+        if (procType == null || !procType.startsWith("procedure:")) {
+            return "Lgnb/perseus/compiler/VoidProcedure;";
+        }
+        String returnType = procType.substring("procedure:".length());
+        if (returnType.startsWith("ref:") || returnType.startsWith("procedure:")) {
+            return "Lgnb/perseus/compiler/ReferenceProcedure;";
+        }
+        return switch (returnType) {
+            case "void" -> "Lgnb/perseus/compiler/VoidProcedure;";
+            case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
+            case "boolean", "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
+            case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
+            default -> throw new RuntimeException("Unknown procedure return type: " + returnType);
         };
     }
 }

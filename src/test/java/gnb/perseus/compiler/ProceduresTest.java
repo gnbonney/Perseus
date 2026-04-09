@@ -430,6 +430,44 @@ end
 		assertEquals("42", output.trim());
 	}
 
+	@Test
+	public void anonymous_proc_return_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+			"test/algol/procedures/anonymous_proc_return.alg",
+			"gnb/perseus/programs",
+			"AnonymousProcReturn",
+			BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+		assertTrue(jasminSource.contains("__anonproc"),
+			"Returned anonymous procedures should lower to synthetic static helper methods");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.AnonymousProcReturn");
+		assertEquals("42", output.trim());
+	}
+
+	@Test
+	public void anonymous_proc_void_return_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+			"test/algol/procedures/anonymous_proc_void_return.alg",
+			"gnb/perseus/programs",
+			"AnonymousProcVoidReturn",
+			BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"),
+			"Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+		assertTrue(jasminSource.contains("__anonproc"),
+			"Returned void anonymous procedures should lower to synthetic static helper methods");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.AnonymousProcVoidReturn");
+		assertEquals("Hello", output.trim());
+	}
+
     @Test
     public void deferred_name_params_mixed_type_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(

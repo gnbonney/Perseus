@@ -350,6 +350,11 @@ public class PerseusCompiler {
                                     // Void procedure: P := hello is always a procedure variable assignment.
                                     procedureVariables.add(name);
                                 } else {
+                                    if (info.returnType.startsWith("procedure:")) {
+                                        // Procedure-valued procedures use their own names as implicit
+                                        // return variables, even when the RHS is a procedure reference.
+                                        continue;
+                                    }
                                     // Typed procedure: treat as a procedure-variable assignment if the RHS
                                     // is a direct procedure reference, an anonymous procedure, or returns a procedure.
                                     PerseusParser.ExprContext rhs = ctx.expr();

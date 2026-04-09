@@ -555,11 +555,23 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     }
 
     private String getDeclaredProcedureReturnType(PerseusParser.ProcedureDeclContext ctx) {
-        if (ctx.INTEGER() != null) return "integer";
-        if (ctx.REAL() != null) return "real";
-        if (ctx.STRING() != null) return "string";
-        if (ctx.BOOLEAN() != null) return "boolean";
-        if (ctx.refType() != null) return "ref:" + ctx.refType().identifier().getText();
+        PerseusParser.ProcedureReturnTypeContext typeCtx = ctx.procedureReturnType();
+        if (typeCtx == null) return "void";
+        if (typeCtx instanceof PerseusParser.RealScalarProcedureReturnTypeContext) return "real";
+        if (typeCtx instanceof PerseusParser.IntegerScalarProcedureReturnTypeContext) return "integer";
+        if (typeCtx instanceof PerseusParser.StringScalarProcedureReturnTypeContext) return "string";
+        if (typeCtx instanceof PerseusParser.BooleanScalarProcedureReturnTypeContext) return "boolean";
+        if (typeCtx instanceof PerseusParser.RefScalarProcedureReturnTypeContext refCtx) {
+            return "ref:" + refCtx.refType().identifier().getText();
+        }
+        if (typeCtx instanceof PerseusParser.RealProcedureProcedureReturnTypeContext) return "procedure:real";
+        if (typeCtx instanceof PerseusParser.IntegerProcedureProcedureReturnTypeContext) return "procedure:integer";
+        if (typeCtx instanceof PerseusParser.StringProcedureProcedureReturnTypeContext) return "procedure:string";
+        if (typeCtx instanceof PerseusParser.BooleanProcedureProcedureReturnTypeContext) return "procedure:boolean";
+        if (typeCtx instanceof PerseusParser.RefProcedureProcedureReturnTypeContext refProcCtx) {
+            return "procedure:ref:" + refProcCtx.refType().identifier().getText();
+        }
+        if (typeCtx instanceof PerseusParser.VoidProcedureProcedureReturnTypeContext) return "procedure:void";
         return "void";
     }
 

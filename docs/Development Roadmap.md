@@ -66,7 +66,7 @@ The current intended order is:
 - [x] Implement `begin ... end` multi-statement anonymous-procedure bodies
 - [x] Support assignment of anonymous procedures to procedure-typed variables
 - [x] Support passing anonymous procedures to procedure parameters
-- [ ] Support returning anonymous procedures from procedures where the surrounding procedure-value machinery already permits it
+- [x] Support returning anonymous procedures from procedures where the surrounding procedure-value machinery already permits it
 - [x] Implement closure capture for anonymous procedures so they can refer to enclosing locals, parameters, and procedure names using the capture model described in the proposal
 - [x] Extend semantic analysis so anonymous procedures are checked against existing procedure-value and procedure-parameter types
 - [x] Lower anonymous procedures onto the existing generated procedure-reference machinery rather than inventing a separate runtime model
@@ -75,6 +75,7 @@ The current intended order is:
 - [x] simple expression-bodied anonymous procedures
 - [x] assignment to procedure variables
 - [x] passing anonymous procedures as arguments
+- [x] returning anonymous procedures through procedure-valued results
 - [x] captured outer-variable cases
 - [ ] higher-order numerical examples
 
@@ -83,6 +84,7 @@ The current intended order is:
 - `proc` is currently the preferred spelling because it fits Perseus's Algol-descended style better than `lambda`, `fn`, or arrow syntax.
 - The first slice now supports typed, expression-bodied `proc` forms that can be passed to existing procedure parameters without introducing a separate runtime model.
 - Anonymous procedures can now also be assigned to existing bindable procedure names and then invoked through the current procedure-variable machinery.
+- Anonymous procedures can now also be returned through procedure-valued procedure results and then passed onward through the existing higher-order procedure machinery.
 - Expression-bodied anonymous procedures can now capture enclosing locals, parameters, and nested procedure names through the same general closure/environment model already used for nested procedures.
 - The anonymous-procedure surface remains fully explicit: `proc (parameter-list) result-type : body`, with no shorthand omission of parentheses or result type in the initial design.
 - The first slice should continue to reuse the compiler's existing procedure-value and closure machinery as much as possible.

@@ -143,12 +143,7 @@ public class ExpressionGenerator implements GeneratorDelegate {
         // access via static field instead of local slot.
         if (!context.getLocalIndex().containsKey(name)) {
             if (type != null && type.startsWith("procedure:")) {
-                String desc = switch (type.substring("procedure:".length())) {
-                    case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                    case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                    case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                    default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                };
+                String desc = CodeGenUtils.getProcedureInterfaceDescriptor(type);
                 return "getstatic " + context.getPackageName() + "/" + context.getClassName() + "/" + name + " " + desc + "\n";
             }
             if (type != null && !type.endsWith("[]") && !type.startsWith("thunk:")) {

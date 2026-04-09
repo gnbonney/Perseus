@@ -23,8 +23,8 @@ proc (parameter-list) result-type : body
 ```
 
 - `proc` - starts the anonymous procedure.
-- `(parameter-list)` - typed parameters, e.g., `(real x, integer n)`. Parentheses are required for zero or multiple parameters; optional for a single parameter in some shorthand cases.
-- `result-type` - the return type (e.g., `real`, `bool`, `void` for no result). Can often be inferred in simple cases.
+- `(parameter-list)` - typed parameters, e.g., `(real x, integer n)`.
+- `result-type` - the return type (e.g., `real`, `boolean`, `void` for no result).
 - `:` - separates the header from the body (ALGOL-like and easy to read).
 - `body` - either a single expression or a compound statement (`begin ... end`).
 
@@ -113,6 +113,15 @@ integer procedure (integer) factorial := proc (integer n) integer :
 ```
 
 For non-`void` anonymous procedures, a block body should end with a final expression whose value becomes the procedure result. For `void` anonymous procedures, the block body may consist only of statements.
+
+Anonymous procedures can also be returned from procedure-valued procedures:
+
+```algol
+integer procedure procedure make;
+begin
+  make := proc () integer : 42
+end;
+```
 
 #### 5. Alternative Syntax Options
 If `proc ... :` doesn't feel right, here are other possible alternatives:

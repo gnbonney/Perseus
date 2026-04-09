@@ -122,10 +122,24 @@ endComment
   ;
 
 procedureDecl
-  : (INTEGER | REAL | STRING | BOOLEAN | refType)? PROCEDURE identifier ('(' paramList? ')')? ';'
+  : procedureReturnType? PROCEDURE identifier ('(' paramList? ')')? ';'
     valueSpec?
     paramSpec*
     statement
+  ;
+
+procedureReturnType
+  : REAL                # RealScalarProcedureReturnType
+  | INTEGER             # IntegerScalarProcedureReturnType
+  | STRING              # StringScalarProcedureReturnType
+  | BOOLEAN             # BooleanScalarProcedureReturnType
+  | refType             # RefScalarProcedureReturnType
+  | REAL PROCEDURE      # RealProcedureProcedureReturnType
+  | INTEGER PROCEDURE   # IntegerProcedureProcedureReturnType
+  | STRING PROCEDURE    # StringProcedureProcedureReturnType
+  | BOOLEAN PROCEDURE   # BooleanProcedureProcedureReturnType
+  | refType PROCEDURE   # RefProcedureProcedureReturnType
+  | PROCEDURE           # VoidProcedureProcedureReturnType
   ;
 
 externalProcedureDecl

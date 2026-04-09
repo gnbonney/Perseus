@@ -87,11 +87,12 @@ public class ProcedureGenerator implements GeneratorDelegate {
     }
 
     private static boolean isObjectType(String type) {
-        return "string".equals(type) || (type != null && type.startsWith("ref:"));
+        return "string".equals(type)
+                || (type != null && (type.startsWith("ref:") || type.startsWith("procedure:")));
     }
 
     private static String procedureInterfaceName(String returnType) {
-        if (returnType != null && returnType.startsWith("ref:")) {
+        if (returnType != null && (returnType.startsWith("ref:") || returnType.startsWith("procedure:"))) {
             return "ReferenceProcedure";
         }
         return switch (returnType) {
@@ -105,6 +106,12 @@ public class ProcedureGenerator implements GeneratorDelegate {
 
     private static String parameterDescriptor(String type) {
         return CodeGenUtils.getReturnTypeDescriptor(type);
+    }
+
+    private static String procedureInvokeReturnDescriptor(String returnType) {
+        return (returnType != null && (returnType.startsWith("ref:") || returnType.startsWith("procedure:")))
+                ? "Ljava/lang/Object;"
+                : CodeGenUtils.getReturnTypeDescriptor(returnType);
     }
 
     private Set<String> collectVarNames(ParseTree tree) {
@@ -494,7 +501,11 @@ public class ProcedureGenerator implements GeneratorDelegate {
         }
 
         sb.append("invokeinterface gnb/perseus/compiler/").append(interfaceName)
-          .append("/invoke([Ljava/lang/Object;)").append(CodeGenUtils.getReturnTypeDescriptor(returnType)).append(" 2\n");
+          .append("/invoke([Ljava/lang/Object;)").append(procedureInvokeReturnDescriptor(returnType)).append(" 2\n");
+        if (returnType != null && returnType.startsWith("procedure:")) {
+            String nestedDesc = CodeGenUtils.getProcedureInterfaceDescriptor(returnType);
+            sb.append("checkcast ").append(nestedDesc.substring(1, nestedDesc.length() - 1)).append("\n");
+        }
 
         // Do NOT emit astore or pop for void-returning calls
         // Only emit pop/store if the call returns a value and the result is not used
@@ -545,14 +556,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
                     if ("real".equals(pType)) desc = "D";
                     else if ("string".equals(pType)) desc = "Ljava/lang/String;";
                     else if (pType.startsWith("procedure:")) {
-                        String procRet = pType.substring("procedure:".length());
-                        desc = switch (procRet) {
-                            case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
-                            case "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                            case "string" -> "Lgnb/perseus/compiler/StringProcedure;";
-                            case "boolean" -> "Lgnb/perseus/compiler/IntegerProcedure;";
-                            default -> "Lgnb/perseus/compiler/VoidProcedure;";
-                        };
+                        desc = CodeGenUtils.getProcedureInterfaceDescriptor(pType);
                     } else if (pType.startsWith("ref:")) {
                         desc = "Ljava/lang/Object;";
                     } else {
@@ -570,6 +574,8 @@ public class ProcedureGenerator implements GeneratorDelegate {
                 };
                 if (outerInfo.returnType.startsWith("ref:")) {
                     retDesc = "Ljava/lang/Object;";
+                } else if (outerInfo.returnType.startsWith("procedure:")) {
+                    retDesc = CodeGenUtils.getProcedureInterfaceDescriptor(outerInfo.returnType);
                 }
                 envFields.add(new EnvField("ret", envReturnFieldName(outerProc), retDesc));
             }
@@ -632,7 +638,7 @@ public class ProcedureGenerator implements GeneratorDelegate {
         jasmin.append(".end method\n\n");
 
         // invoke() method — unbox args from Object[] and call the static procedure
-        jasmin.append(".method public invoke([Ljava/lang/Object;)").append(CodeGenUtils.getReturnTypeDescriptor(returnType)).append("\n");
+        jasmin.append(".method public invoke([Ljava/lang/Object;)").append(procedureInvokeReturnDescriptor(returnType)).append("\n");
         jasmin.append("    .limit stack 64\n"); // TODO: calculate required stack size
         // Reserve locals for saved env values (this + args + saved envs)
         jasmin.append("    .limit locals 64\n"); // TODO: calculate required locals
