@@ -71,13 +71,13 @@ The current intended order is:
 - [x] Extend semantic analysis so anonymous procedures are checked against existing procedure-value and procedure-parameter types
 - [x] Lower anonymous procedures onto the existing generated procedure-reference machinery rather than inventing a separate runtime model
 - [x] Document the current first-slice restrictions around closure capture, procedure-variable rebinding, block bodies, and other procedure features that do not fit cleanly yet
-- [ ] Add focused regressions for:
+- [x] Add focused regressions for:
 - [x] simple expression-bodied anonymous procedures
 - [x] assignment to procedure variables
 - [x] passing anonymous procedures as arguments
 - [x] returning anonymous procedures through procedure-valued results
 - [x] captured outer-variable cases
-- [ ] higher-order numerical examples
+- [x] higher-order numerical examples
 
 **Implementation notes:**
 - This milestone should follow the dedicated anonymous-procedures proposal rather than the older historical lambda discussion in the general language-design document.
@@ -86,6 +86,7 @@ The current intended order is:
 - Anonymous procedures can now also be assigned to existing bindable procedure names and then invoked through the current procedure-variable machinery.
 - Anonymous procedures can now also be returned through procedure-valued procedure results and then passed onward through the existing higher-order procedure machinery.
 - Expression-bodied anonymous procedures can now capture enclosing locals, parameters, and nested procedure names through the same general closure/environment model already used for nested procedures.
+- Milestone 42 is now complete, including numerically meaningful higher-order examples for summation and array transformation.
 - The anonymous-procedure surface remains fully explicit: `proc (parameter-list) result-type : body`, with no shorthand omission of parentheses or result type in the initial design.
 - The first slice should continue to reuse the compiler's existing procedure-value and closure machinery as much as possible.
 - Closure capture should stay aligned with existing nested-procedure and procedure-reference behavior rather than introducing a separate scope/runtime model for anonymous procedures.
