@@ -97,20 +97,27 @@ The current intended order is:
 
 **Goal:** Add collection and iterator support in a way that helps both Perseus's own `for ... in ... do` direction and practical interop with Java-hosted iterable/container APIs (see [Looping and Collections Design Spec.md](Looping%20and%20Collections%20Design%20Spec.md)).
 
-- [ ] Add collection types such as `vector`, `map`, and `set`
+- [ ] Introduce `vector` as the first Java-backed dynamic sequence collection type
+- [ ] Add `vector` construction, indexing, length/size access, and append-style growth operations on top of a Java runtime collection
+- [ ] Decide whether `map` and `set` belong in the same first collection slice or a later follow-on slice
 - [ ] Add collection literals and basic collection operations
 - [ ] Extend `for ... in ... do` from arrays to collection and iterator-protocol-based iteration
-- [ ] Define an iterator protocol that works with `for ... in ... do`
-- [ ] Decide how Java `Iterable`-style interop should fit into the Perseus iterator model
-- [ ] Decide how array-oriented iteration should relate to the same iterator protocol
-- [ ] Decide how collection libraries fit into the standard environment / standard library story
+- [ ] Define and implement an iterator protocol that works with `for ... in ... do`
+- [ ] Implement Java `Iterable`-style interop through the same iterator protocol
+- [ ] Add straightforward conversion between Perseus collections and external Java collection values at interop boundaries
+- [ ] Keep array-oriented iteration aligned with the same iterator protocol as collections
+- [ ] Add standard-library collection modules rather than compiler-hardcoded collection behavior
 - [ ] Add sample programs and regression tests for collection use cases
-- [ ] Decide how iterator pipelines such as `map` and `filter` should depend on Milestone 42 lambda notation
+- [ ] Add iterator-pipeline operations such as `map` and `filter` on top of anonymous procedures
 
 **Implementation notes:**
 - This milestone should not be treated as "collections for their own sake."
 - It is also the bridge between Perseus's emerging modern loop forms and its JVM interop story for iterables and container-like APIs.
 - If mathematical arrays later grow richer traversal or section semantics, that work should align with this iterator model rather than bypass it completely.
+- The current design direction already assumes one iterator model shared across arrays first, then collections, then Java-hosted iterable/container interop.
+- The remaining open design question is mostly scope and sequencing: which collection families and literal forms should land first, not whether they belong in the same iterator story.
+- Collection implementations should be based on Java runtime collections rather than a separate Perseus-native storage/runtime hierarchy.
+- Java interop should include an easy, explicit way to convert Perseus collections to and from Java collection values returned by external Java classes.
 
 ## Milestone 44 - Complex Numbers and Mathematical Types
 

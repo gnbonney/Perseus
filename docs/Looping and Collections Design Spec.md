@@ -10,7 +10,7 @@ Algol 60 provides a powerful but limited `for` statement (with `step … until` 
 Perseus extends Algol 60 with:
 - Safer, more expressive **container-oriented iteration** over arrays and later collections.
 - Clearer structured **pre-test and post-test loops** alongside the classic Algol `for`.
-- Dynamic, high-level **collections** (`vector`, `map`, `set`) with clean syntax and rich iterator support.
+- Dynamic, high-level **collections** (`vector`, `map`, `set`) with clean syntax, rich iterator support, and Java-backed runtime implementations.
 - Higher-order operations via **iterator pipelines** (composable `map`, `filter`, etc.).
 
 These additions maintain Algol’s readability and block structure while reducing boilerplate and off-by-one errors.
@@ -111,6 +111,10 @@ This means Perseus does not currently adopt Dahl's source syntax directly, but i
 ##### 3.1 Dynamic Vector (growable array)
 Replaces most uses of fixed `array` when size is not known in advance.
 
+The intended implementation direction is to back `vector` with an ordinary Java runtime collection rather than inventing a separate Perseus-native dynamic-array runtime. The same general principle should apply later to `map` and `set`.
+
+That Java-backed direction should also make collection conversion easy at interop boundaries. Perseus code should have a straightforward way to wrap or convert Java collection values coming from external Java classes, and to hand Perseus collections back to Java code without awkward manual copying in user programs.
+
 **Declaration and literals**:
 ```algol
 vector integer nums;                    // empty
@@ -159,7 +163,7 @@ for val in uniques do print(val);
 - Set literal: `#{1, 2, 3}` or context-distinguished `{1, 2, 3}`
 
 ##### 3.4 Iterator Protocol and Pipelines
-All collections support a standard **Iterator** interface. This enables powerful, declarative pipelines:
+All collections support a standard **Iterator** interface. That protocol should bridge both Perseus collection syntax and Java-hosted iterable/container implementations rather than splitting them into separate models. This enables powerful, declarative pipelines:
 
 ```algol
 let result := data
@@ -175,6 +179,26 @@ vector integer evensSquared := data
 ```
 
 Short lambda syntax: `λ x: …` or `|x| …` (both allowed).
+
+##### 3.5 Java Collection Conversion
+Because Perseus collections are intended to be backed by Java runtime collections, the interop story should include direct conversion helpers at the language or standard-library boundary.
+
+Examples of the intended shape:
+
+```algol
+vector integer nums;
+nums := vectorfromjava(javaNums);
+
+external java static(java.util.List.copyOf) ref(Object) procedure copyof;
+ref(Object) javaCopy;
+javaCopy := vectortojava(nums);
+```
+
+The exact helper names and typing surface can be settled later, but the design direction should be explicit:
+
+- external Java methods that return collection values should be easy to bring into ordinary Perseus collection use
+- Perseus collections should be easy to hand back to Java APIs
+- common conversions should live in the standard library rather than requiring custom boilerplate in each user program
 
 #### 4. Full Example in Perseus
 ```algol
@@ -203,7 +227,7 @@ end
 - **Backward compatibility**: Original Algol 60 `for`, `array`, and blocks continue to work.
 - **Readability**: Keywords like `while`, `repeat`, `until`, `in`, `break`, `filter`, and `map` are clear and Algol-like.
 - **Safety**: `for ... in ... do` reuses an already-declared compatible variable, while the loop itself still controls traversal order and evaluates the traversed expression once at entry. Bounds checking stays on by default (with escape hatches).
-- **Performance**: `vector` and fixed `array` compile to efficient contiguous memory; iterators allow zero-cost abstractions.
+- **Performance**: fixed `array` remains the direct bounded-array form, while dynamic collections should reuse efficient Java runtime collection implementations instead of introducing a second collection runtime.
 - **Extensibility**: New collection types can implement the Iterator protocol.
 
 This suggests a clear division of responsibility:
@@ -219,7 +243,7 @@ This suggests a clear division of responsibility:
 #### 7. Next Steps
 - Formal BNF grammar for the new constructs.
 - Specification of the Iterator protocol (procedures or built-in interface).
-- Standard library modules: `Collections`, `Iterators`.
+- Standard library modules: `Collections`, `Iterators`, built on top of Java runtime collections.
 - Discussion of generics for collections (`vector<T>`, `map<K,V>`).
 - Error handling integration (e.g., `Result` type for safe access).
 
