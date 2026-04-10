@@ -259,6 +259,12 @@ public class TypeInferencer extends PerseusBaseListener {
     }
 
     @Override
+    public void exitVectorLiteralExpr(PerseusParser.VectorLiteralExprContext ctx) {
+        String literalType = inferVectorLiteralType(ctx);
+        exprTypes.put(ctx, literalType);
+    }
+
+    @Override
     public void enterAnonymousProcedureExpr(PerseusParser.AnonymousProcedureExprContext ctx) {
         Map<String, String> bindings = new HashMap<>();
         if (ctx.lambdaParamList() != null) {
@@ -295,6 +301,24 @@ public class TypeInferencer extends PerseusBaseListener {
         String type = mapVarDeclType(ctx);
         for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
             anonymousLocalBindingStack.peek().put(id.getText(), type);
+        }
+    }
+
+    @Override
+    public void exitAssignment(PerseusParser.AssignmentContext ctx) {
+        String rhsType = exprTypes.get(ctx.expr());
+        if (rhsType == null || !rhsType.startsWith("vector:")) {
+            return;
+        }
+        for (PerseusParser.LvalueContext lvalue : ctx.lvalue()) {
+            if (!lvalue.expr().isEmpty()) {
+                continue;
+            }
+            String lhsType = lookupType(lvalue.identifier().getText());
+            if (lhsType != null && lhsType.startsWith("vector:") && !lhsType.equals(rhsType)) {
+                throw error(ctx, "PERS2010",
+                        "Vector assignment type " + rhsType + " is incompatible with destination type " + lhsType);
+            }
         }
     }
 
@@ -577,6 +601,45 @@ public class TypeInferencer extends PerseusBaseListener {
             return true;
         }
         return elementType.startsWith("ref:") && "null".equals(valueType);
+    }
+
+    private String inferVectorLiteralType(PerseusParser.VectorLiteralExprContext ctx) {
+        String current = null;
+        for (PerseusParser.ExprContext expr : ctx.expr()) {
+            String next = exprTypes.get(expr);
+            if (next == null) {
+                throw error(ctx, "PERS2010", "Unable to infer vector literal element type");
+            }
+            if (next.startsWith("vector:") || next.startsWith("procedure:") || "void".equals(next)) {
+                throw error(ctx, "PERS2010", "Vector literals do not yet support elements of type " + next);
+            }
+            current = mergeVectorLiteralElementType(current, next, ctx);
+        }
+        if (current == null || "null".equals(current)) {
+            throw error(ctx, "PERS2010", "Vector literals require at least one non-null element type");
+        }
+        return "vector:" + current;
+    }
+
+    private String mergeVectorLiteralElementType(String current, String next, PerseusParser.VectorLiteralExprContext ctx) {
+        if (current == null) {
+            return next;
+        }
+        if (current.equals(next)) {
+            return current;
+        }
+        if (("real".equals(current) && "integer".equals(next))
+                || ("integer".equals(current) && "real".equals(next))) {
+            return "real";
+        }
+        if (current.startsWith("ref:") && "null".equals(next)) {
+            return current;
+        }
+        if ("null".equals(current) && next.startsWith("ref:")) {
+            return next;
+        }
+        throw error(ctx, "PERS2010",
+                "Vector literal element type " + next + " is incompatible with earlier element type " + current);
     }
 
     private String anonymousProcedureBodyType(PerseusParser.AnonymousProcedureExprContext ctx) {

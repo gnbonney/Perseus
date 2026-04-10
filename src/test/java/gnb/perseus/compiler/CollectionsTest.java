@@ -85,4 +85,48 @@ public class CollectionsTest extends CompilerTest {
         assertEquals("6 3", output.trim().replaceAll("\\s+", " "),
                 "Java Iterable iteration should unbox values for the declared loop variable type and should not alter traversal when the loop variable is assigned inside the body");
     }
+
+    @Test
+    public void vector_literal_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/core/vector_literal.alg",
+                "gnb/perseus/programs",
+                "VectorLiteralTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+        assertTrue(jasminSource.contains("new java/util/ArrayList"),
+                "Vector literals should lower to Java ArrayList construction");
+        assertTrue(jasminSource.contains("invokeinterface java/util/List/add(Ljava/lang/Object;)Z 2"),
+                "Vector literals should populate the Java-backed vector through the List interop surface");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.VectorLiteralTest");
+        assertEquals("3 2 6 12", output.trim().replaceAll("\\s+", " "),
+                "Vector literals should preserve element order and integrate with length, indexing, and for-in traversal");
+    }
+
+    @Test
+    public void vector_literal_mixed_numeric_real_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/core/vector_literal_real.alg",
+                "gnb/perseus/programs",
+                "VectorLiteralRealTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+        assertTrue(jasminSource.contains("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;"),
+                "Mixed numeric vector literals should widen integer elements to boxed doubles");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.VectorLiteralRealTest");
+        assertEquals("1.0 2.5 3.0", output.trim().replaceAll("\\s+", " "),
+                "Mixed numeric vector literals should infer a real vector and unbox elements correctly");
+    }
 }

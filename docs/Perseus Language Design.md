@@ -68,6 +68,7 @@ The traditional Algol `for` form remains intentionally general. Its `for`-list e
 Perseus now includes a first dynamic collection type:
 
 - declaration form: `vector integer nums;`
+- literal form: `[1, 2, 3]`
 - runtime model: Java-backed growable sequence storage
 - JVM interop boundary: `java.util.List` surface with concrete `java.util.ArrayList` construction in the current first slice
 - indexing: `nums[i]` and `nums[i] := value`
@@ -75,7 +76,7 @@ Perseus now includes a first dynamic collection type:
 - size access: `length(nums)`, `nums.size`, or `nums.size()`
 - iteration: `for item in nums do ...`
 
-The current vector implementation is intentionally a first slice. It provides a practical Java-backed dynamic sequence type without yet committing to collection literals or a full general iterator protocol, while already allowing ordinary external Java `List`-based procedures to accept and return vector values directly.
+The current vector implementation is intentionally a first slice. It provides a practical Java-backed dynamic sequence type with non-empty vector literals and ordinary external Java `List`-based interop, while still leaving broader collection literals and a full general iterator protocol as follow-on work.
 
 ## Strings
 

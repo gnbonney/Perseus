@@ -103,7 +103,10 @@ The current intended order is:
 - [ ] Extend `for ... in ... do` from direct `vector` support to collection and iterator-protocol-based iteration
 - [ ] Define and implement an iterator protocol that works with `for ... in ... do`
 - [x] Implement Java `Iterable`-style interop through the same iterator protocol
-- [ ] Add collection literals and basic collection operations
+- [x] Add `vector` literals
+- [ ] Add `map` literals
+- [ ] Add `set` literals
+- [ ] Add basic collection operations beyond the current `vector` first slice
 - [ ] Keep array-oriented iteration aligned with the same iterator protocol as collections
 - [ ] Add standard-library collection modules rather than compiler-hardcoded collection behavior
 - [ ] Add `map` as a later Java-backed collection slice
@@ -119,6 +122,7 @@ The current intended order is:
 - A first implementation slice has already landed for Java-backed `vector` declarations with automatic empty construction, zero-based indexing, `append`, `length(...)`, `size`, `size()`, and direct `for ... in ... do` iteration.
 - The current interop slice treats Perseus `vector` values as `java.util.List` at JVM procedure boundaries while still constructing `java.util.ArrayList` concretely for ordinary Perseus-side storage.
 - `for ... in ... do` now also works over external Java objects that implement `java.lang.Iterable`, using the same already-declared loop-variable rules as arrays and vectors.
+- Non-empty `vector` literals such as `[1, 2, 3]` now work as the first collection-literal slice, with homogeneous element typing and mixed `integer`/`real` inference to `vector real`.
 - The preferred order for the rest of the milestone is to finish the `vector` and iterator/interop path first, then add `map` and `set` as later follow-on collection slices.
 - Collection implementations should be based on Java runtime collections rather than a separate Perseus-native storage/runtime hierarchy.
 - Java interop should include an easy, explicit way to convert Perseus collections to and from Java collection values returned by external Java classes.

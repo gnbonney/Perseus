@@ -4382,6 +4382,24 @@ public class CodeGenerator extends PerseusBaseListener {
                     false);
         } else if (ctx instanceof PerseusParser.AnonymousProcedureExprContext e) {
             return generateAnonymousProcedureReference(e);
+        } else if (ctx instanceof PerseusParser.VectorLiteralExprContext e) {
+            String literalType = exprTypes.getOrDefault(e, "vector:integer");
+            String elementType = literalType.startsWith("vector:")
+                    ? literalType.substring("vector:".length())
+                    : "integer";
+            StringBuilder sb = new StringBuilder();
+            sb.append("new java/util/ArrayList\n");
+            sb.append("dup\n");
+            sb.append("invokespecial java/util/ArrayList/<init>()V\n");
+            for (PerseusParser.ExprContext elementExpr : e.expr()) {
+                String elementExprType = exprTypes.getOrDefault(elementExpr, "integer");
+                sb.append("dup\n");
+                sb.append(generateExpr(elementExpr, varToFieldIndex));
+                sb.append(boxVectorElementValue(elementType, elementExprType));
+                sb.append("invokeinterface java/util/List/add(Ljava/lang/Object;)Z 2\n");
+                sb.append("pop\n");
+            }
+            return sb.toString();
         } else if (ctx instanceof PerseusParser.VarExprContext e) {
             String name = e.identifier().getText();
 

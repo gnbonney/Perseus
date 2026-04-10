@@ -339,6 +339,7 @@ expr
   | expr (IMP | '=>') expr               # ImpExpr
   | expr (EQV | '==') expr               # EqvExpr
   | IF expr THEN expr ELSE expr          # IfExpr
+  | '[' expr (',' expr)* ']'             # VectorLiteralExpr
   | identifier '[' expr (',' expr)* ']'  # ArrayAccessExpr
   | identifier '(' argList? ')'          # ProcCallExpr
   | realLiteral                          # RealLiteralExpr
