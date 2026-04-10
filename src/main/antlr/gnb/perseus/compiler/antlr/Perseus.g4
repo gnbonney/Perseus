@@ -134,16 +134,18 @@ procedureReturnType
   | STRING              # StringScalarProcedureReturnType
   | BOOLEAN             # BooleanScalarProcedureReturnType
   | refType             # RefScalarProcedureReturnType
+  | vectorType          # VectorScalarProcedureReturnType
   | REAL PROCEDURE      # RealProcedureProcedureReturnType
   | INTEGER PROCEDURE   # IntegerProcedureProcedureReturnType
   | STRING PROCEDURE    # StringProcedureProcedureReturnType
   | BOOLEAN PROCEDURE   # BooleanProcedureProcedureReturnType
   | refType PROCEDURE   # RefProcedureProcedureReturnType
+  | vectorType PROCEDURE # VectorProcedureProcedureReturnType
   | PROCEDURE           # VoidProcedureProcedureReturnType
   ;
 
 externalProcedureDecl
-  : EXTERNAL externalProcSpec (INTEGER | REAL | STRING | BOOLEAN | refType)? PROCEDURE identifier ('(' externalFormalList? ')')? (AS identifier)?
+  : EXTERNAL externalProcSpec (INTEGER | REAL | STRING | BOOLEAN | refType | vectorType)? PROCEDURE identifier ('(' externalFormalList? ')')? (AS identifier)?
   ;
 
 externalProcSpec
@@ -161,7 +163,8 @@ externalFormalGroup
   ;
 
 externalParamSpecType
-  : refType ARRAY     # ExternalRefArrayParamType
+  : vectorType        # ExternalVectorParamType
+  | refType ARRAY     # ExternalRefArrayParamType
   | refType           # ExternalRefParamType
   | REAL ARRAY        # ExternalRealArrayParamType
   | INTEGER ARRAY     # ExternalIntegerArrayParamType
@@ -188,7 +191,9 @@ paramSpecType
   | STRING PROCEDURE  # StringProcedureParamType
   | BOOLEAN PROCEDURE # BooleanProcedureParamType
   | refType PROCEDURE # RefProcedureParamType
+  | vectorType PROCEDURE # VectorProcedureParamType
   | refType           # RefParamType
+  | vectorType        # VectorParamType
   | refType ARRAY     # RefArrayParamType
   | REAL ARRAY        # RealArrayParamType
   | INTEGER ARRAY     # IntegerArrayParamType
@@ -217,6 +222,10 @@ varDecl
 
 vectorDecl
   : VECTOR vectorElementType varList
+  ;
+
+vectorType
+  : VECTOR vectorElementType
   ;
 
 vectorElementType
@@ -369,6 +378,7 @@ lambdaParamType
   | STRING
   | BOOLEAN
   | refType
+  | vectorType
   ;
 
 lambdaReturnType
@@ -378,6 +388,7 @@ lambdaReturnType
   | BOOLEAN
   | VOID
   | refType
+  | vectorType
   ;
 
 procedureCall: identifier ('(' argList? ')')?;

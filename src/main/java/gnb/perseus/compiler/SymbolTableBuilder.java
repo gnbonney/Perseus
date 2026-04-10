@@ -594,12 +594,18 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         if (typeCtx instanceof PerseusParser.RefScalarProcedureReturnTypeContext refCtx) {
             return "ref:" + refCtx.refType().identifier().getText();
         }
+        if (typeCtx instanceof PerseusParser.VectorScalarProcedureReturnTypeContext vectorCtx) {
+            return "vector:" + mapVectorElementType(vectorCtx.vectorType().vectorElementType());
+        }
         if (typeCtx instanceof PerseusParser.RealProcedureProcedureReturnTypeContext) return "procedure:real";
         if (typeCtx instanceof PerseusParser.IntegerProcedureProcedureReturnTypeContext) return "procedure:integer";
         if (typeCtx instanceof PerseusParser.StringProcedureProcedureReturnTypeContext) return "procedure:string";
         if (typeCtx instanceof PerseusParser.BooleanProcedureProcedureReturnTypeContext) return "procedure:boolean";
         if (typeCtx instanceof PerseusParser.RefProcedureProcedureReturnTypeContext refProcCtx) {
             return "procedure:ref:" + refProcCtx.refType().identifier().getText();
+        }
+        if (typeCtx instanceof PerseusParser.VectorProcedureProcedureReturnTypeContext vectorProcCtx) {
+            return "procedure:vector:" + mapVectorElementType(vectorProcCtx.vectorType().vectorElementType());
         }
         if (typeCtx instanceof PerseusParser.VoidProcedureProcedureReturnTypeContext) return "procedure:void";
         return "void";
@@ -611,10 +617,14 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         if (ctx.STRING() != null) return "string";
         if (ctx.BOOLEAN() != null) return "boolean";
         if (ctx.refType() != null) return "ref:" + ctx.refType().identifier().getText();
+        if (ctx.vectorType() != null) return "vector:" + mapVectorElementType(ctx.vectorType().vectorElementType());
         return "void";
     }
 
     private String mapExternalParamType(PerseusParser.ExternalParamSpecTypeContext typeCtx) {
+        if (typeCtx instanceof PerseusParser.ExternalVectorParamTypeContext vectorParamCtx) {
+            return "vector:" + mapVectorElementType(vectorParamCtx.vectorType().vectorElementType());
+        }
         if (typeCtx instanceof PerseusParser.ExternalRefArrayParamTypeContext refArrayParamCtx) {
             return "ref:" + refArrayParamCtx.refType().identifier().getText() + "[]";
         }
@@ -641,9 +651,15 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         if (typeCtx instanceof PerseusParser.RefProcedureParamTypeContext refProcCtx) {
             return "procedure:ref:" + refProcCtx.refType().identifier().getText();
         }
+        if (typeCtx instanceof PerseusParser.VectorProcedureParamTypeContext vectorProcCtx) {
+            return "procedure:vector:" + mapVectorElementType(vectorProcCtx.vectorType().vectorElementType());
+        }
         if (typeCtx instanceof PerseusParser.VoidProcedureParamTypeContext) return "procedure:void";
         if (typeCtx instanceof PerseusParser.RefParamTypeContext refParamCtx) {
             return "ref:" + refParamCtx.refType().identifier().getText();
+        }
+        if (typeCtx instanceof PerseusParser.VectorParamTypeContext vectorParamCtx) {
+            return "vector:" + mapVectorElementType(vectorParamCtx.vectorType().vectorElementType());
         }
         if (typeCtx instanceof PerseusParser.RefArrayParamTypeContext refArrayCtx) {
             return "ref:" + refArrayCtx.refType().identifier().getText() + "[]";

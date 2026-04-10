@@ -1003,7 +1003,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 activeOutput.append(generateExpr(lv.expr(0)));
                 activeOutput.append(generateExpr(ctx.expr()));
                 activeOutput.append(boxVectorElementValue(vectorElementType, rhsType));
-                activeOutput.append("invokevirtual java/util/ArrayList/set(ILjava/lang/Object;)Ljava/lang/Object;\n");
+                activeOutput.append("invokeinterface java/util/List/set(ILjava/lang/Object;)Ljava/lang/Object; 3\n");
                 activeOutput.append("pop\n");
                 return;
             }
@@ -1986,7 +1986,7 @@ public class CodeGenerator extends PerseusBaseListener {
         activeOutput.append("iload ").append(indexSlot).append("\n");
         activeOutput.append("aload ").append(arraySlot).append("\n");
         if (iterableType.startsWith("vector:")) {
-            activeOutput.append("invokevirtual java/util/ArrayList/size()I\n");
+            activeOutput.append("invokeinterface java/util/List/size()I 1\n");
         } else {
             activeOutput.append("arraylength\n");
         }
@@ -1994,7 +1994,7 @@ public class CodeGenerator extends PerseusBaseListener {
         activeOutput.append("aload ").append(arraySlot).append("\n");
         activeOutput.append("iload ").append(indexSlot).append("\n");
         if (iterableType.startsWith("vector:")) {
-            activeOutput.append("invokevirtual java/util/ArrayList/get(I)Ljava/lang/Object;\n");
+            activeOutput.append("invokeinterface java/util/List/get(I)Ljava/lang/Object; 2\n");
             activeOutput.append(unboxVectorElementValue(elementType));
         } else {
             activeOutput.append(loadArrayElementInstruction(iterableType));
@@ -3269,6 +3269,9 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private String externalTypeToJvmDesc(String type, String externalKind) {
+        if (type != null && type.startsWith("vector:")) {
+            return "Ljava/util/List;";
+        }
         if (type != null && type.endsWith("[]")) {
             if ("java-static".equals(externalKind)) {
                 return arrayTypeToJvmDesc(type);
@@ -3754,7 +3757,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 String argType = exprTypes.getOrDefault(argExpr, "integer");
                 sb.append(generateExpr(argExpr));
                 sb.append(boxVectorElementValue(elementType, argType));
-                sb.append("invokevirtual java/util/ArrayList/add(Ljava/lang/Object;)Z\n");
+                sb.append("invokeinterface java/util/List/add(Ljava/lang/Object;)Z 2\n");
                 if (isStatement) {
                     sb.append("pop\n");
                 }
@@ -3764,7 +3767,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 if (!args.isEmpty()) {
                     return "; ERROR: vector size does not take arguments\n";
                 }
-                sb.append("invokevirtual java/util/ArrayList/size()I\n");
+                sb.append("invokeinterface java/util/List/size()I 1\n");
                 if (isStatement) {
                     sb.append("pop\n");
                 }
@@ -4429,7 +4432,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 StringBuilder sb = new StringBuilder();
                 sb.append(generateLoadVar(arrName));
                 sb.append(generateExpr(e.expr(0), varToFieldIndex));
-                sb.append("invokevirtual java/util/ArrayList/get(I)Ljava/lang/Object;\n");
+                sb.append("invokeinterface java/util/List/get(I)Ljava/lang/Object; 2\n");
                 sb.append(unboxVectorElementValue(vectorElementType));
                 return sb.toString();
             }
@@ -4610,6 +4613,7 @@ public class CodeGenerator extends PerseusBaseListener {
         if (typeCtx.STRING() != null) return "string";
         if (typeCtx.BOOLEAN() != null) return "boolean";
         if (typeCtx.refType() != null) return "ref:" + typeCtx.refType().identifier().getText();
+        if (typeCtx.vectorType() != null) return "vector:" + mapAnonymousVectorElementType(typeCtx.vectorType().vectorElementType());
         return "integer";
     }
 
@@ -4621,6 +4625,7 @@ public class CodeGenerator extends PerseusBaseListener {
         if (typeCtx.STRING() != null) return "string";
         if (typeCtx.BOOLEAN() != null) return "boolean";
         if (typeCtx.refType() != null) return "ref:" + typeCtx.refType().identifier().getText();
+        if (typeCtx.vectorType() != null) return "vector:" + mapAnonymousVectorElementType(typeCtx.vectorType().vectorElementType());
         return "integer";
     }
 

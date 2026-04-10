@@ -24,7 +24,7 @@ public class CodeGenUtils {
     public static String scalarTypeToJvmDesc(String type) {
         if (type == null) return "I";
         if (type.startsWith("ref:")) return "Ljava/lang/Object;";
-        if (type.startsWith("vector:")) return "Ljava/util/ArrayList;";
+        if (type.startsWith("vector:")) return "Ljava/util/List;";
         if (type.startsWith("procedure:")) return getProcedureInterfaceDescriptor(type);
         return switch (type) {
             case "real"   -> "D";
@@ -37,7 +37,7 @@ public class CodeGenUtils {
     public static String getReturnTypeDescriptor(String type) {
         if (type == null) return "V";
         if (type.startsWith("ref:")) return "Ljava/lang/Object;";
-        if (type.startsWith("vector:")) return "Ljava/util/ArrayList;";
+        if (type.startsWith("vector:")) return "Ljava/util/List;";
         if (type.startsWith("procedure:")) return getProcedureInterfaceDescriptor(type);
         return switch (type) {
             case "void"              -> "V";

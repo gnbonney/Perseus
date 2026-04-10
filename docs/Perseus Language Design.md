@@ -69,12 +69,13 @@ Perseus now includes a first dynamic collection type:
 
 - declaration form: `vector integer nums;`
 - runtime model: Java-backed growable sequence storage
+- JVM interop boundary: `java.util.List` surface with concrete `java.util.ArrayList` construction in the current first slice
 - indexing: `nums[i]` and `nums[i] := value`
 - growth: `nums.append(value)`
 - size access: `length(nums)`, `nums.size`, or `nums.size()`
 - iteration: `for item in nums do ...`
 
-The current vector implementation is intentionally a first slice. It provides a practical Java-backed dynamic sequence type without yet committing to collection literals, a general iterator protocol, or the full Java collection-conversion surface.
+The current vector implementation is intentionally a first slice. It provides a practical Java-backed dynamic sequence type without yet committing to collection literals or a full general iterator protocol, while already allowing ordinary external Java `List`-based procedures to accept and return vector values directly.
 
 ## Strings
 

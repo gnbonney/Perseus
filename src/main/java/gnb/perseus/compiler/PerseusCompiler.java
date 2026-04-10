@@ -546,6 +546,9 @@ public class PerseusCompiler {
 		if (type == null) {
 			return false;
 		}
+		if (type.startsWith("vector:")) {
+			return "java-static".equals(externalKind);
+		}
 		if (type.endsWith("[]")) {
 			if (isReturnType) {
 				return false;
@@ -665,6 +668,9 @@ public class PerseusCompiler {
 			Map<String, String> externalJavaClasses) {
 		if (type == null) {
 			return "V";
+		}
+		if (type.startsWith("vector:")) {
+			return "Ljava/util/List;";
 		}
 		if (type.endsWith("[]")) {
 			if ("java-static".equals(externalKind)) {

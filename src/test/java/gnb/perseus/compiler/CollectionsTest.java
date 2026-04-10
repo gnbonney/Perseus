@@ -24,12 +24,12 @@ public class CollectionsTest extends CompilerTest {
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
         assertTrue(jasminSource.contains("new java/util/ArrayList"),
                 "Vector declarations should lower to Java ArrayList construction");
-        assertTrue(jasminSource.contains("invokevirtual java/util/ArrayList/add(Ljava/lang/Object;)Z"),
-                "Vector append should lower to ArrayList.add");
-        assertTrue(jasminSource.contains("invokevirtual java/util/ArrayList/get(I)Ljava/lang/Object;"),
-                "Vector indexing should lower to ArrayList.get");
-        assertTrue(jasminSource.contains("invokevirtual java/util/ArrayList/size()I"),
-                "Vector size access should lower to ArrayList.size");
+        assertTrue(jasminSource.contains("invokeinterface java/util/List/add(Ljava/lang/Object;)Z 2"),
+                "Vector append should lower to the Java List interop surface");
+        assertTrue(jasminSource.contains("invokeinterface java/util/List/get(I)Ljava/lang/Object; 2"),
+                "Vector indexing should lower to the Java List interop surface");
+        assertTrue(jasminSource.contains("invokeinterface java/util/List/size()I 1"),
+                "Vector size access should lower to the Java List interop surface");
 
         PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 
@@ -49,10 +49,10 @@ public class CollectionsTest extends CompilerTest {
 
         assertFalse(jasminSource.startsWith("ERROR"),
                 "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
-        assertTrue(jasminSource.contains("invokevirtual java/util/ArrayList/size()I"),
-                "for ... in ... do over vectors should iterate by ArrayList.size");
-        assertTrue(jasminSource.contains("invokevirtual java/util/ArrayList/get(I)Ljava/lang/Object;"),
-                "for ... in ... do over vectors should load each element through ArrayList.get");
+        assertTrue(jasminSource.contains("invokeinterface java/util/List/size()I 1"),
+                "for ... in ... do over vectors should iterate by List.size");
+        assertTrue(jasminSource.contains("invokeinterface java/util/List/get(I)Ljava/lang/Object; 2"),
+                "for ... in ... do over vectors should load each element through List.get");
 
         PerseusCompiler.assemble(jasminFile, BUILD_DIR);
 

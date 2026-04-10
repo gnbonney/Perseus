@@ -161,7 +161,7 @@ public class BuiltinFunctionGenerator {
                 String argType = exprTypes.getOrDefault(argExpr, "integer");
                 if (argType.startsWith("vector:")) {
                     sb.append(exprCodeGen.apply(argExpr));
-                    sb.append("invokevirtual java/util/ArrayList/size()I\n");
+                    sb.append("invokeinterface java/util/List/size()I 1\n");
                     return sb.toString();
                 }
                 // length(s) → s.length()

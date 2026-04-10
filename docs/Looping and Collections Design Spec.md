@@ -115,16 +115,42 @@ The intended implementation direction is to back `vector` with an ordinary Java 
 
 That Java-backed direction should also make collection conversion easy at interop boundaries. Perseus code should have a straightforward way to wrap or convert Java collection values coming from external Java classes, and to hand Perseus collections back to Java code without awkward manual copying in user programs.
 
-The current first slice is narrower and already implemented:
+The intended core surface includes:
 
 - `vector integer nums;` and the corresponding `real`, `boolean`, `string`, and `ref(T)` forms
-- automatic empty construction backed by `java.util.ArrayList`
+- automatic empty construction backed concretely by `java.util.ArrayList`
 - zero-based indexing with `nums[i]` and `nums[i] := value`
 - append with `nums.append(value)`
 - size access through both `length(nums)` and `nums.size` / `nums.size()`
 - direct `for ... in ... do` traversal over vectors using the same loop-variable rules already established for arrays
 
-Vector literals and Java-conversion helpers remain later work.
+At Java interop boundaries, the same `vector` values should flow through the more general `java.util.List` surface so ordinary Java `List`-based APIs can accept and return them without a separate custom collection ABI.
+
+A Perseus program should still declare and use `vector`, while the external Java declaration naturally targets `List`-shaped APIs:
+
+```algol
+begin
+    external java static(java.util.Collections)
+        procedure reverse(vector integer values);
+    external java static(java.util.Collections)
+        vector integer procedure unmodifiableList(vector integer values);
+
+    vector integer values, copy;
+    integer item;
+
+    values.append(1);
+    values.append(2);
+    values.append(3);
+
+    reverse(values);
+    copy := unmodifiableList(values);
+
+    for item in copy do
+        outinteger(1, item)
+end
+```
+
+No explicit wrapper or conversion call should be needed for ordinary Java `List` interop. Perseus source stays in terms of `vector`, and the compiler maps that to the Java `List` surface at the boundary.
 
 **Declaration and literals**:
 ```algol
@@ -205,10 +231,11 @@ ref(Object) javaCopy;
 javaCopy := vectortojava(nums);
 ```
 
-The exact helper names and typing surface can be settled later, but the design direction should be explicit:
+The exact helper names and typing surface can evolve, but the design direction should be explicit:
 
 - external Java methods that return collection values should be easy to bring into ordinary Perseus collection use
 - Perseus collections should be easy to hand back to Java APIs
+- `vector` should interoperate through `java.util.List` at external Java procedure boundaries
 - common conversions should live in the standard library rather than requiring custom boilerplate in each user program
 
 #### 4. Full Example in Perseus

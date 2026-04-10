@@ -532,6 +532,7 @@ public class TypeInferencer extends PerseusBaseListener {
         if (typeCtx.STRING() != null) return "string";
         if (typeCtx.BOOLEAN() != null) return "boolean";
         if (typeCtx.refType() != null) return "ref:" + typeCtx.refType().identifier().getText();
+        if (typeCtx.vectorType() != null) return "vector:" + mapVectorElementType(typeCtx.vectorType().vectorElementType());
         return "integer";
     }
 
@@ -543,6 +544,7 @@ public class TypeInferencer extends PerseusBaseListener {
         if (typeCtx.STRING() != null) return "string";
         if (typeCtx.BOOLEAN() != null) return "boolean";
         if (typeCtx.refType() != null) return "ref:" + typeCtx.refType().identifier().getText();
+        if (typeCtx.vectorType() != null) return "vector:" + mapVectorElementType(typeCtx.vectorType().vectorElementType());
         return "integer";
     }
 

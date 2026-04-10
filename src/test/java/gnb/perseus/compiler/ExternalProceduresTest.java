@@ -255,6 +255,28 @@ public class ExternalProceduresTest extends CompilerTest {
 	}
 
 	@Test
+	public void external_java_vector_interop_test() throws Exception {
+		Path jasminFile = PerseusCompiler.compileToFile(
+				"test/algol/external/external_java_vector_interop.alg",
+				"gnb/perseus/programs",
+				"ExternalJavaVectorInterop",
+				BUILD_DIR);
+		String jasminSource = Files.readString(jasminFile);
+
+		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
+		assertTrue(jasminSource.contains("invokestatic java/util/Collections/reverse(Ljava/util/List;)V"),
+				"External Java procedures should accept Perseus vectors through the Java List interop surface");
+		assertTrue(jasminSource.contains("invokestatic java/util/Collections/unmodifiableList(Ljava/util/List;)Ljava/util/List;"),
+				"External Java procedures should return Java List values directly into Perseus vectors");
+
+		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+		String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalJavaVectorInterop");
+		assertEquals("3 2 1", output.trim().replaceAll("\\s+", " "),
+				"Perseus vectors should round-trip cleanly through Java List-based external procedures");
+	}
+
+	@Test
 	public void external_java_instance_fields_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/external/external_java_instance_fields.alg", "gnb/perseus/programs", "ExternalJavaInstanceFields", BUILD_DIR);
