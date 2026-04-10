@@ -405,7 +405,7 @@ public class TypeInferencer extends PerseusBaseListener {
         String memberType = resolveMemberAccessType(
                 ctx.identifier(0).getText(),
                 ctx.identifier(1).getText(),
-                ctx.argList() != null,
+                hasExplicitMemberCallSyntax(ctx),
                 getArgTypes(ctx.argList()),
                 ctx);
         exprTypes.put(ctx, memberType);
@@ -416,7 +416,7 @@ public class TypeInferencer extends PerseusBaseListener {
         resolveMemberAccessType(
                 ctx.identifier(0).getText(),
                 ctx.identifier(1).getText(),
-                ctx.argList() != null,
+                hasExplicitMemberCallSyntax(ctx),
                 getArgTypes(ctx.argList()),
                 null);
     }
@@ -439,6 +439,7 @@ public class TypeInferencer extends PerseusBaseListener {
             raiseMemberError(ctxForError, "PERS2010", resolution.diagnostic());
         }
         if (receiverType.startsWith("vector:")) {
+            String elementType = receiverType.substring("vector:".length());
             if ("append".equals(memberName)) {
                 if (!explicitCall) {
                     raiseMemberError(ctxForError, "PERS2010", "vector append requires call syntax");
@@ -446,12 +447,61 @@ public class TypeInferencer extends PerseusBaseListener {
                 if (argTypes.size() != 1) {
                     raiseMemberError(ctxForError, "PERS2010", "vector append requires exactly one argument");
                 }
-                String elementType = receiverType.substring("vector:".length());
                 if (!isVectorElementCompatible(elementType, argTypes.get(0))) {
                     raiseMemberError(ctxForError, "PERS2010",
                             "vector append argument type " + argTypes.get(0) + " is incompatible with element type " + elementType);
                 }
                 return "boolean";
+            }
+            if ("insert".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "vector insert requires call syntax");
+                }
+                if (argTypes.size() != 2) {
+                    raiseMemberError(ctxForError, "PERS2010", "vector insert requires exactly two arguments");
+                }
+                if (!"integer".equals(argTypes.get(0))) {
+                    raiseMemberError(ctxForError, "PERS2010", "vector insert index must be integer");
+                }
+                if (!isVectorElementCompatible(elementType, argTypes.get(1))) {
+                    raiseMemberError(ctxForError, "PERS2010",
+                            "vector insert argument type " + argTypes.get(1) + " is incompatible with element type " + elementType);
+                }
+                return "void";
+            }
+            if ("remove".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "vector remove requires call syntax");
+                }
+                if (argTypes.size() != 1) {
+                    raiseMemberError(ctxForError, "PERS2010", "vector remove requires exactly one argument");
+                }
+                if (!"integer".equals(argTypes.get(0))) {
+                    raiseMemberError(ctxForError, "PERS2010", "vector remove index must be integer");
+                }
+                return elementType;
+            }
+            if ("contains".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "vector contains requires call syntax");
+                }
+                if (argTypes.size() != 1) {
+                    raiseMemberError(ctxForError, "PERS2010", "vector contains requires exactly one argument");
+                }
+                if (!isVectorElementCompatible(elementType, argTypes.get(0))) {
+                    raiseMemberError(ctxForError, "PERS2010",
+                            "vector contains argument type " + argTypes.get(0) + " is incompatible with element type " + elementType);
+                }
+                return "boolean";
+            }
+            if ("clear".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "vector clear requires call syntax");
+                }
+                if (!argTypes.isEmpty()) {
+                    raiseMemberError(ctxForError, "PERS2010", "vector clear does not take arguments");
+                }
+                return "void";
             }
             if ("size".equals(memberName)) {
                 if (explicitCall && !argTypes.isEmpty()) {
@@ -547,6 +597,10 @@ public class TypeInferencer extends PerseusBaseListener {
         }
 
         return symbolTable.get(name);
+    }
+
+    private boolean hasExplicitMemberCallSyntax(org.antlr.v4.runtime.ParserRuleContext ctx) {
+        return ctx != null && ctx.getChildCount() > 3;
     }
 
     private String mapLambdaType(PerseusParser.LambdaParamTypeContext typeCtx) {

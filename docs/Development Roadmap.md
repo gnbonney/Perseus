@@ -123,6 +123,7 @@ The current intended order is:
 - The current interop slice treats Perseus `vector` values as `java.util.List` at JVM procedure boundaries while still constructing `java.util.ArrayList` concretely for ordinary Perseus-side storage.
 - `for ... in ... do` now also works over external Java objects that implement `java.lang.Iterable`, using the same already-declared loop-variable rules as arrays and vectors.
 - Non-empty `vector` literals such as `[1, 2, 3]` now work as the first collection-literal slice, with homogeneous element typing and mixed `integer`/`real` inference to `vector real`.
+- The basic Java-backed `vector` surface now also includes `insert`, `remove`, `contains`, and `clear` in addition to the original append/index/size operations.
 - The preferred order for the rest of the milestone is to finish the `vector` and iterator/interop path first, then add `map` and `set` as later follow-on collection slices.
 - Collection implementations should be based on Java runtime collections rather than a separate Perseus-native storage/runtime hierarchy.
 - Java interop should include an easy, explicit way to convert Perseus collections to and from Java collection values returned by external Java classes.

@@ -129,4 +129,31 @@ public class CollectionsTest extends CompilerTest {
         assertEquals("1.0 2.5 3.0", output.trim().replaceAll("\\s+", " "),
                 "Mixed numeric vector literals should infer a real vector and unbox elements correctly");
     }
+
+    @Test
+    public void vector_extended_operations_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/core/vector_extended_ops.alg",
+                "gnb/perseus/programs",
+                "VectorExtendedOpsTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+        assertTrue(jasminSource.contains("invokeinterface java/util/List/add(ILjava/lang/Object;)V 3"),
+                "Vector insert should lower to indexed Java List.add");
+        assertTrue(jasminSource.contains("invokeinterface java/util/List/remove(I)Ljava/lang/Object; 2"),
+                "Vector remove should lower to indexed Java List.remove");
+        assertTrue(jasminSource.contains("invokeinterface java/util/List/contains(Ljava/lang/Object;)Z 2"),
+                "Vector contains should lower to Java List.contains");
+        assertTrue(jasminSource.contains("invokeinterface java/util/List/clear()V 1"),
+                "Vector clear should lower to Java List.clear");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.VectorExtendedOpsTest");
+        assertEquals("2 4 2 1 0", output.trim().replaceAll("\\s+", " "),
+                "Extended vector operations should preserve ordinary Java-backed list behavior");
+    }
 }

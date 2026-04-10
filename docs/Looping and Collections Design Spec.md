@@ -188,6 +188,10 @@ array integer matrix[1:10, 1:10];
 **Operations**:
 ```algol
 nums.append(42);                    // or nums := nums + [42];
+nums.insert(0, 41);
+removed := nums.remove(1);
+if nums.contains(42) then ...
+nums.clear();
 nums[0] := 99;                      // zero-based indexing (new default)
 length := nums.size;                // or nums.length
 

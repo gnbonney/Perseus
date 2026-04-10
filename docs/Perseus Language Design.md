@@ -72,7 +72,7 @@ Perseus now includes a first dynamic collection type:
 - runtime model: Java-backed growable sequence storage
 - JVM interop boundary: `java.util.List` surface with concrete `java.util.ArrayList` construction in the current first slice
 - indexing: `nums[i]` and `nums[i] := value`
-- growth: `nums.append(value)`
+- basic operations: `nums.append(value)`, `nums.insert(i, value)`, `nums.remove(i)`, `nums.contains(value)`, `nums.clear()`
 - size access: `length(nums)`, `nums.size`, or `nums.size()`
 - iteration: `for item in nums do ...`
 

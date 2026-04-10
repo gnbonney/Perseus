@@ -3850,6 +3850,57 @@ public class CodeGenerator extends PerseusBaseListener {
                 }
                 return sb.toString();
             }
+            if ("insert".equals(memberName)) {
+                if (args.size() != 2) {
+                    return "; ERROR: vector insert requires exactly two arguments\n";
+                }
+                PerseusParser.ExprContext indexExpr = args.get(0).expr();
+                PerseusParser.ExprContext valueExpr = args.get(1).expr();
+                String valueType = exprTypes.getOrDefault(valueExpr, "integer");
+                sb.append(generateExpr(indexExpr));
+                sb.append(generateExpr(valueExpr));
+                sb.append(boxVectorElementValue(elementType, valueType));
+                sb.append("invokeinterface java/util/List/add(ILjava/lang/Object;)V 3\n");
+                return sb.toString();
+            }
+            if ("remove".equals(memberName)) {
+                if (args.size() != 1) {
+                    return "; ERROR: vector remove requires exactly one argument\n";
+                }
+                PerseusParser.ExprContext indexExpr = args.get(0).expr();
+                sb.append(generateExpr(indexExpr));
+                sb.append("invokeinterface java/util/List/remove(I)Ljava/lang/Object; 2\n");
+                sb.append(unboxVectorElementValue(elementType));
+                if (isStatement) {
+                    if ("real".equals(elementType)) {
+                        sb.append("pop2\n");
+                    } else if (!"void".equals(elementType)) {
+                        sb.append("pop\n");
+                    }
+                }
+                return sb.toString();
+            }
+            if ("contains".equals(memberName)) {
+                if (args.size() != 1) {
+                    return "; ERROR: vector contains requires exactly one argument\n";
+                }
+                PerseusParser.ExprContext argExpr = args.get(0).expr();
+                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                sb.append(generateExpr(argExpr));
+                sb.append(boxVectorElementValue(elementType, argType));
+                sb.append("invokeinterface java/util/List/contains(Ljava/lang/Object;)Z 2\n");
+                if (isStatement) {
+                    sb.append("pop\n");
+                }
+                return sb.toString();
+            }
+            if ("clear".equals(memberName)) {
+                if (!args.isEmpty()) {
+                    return "; ERROR: vector clear does not take arguments\n";
+                }
+                sb.append("invokeinterface java/util/List/clear()V 1\n");
+                return sb.toString();
+            }
             if ("size".equals(memberName)) {
                 if (!args.isEmpty()) {
                     return "; ERROR: vector size does not take arguments\n";
