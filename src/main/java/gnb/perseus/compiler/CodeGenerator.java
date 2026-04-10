@@ -1959,39 +1959,62 @@ public class CodeGenerator extends PerseusBaseListener {
     private void emitForInIterableLoop(PerseusParser.InArrayForClauseContext inClause, String bodyCode,
             String varName, Integer varIndex, String varType, boolean isStaticScalar, String afterAllLabel) {
         String iterableType = inferIterableType(inClause.expr());
-        if (iterableType == null || (!iterableType.endsWith("[]") && !iterableType.startsWith("vector:"))) {
-            activeOutput.append("; ERROR: for ... in ... do currently requires an array or vector variable\n");
+        boolean javaIterable = isJavaIterableReferenceType(iterableType);
+        if (iterableType == null || (!iterableType.endsWith("[]") && !iterableType.startsWith("vector:") && !javaIterable)) {
+            activeOutput.append("; ERROR: for ... in ... do currently requires an array, vector, or Java Iterable value\n");
             return;
         }
 
-        String elementType = iterableType.startsWith("vector:")
+        String elementType = javaIterable
+                ? effectiveIterationVariableType(varType)
+                : iterableType.startsWith("vector:")
                 ? iterableType.substring("vector:".length())
                 : iterableType.substring(0, iterableType.length() - 2);
-        if (!isCompatibleIterationVariableType(varType, elementType)) {
+        if (!javaIterable && !isCompatibleIterationVariableType(varType, elementType)) {
             activeOutput.append("; ERROR: iteration variable ").append(varName)
                     .append(" has incompatible type ").append(varType)
                     .append(" for iterable element type ").append(elementType).append("\n");
             return;
         }
 
-        int arraySlot = allocateNewLocal("iterArray");
-        int indexSlot = allocateNewLocal("iterIndex");
+        int iterableSlot = allocateNewLocal("iterable");
         String loopLabel = generateUniqueLabel("loop");
 
         activeOutput.append(generateExpr(inClause.expr()));
-        activeOutput.append("astore ").append(arraySlot).append("\n");
+        activeOutput.append("astore ").append(iterableSlot).append("\n");
+
+        if (javaIterable) {
+            int iteratorSlot = allocateNewLocal("iterator");
+            activeOutput.append("aload ").append(iterableSlot).append("\n");
+            activeOutput.append("checkcast java/lang/Iterable\n");
+            activeOutput.append("invokeinterface java/lang/Iterable/iterator()Ljava/util/Iterator; 1\n");
+            activeOutput.append("astore ").append(iteratorSlot).append("\n");
+            activeOutput.append(loopLabel).append(":\n");
+            activeOutput.append("aload ").append(iteratorSlot).append("\n");
+            activeOutput.append("invokeinterface java/util/Iterator/hasNext()Z 1\n");
+            activeOutput.append("ifeq ").append(afterAllLabel).append("\n");
+            activeOutput.append("aload ").append(iteratorSlot).append("\n");
+            activeOutput.append("invokeinterface java/util/Iterator/next()Ljava/lang/Object; 1\n");
+            activeOutput.append(unboxJavaIterableElementValue(elementType));
+            activeOutput.append(storeIterationVariableValue(varName, varType, varIndex, isStaticScalar, elementType));
+            activeOutput.append(bodyCode);
+            activeOutput.append("goto ").append(loopLabel).append("\n");
+            return;
+        }
+
+        int indexSlot = allocateNewLocal("iterIndex");
         activeOutput.append("ldc 0\n");
         activeOutput.append("istore ").append(indexSlot).append("\n");
         activeOutput.append(loopLabel).append(":\n");
         activeOutput.append("iload ").append(indexSlot).append("\n");
-        activeOutput.append("aload ").append(arraySlot).append("\n");
+        activeOutput.append("aload ").append(iterableSlot).append("\n");
         if (iterableType.startsWith("vector:")) {
             activeOutput.append("invokeinterface java/util/List/size()I 1\n");
         } else {
             activeOutput.append("arraylength\n");
         }
         activeOutput.append("if_icmpge ").append(afterAllLabel).append("\n");
-        activeOutput.append("aload ").append(arraySlot).append("\n");
+        activeOutput.append("aload ").append(iterableSlot).append("\n");
         activeOutput.append("iload ").append(indexSlot).append("\n");
         if (iterableType.startsWith("vector:")) {
             activeOutput.append("invokeinterface java/util/List/get(I)Ljava/lang/Object; 2\n");
@@ -2031,6 +2054,10 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private String inferIterableType(ExprContext expr) {
+        String exprType = exprTypes.get(expr);
+        if (exprType != null) {
+            return exprType;
+        }
         if (expr instanceof PerseusParser.VarExprContext varExpr) {
             return lookupVarType(varExpr.identifier().getText());
         }
@@ -2084,9 +2111,25 @@ public class CodeGenerator extends PerseusBaseListener {
         return "";
     }
 
+    private String unboxJavaIterableElementValue(String expectedType) {
+        if ("real".equals(expectedType)) {
+            return "checkcast java/lang/Number\ninvokevirtual java/lang/Number/doubleValue()D\n";
+        }
+        if ("integer".equals(expectedType)) {
+            return "checkcast java/lang/Number\ninvokevirtual java/lang/Number/intValue()I\n";
+        }
+        if ("boolean".equals(expectedType)) {
+            return "checkcast java/lang/Boolean\ninvokevirtual java/lang/Boolean/booleanValue()Z\n";
+        }
+        if ("string".equals(expectedType)) {
+            return "checkcast java/lang/String\n";
+        }
+        return "";
+    }
+
     private String storeIterationVariableValue(String varName, String varType, Integer varIndex,
             boolean isStaticScalar, String elementType) {
-        String effectiveType = varType != null && varType.startsWith("thunk:") ? varType.substring("thunk:".length()) : varType;
+        String effectiveType = effectiveIterationVariableType(varType);
         if ("real".equals(effectiveType)) {
             if (isStaticScalar) {
                 return "putstatic " + packageName + "/" + className + "/" + varName + " D\n";
@@ -2099,11 +2142,55 @@ public class CodeGenerator extends PerseusBaseListener {
             }
             return "istore " + varIndex + "\n";
         }
-        String desc = scalarTypeToJvmDesc(elementType);
+        String desc = scalarTypeToJvmDesc(effectiveType != null ? effectiveType : elementType);
         if (isStaticScalar) {
             return "putstatic " + packageName + "/" + className + "/" + varName + " " + desc + "\n";
         }
         return "astore " + varIndex + "\n";
+    }
+
+    private String effectiveIterationVariableType(String varType) {
+        return varType != null && varType.startsWith("thunk:") ? varType.substring("thunk:".length()) : varType;
+    }
+
+    private boolean isJavaIterableReferenceType(String type) {
+        if (type == null || !type.startsWith("ref:")) {
+            return false;
+        }
+        String simpleName = type.substring("ref:".length());
+        SymbolTableBuilder.ClassInfo cls = classes.get(simpleName);
+        if (cls == null) {
+            return false;
+        }
+        return matchesExternalJavaType(cls, java.lang.Iterable.class, new LinkedHashSet<>());
+    }
+
+    private boolean matchesExternalJavaType(SymbolTableBuilder.ClassInfo cls, Class<?> targetType, Set<String> seen) {
+        if (cls == null || !seen.add(cls.name)) {
+            return false;
+        }
+        if (cls.externalJava && cls.externalJavaQualifiedName != null) {
+            try {
+                Class<?> actualClass = Class.forName(cls.externalJavaQualifiedName);
+                if (targetType.isAssignableFrom(actualClass)) {
+                    return true;
+                }
+            } catch (ClassNotFoundException ignored) {
+            }
+        }
+        for (String ifaceName : cls.interfaces) {
+            SymbolTableBuilder.ClassInfo iface = classes.get(ifaceName);
+            if (matchesExternalJavaType(iface, targetType, seen)) {
+                return true;
+            }
+        }
+        if (cls.parentName != null) {
+            SymbolTableBuilder.ClassInfo parent = classes.get(cls.parentName);
+            if (matchesExternalJavaType(parent, targetType, seen)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // -------------------------------------------------------------------------

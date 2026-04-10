@@ -60,4 +60,29 @@ public class CollectionsTest extends CompilerTest {
         assertEquals("12 3 2 4 6", output.trim().replaceAll("\\s+", " "),
                 "Vector iteration should traverse elements in order without changing the underlying vector when the iteration variable is assigned in the body");
     }
+
+    @Test
+    public void external_java_iterable_for_in_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/external/external_java_iterable_for_in.alg",
+                "gnb/perseus/programs",
+                "ExternalJavaIterableForInTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+        assertTrue(jasminSource.contains("invokeinterface java/lang/Iterable/iterator()Ljava/util/Iterator; 1"),
+                "for ... in ... do over external Java iterable objects should start from Iterable.iterator()");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Iterator/hasNext()Z 1"),
+                "for ... in ... do over external Java iterable objects should test Iterator.hasNext()");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Iterator/next()Ljava/lang/Object; 1"),
+                "for ... in ... do over external Java iterable objects should load elements through Iterator.next()");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.ExternalJavaIterableForInTest");
+        assertEquals("6 3", output.trim().replaceAll("\\s+", " "),
+                "Java Iterable iteration should unbox values for the declared loop variable type and should not alter traversal when the loop variable is assigned inside the body");
+    }
 }

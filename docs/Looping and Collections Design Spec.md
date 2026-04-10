@@ -67,6 +67,30 @@ for (idx, val) in enumerate(data) do
 - Works efficiently with fixed `array`, `vector`, `map`, `set`, and any type implementing the **Iterator** protocol.
 - Numeric progression remains with the original Algol `for ... step ... until ... do` form rather than a separate symbolic range syntax.
 
+This same loop surface should also cover ordinary external Java objects that implement `java.lang.Iterable`:
+
+```algol
+begin
+    external java class java.util.ArrayList;
+    external java class java.lang.Integer;
+    external java static(java.lang.Integer)
+        ref(Integer) procedure valueOf(integer boxedint);
+
+    ref(ArrayList) values;
+    integer item, sum;
+
+    values := new ArrayList();
+    values.add(valueOf(1));
+    values.add(valueOf(2));
+    values.add(valueOf(3));
+
+    for item in values do
+        sum := sum + item
+end
+```
+
+Here the source still uses the ordinary Perseus `for ... in ... do` form. The Java object contributes the iteration behavior through `Iterable`, while the already-declared loop variable controls the expected element type in Perseus source.
+
 ##### 2.3 Structured Loops: `while ... do` and `repeat ... until`
 ```algol
 while <boolean expression> do
