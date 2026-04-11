@@ -430,6 +430,10 @@ public class CodeGenerator extends PerseusBaseListener {
                     mainCode.append("new java/util/ArrayList\n")
                             .append("dup\n")
                             .append("invokespecial java/util/ArrayList/<init>()V\n");
+                } else if (type.startsWith("map:")) {
+                    mainCode.append("new java/util/LinkedHashMap\n")
+                            .append("dup\n")
+                            .append("invokespecial java/util/LinkedHashMap/<init>()V\n");
                 } else if ("integer".equals(type) || "boolean".equals(type)) {
                     mainCode.append("iconst_0\n");
                 } else if ("real".equals(type)) {
@@ -781,6 +785,11 @@ public class CodeGenerator extends PerseusBaseListener {
                 activeOutput.append("dup\n");
                 activeOutput.append("invokespecial java/util/ArrayList/<init>()V\n");
                 emitStore("astore", slot);
+            } else if (varType != null && varType.startsWith("map:")) {
+                activeOutput.append("new java/util/LinkedHashMap\n");
+                activeOutput.append("dup\n");
+                activeOutput.append("invokespecial java/util/LinkedHashMap/<init>()V\n");
+                emitStore("astore", slot);
             } else if ("string".equals(varType)) {
                 activeOutput.append("ldc \"\"\n"); emitStore("astore", slot);
             } else if (varType != null && varType.startsWith("ref:")) {
@@ -1007,6 +1016,23 @@ public class CodeGenerator extends PerseusBaseListener {
                 activeOutput.append("pop\n");
                 return;
             }
+            if (elemType.startsWith("map:")) {
+                if (lv.expr().size() != 1) {
+                    activeOutput.append("; ERROR: map assignment currently requires exactly one subscript\n");
+                    return;
+                }
+                String mapKeyType = mapKeyType(elemType);
+                String mapValueType = mapValueType(elemType);
+                String rhsType = exprTypes.getOrDefault(ctx.expr(), "integer");
+                activeOutput.append(generateLoadVar(arrName));
+                activeOutput.append(generateExpr(lv.expr(0)));
+                activeOutput.append(boxMapComponentValue(mapKeyType, exprTypes.getOrDefault(lv.expr(0), "integer")));
+                activeOutput.append(generateExpr(ctx.expr()));
+                activeOutput.append(boxMapComponentValue(mapValueType, rhsType));
+                activeOutput.append("invokeinterface java/util/Map/put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object; 3\n");
+                activeOutput.append("pop\n");
+                return;
+            }
 
             // String scalar character mutation: s[i] := replacement
             // Rebuilds the string using StringBuilder: prefix + replacement + suffix
@@ -1105,7 +1131,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 vt = mainSymbolTable.get(lvName);
             }
             if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
-            return vt != null && (vt.startsWith("ref:") || vt.startsWith("vector:"));
+            return vt != null && (vt.startsWith("ref:") || vt.startsWith("vector:") || vt.startsWith("map:"));
         });
         // A typed procedure name can denote either a procedure reference or the
         // procedure's implicit return variable. When the RHS is a procedure
@@ -1359,7 +1385,7 @@ public class CodeGenerator extends PerseusBaseListener {
                                     .append("/").append(envThunkFieldName(currentProcName, name)).append(" D\n");
                     }
                 }
-            } else if ("string".equals(varType) || (varType != null && (varType.startsWith("ref:") || varType.startsWith("vector:")))) {
+            } else if ("string".equals(varType) || (varType != null && (varType.startsWith("ref:") || varType.startsWith("vector:") || varType.startsWith("map:")))) {
                 emitStore("astore", idx);
                 if (currentProcName != null && currentLocalIndex.containsKey(name)) {
                     SymbolTableBuilder.ProcInfo currInfo = procedures.get(currentProcName);
@@ -2109,6 +2135,44 @@ public class CodeGenerator extends PerseusBaseListener {
             return "";
         }
         return "";
+    }
+
+    private String boxMapComponentValue(String declaredType, String actualType) {
+        StringBuilder sb = new StringBuilder();
+        if ("real".equals(declaredType) && "integer".equals(actualType)) {
+            sb.append("i2d\n");
+            actualType = "real";
+        }
+        if ("real".equals(declaredType) || "real".equals(actualType)) {
+            sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
+        } else if ("integer".equals(declaredType) || "boolean".equals(declaredType)
+                || "integer".equals(actualType) || "boolean".equals(actualType)) {
+            sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
+        }
+        return sb.toString();
+    }
+
+    private String unboxMapComponentValue(String declaredType) {
+        if ("real".equals(declaredType)) {
+            return "checkcast java/lang/Double\ninvokevirtual java/lang/Double/doubleValue()D\n";
+        }
+        if ("integer".equals(declaredType) || "boolean".equals(declaredType)) {
+            return "checkcast java/lang/Integer\ninvokevirtual java/lang/Integer/intValue()I\n";
+        }
+        if ("string".equals(declaredType)) {
+            return "checkcast java/lang/String\n";
+        }
+        return "";
+    }
+
+    private String mapKeyType(String mapType) {
+        int sep = mapType.indexOf("=>");
+        return sep >= 0 ? mapType.substring("map:".length(), sep) : "integer";
+    }
+
+    private String mapValueType(String mapType) {
+        int sep = mapType.indexOf("=>");
+        return sep >= 0 ? mapType.substring(sep + 2) : "integer";
     }
 
     private String unboxJavaIterableElementValue(String expectedType) {
@@ -3913,6 +3977,63 @@ public class CodeGenerator extends PerseusBaseListener {
             }
             return "; ERROR: unknown vector member " + memberName + "\n";
         }
+        if (receiverType.startsWith("map:")) {
+            String keyType = mapKeyType(receiverType);
+            String valueType = mapValueType(receiverType);
+            StringBuilder sb = new StringBuilder();
+            sb.append(generateLoadVar(receiverName));
+            if ("contains".equals(memberName)) {
+                if (args.size() != 1) {
+                    return "; ERROR: map contains requires exactly one argument\n";
+                }
+                PerseusParser.ExprContext argExpr = args.get(0).expr();
+                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                sb.append(generateExpr(argExpr));
+                sb.append(boxMapComponentValue(keyType, argType));
+                sb.append("invokeinterface java/util/Map/containsKey(Ljava/lang/Object;)Z 2\n");
+                if (isStatement) {
+                    sb.append("pop\n");
+                }
+                return sb.toString();
+            }
+            if ("remove".equals(memberName)) {
+                if (args.size() != 1) {
+                    return "; ERROR: map remove requires exactly one argument\n";
+                }
+                PerseusParser.ExprContext argExpr = args.get(0).expr();
+                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                sb.append(generateExpr(argExpr));
+                sb.append(boxMapComponentValue(keyType, argType));
+                sb.append("invokeinterface java/util/Map/remove(Ljava/lang/Object;)Ljava/lang/Object; 2\n");
+                sb.append(unboxMapComponentValue(valueType));
+                if (isStatement) {
+                    if ("real".equals(valueType)) {
+                        sb.append("pop2\n");
+                    } else {
+                        sb.append("pop\n");
+                    }
+                }
+                return sb.toString();
+            }
+            if ("clear".equals(memberName)) {
+                if (!args.isEmpty()) {
+                    return "; ERROR: map clear does not take arguments\n";
+                }
+                sb.append("invokeinterface java/util/Map/clear()V 1\n");
+                return sb.toString();
+            }
+            if ("size".equals(memberName)) {
+                if (!args.isEmpty()) {
+                    return "; ERROR: map size does not take arguments\n";
+                }
+                sb.append("invokeinterface java/util/Map/size()I 1\n");
+                if (isStatement) {
+                    sb.append("pop\n");
+                }
+                return sb.toString();
+            }
+            return "; ERROR: unknown map member " + memberName + "\n";
+        }
         if ("string".equals(receiverType)) {
             Method javaMethod = findJavaMethod("java.lang.String", memberName, args);
             if (javaMethod == null) {
@@ -4592,6 +4713,18 @@ public class CodeGenerator extends PerseusBaseListener {
                 sb.append(unboxVectorElementValue(vectorElementType));
                 return sb.toString();
             }
+            if (elemType.startsWith("map:")) {
+                if (e.expr().size() != 1) {
+                    return "; ERROR: map access currently requires exactly one subscript\n";
+                }
+                StringBuilder sb = new StringBuilder();
+                sb.append(generateLoadVar(arrName));
+                sb.append(generateExpr(e.expr(0), varToFieldIndex));
+                sb.append(boxMapComponentValue(mapKeyType(elemType), exprTypes.getOrDefault(e.expr(0), "integer")));
+                sb.append("invokeinterface java/util/Map/get(Ljava/lang/Object;)Ljava/lang/Object; 2\n");
+                sb.append(unboxMapComponentValue(mapValueType(elemType)));
+                return sb.toString();
+            }
 
             // String scalar character access: s[i] -> s.substring(i-1, i)
             if ("string".equals(elemType) && e.expr().size() == 1) {
@@ -4862,6 +4995,11 @@ public class CodeGenerator extends PerseusBaseListener {
             activeOutput.append("dup\n");
             activeOutput.append("invokespecial java/util/ArrayList/<init>()V\n");
             emitStore("astore", slot);
+        } else if (type != null && type.startsWith("map:")) {
+            activeOutput.append("new java/util/LinkedHashMap\n");
+            activeOutput.append("dup\n");
+            activeOutput.append("invokespecial java/util/LinkedHashMap/<init>()V\n");
+            emitStore("astore", slot);
         } else if ("string".equals(type)) {
             activeOutput.append("ldc \"\"\n");
             emitStore("astore", slot);
@@ -5015,7 +5153,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     private static boolean isObjectType(String type) {
         return "string".equals(type)
-                || (type != null && (type.startsWith("ref:") || type.startsWith("vector:") || type.startsWith("procedure:")));
+                || (type != null && (type.startsWith("ref:") || type.startsWith("vector:") || type.startsWith("map:") || type.startsWith("procedure:")));
     }
 
     private String getProcedureInterfaceDescriptor(String procType) {

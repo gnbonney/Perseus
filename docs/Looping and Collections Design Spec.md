@@ -204,9 +204,10 @@ map string real scores;
 
 scores["Alice"] := 95.5;
 scores["Bob"]   := 87.0;
-
-if "Alice" in scores then
+if scores.contains("Alice") then
     print(scores["Alice"]);
+removed := scores.remove("Bob");
+scores.clear();
 
 // Literal
 scores := {"Alice": 95.5, "Bob": 87.0};

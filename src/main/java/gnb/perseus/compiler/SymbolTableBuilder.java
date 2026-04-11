@@ -495,6 +495,37 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     }
 
     @Override
+    public void enterMapDecl(PerseusParser.MapDeclContext ctx) {
+        String keyType = mapMapType(ctx.mapKeyType());
+        String valueType = mapMapType(ctx.mapValueType());
+        String mapType = "map:" + keyType + "=>" + valueType;
+        for (PerseusParser.IdentifierContext idCtx : ctx.varList().identifier()) {
+            String name = idCtx.getText();
+
+            MethodInfo method = currentMethod();
+            if (method != null) {
+                method.localVars.put(name, mapType);
+                symbolTable.put(name, mapType);
+                continue;
+            }
+
+            ClassInfo cls = currentClass();
+            if (cls != null) {
+                cls.fields.put(name, mapType);
+                continue;
+            }
+
+            ProcInfo proc = currentProc();
+            symbolTable.put(name, mapType);
+            if (proc == null) {
+                mainSymbolTable.put(name, mapType);
+            } else {
+                proc.localVars.put(name, mapType);
+            }
+        }
+    }
+
+    @Override
     public void enterRefDecl(PerseusParser.RefDeclContext ctx) {
         String refType = "ref:" + ctx.identifier().getText();
         for (PerseusParser.IdentifierContext idCtx : ctx.varList().identifier()) {
@@ -682,6 +713,24 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         if (typeCtx.BOOLEAN() != null) return "boolean";
         if (typeCtx.STRING() != null) return "string";
         if (typeCtx.refType() != null) return "ref:" + typeCtx.refType().identifier().getText();
+        return "integer";
+    }
+
+    private String mapMapType(org.antlr.v4.runtime.ParserRuleContext typeCtx) {
+        if (typeCtx instanceof PerseusParser.MapKeyTypeContext keyCtx) {
+            if (keyCtx.REAL() != null) return "real";
+            if (keyCtx.INTEGER() != null) return "integer";
+            if (keyCtx.BOOLEAN() != null) return "boolean";
+            if (keyCtx.STRING() != null) return "string";
+            if (keyCtx.refType() != null) return "ref:" + keyCtx.refType().identifier().getText();
+        }
+        if (typeCtx instanceof PerseusParser.MapValueTypeContext valueCtx) {
+            if (valueCtx.REAL() != null) return "real";
+            if (valueCtx.INTEGER() != null) return "integer";
+            if (valueCtx.BOOLEAN() != null) return "boolean";
+            if (valueCtx.STRING() != null) return "string";
+            if (valueCtx.refType() != null) return "ref:" + valueCtx.refType().identifier().getText();
+        }
         return "integer";
     }
 }

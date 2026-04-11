@@ -215,6 +215,19 @@ public class TypeInferencer extends PerseusBaseListener {
             exprTypes.put(ctx, arrType.substring("vector:".length()));
             return;
         }
+        if (arrType.startsWith("map:")) {
+            if (ctx.expr().size() != 1) {
+                throw error(ctx, "PERS2010", "map access requires exactly one subscript");
+            }
+            String keyType = mapKeyType(arrType);
+            String actualKeyType = exprTypes.get(ctx.expr(0));
+            if (!isMapTypeCompatible(keyType, actualKeyType)) {
+                throw error(ctx, "PERS2010",
+                        "map key type " + actualKeyType + " is incompatible with declared key type " + keyType);
+            }
+            exprTypes.put(ctx, mapValueType(arrType));
+            return;
+        }
         exprTypes.put(ctx, arrType.endsWith("[]") ? arrType.substring(0, arrType.length() - 2) : arrType);
     }
 
@@ -307,11 +320,28 @@ public class TypeInferencer extends PerseusBaseListener {
     @Override
     public void exitAssignment(PerseusParser.AssignmentContext ctx) {
         String rhsType = exprTypes.get(ctx.expr());
-        if (rhsType == null || !rhsType.startsWith("vector:")) {
-            return;
-        }
         for (PerseusParser.LvalueContext lvalue : ctx.lvalue()) {
             if (!lvalue.expr().isEmpty()) {
+                String indexedType = lookupType(lvalue.identifier().getText());
+                if (indexedType != null && indexedType.startsWith("map:")) {
+                    if (lvalue.expr().size() != 1) {
+                        throw error(ctx, "PERS2010", "map assignment requires exactly one subscript");
+                    }
+                    String keyType = mapKeyType(indexedType);
+                    String actualKeyType = exprTypes.get(lvalue.expr(0));
+                    if (!isMapTypeCompatible(keyType, actualKeyType)) {
+                        throw error(ctx, "PERS2010",
+                                "map key type " + actualKeyType + " is incompatible with declared key type " + keyType);
+                    }
+                    String valueType = mapValueType(indexedType);
+                    if (!isMapTypeCompatible(valueType, rhsType)) {
+                        throw error(ctx, "PERS2010",
+                                "map value type " + rhsType + " is incompatible with declared value type " + valueType);
+                    }
+                }
+                continue;
+            }
+            if (rhsType == null || !rhsType.startsWith("vector:")) {
                 continue;
             }
             String lhsType = lookupType(lvalue.identifier().getText());
@@ -339,6 +369,17 @@ public class TypeInferencer extends PerseusBaseListener {
             return;
         }
         String type = "vector:" + mapVectorElementType(ctx.vectorElementType());
+        for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
+            anonymousLocalBindingStack.peek().put(id.getText(), type);
+        }
+    }
+
+    @Override
+    public void enterMapDecl(PerseusParser.MapDeclContext ctx) {
+        if (anonymousLocalBindingStack.isEmpty()) {
+            return;
+        }
+        String type = "map:" + mapMapType(ctx.mapKeyType()) + "=>" + mapMapType(ctx.mapValueType());
         for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
             anonymousLocalBindingStack.peek().put(id.getText(), type);
         }
@@ -511,6 +552,52 @@ public class TypeInferencer extends PerseusBaseListener {
             }
             raiseMemberError(ctxForError, "PERS2010", "Unknown vector member: " + memberName);
         }
+        if (receiverType.startsWith("map:")) {
+            String keyType = mapKeyType(receiverType);
+            String valueType = mapValueType(receiverType);
+            if ("contains".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "map contains requires call syntax");
+                }
+                if (argTypes.size() != 1) {
+                    raiseMemberError(ctxForError, "PERS2010", "map contains requires exactly one argument");
+                }
+                if (!isMapTypeCompatible(keyType, argTypes.get(0))) {
+                    raiseMemberError(ctxForError, "PERS2010",
+                            "map contains argument type " + argTypes.get(0) + " is incompatible with key type " + keyType);
+                }
+                return "boolean";
+            }
+            if ("remove".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "map remove requires call syntax");
+                }
+                if (argTypes.size() != 1) {
+                    raiseMemberError(ctxForError, "PERS2010", "map remove requires exactly one argument");
+                }
+                if (!isMapTypeCompatible(keyType, argTypes.get(0))) {
+                    raiseMemberError(ctxForError, "PERS2010",
+                            "map remove argument type " + argTypes.get(0) + " is incompatible with key type " + keyType);
+                }
+                return valueType;
+            }
+            if ("clear".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "map clear requires call syntax");
+                }
+                if (!argTypes.isEmpty()) {
+                    raiseMemberError(ctxForError, "PERS2010", "map clear does not take arguments");
+                }
+                return "void";
+            }
+            if ("size".equals(memberName)) {
+                if (explicitCall && !argTypes.isEmpty()) {
+                    raiseMemberError(ctxForError, "PERS2010", "map size() does not take arguments");
+                }
+                return "integer";
+            }
+            raiseMemberError(ctxForError, "PERS2010", "Unknown map member: " + memberName);
+        }
         if (!receiverType.startsWith("ref:")) {
             raiseMemberError(ctxForError, "PERS2008", "Member call requires an object reference: " + receiverName + "." + memberName);
         }
@@ -655,6 +742,47 @@ public class TypeInferencer extends PerseusBaseListener {
             return true;
         }
         return elementType.startsWith("ref:") && "null".equals(valueType);
+    }
+
+    private boolean isMapTypeCompatible(String declaredType, String actualType) {
+        if (declaredType == null || actualType == null) {
+            return false;
+        }
+        if (declaredType.equals(actualType)) {
+            return true;
+        }
+        if ("real".equals(declaredType) && "integer".equals(actualType)) {
+            return true;
+        }
+        return declaredType.startsWith("ref:") && "null".equals(actualType);
+    }
+
+    private String mapKeyType(String mapType) {
+        int sep = mapType.indexOf("=>");
+        return sep >= 0 ? mapType.substring("map:".length(), sep) : "integer";
+    }
+
+    private String mapValueType(String mapType) {
+        int sep = mapType.indexOf("=>");
+        return sep >= 0 ? mapType.substring(sep + 2) : "integer";
+    }
+
+    private String mapMapType(org.antlr.v4.runtime.ParserRuleContext ctx) {
+        if (ctx instanceof PerseusParser.MapKeyTypeContext keyCtx) {
+            if (keyCtx.REAL() != null) return "real";
+            if (keyCtx.INTEGER() != null) return "integer";
+            if (keyCtx.STRING() != null) return "string";
+            if (keyCtx.BOOLEAN() != null) return "boolean";
+            if (keyCtx.refType() != null) return "ref:" + keyCtx.refType().identifier().getText();
+        }
+        if (ctx instanceof PerseusParser.MapValueTypeContext valueCtx) {
+            if (valueCtx.REAL() != null) return "real";
+            if (valueCtx.INTEGER() != null) return "integer";
+            if (valueCtx.STRING() != null) return "string";
+            if (valueCtx.BOOLEAN() != null) return "boolean";
+            if (valueCtx.refType() != null) return "ref:" + valueCtx.refType().identifier().getText();
+        }
+        return "integer";
     }
 
     private String inferVectorLiteralType(PerseusParser.VectorLiteralExprContext ctx) {

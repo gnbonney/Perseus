@@ -109,7 +109,7 @@ The current intended order is:
 - [ ] Add basic collection operations beyond the current `vector` first slice
 - [ ] Keep array-oriented iteration aligned with the same iterator protocol as collections
 - [ ] Add standard-library collection modules rather than compiler-hardcoded collection behavior
-- [ ] Add `map` as a later Java-backed collection slice
+- [x] Add `map` as a later Java-backed collection slice
 - [ ] Add `set` as a later Java-backed collection slice
 - [ ] Add sample programs and regression tests for collection use cases
 - [ ] Add iterator-pipeline operations such as `map` and `filter` on top of anonymous procedures
@@ -124,6 +124,7 @@ The current intended order is:
 - `for ... in ... do` now also works over external Java objects that implement `java.lang.Iterable`, using the same already-declared loop-variable rules as arrays and vectors.
 - Non-empty `vector` literals such as `[1, 2, 3]` now work as the first collection-literal slice, with homogeneous element typing and mixed `integer`/`real` inference to `vector real`.
 - The basic Java-backed `vector` surface now also includes `insert`, `remove`, `contains`, and `clear` in addition to the original append/index/size operations.
+- A first Java-backed `map` slice now also exists with declarations, keyed lookup and assignment, `contains`, `remove`, `clear`, and `size`/`length(...)`, backed concretely by `java.util.LinkedHashMap`.
 - The preferred order for the rest of the milestone is to finish the `vector` and iterator/interop path first, then add `map` and `set` as later follow-on collection slices.
 - Collection implementations should be based on Java runtime collections rather than a separate Perseus-native storage/runtime hierarchy.
 - Java interop should include an easy, explicit way to convert Perseus collections to and from Java collection values returned by external Java classes.

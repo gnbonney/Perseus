@@ -54,7 +54,7 @@ compoundStatement
   ;
 
 statement
-  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalProcedureDecl | externalValueDecl | procedureDecl | vectorDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | whileStatement | repeatStatement | breakStatement | continueStatement | signalStatement | block)?
+  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalProcedureDecl | externalValueDecl | procedureDecl | vectorDecl | mapDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | whileStatement | repeatStatement | breakStatement | continueStatement | signalStatement | block)?
   ;
 
 classDecl
@@ -224,11 +224,35 @@ vectorDecl
   : VECTOR vectorElementType varList
   ;
 
+mapDecl
+  : MAP mapKeyType mapValueType varList
+  ;
+
 vectorType
   : VECTOR vectorElementType
   ;
 
+mapType
+  : MAP mapKeyType mapValueType
+  ;
+
 vectorElementType
+  : REAL
+  | INTEGER
+  | BOOLEAN
+  | STRING
+  | refType
+  ;
+
+mapKeyType
+  : REAL
+  | INTEGER
+  | BOOLEAN
+  | STRING
+  | refType
+  ;
+
+mapValueType
   : REAL
   | INTEGER
   | BOOLEAN
@@ -465,6 +489,7 @@ SIGNAL : 'signal';
 PROC : 'proc';
 VOID : 'void';
 VECTOR : 'vector';
+MAP : 'map';
 
 NOT : 'not';
 AND_KW : 'and';

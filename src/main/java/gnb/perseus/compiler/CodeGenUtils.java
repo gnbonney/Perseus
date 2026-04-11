@@ -25,6 +25,7 @@ public class CodeGenUtils {
         if (type == null) return "I";
         if (type.startsWith("ref:")) return "Ljava/lang/Object;";
         if (type.startsWith("vector:")) return "Ljava/util/List;";
+        if (type.startsWith("map:")) return "Ljava/util/Map;";
         if (type.startsWith("procedure:")) return getProcedureInterfaceDescriptor(type);
         return switch (type) {
             case "real"   -> "D";
@@ -38,6 +39,7 @@ public class CodeGenUtils {
         if (type == null) return "V";
         if (type.startsWith("ref:")) return "Ljava/lang/Object;";
         if (type.startsWith("vector:")) return "Ljava/util/List;";
+        if (type.startsWith("map:")) return "Ljava/util/Map;";
         if (type.startsWith("procedure:")) return getProcedureInterfaceDescriptor(type);
         return switch (type) {
             case "void"              -> "V";
@@ -53,6 +55,7 @@ public class CodeGenUtils {
         if (type == null) return "return";
         if (type.startsWith("ref:")) return "areturn";
         if (type.startsWith("vector:")) return "areturn";
+        if (type.startsWith("map:")) return "areturn";
         if (type.startsWith("procedure:")) return "areturn";
         return switch (type) {
             case "void"   -> "return";

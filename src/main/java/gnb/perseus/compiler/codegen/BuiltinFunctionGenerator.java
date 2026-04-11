@@ -164,6 +164,11 @@ public class BuiltinFunctionGenerator {
                     sb.append("invokeinterface java/util/List/size()I 1\n");
                     return sb.toString();
                 }
+                if (argType.startsWith("map:")) {
+                    sb.append(exprCodeGen.apply(argExpr));
+                    sb.append("invokeinterface java/util/Map/size()I 1\n");
+                    return sb.toString();
+                }
                 // length(s) → s.length()
                 sb.append(exprCodeGen.apply(argExpr));
                 sb.append("invokestatic perseus/text/Strings/length(Ljava/lang/String;)I\n");

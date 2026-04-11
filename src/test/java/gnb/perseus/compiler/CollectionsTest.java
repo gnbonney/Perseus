@@ -156,4 +156,37 @@ public class CollectionsTest extends CompilerTest {
         assertEquals("2 4 2 1 0", output.trim().replaceAll("\\s+", " "),
                 "Extended vector operations should preserve ordinary Java-backed list behavior");
     }
+
+    @Test
+    public void map_basic_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/core/map_basic.alg",
+                "gnb/perseus/programs",
+                "MapBasicTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+        assertTrue(jasminSource.contains("new java/util/LinkedHashMap"),
+                "Map declarations should lower to Java LinkedHashMap construction");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Map/put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object; 3"),
+                "Map assignment should lower to Java Map.put");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Map/get(Ljava/lang/Object;)Ljava/lang/Object; 2"),
+                "Map lookup should lower to Java Map.get");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Map/containsKey(Ljava/lang/Object;)Z 2"),
+                "Map contains should lower to Java Map.containsKey");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Map/remove(Ljava/lang/Object;)Ljava/lang/Object; 2"),
+                "Map remove should lower to Java Map.remove");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Map/clear()V 1"),
+                "Map clear should lower to Java Map.clear");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Map/size()I 1"),
+                "Map size access should lower to Java Map.size");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.MapBasicTest");
+        assertEquals("95.5 87.0 1 1 0", output.trim().replaceAll("\\s+", " "),
+                "Basic map operations should follow ordinary Java-backed map behavior");
+    }
 }

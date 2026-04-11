@@ -78,6 +78,19 @@ Perseus now includes a first dynamic collection type:
 
 The current vector implementation is intentionally a first slice. It provides a practical Java-backed dynamic sequence type with non-empty vector literals and ordinary external Java `List`-based interop, while still leaving broader collection literals and a full general iterator protocol as follow-on work.
 
+## Maps
+
+Perseus now also includes a first Java-backed associative collection type:
+
+- declaration form: `map string real scores;`
+- runtime model: Java-backed key/value storage
+- JVM runtime shape: concrete `java.util.LinkedHashMap`
+- indexing: `scores["Alice"]` and `scores["Alice"] := 95.5`
+- basic operations: `scores.contains(key)`, `scores.remove(key)`, `scores.clear()`
+- size access: `length(scores)`, `scores.size`, or `scores.size()`
+
+This first map slice is intentionally narrower than the full design in the collections spec. It provides Java-backed declarations, keyed lookup and update, and a small set of basic operations, while leaving map literals and richer iteration behavior as follow-on work.
+
 ## Strings
 
 Many historic Algol compilers (e.g., NU Algol, Data General Extended Algol, Algol W, Simula) introduced a string type or class, often as a variable-length array of characters or a record with a length and character array. Simula's `Text` class and Algol W's `string` type are notable examples.
