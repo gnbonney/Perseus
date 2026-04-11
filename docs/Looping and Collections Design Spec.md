@@ -215,10 +215,16 @@ scores := {"Alice": 95.5, "Bob": 87.0};
 
 ##### 3.3 Set
 ```algol
-set integer uniques := {1, 2, 3, 3};   // automatically deduplicates
+set integer uniques;
 
+uniques.insert(1);
+uniques.insert(2);
+uniques.insert(3);
+uniques.insert(3);   // automatically deduplicates
+removed := uniques.remove(3);
 uniques.insert(4);
-if 2 in uniques then ...
+if uniques.contains(2) then ...
+uniques.clear();
 
 for val in uniques do print(val);
 ```

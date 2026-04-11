@@ -526,6 +526,36 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     }
 
     @Override
+    public void enterSetDecl(PerseusParser.SetDeclContext ctx) {
+        String elementType = mapSetElementType(ctx.setElementType());
+        String setType = "set:" + elementType;
+        for (PerseusParser.IdentifierContext idCtx : ctx.varList().identifier()) {
+            String name = idCtx.getText();
+
+            MethodInfo method = currentMethod();
+            if (method != null) {
+                method.localVars.put(name, setType);
+                symbolTable.put(name, setType);
+                continue;
+            }
+
+            ClassInfo cls = currentClass();
+            if (cls != null) {
+                cls.fields.put(name, setType);
+                continue;
+            }
+
+            ProcInfo proc = currentProc();
+            symbolTable.put(name, setType);
+            if (proc == null) {
+                mainSymbolTable.put(name, setType);
+            } else {
+                proc.localVars.put(name, setType);
+            }
+        }
+    }
+
+    @Override
     public void enterRefDecl(PerseusParser.RefDeclContext ctx) {
         String refType = "ref:" + ctx.identifier().getText();
         for (PerseusParser.IdentifierContext idCtx : ctx.varList().identifier()) {
@@ -731,6 +761,15 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             if (valueCtx.STRING() != null) return "string";
             if (valueCtx.refType() != null) return "ref:" + valueCtx.refType().identifier().getText();
         }
+        return "integer";
+    }
+
+    private String mapSetElementType(PerseusParser.SetElementTypeContext typeCtx) {
+        if (typeCtx.REAL() != null) return "real";
+        if (typeCtx.INTEGER() != null) return "integer";
+        if (typeCtx.BOOLEAN() != null) return "boolean";
+        if (typeCtx.STRING() != null) return "string";
+        if (typeCtx.refType() != null) return "ref:" + typeCtx.refType().identifier().getText();
         return "integer";
     }
 }

@@ -91,6 +91,19 @@ Perseus now also includes a first Java-backed associative collection type:
 
 This first map slice is intentionally narrower than the full design in the collections spec. It provides Java-backed declarations, keyed lookup and update, and a small set of basic operations, while leaving map literals and richer iteration behavior as follow-on work.
 
+## Sets
+
+Perseus now also includes a first Java-backed set type:
+
+- declaration form: `set integer values;`
+- runtime model: Java-backed deduplicating storage
+- JVM runtime shape: concrete `java.util.LinkedHashSet`
+- basic operations: `values.insert(value)`, `values.contains(value)`, `values.remove(value)`, `values.clear()`
+- size access: `length(values)`, `values.size`, or `values.size()`
+- iteration: `for item in values do ...`
+
+This first set slice is intentionally narrower than the full design in the collections spec. It provides Java-backed declarations, deduplicating membership operations, and direct `for ... in ... do` traversal, while leaving set literals and richer iterator/pipeline work as follow-on work.
+
 ## Strings
 
 Many historic Algol compilers (e.g., NU Algol, Data General Extended Algol, Algol W, Simula) introduced a string type or class, often as a variable-length array of characters or a record with a length and character array. Simula's `Text` class and Algol W's `string` type are notable examples.

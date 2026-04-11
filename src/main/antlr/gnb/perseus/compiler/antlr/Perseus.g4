@@ -54,7 +54,7 @@ compoundStatement
   ;
 
 statement
-  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalProcedureDecl | externalValueDecl | procedureDecl | vectorDecl | mapDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | whileStatement | repeatStatement | breakStatement | continueStatement | signalStatement | block)?
+  : label? (memberCall | procedureCall | classDecl | refDecl | externalClassDecl | externalProcedureDecl | externalValueDecl | procedureDecl | vectorDecl | mapDecl | setDecl | varDecl | arrayDecl | switchDecl | assignment | gotoStatement | ifStatement | forStatement | whileStatement | repeatStatement | breakStatement | continueStatement | signalStatement | block)?
   ;
 
 classDecl
@@ -228,12 +228,20 @@ mapDecl
   : MAP mapKeyType mapValueType varList
   ;
 
+setDecl
+  : SET setElementType varList
+  ;
+
 vectorType
   : VECTOR vectorElementType
   ;
 
 mapType
   : MAP mapKeyType mapValueType
+  ;
+
+setType
+  : SET setElementType
   ;
 
 vectorElementType
@@ -253,6 +261,14 @@ mapKeyType
   ;
 
 mapValueType
+  : REAL
+  | INTEGER
+  | BOOLEAN
+  | STRING
+  | refType
+  ;
+
+setElementType
   : REAL
   | INTEGER
   | BOOLEAN
@@ -420,7 +436,10 @@ procedureCall: identifier ('(' argList? ')')?;
 
 memberCall: identifier '.' identifier ('(' argList? ')')?;
 
-identifier: IDENT;
+identifier
+  : IDENT
+  | SET
+  ;
 
 qualifiedName
   : qualifiedNamePart ('.' qualifiedNamePart)*
@@ -490,6 +509,7 @@ PROC : 'proc';
 VOID : 'void';
 VECTOR : 'vector';
 MAP : 'map';
+SET : 'set';
 
 NOT : 'not';
 AND_KW : 'and';

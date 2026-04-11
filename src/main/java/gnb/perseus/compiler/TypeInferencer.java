@@ -228,6 +228,9 @@ public class TypeInferencer extends PerseusBaseListener {
             exprTypes.put(ctx, mapValueType(arrType));
             return;
         }
+        if (arrType.startsWith("set:")) {
+            throw error(ctx, "PERS2010", "set values do not support indexed access");
+        }
         exprTypes.put(ctx, arrType.endsWith("[]") ? arrType.substring(0, arrType.length() - 2) : arrType);
     }
 
@@ -380,6 +383,17 @@ public class TypeInferencer extends PerseusBaseListener {
             return;
         }
         String type = "map:" + mapMapType(ctx.mapKeyType()) + "=>" + mapMapType(ctx.mapValueType());
+        for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
+            anonymousLocalBindingStack.peek().put(id.getText(), type);
+        }
+    }
+
+    @Override
+    public void enterSetDecl(PerseusParser.SetDeclContext ctx) {
+        if (anonymousLocalBindingStack.isEmpty()) {
+            return;
+        }
+        String type = "set:" + mapSetElementType(ctx.setElementType());
         for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
             anonymousLocalBindingStack.peek().put(id.getText(), type);
         }
@@ -598,6 +612,64 @@ public class TypeInferencer extends PerseusBaseListener {
             }
             raiseMemberError(ctxForError, "PERS2010", "Unknown map member: " + memberName);
         }
+        if (receiverType.startsWith("set:")) {
+            String elementType = receiverType.substring("set:".length());
+            if ("insert".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "set insert requires call syntax");
+                }
+                if (argTypes.size() != 1) {
+                    raiseMemberError(ctxForError, "PERS2010", "set insert requires exactly one argument");
+                }
+                if (!isMapTypeCompatible(elementType, argTypes.get(0))) {
+                    raiseMemberError(ctxForError, "PERS2010",
+                            "set insert argument type " + argTypes.get(0) + " is incompatible with element type " + elementType);
+                }
+                return "boolean";
+            }
+            if ("contains".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "set contains requires call syntax");
+                }
+                if (argTypes.size() != 1) {
+                    raiseMemberError(ctxForError, "PERS2010", "set contains requires exactly one argument");
+                }
+                if (!isMapTypeCompatible(elementType, argTypes.get(0))) {
+                    raiseMemberError(ctxForError, "PERS2010",
+                            "set contains argument type " + argTypes.get(0) + " is incompatible with element type " + elementType);
+                }
+                return "boolean";
+            }
+            if ("remove".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "set remove requires call syntax");
+                }
+                if (argTypes.size() != 1) {
+                    raiseMemberError(ctxForError, "PERS2010", "set remove requires exactly one argument");
+                }
+                if (!isMapTypeCompatible(elementType, argTypes.get(0))) {
+                    raiseMemberError(ctxForError, "PERS2010",
+                            "set remove argument type " + argTypes.get(0) + " is incompatible with element type " + elementType);
+                }
+                return "boolean";
+            }
+            if ("clear".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "set clear requires call syntax");
+                }
+                if (!argTypes.isEmpty()) {
+                    raiseMemberError(ctxForError, "PERS2010", "set clear does not take arguments");
+                }
+                return "void";
+            }
+            if ("size".equals(memberName)) {
+                if (explicitCall && !argTypes.isEmpty()) {
+                    raiseMemberError(ctxForError, "PERS2010", "set size() does not take arguments");
+                }
+                return "integer";
+            }
+            raiseMemberError(ctxForError, "PERS2010", "Unknown set member: " + memberName);
+        }
         if (!receiverType.startsWith("ref:")) {
             raiseMemberError(ctxForError, "PERS2008", "Member call requires an object reference: " + receiverName + "." + memberName);
         }
@@ -782,6 +854,15 @@ public class TypeInferencer extends PerseusBaseListener {
             if (valueCtx.BOOLEAN() != null) return "boolean";
             if (valueCtx.refType() != null) return "ref:" + valueCtx.refType().identifier().getText();
         }
+        return "integer";
+    }
+
+    private String mapSetElementType(PerseusParser.SetElementTypeContext ctx) {
+        if (ctx.REAL() != null) return "real";
+        if (ctx.INTEGER() != null) return "integer";
+        if (ctx.STRING() != null) return "string";
+        if (ctx.BOOLEAN() != null) return "boolean";
+        if (ctx.refType() != null) return "ref:" + ctx.refType().identifier().getText();
         return "integer";
     }
 

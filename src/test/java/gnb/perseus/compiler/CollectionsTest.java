@@ -189,4 +189,37 @@ public class CollectionsTest extends CompilerTest {
         assertEquals("95.5 87.0 1 1 0", output.trim().replaceAll("\\s+", " "),
                 "Basic map operations should follow ordinary Java-backed map behavior");
     }
+
+    @Test
+    public void set_basic_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/core/set_basic.alg",
+                "gnb/perseus/programs",
+                "SetBasicTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+        assertTrue(jasminSource.contains("new java/util/LinkedHashSet"),
+                "Set declarations should lower to Java LinkedHashSet construction");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Set/add(Ljava/lang/Object;)Z 2"),
+                "Set insert should lower to Java Set.add");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Set/contains(Ljava/lang/Object;)Z 2"),
+                "Set contains should lower to Java Set.contains");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Set/remove(Ljava/lang/Object;)Z 2"),
+                "Set remove should lower to Java Set.remove");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Set/clear()V 1"),
+                "Set clear should lower to Java Set.clear");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Set/size()I 1"),
+                "Set size access should lower to Java Set.size");
+        assertTrue(jasminSource.contains("invokeinterface java/lang/Iterable/iterator()Ljava/util/Iterator; 1"),
+                "for ... in ... do over sets should iterate through the shared iterator-style lowering");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.SetBasicTest");
+        assertEquals("2 1 1 6 0", output.trim().replaceAll("\\s+", " "),
+                "Basic set operations should deduplicate values and support for-in traversal");
+    }
 }

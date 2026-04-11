@@ -434,6 +434,10 @@ public class CodeGenerator extends PerseusBaseListener {
                     mainCode.append("new java/util/LinkedHashMap\n")
                             .append("dup\n")
                             .append("invokespecial java/util/LinkedHashMap/<init>()V\n");
+                } else if (type.startsWith("set:")) {
+                    mainCode.append("new java/util/LinkedHashSet\n")
+                            .append("dup\n")
+                            .append("invokespecial java/util/LinkedHashSet/<init>()V\n");
                 } else if ("integer".equals(type) || "boolean".equals(type)) {
                     mainCode.append("iconst_0\n");
                 } else if ("real".equals(type)) {
@@ -789,6 +793,11 @@ public class CodeGenerator extends PerseusBaseListener {
                 activeOutput.append("new java/util/LinkedHashMap\n");
                 activeOutput.append("dup\n");
                 activeOutput.append("invokespecial java/util/LinkedHashMap/<init>()V\n");
+                emitStore("astore", slot);
+            } else if (varType != null && varType.startsWith("set:")) {
+                activeOutput.append("new java/util/LinkedHashSet\n");
+                activeOutput.append("dup\n");
+                activeOutput.append("invokespecial java/util/LinkedHashSet/<init>()V\n");
                 emitStore("astore", slot);
             } else if ("string".equals(varType)) {
                 activeOutput.append("ldc \"\"\n"); emitStore("astore", slot);
@@ -1986,13 +1995,16 @@ public class CodeGenerator extends PerseusBaseListener {
             String varName, Integer varIndex, String varType, boolean isStaticScalar, String afterAllLabel) {
         String iterableType = inferIterableType(inClause.expr());
         boolean javaIterable = isJavaIterableReferenceType(iterableType);
-        if (iterableType == null || (!iterableType.endsWith("[]") && !iterableType.startsWith("vector:") && !javaIterable)) {
-            activeOutput.append("; ERROR: for ... in ... do currently requires an array, vector, or Java Iterable value\n");
+        boolean setIterable = iterableType != null && iterableType.startsWith("set:");
+        if (iterableType == null || (!iterableType.endsWith("[]") && !iterableType.startsWith("vector:") && !setIterable && !javaIterable)) {
+            activeOutput.append("; ERROR: for ... in ... do currently requires an array, vector, set, or Java Iterable value\n");
             return;
         }
 
         String elementType = javaIterable
                 ? effectiveIterationVariableType(varType)
+                : setIterable
+                ? iterableType.substring("set:".length())
                 : iterableType.startsWith("vector:")
                 ? iterableType.substring("vector:".length())
                 : iterableType.substring(0, iterableType.length() - 2);
@@ -2009,10 +2021,14 @@ public class CodeGenerator extends PerseusBaseListener {
         activeOutput.append(generateExpr(inClause.expr()));
         activeOutput.append("astore ").append(iterableSlot).append("\n");
 
-        if (javaIterable) {
+        if (javaIterable || setIterable) {
             int iteratorSlot = allocateNewLocal("iterator");
             activeOutput.append("aload ").append(iterableSlot).append("\n");
-            activeOutput.append("checkcast java/lang/Iterable\n");
+            if (setIterable) {
+                activeOutput.append("checkcast java/lang/Iterable\n");
+            } else {
+                activeOutput.append("checkcast java/lang/Iterable\n");
+            }
             activeOutput.append("invokeinterface java/lang/Iterable/iterator()Ljava/util/Iterator; 1\n");
             activeOutput.append("astore ").append(iteratorSlot).append("\n");
             activeOutput.append(loopLabel).append(":\n");
@@ -4033,6 +4049,71 @@ public class CodeGenerator extends PerseusBaseListener {
                 return sb.toString();
             }
             return "; ERROR: unknown map member " + memberName + "\n";
+        }
+        if (receiverType.startsWith("set:")) {
+            String elementType = receiverType.substring("set:".length());
+            StringBuilder sb = new StringBuilder();
+            sb.append(generateLoadVar(receiverName));
+            if ("insert".equals(memberName)) {
+                if (args.size() != 1) {
+                    return "; ERROR: set insert requires exactly one argument\n";
+                }
+                PerseusParser.ExprContext argExpr = args.get(0).expr();
+                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                sb.append(generateExpr(argExpr));
+                sb.append(boxMapComponentValue(elementType, argType));
+                sb.append("invokeinterface java/util/Set/add(Ljava/lang/Object;)Z 2\n");
+                if (isStatement) {
+                    sb.append("pop\n");
+                }
+                return sb.toString();
+            }
+            if ("contains".equals(memberName)) {
+                if (args.size() != 1) {
+                    return "; ERROR: set contains requires exactly one argument\n";
+                }
+                PerseusParser.ExprContext argExpr = args.get(0).expr();
+                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                sb.append(generateExpr(argExpr));
+                sb.append(boxMapComponentValue(elementType, argType));
+                sb.append("invokeinterface java/util/Set/contains(Ljava/lang/Object;)Z 2\n");
+                if (isStatement) {
+                    sb.append("pop\n");
+                }
+                return sb.toString();
+            }
+            if ("remove".equals(memberName)) {
+                if (args.size() != 1) {
+                    return "; ERROR: set remove requires exactly one argument\n";
+                }
+                PerseusParser.ExprContext argExpr = args.get(0).expr();
+                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                sb.append(generateExpr(argExpr));
+                sb.append(boxMapComponentValue(elementType, argType));
+                sb.append("invokeinterface java/util/Set/remove(Ljava/lang/Object;)Z 2\n");
+                if (isStatement) {
+                    sb.append("pop\n");
+                }
+                return sb.toString();
+            }
+            if ("clear".equals(memberName)) {
+                if (!args.isEmpty()) {
+                    return "; ERROR: set clear does not take arguments\n";
+                }
+                sb.append("invokeinterface java/util/Set/clear()V 1\n");
+                return sb.toString();
+            }
+            if ("size".equals(memberName)) {
+                if (!args.isEmpty()) {
+                    return "; ERROR: set size does not take arguments\n";
+                }
+                sb.append("invokeinterface java/util/Set/size()I 1\n");
+                if (isStatement) {
+                    sb.append("pop\n");
+                }
+                return sb.toString();
+            }
+            return "; ERROR: unknown set member " + memberName + "\n";
         }
         if ("string".equals(receiverType)) {
             Method javaMethod = findJavaMethod("java.lang.String", memberName, args);
