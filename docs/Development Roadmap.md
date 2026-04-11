@@ -131,6 +131,22 @@ The current intended order is:
 - Collection implementations should be based on Java runtime collections rather than a separate Perseus-native storage/runtime hierarchy.
 - Java interop should include an easy, explicit way to convert Perseus collections to and from Java collection values returned by external Java classes.
 
+## Milestone 43.5 - Structured Data and JSON
+
+**Goal:** Build a first structured-data library layer on top of Milestone 43 collections so Perseus can read and write practical JSON data without leaving the language.
+
+- [ ] Add a standard-library JSON reader/parser
+- [ ] Add JSON writing/encoding support
+- [ ] Map JSON arrays to `vector`
+- [ ] Map JSON objects to `map string ...`
+- [ ] Define the initial JSON value model for mixed/dynamic content
+- [ ] Add sample programs and regression tests for parsing and emitting JSON
+
+**Implementation notes:**
+- This milestone is intended as a practical follow-on to Milestone 43, not as a competing direction with the mathematical roadmap.
+- JSON support should build directly on the Java-backed `vector` and `map` work that already exists.
+- More ambitious object-to-JSON reflection can remain later work if needed; the first useful slice is structured data over vectors, maps, strings, numbers, booleans, and null.
+
 ## Milestone 44 - Complex Numbers and Mathematical Types
 
 **Goal:** Add the first explicitly mathematics-oriented type-system extensions that would make Perseus more natural for scientific and engineering work (see [Mathematical Computing Design Spec.md](Mathematical%20Computing%20Design%20Spec.md)).
