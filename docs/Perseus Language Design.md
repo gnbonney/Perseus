@@ -90,7 +90,7 @@ Perseus now also includes a first Java-backed associative collection type:
 - size access: `length(scores)`, `scores.size`, or `scores.size()`
 
 This first map slice is intentionally narrower than the full design in the collections spec. It provides Java-backed declarations, keyed lookup and update, and a small set of basic operations, while leaving map literals and richer iteration behavior as follow-on work.
-The intended map-literal surface is `map("Alice": 95.5, "Bob": 87.0)` rather than a brace form, so set notation can keep ordinary braces.
+This first map slice also includes constructor-style literals such as `map("Alice": 95.5, "Bob": 87.0)`, which keep set notation free to use ordinary braces.
 
 ## Sets
 

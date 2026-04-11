@@ -369,6 +369,7 @@ expr
   | PROC '(' lambdaParamList? ')' lambdaReturnType ':' anonymousProcedureBody # AnonymousProcedureExpr
   | NEW identifier ('(' argList? ')')?   # NewObjectExpr
   | identifier '.' identifier ('(' argList? ')')? # MemberCallExpr
+  | MAP '(' mapLiteralEntry (',' mapLiteralEntry)* ')' # MapLiteralExpr
   | '{' expr (',' expr)* '}'             # SetLiteralExpr
   | expr op=('**'|'^') expr              # PowExpr
   | expr op=('*'|'/'|DIV_KW) expr        # MulDivExpr
@@ -452,6 +453,10 @@ qualifiedNamePart
 argList : arg (parameterDelimiter arg)*;
 
 arg : expr | string;
+
+mapLiteralEntry
+  : expr ':' expr
+  ;
 
 unsignedInt : INT_NUM;
 

@@ -191,6 +191,29 @@ public class CollectionsTest extends CompilerTest {
     }
 
     @Test
+    public void map_literal_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/core/map_literal.alg",
+                "gnb/perseus/programs",
+                "MapLiteralTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+        assertTrue(jasminSource.contains("new java/util/LinkedHashMap"),
+                "Map literals should lower to Java LinkedHashMap construction");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Map/put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object; 3"),
+                "Map literals should populate the Java-backed map through the Map interop surface");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.MapLiteralTest");
+        assertEquals("2 95.5 87.0", output.trim().replaceAll("\\s+", " "),
+                "Map literals should preserve declared entries and integrate with length and keyed lookup");
+    }
+
+    @Test
     public void set_basic_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/core/set_basic.alg",

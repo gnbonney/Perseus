@@ -287,6 +287,12 @@ public class TypeInferencer extends PerseusBaseListener {
     }
 
     @Override
+    public void exitMapLiteralExpr(PerseusParser.MapLiteralExprContext ctx) {
+        String literalType = inferMapLiteralType(ctx);
+        exprTypes.put(ctx, literalType);
+    }
+
+    @Override
     public void enterAnonymousProcedureExpr(PerseusParser.AnonymousProcedureExprContext ctx) {
         Map<String, String> bindings = new HashMap<>();
         if (ctx.lambdaParamList() != null) {
@@ -356,6 +362,12 @@ public class TypeInferencer extends PerseusBaseListener {
                     if (lhsType != null && lhsType.startsWith("set:") && !lhsType.equals(rhsType)) {
                         throw error(ctx, "PERS2010",
                                 "Set assignment type " + rhsType + " is incompatible with destination type " + lhsType);
+                    }
+                } else if (rhsType != null && rhsType.startsWith("map:")) {
+                    String lhsType = lookupType(lvalue.identifier().getText());
+                    if (lhsType != null && lhsType.startsWith("map:") && !lhsType.equals(rhsType)) {
+                        throw error(ctx, "PERS2010",
+                                "Map assignment type " + rhsType + " is incompatible with destination type " + lhsType);
                     }
                 }
                 continue;
@@ -916,6 +928,35 @@ public class TypeInferencer extends PerseusBaseListener {
         return "set:" + current;
     }
 
+    private String inferMapLiteralType(PerseusParser.MapLiteralExprContext ctx) {
+        String currentKey = null;
+        String currentValue = null;
+        for (PerseusParser.MapLiteralEntryContext entry : ctx.mapLiteralEntry()) {
+            String nextKey = exprTypes.get(entry.expr(0));
+            String nextValue = exprTypes.get(entry.expr(1));
+            if (nextKey == null || nextValue == null) {
+                throw error(ctx, "PERS2010", "Unable to infer map literal entry types");
+            }
+            if (nextKey.startsWith("vector:") || nextKey.startsWith("map:") || nextKey.startsWith("set:")
+                    || nextKey.startsWith("procedure:") || "void".equals(nextKey)) {
+                throw error(ctx, "PERS2010", "Map literals do not yet support keys of type " + nextKey);
+            }
+            if (nextValue.startsWith("vector:") || nextValue.startsWith("map:") || nextValue.startsWith("set:")
+                    || nextValue.startsWith("procedure:") || "void".equals(nextValue)) {
+                throw error(ctx, "PERS2010", "Map literals do not yet support values of type " + nextValue);
+            }
+            currentKey = mergeMapLiteralComponentType(currentKey, nextKey, ctx, "key");
+            currentValue = mergeMapLiteralComponentType(currentValue, nextValue, ctx, "value");
+        }
+        if (currentKey == null || "null".equals(currentKey)) {
+            throw error(ctx, "PERS2010", "Map literals require at least one non-null key type");
+        }
+        if (currentValue == null || "null".equals(currentValue)) {
+            throw error(ctx, "PERS2010", "Map literals require at least one non-null value type");
+        }
+        return "map:" + currentKey + "=>" + currentValue;
+    }
+
     private String mergeSetLiteralElementType(String current, String next, PerseusParser.SetLiteralExprContext ctx) {
         if (current == null) {
             return next;
@@ -935,6 +976,27 @@ public class TypeInferencer extends PerseusBaseListener {
         }
         throw error(ctx, "PERS2010",
                 "Set literal element type " + next + " is incompatible with earlier element type " + current);
+    }
+
+    private String mergeMapLiteralComponentType(String current, String next, PerseusParser.MapLiteralExprContext ctx, String role) {
+        if (current == null) {
+            return next;
+        }
+        if (current.equals(next)) {
+            return current;
+        }
+        if (("real".equals(current) && "integer".equals(next))
+                || ("integer".equals(current) && "real".equals(next))) {
+            return "real";
+        }
+        if (current.startsWith("ref:") && "null".equals(next)) {
+            return current;
+        }
+        if ("null".equals(current) && next.startsWith("ref:")) {
+            return next;
+        }
+        throw error(ctx, "PERS2010",
+                "Map literal " + role + " type " + next + " is incompatible with earlier " + role + " type " + current);
     }
 
     private String mergeVectorLiteralElementType(String current, String next, PerseusParser.VectorLiteralExprContext ctx) {

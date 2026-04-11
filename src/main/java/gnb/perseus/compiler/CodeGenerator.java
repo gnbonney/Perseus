@@ -4669,6 +4669,26 @@ public class CodeGenerator extends PerseusBaseListener {
                 sb.append("pop\n");
             }
             return sb.toString();
+        } else if (ctx instanceof PerseusParser.MapLiteralExprContext e) {
+            String literalType = exprTypes.getOrDefault(e, "map:string=>integer");
+            String keyType = mapKeyType(literalType);
+            String valueType = mapValueType(literalType);
+            StringBuilder sb = new StringBuilder();
+            sb.append("new java/util/LinkedHashMap\n");
+            sb.append("dup\n");
+            sb.append("invokespecial java/util/LinkedHashMap/<init>()V\n");
+            for (PerseusParser.MapLiteralEntryContext entry : e.mapLiteralEntry()) {
+                String keyExprType = exprTypes.getOrDefault(entry.expr(0), "integer");
+                String valueExprType = exprTypes.getOrDefault(entry.expr(1), "integer");
+                sb.append("dup\n");
+                sb.append(generateExpr(entry.expr(0), varToFieldIndex));
+                sb.append(boxMapComponentValue(keyType, keyExprType));
+                sb.append(generateExpr(entry.expr(1), varToFieldIndex));
+                sb.append(boxMapComponentValue(valueType, valueExprType));
+                sb.append("invokeinterface java/util/Map/put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object; 3\n");
+                sb.append("pop\n");
+            }
+            return sb.toString();
         } else if (ctx instanceof PerseusParser.VarExprContext e) {
             String name = e.identifier().getText();
 

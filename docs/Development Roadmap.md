@@ -104,7 +104,7 @@ The current intended order is:
 - [ ] Define and implement an iterator protocol that works with `for ... in ... do`
 - [x] Implement Java `Iterable`-style interop through the same iterator protocol
 - [x] Add `vector` literals
-- [ ] Add `map(...)` literals
+- [x] Add `map(...)` literals
 - [x] Add `set` literals
 - [ ] Add basic collection operations beyond the current `vector` first slice
 - [ ] Keep array-oriented iteration aligned with the same iterator protocol as collections
