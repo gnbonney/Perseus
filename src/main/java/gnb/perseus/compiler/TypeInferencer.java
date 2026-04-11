@@ -281,6 +281,12 @@ public class TypeInferencer extends PerseusBaseListener {
     }
 
     @Override
+    public void exitSetLiteralExpr(PerseusParser.SetLiteralExprContext ctx) {
+        String literalType = inferSetLiteralType(ctx);
+        exprTypes.put(ctx, literalType);
+    }
+
+    @Override
     public void enterAnonymousProcedureExpr(PerseusParser.AnonymousProcedureExprContext ctx) {
         Map<String, String> bindings = new HashMap<>();
         if (ctx.lambdaParamList() != null) {
@@ -345,6 +351,13 @@ public class TypeInferencer extends PerseusBaseListener {
                 continue;
             }
             if (rhsType == null || !rhsType.startsWith("vector:")) {
+                if (rhsType != null && rhsType.startsWith("set:")) {
+                    String lhsType = lookupType(lvalue.identifier().getText());
+                    if (lhsType != null && lhsType.startsWith("set:") && !lhsType.equals(rhsType)) {
+                        throw error(ctx, "PERS2010",
+                                "Set assignment type " + rhsType + " is incompatible with destination type " + lhsType);
+                    }
+                }
                 continue;
             }
             String lhsType = lookupType(lvalue.identifier().getText());
@@ -882,6 +895,46 @@ public class TypeInferencer extends PerseusBaseListener {
             throw error(ctx, "PERS2010", "Vector literals require at least one non-null element type");
         }
         return "vector:" + current;
+    }
+
+    private String inferSetLiteralType(PerseusParser.SetLiteralExprContext ctx) {
+        String current = null;
+        for (PerseusParser.ExprContext expr : ctx.expr()) {
+            String next = exprTypes.get(expr);
+            if (next == null) {
+                throw error(ctx, "PERS2010", "Unable to infer set literal element type");
+            }
+            if (next.startsWith("vector:") || next.startsWith("map:") || next.startsWith("set:")
+                    || next.startsWith("procedure:") || "void".equals(next)) {
+                throw error(ctx, "PERS2010", "Set literals do not yet support elements of type " + next);
+            }
+            current = mergeSetLiteralElementType(current, next, ctx);
+        }
+        if (current == null || "null".equals(current)) {
+            throw error(ctx, "PERS2010", "Set literals require at least one non-null element type");
+        }
+        return "set:" + current;
+    }
+
+    private String mergeSetLiteralElementType(String current, String next, PerseusParser.SetLiteralExprContext ctx) {
+        if (current == null) {
+            return next;
+        }
+        if (current.equals(next)) {
+            return current;
+        }
+        if (("real".equals(current) && "integer".equals(next))
+                || ("integer".equals(current) && "real".equals(next))) {
+            return "real";
+        }
+        if (current.startsWith("ref:") && "null".equals(next)) {
+            return current;
+        }
+        if ("null".equals(current) && next.startsWith("ref:")) {
+            return next;
+        }
+        throw error(ctx, "PERS2010",
+                "Set literal element type " + next + " is incompatible with earlier element type " + current);
     }
 
     private String mergeVectorLiteralElementType(String current, String next, PerseusParser.VectorLiteralExprContext ctx) {

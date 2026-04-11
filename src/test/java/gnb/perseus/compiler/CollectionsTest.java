@@ -222,4 +222,27 @@ public class CollectionsTest extends CompilerTest {
         assertEquals("2 1 1 6 0", output.trim().replaceAll("\\s+", " "),
                 "Basic set operations should deduplicate values and support for-in traversal");
     }
+
+    @Test
+    public void set_literal_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/core/set_literal.alg",
+                "gnb/perseus/programs",
+                "SetLiteralTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+        assertTrue(jasminSource.contains("new java/util/LinkedHashSet"),
+                "Set literals should lower to Java LinkedHashSet construction");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Set/add(Ljava/lang/Object;)Z 2"),
+                "Set literals should populate the Java-backed set through the Set interop surface");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.SetLiteralTest");
+        assertEquals("3 1 12", output.trim().replaceAll("\\s+", " "),
+                "Set literals should deduplicate repeated elements and integrate with contains, length, and for-in traversal");
+    }
 }

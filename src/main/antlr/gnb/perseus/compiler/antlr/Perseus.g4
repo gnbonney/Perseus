@@ -370,6 +370,7 @@ expr
   | PROC '(' lambdaParamList? ')' lambdaReturnType ':' anonymousProcedureBody # AnonymousProcedureExpr
   | NEW identifier ('(' argList? ')')?   # NewObjectExpr
   | identifier '.' identifier ('(' argList? ')')? # MemberCallExpr
+  | '#{' expr (',' expr)* '}'            # SetLiteralExpr
   | expr op=('**'|'^') expr              # PowExpr
   | expr op=('*'|'/'|DIV_KW) expr        # MulDivExpr
   | expr op=('+'|'-') expr               # AddSubExpr

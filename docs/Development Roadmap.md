@@ -105,7 +105,7 @@ The current intended order is:
 - [x] Implement Java `Iterable`-style interop through the same iterator protocol
 - [x] Add `vector` literals
 - [ ] Add `map` literals
-- [ ] Add `set` literals
+- [x] Add `set` literals
 - [ ] Add basic collection operations beyond the current `vector` first slice
 - [ ] Keep array-oriented iteration aligned with the same iterator protocol as collections
 - [ ] Add standard-library collection modules rather than compiler-hardcoded collection behavior

@@ -226,6 +226,8 @@ uniques.insert(4);
 if uniques.contains(2) then ...
 uniques.clear();
 
+uniques := #{1, 2, 3};
+
 for val in uniques do print(val);
 ```
 

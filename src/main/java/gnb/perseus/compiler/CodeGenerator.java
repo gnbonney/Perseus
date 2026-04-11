@@ -4653,6 +4653,24 @@ public class CodeGenerator extends PerseusBaseListener {
                 sb.append("pop\n");
             }
             return sb.toString();
+        } else if (ctx instanceof PerseusParser.SetLiteralExprContext e) {
+            String literalType = exprTypes.getOrDefault(e, "set:integer");
+            String elementType = literalType.startsWith("set:")
+                    ? literalType.substring("set:".length())
+                    : "integer";
+            StringBuilder sb = new StringBuilder();
+            sb.append("new java/util/LinkedHashSet\n");
+            sb.append("dup\n");
+            sb.append("invokespecial java/util/LinkedHashSet/<init>()V\n");
+            for (PerseusParser.ExprContext elementExpr : e.expr()) {
+                String elementExprType = exprTypes.getOrDefault(elementExpr, "integer");
+                sb.append("dup\n");
+                sb.append(generateExpr(elementExpr, varToFieldIndex));
+                sb.append(boxMapComponentValue(elementType, elementExprType));
+                sb.append("invokeinterface java/util/Set/add(Ljava/lang/Object;)Z 2\n");
+                sb.append("pop\n");
+            }
+            return sb.toString();
         } else if (ctx instanceof PerseusParser.VarExprContext e) {
             String name = e.identifier().getText();
 

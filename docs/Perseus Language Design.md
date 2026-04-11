@@ -96,13 +96,14 @@ This first map slice is intentionally narrower than the full design in the colle
 Perseus now also includes a first Java-backed set type:
 
 - declaration form: `set integer values;`
+- literal form: `#{2, 4, 6}`
 - runtime model: Java-backed deduplicating storage
 - JVM runtime shape: concrete `java.util.LinkedHashSet`
 - basic operations: `values.insert(value)`, `values.contains(value)`, `values.remove(value)`, `values.clear()`
 - size access: `length(values)`, `values.size`, or `values.size()`
 - iteration: `for item in values do ...`
 
-This first set slice is intentionally narrower than the full design in the collections spec. It provides Java-backed declarations, deduplicating membership operations, and direct `for ... in ... do` traversal, while leaving set literals and richer iterator/pipeline work as follow-on work.
+This first set slice is intentionally narrower than the full design in the collections spec. It provides Java-backed declarations, non-empty set literals, deduplicating membership operations, and direct `for ... in ... do` traversal, while still leaving richer iterator/pipeline work as follow-on work.
 
 ## Strings
 
