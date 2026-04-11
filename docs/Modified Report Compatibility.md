@@ -19,7 +19,6 @@ The goal is not to maximize parser nostalgia. The goal is to preserve the most v
 | Simple parameter lists | `procedure f(x, y); value x; integer x, y;` | Preferred spelling in docs and most tests | Normalize/prefer | Clearer for modern readers and already matches most of the current compiler structure. |
 | Lowercase reserved words | `begin`, `end`, `if`, `then` | Preferred and accepted | Normalize/prefer | Already the project convention; avoids stropping and typography issues. |
 | Alternative hardware-representation operators documented in `Representation.md` | `div`, `**`, `^`, `imp`, `eqv`, `=>`, `==` | Accept as documented | Accept verbatim | These are now part of Perseus's declared hardware representation and no longer count as rare legacy syntax. |
-| `{` and `}` as block delimiters | `{ ... }` | Accept as Perseus extension | Accept verbatim | Not Modified Report syntax, but explicitly part of Perseus's chosen representation. |
 | `%` line comments | `% note` | Accept as Perseus extension | Accept verbatim | Useful and historically defensible as a later Algol-family extension, even though not standard Algol 60 report syntax. |
 | Standard Algol block comments | `comment text;` | Accept verbatim | Accept verbatim | Standard, readable, and already part of the grammar. |
 | Stropping / quoted keywords | `'begin'`, `'if'` | Do not support | Do not support | Adds historical complexity without helping modern readability or the current project direction. |

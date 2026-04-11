@@ -39,7 +39,7 @@ UNTERMINATED_STRING_LITERAL
 
 // extension: optional source-level namespace header for reusable classes
 program
-  : namespaceDecl? (BEGIN compoundStatement END endComment? | '{' compoundStatement '}' | compoundStatement)
+  : namespaceDecl? (BEGIN compoundStatement END endComment? | compoundStatement)
   ;
 
 namespaceDecl
@@ -101,7 +101,6 @@ refType
 
 block
   : BEGIN compoundStatement exceptionPart? END endComment?
-  | '{' compoundStatement '}'
   ;
 
 exceptionPart
@@ -370,7 +369,7 @@ expr
   | PROC '(' lambdaParamList? ')' lambdaReturnType ':' anonymousProcedureBody # AnonymousProcedureExpr
   | NEW identifier ('(' argList? ')')?   # NewObjectExpr
   | identifier '.' identifier ('(' argList? ')')? # MemberCallExpr
-  | '#{' expr (',' expr)* '}'            # SetLiteralExpr
+  | '{' expr (',' expr)* '}'             # SetLiteralExpr
   | expr op=('**'|'^') expr              # PowExpr
   | expr op=('*'|'/'|DIV_KW) expr        # MulDivExpr
   | expr op=('+'|'-') expr               # AddSubExpr
@@ -396,7 +395,6 @@ expr
 anonymousProcedureBody
   : expr                                   # AnonymousExprProcedureBody
   | BEGIN anonymousProcedureCompound END endComment? # AnonymousBlockProcedureBody
-  | '{' anonymousProcedureCompound '}'     # AnonymousBraceProcedureBody
   ;
 
 anonymousProcedureCompound

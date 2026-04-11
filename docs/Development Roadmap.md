@@ -104,7 +104,7 @@ The current intended order is:
 - [ ] Define and implement an iterator protocol that works with `for ... in ... do`
 - [x] Implement Java `Iterable`-style interop through the same iterator protocol
 - [x] Add `vector` literals
-- [ ] Add `map` literals
+- [ ] Add `map(...)` literals
 - [x] Add `set` literals
 - [ ] Add basic collection operations beyond the current `vector` first slice
 - [ ] Keep array-oriented iteration aligned with the same iterator protocol as collections
@@ -119,6 +119,7 @@ The current intended order is:
 - It is also the bridge between Perseus's emerging modern loop forms and its JVM interop story for iterables and container-like APIs.
 - If mathematical arrays later grow richer traversal or section semantics, that work should align with this iterator model rather than bypass it completely.
 - The current design direction already assumes one iterator model shared across arrays first, then collections, then Java-hosted iterable/container interop.
+- Collection literals should use `{...}` for sets and `map(...)` for maps, rather than a more symbolic `#{...}` set form.
 - A first implementation slice has already landed for Java-backed `vector` declarations with automatic empty construction, zero-based indexing, `append`, `length(...)`, `size`, `size()`, and direct `for ... in ... do` iteration.
 - The current interop slice treats Perseus `vector` values as `java.util.List` at JVM procedure boundaries while still constructing `java.util.ArrayList` concretely for ordinary Perseus-side storage.
 - `for ... in ... do` now also works over external Java objects that implement `java.lang.Iterable`, using the same already-declared loop-variable rules as arrays and vectors.

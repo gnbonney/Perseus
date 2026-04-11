@@ -90,13 +90,14 @@ Perseus now also includes a first Java-backed associative collection type:
 - size access: `length(scores)`, `scores.size`, or `scores.size()`
 
 This first map slice is intentionally narrower than the full design in the collections spec. It provides Java-backed declarations, keyed lookup and update, and a small set of basic operations, while leaving map literals and richer iteration behavior as follow-on work.
+The intended map-literal surface is `map("Alice": 95.5, "Bob": 87.0)` rather than a brace form, so set notation can keep ordinary braces.
 
 ## Sets
 
 Perseus now also includes a first Java-backed set type:
 
 - declaration form: `set integer values;`
-- literal form: `#{2, 4, 6}`
+- literal form: `{2, 4, 6}`
 - runtime model: Java-backed deduplicating storage
 - JVM runtime shape: concrete `java.util.LinkedHashSet`
 - basic operations: `values.insert(value)`, `values.contains(value)`, `values.remove(value)`, `values.clear()`

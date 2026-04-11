@@ -966,9 +966,6 @@ public class TypeInferencer extends PerseusBaseListener {
         if (body instanceof PerseusParser.AnonymousBlockProcedureBodyContext blockBody) {
             return anonymousProcedureCompoundType(blockBody.anonymousProcedureCompound());
         }
-        if (body instanceof PerseusParser.AnonymousBraceProcedureBodyContext braceBody) {
-            return anonymousProcedureCompoundType(braceBody.anonymousProcedureCompound());
-        }
         return "void";
     }
 

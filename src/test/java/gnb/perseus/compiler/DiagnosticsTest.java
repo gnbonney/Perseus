@@ -57,5 +57,24 @@ public class DiagnosticsTest extends CompilerTest {
             assertTrue(diagnostic.message().contains("Undeclared variable: y"),
                     "Expected the diagnostic message to mention the missing variable");
         }
-    } 
+    }
+
+    @Test
+    public void brace_block_syntax_error_test() throws Exception {
+        Path tempFile = BUILD_DIR.resolve("brace_block_syntax_error_test.alg");
+        Files.createDirectories(BUILD_DIR);
+        Files.writeString(tempFile, "begin integer x; if true then { x := 1 } end");
+
+        try {
+            PerseusCompiler.compileToFile(
+                    tempFile.toString(), "gnb/perseus/programs", "BraceBlockSyntaxErrorTest", BUILD_DIR);
+            fail("Expected brace-delimited blocks to be rejected");
+        } catch (CompilationFailedException e) {
+            assertFalse(e.getDiagnostics().isEmpty(), "Expected at least one diagnostic");
+            CompilerDiagnostic diagnostic = e.getDiagnostics().get(0);
+            assertEquals("PERS1001", diagnostic.code(), "Expected syntax error code");
+            assertTrue(diagnostic.file().endsWith("brace_block_syntax_error_test.alg"),
+                    "Expected diagnostic to report the source file");
+        }
+    }
 }

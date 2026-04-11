@@ -64,7 +64,7 @@ Active and future work now lives in [Development Roadmap.md](Development%20Roadm
 
 **Milestone 23 — Multidimensional Arrays.** Added multidimensional declarations, comma-separated subscripts, and row-major lowering with retained bound metadata.
 
-**Milestone 24 — Hardware Representation Completion.** Brought the parser and expression surface closer to the documented representation rules with `div`, exponentiation, implication/equivalence operators, and brace blocks.
+**Milestone 24 — Hardware Representation Completion.** Brought the parser and expression surface closer to the documented representation rules with `div`, exponentiation, and implication/equivalence operators.
 
 **Milestone 25 — Remaining Modified Report Surface Syntax.** Added numeric labels, dummy statements, and named parameter delimiters to close important remaining source-compatibility gaps.
 
@@ -99,4 +99,3 @@ Active and future work now lives in [Development Roadmap.md](Development%20Roadm
 **Milestone 39 — Initial CLI Follow-On.** Landed the core CLI follow-on slice with multi-file compilation, richer library-oriented packaging/classpath behavior, optional JAR output, and support for external inputs from both directories and JAR files. Remaining CLI polish has been deferred into the active development roadmap.
 
 **Milestone 40 — Input Procedures Cleanup.** Closed out the remaining input-procedure follow-up by confirming the compiled stdlib path, tightening the console-input channel model, and aligning the current environmental-block documentation with the implemented behavior.
-

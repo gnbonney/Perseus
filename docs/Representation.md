@@ -50,8 +50,6 @@ digraphs or reserved words where a single ASCII character is unavailable.
 | **label** | `label` | lowercase reserved word |
 | **comment** | `comment` | lowercase reserved word |
 | **comment** | `%` | line comment / escape remark extension (to end-of-line; non-standard Algol 60, with Burroughs/Unisys precedent) |
-| **begin** | `{` | BCPL/C-style block open (synonym for `begin`) |
-| **end** | `}` | BCPL/C-style block close (synonym for `end`) |
 | `:=` | `:=` | assignment (unchanged) |
 | `=` | `=` | equality test (unchanged) |
 | `<` | `<` | less than (unchanged) |
@@ -89,8 +87,6 @@ digraphs or reserved words where a single ASCII character is unavailable.
 - `**` for exponentiation follows Fortran, Python, and many other languages.
 - `boolean` is lowercased for consistency with all other keywords; the report's capitalisation
   reflects the name Boole, not any syntactic distinction.
-- `{`/`}` as synonyms for `begin`/`end` follow BCPL and C notation; they are accepted by the
-  grammar as a readability convenience for developers familiar with those languages.
 - Double quotes ("...") are used for string literals, following Algol 68, C, Java, Python, and most modern languages. This choice improves familiarity and ease of typing for contemporary developers, and aligns with the conventions of most Algol descendants. The original Algol 60 report used backticks and single quotes due to hardware limitations, but double quotes are now the de facto standard for string literals.
 
 ## Relationship to the Modified Report

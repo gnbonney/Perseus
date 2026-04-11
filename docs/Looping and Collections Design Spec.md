@@ -210,7 +210,7 @@ removed := scores.remove("Bob");
 scores.clear();
 
 // Literal
-scores := {"Alice": 95.5, "Bob": 87.0};
+scores := map("Alice": 95.5, "Bob": 87.0);
 ```
 
 ##### 3.3 Set
@@ -226,15 +226,21 @@ uniques.insert(4);
 if uniques.contains(2) then ...
 uniques.clear();
 
-uniques := #{1, 2, 3};
+uniques := {1, 2, 3};
 
 for val in uniques do print(val);
 ```
 
 **Literals summary**:
 - Vector / array literal: `[1, 2, 3]`
-- Map literal: `{"key": value, ...}`
-- Set literal: `#{1, 2, 3}` or context-distinguished `{1, 2, 3}`
+- Map literal: `map("key": value, ...)`
+- Set literal: `{1, 2, 3}`
+
+For Perseus, this split is preferable to a more symbolic form such as `#{...}`:
+
+- ordinary braces already match standard mathematical notation for sets
+- `map(...)` keeps map literals readable and explicit without overloading braces for two unrelated collection kinds
+- the language stays closer to an Algol-style preference for words over extra punctuation
 
 ##### 3.4 Iterator Protocol and Pipelines
 All collections support a standard **Iterator** interface. That protocol should bridge both Perseus collection syntax and Java-hosted iterable/container implementations rather than splitting them into separate models. This enables powerful, declarative pipelines:
@@ -312,7 +318,6 @@ This suggests a clear division of responsibility:
 - `repeat ... until` is the post-test form
 
 #### 6. Optional Syntax Sugar
-- Allow `{ … }` blocks as alternative to `begin … end` for teams coming from C-like languages.
 - Make `do` optional in simple one-line loops (subject to further discussion).
 
 #### 7. Next Steps

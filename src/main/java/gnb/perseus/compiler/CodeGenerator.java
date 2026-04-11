@@ -298,8 +298,7 @@ public class CodeGenerator extends PerseusBaseListener {
     @Override
     public void enterAnonymousProcedureExpr(PerseusParser.AnonymousProcedureExprContext ctx) {
         PerseusParser.AnonymousProcedureBodyContext body = ctx.anonymousProcedureBody();
-        if (body instanceof PerseusParser.AnonymousBlockProcedureBodyContext
-                || body instanceof PerseusParser.AnonymousBraceProcedureBodyContext) {
+        if (body instanceof PerseusParser.AnonymousBlockProcedureBodyContext) {
             anonymousBodySuppressionDepth++;
         }
     }
@@ -307,8 +306,7 @@ public class CodeGenerator extends PerseusBaseListener {
     @Override
     public void exitAnonymousProcedureExpr(PerseusParser.AnonymousProcedureExprContext ctx) {
         PerseusParser.AnonymousProcedureBodyContext body = ctx.anonymousProcedureBody();
-        if (body instanceof PerseusParser.AnonymousBlockProcedureBodyContext
-                || body instanceof PerseusParser.AnonymousBraceProcedureBodyContext) {
+        if (body instanceof PerseusParser.AnonymousBlockProcedureBodyContext) {
             anonymousBodySuppressionDepth = Math.max(0, anonymousBodySuppressionDepth - 1);
         }
     }
@@ -5118,8 +5116,6 @@ public class CodeGenerator extends PerseusBaseListener {
         PerseusParser.AnonymousProcedureCompoundContext compound = null;
         if (bodyCtx instanceof PerseusParser.AnonymousBlockProcedureBodyContext blockBody) {
             compound = blockBody.anonymousProcedureCompound();
-        } else if (bodyCtx instanceof PerseusParser.AnonymousBraceProcedureBodyContext braceBody) {
-            compound = braceBody.anonymousProcedureCompound();
         }
         if (compound instanceof PerseusParser.AnonymousStatementExprProcedureCompoundContext stmtExpr) {
             return stmtExpr.expr();
@@ -5139,8 +5135,6 @@ public class CodeGenerator extends PerseusBaseListener {
         PerseusParser.AnonymousProcedureCompoundContext compound = null;
         if (bodyCtx instanceof PerseusParser.AnonymousBlockProcedureBodyContext blockBody) {
             compound = blockBody.anonymousProcedureCompound();
-        } else if (bodyCtx instanceof PerseusParser.AnonymousBraceProcedureBodyContext braceBody) {
-            compound = braceBody.anonymousProcedureCompound();
         }
         if (compound == null) {
             return;

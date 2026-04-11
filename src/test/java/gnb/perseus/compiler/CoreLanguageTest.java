@@ -445,25 +445,6 @@ public class CoreLanguageTest extends CompilerTest{
 	}
 
     @Test
-	public void brace_blocks_test() throws Exception {
-		Path jasminFile = PerseusCompiler.compileToFile(
-				"test/algol/core/brace_blocks.alg", "gnb/perseus/programs", "BraceBlocksTest", BUILD_DIR);
-		String jasminSource = Files.readString(jasminFile);
-		System.out.println("=== BRACE BLOCKS JASMIN ===");
-		System.out.println(jasminSource);
-		System.out.println("=== END BRACE BLOCKS ===");
-
-		assertFalse(jasminSource.startsWith("ERROR"), "Compilation should not produce an error");
-
-		PerseusCompiler.assemble(jasminFile, BUILD_DIR);
-
-		String output = runClass(BUILD_DIR, "gnb.perseus.programs.BraceBlocksTest");
-		System.out.println("brace_blocks output: [" + output + "]");
-		assertEquals("brace-blocks", output.trim(),
-				"Brace-delimited blocks should work anywhere begin/end blocks are accepted");
-	}
-
-	@Test
 	public void numeric_labels_and_dummy_statements_test() throws Exception {
 		Path jasminFile = PerseusCompiler.compileToFile(
 				"test/algol/core/numeric_labels_and_dummy_statements.alg", "gnb/perseus/programs", "NumericLabelsAndDummyStatementsTest", BUILD_DIR);

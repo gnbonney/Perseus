@@ -2,7 +2,7 @@ begin
     set integer values;
     integer item, total;
 
-    values := #{2, 4, 2, 6};
+    values := {2, 4, 2, 6};
     total := 0;
 
     for item in values do
