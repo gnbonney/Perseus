@@ -14,18 +14,18 @@ import java.util.Map;
  */
 public class TypeInferencer extends PerseusBaseListener {
     private final String sourceName;
-    private final Map<String, String> symbolTable;
+    private final Map<String, Type> symbolTable;
     private final Map<String, SymbolTableBuilder.ProcInfo> procedures;
     private final Map<String, SymbolTableBuilder.ClassInfo> classes;
-    private final Map<PerseusParser.ExprContext, String> exprTypes = new HashMap<>();
+    private final Map<PerseusParser.ExprContext, Type> exprTypes = new HashMap<>();
     private final Deque<SymbolTableBuilder.ClassInfo> classStack = new ArrayDeque<>();
     private final Deque<SymbolTableBuilder.ProcInfo> procStack = new ArrayDeque<>();
     private final Deque<SymbolTableBuilder.MethodInfo> methodStack = new ArrayDeque<>();
-    private final Deque<Map<String, String>> exceptionBindingStack = new ArrayDeque<>();
-    private final Deque<Map<String, String>> lambdaBindingStack = new ArrayDeque<>();
-    private final Deque<Map<String, String>> anonymousLocalBindingStack = new ArrayDeque<>();
+    private final Deque<Map<String, Type>> exceptionBindingStack = new ArrayDeque<>();
+    private final Deque<Map<String, Type>> lambdaBindingStack = new ArrayDeque<>();
+    private final Deque<Map<String, Type>> anonymousLocalBindingStack = new ArrayDeque<>();
 
-    public TypeInferencer(String sourceName, Map<String, String> symbolTable,
+    public TypeInferencer(String sourceName, Map<String, Type> symbolTable,
             Map<String, SymbolTableBuilder.ProcInfo> procedures,
             Map<String, SymbolTableBuilder.ClassInfo> classes) {
         this.sourceName = sourceName;
@@ -34,7 +34,7 @@ public class TypeInferencer extends PerseusBaseListener {
         this.classes = classes != null ? classes : Map.of();
     }
 
-    public Map<PerseusParser.ExprContext, String> getExprTypes() {
+    public Map<PerseusParser.ExprContext, Type> getExprTypes() {
         return exprTypes;
     }
 
@@ -88,7 +88,7 @@ public class TypeInferencer extends PerseusBaseListener {
         }
         String boundName = ctx.identifier().getText();
         String boundType = ExceptionTypeResolver.toReferenceType(ctx.exceptionPattern());
-        exceptionBindingStack.push(Map.of(boundName, boundType));
+        exceptionBindingStack.push(Map.of(boundName, typed(boundType)));
     }
 
     @Override
@@ -100,7 +100,7 @@ public class TypeInferencer extends PerseusBaseListener {
 
     @Override
     public void exitSignalStatement(PerseusParser.SignalStatementContext ctx) {
-        String exprType = exprTypes.get(ctx.expr());
+        String exprType = legacy(exprTypes.get(ctx.expr()));
         if (!isThrowableReferenceType(exprType)) {
             throw error(ctx, "PERS2011", "signal requires an exception object reference");
         }
@@ -108,8 +108,8 @@ public class TypeInferencer extends PerseusBaseListener {
 
     @Override
     public void exitRelExpr(PerseusParser.RelExprContext ctx) {
-        String leftType = exprTypes.get(ctx.expr(0));
-        String rightType = exprTypes.get(ctx.expr(1));
+        String leftType = legacy(exprTypes.get(ctx.expr(0)));
+        String rightType = legacy(exprTypes.get(ctx.expr(1)));
         if (isReferenceComparison(leftType, rightType)) {
             String op = ctx.op.getText();
             if (!"=".equals(op) && !"<>".equals(op)) {
@@ -118,13 +118,13 @@ public class TypeInferencer extends PerseusBaseListener {
         } else if ("null".equals(leftType) || "null".equals(rightType)) {
             throw error(ctx, "PERS2012", "null comparisons require an object reference on the other side");
         }
-        exprTypes.put(ctx, "boolean");
+        exprTypes.put(ctx, Type.BOOLEAN);
     }
 
     @Override
     public void exitMulDivExpr(PerseusParser.MulDivExprContext ctx) {
-        String leftType = exprTypes.get(ctx.expr(0));
-        String rightType = exprTypes.get(ctx.expr(1));
+        String leftType = legacy(exprTypes.get(ctx.expr(0)));
+        String rightType = legacy(exprTypes.get(ctx.expr(1)));
         String op = ctx.op.getText();
         String resultType;
         if ("div".equals(op)) {
@@ -136,23 +136,23 @@ public class TypeInferencer extends PerseusBaseListener {
         } else {
             resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
         }
-        exprTypes.put(ctx, resultType);
+        exprTypes.put(ctx, typed(resultType));
     }
 
     @Override
     public void exitPowExpr(PerseusParser.PowExprContext ctx) {
-        String leftType = exprTypes.get(ctx.expr(0));
-        String rightType = exprTypes.get(ctx.expr(1));
+        String leftType = legacy(exprTypes.get(ctx.expr(0)));
+        String rightType = legacy(exprTypes.get(ctx.expr(1)));
         String resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
-        exprTypes.put(ctx, resultType);
+        exprTypes.put(ctx, typed(resultType));
     }
 
     @Override
     public void exitAddSubExpr(PerseusParser.AddSubExprContext ctx) {
-        String leftType = exprTypes.get(ctx.expr(0));
-        String rightType = exprTypes.get(ctx.expr(1));
+        String leftType = legacy(exprTypes.get(ctx.expr(0)));
+        String rightType = legacy(exprTypes.get(ctx.expr(1)));
         String resultType = ("integer".equals(leftType) && "integer".equals(rightType)) ? "integer" : "real";
-        exprTypes.put(ctx, resultType);
+        exprTypes.put(ctx, typed(resultType));
     }
 
     @Override
@@ -177,42 +177,39 @@ public class TypeInferencer extends PerseusBaseListener {
 
     @Override
     public void exitNotExpr(PerseusParser.NotExprContext ctx) {
-        String operandType = exprTypes.get(ctx.expr());
+        String operandType = legacy(exprTypes.get(ctx.expr()));
         if (!"boolean".equals(operandType)) {
             throw error(ctx, "PERS2005", "not operator requires boolean operand");
         }
-        exprTypes.put(ctx, "boolean");
+        exprTypes.put(ctx, Type.BOOLEAN);
     }
 
     @Override
     public void exitVarExpr(PerseusParser.VarExprContext ctx) {
         String varName = ctx.identifier().getText();
         if ("maxreal".equals(varName) || "minreal".equals(varName) || "epsilon".equals(varName)) {
-            exprTypes.put(ctx, "real");
+            exprTypes.put(ctx, Type.REAL);
             return;
         }
         if ("maxint".equals(varName)) {
-            exprTypes.put(ctx, "integer");
+            exprTypes.put(ctx, Type.INTEGER);
             return;
         }
 
-        String type = lookupType(varName);
+        Type type = lookupType(varName);
         if (type == null) {
             throw error(ctx, "PERS2001", "Undeclared variable: " + varName);
         }
-        if (type.startsWith("thunk:")) {
-            type = type.substring("thunk:".length());
-        }
-        exprTypes.put(ctx, type);
+        exprTypes.put(ctx, type.unwrapThunk());
     }
 
     @Override
     public void exitArrayAccessExpr(PerseusParser.ArrayAccessExprContext ctx) {
         String arrName = ctx.identifier().getText();
-        String arrType = lookupType(arrName);
+        String arrType = legacy(lookupType(arrName));
         if (arrType == null) throw error(ctx, "PERS2002", "Undeclared array: " + arrName);
         if (arrType.startsWith("vector:")) {
-            exprTypes.put(ctx, arrType.substring("vector:".length()));
+            exprTypes.put(ctx, typed(arrType.substring("vector:".length())));
             return;
         }
         if (arrType.startsWith("map:")) {
@@ -220,53 +217,53 @@ public class TypeInferencer extends PerseusBaseListener {
                 throw error(ctx, "PERS2010", "map access requires exactly one subscript");
             }
             String keyType = mapKeyType(arrType);
-            String actualKeyType = exprTypes.get(ctx.expr(0));
+            String actualKeyType = legacy(exprTypes.get(ctx.expr(0)));
             if (!isMapTypeCompatible(keyType, actualKeyType)) {
                 throw error(ctx, "PERS2010",
                         "map key type " + actualKeyType + " is incompatible with declared key type " + keyType);
             }
-            exprTypes.put(ctx, mapValueType(arrType));
+            exprTypes.put(ctx, typed(mapValueType(arrType)));
             return;
         }
         if (arrType.startsWith("set:")) {
             throw error(ctx, "PERS2010", "set values do not support indexed access");
         }
-        exprTypes.put(ctx, arrType.endsWith("[]") ? arrType.substring(0, arrType.length() - 2) : arrType);
+        exprTypes.put(ctx, typed(arrType.endsWith("[]") ? arrType.substring(0, arrType.length() - 2) : arrType));
     }
 
     @Override
     public void exitRealLiteralExpr(PerseusParser.RealLiteralExprContext ctx) {
-        exprTypes.put(ctx, "real");
+        exprTypes.put(ctx, Type.REAL);
     }
 
     @Override
     public void exitIntLiteralExpr(PerseusParser.IntLiteralExprContext ctx) {
-        exprTypes.put(ctx, "integer");
+        exprTypes.put(ctx, Type.INTEGER);
     }
 
     @Override
     public void exitTrueLiteralExpr(PerseusParser.TrueLiteralExprContext ctx) {
-        exprTypes.put(ctx, "boolean");
+        exprTypes.put(ctx, Type.BOOLEAN);
     }
 
     @Override
     public void exitFalseLiteralExpr(PerseusParser.FalseLiteralExprContext ctx) {
-        exprTypes.put(ctx, "boolean");
+        exprTypes.put(ctx, Type.BOOLEAN);
     }
 
     @Override
     public void exitNullLiteralExpr(PerseusParser.NullLiteralExprContext ctx) {
-        exprTypes.put(ctx, "null");
+        exprTypes.put(ctx, Type.NULL);
     }
 
     @Override
     public void exitStringLiteralExpr(PerseusParser.StringLiteralExprContext ctx) {
-        exprTypes.put(ctx, "string");
+        exprTypes.put(ctx, Type.STRING);
     }
 
     @Override
     public void exitUnaryMinusExpr(PerseusParser.UnaryMinusExprContext ctx) {
-        exprTypes.put(ctx, exprTypes.getOrDefault(ctx.expr(), "integer"));
+        exprTypes.put(ctx, exprTypes.getOrDefault(ctx.expr(), Type.INTEGER));
     }
 
     @Override
@@ -277,27 +274,27 @@ public class TypeInferencer extends PerseusBaseListener {
     @Override
     public void exitVectorLiteralExpr(PerseusParser.VectorLiteralExprContext ctx) {
         String literalType = inferVectorLiteralType(ctx);
-        exprTypes.put(ctx, literalType);
+        exprTypes.put(ctx, typed(literalType));
     }
 
     @Override
     public void exitSetLiteralExpr(PerseusParser.SetLiteralExprContext ctx) {
         String literalType = inferSetLiteralType(ctx);
-        exprTypes.put(ctx, literalType);
+        exprTypes.put(ctx, typed(literalType));
     }
 
     @Override
     public void exitMapLiteralExpr(PerseusParser.MapLiteralExprContext ctx) {
         String literalType = inferMapLiteralType(ctx);
-        exprTypes.put(ctx, literalType);
+        exprTypes.put(ctx, typed(literalType));
     }
 
     @Override
     public void enterAnonymousProcedureExpr(PerseusParser.AnonymousProcedureExprContext ctx) {
-        Map<String, String> bindings = new HashMap<>();
+        Map<String, Type> bindings = new HashMap<>();
         if (ctx.lambdaParamList() != null) {
             for (PerseusParser.LambdaParamContext param : ctx.lambdaParamList().lambdaParam()) {
-                bindings.put(param.identifier().getText(), mapLambdaType(param.lambdaParamType()));
+                bindings.put(param.identifier().getText(), typed(mapLambdaType(param.lambdaParamType())));
             }
         }
         lambdaBindingStack.push(bindings);
@@ -312,7 +309,7 @@ public class TypeInferencer extends PerseusBaseListener {
             throw error(ctx, "PERS2013",
                     "Anonymous procedure body type " + bodyType + " does not match declared return type " + declaredReturnType);
         }
-        exprTypes.put(ctx, "procedure:" + declaredReturnType);
+        exprTypes.put(ctx, typed("procedure:" + declaredReturnType));
         if (!lambdaBindingStack.isEmpty()) {
             lambdaBindingStack.pop();
         }
@@ -328,22 +325,22 @@ public class TypeInferencer extends PerseusBaseListener {
         }
         String type = mapVarDeclType(ctx);
         for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
-            anonymousLocalBindingStack.peek().put(id.getText(), type);
+            anonymousLocalBindingStack.peek().put(id.getText(), typed(type));
         }
     }
 
     @Override
     public void exitAssignment(PerseusParser.AssignmentContext ctx) {
-        String rhsType = exprTypes.get(ctx.expr());
+        String rhsType = legacy(exprTypes.get(ctx.expr()));
         for (PerseusParser.LvalueContext lvalue : ctx.lvalue()) {
             if (!lvalue.expr().isEmpty()) {
-                String indexedType = lookupType(lvalue.identifier().getText());
+                String indexedType = legacy(lookupType(lvalue.identifier().getText()));
                 if (indexedType != null && indexedType.startsWith("map:")) {
                     if (lvalue.expr().size() != 1) {
                         throw error(ctx, "PERS2010", "map assignment requires exactly one subscript");
                     }
                     String keyType = mapKeyType(indexedType);
-                    String actualKeyType = exprTypes.get(lvalue.expr(0));
+                    String actualKeyType = legacy(exprTypes.get(lvalue.expr(0)));
                     if (!isMapTypeCompatible(keyType, actualKeyType)) {
                         throw error(ctx, "PERS2010",
                                 "map key type " + actualKeyType + " is incompatible with declared key type " + keyType);
@@ -358,13 +355,13 @@ public class TypeInferencer extends PerseusBaseListener {
             }
             if (rhsType == null || !rhsType.startsWith("vector:")) {
                 if (rhsType != null && rhsType.startsWith("set:")) {
-                    String lhsType = lookupType(lvalue.identifier().getText());
+                    String lhsType = legacy(lookupType(lvalue.identifier().getText()));
                     if (lhsType != null && lhsType.startsWith("set:") && !lhsType.equals(rhsType)) {
                         throw error(ctx, "PERS2010",
                                 "Set assignment type " + rhsType + " is incompatible with destination type " + lhsType);
                     }
                 } else if (rhsType != null && rhsType.startsWith("map:")) {
-                    String lhsType = lookupType(lvalue.identifier().getText());
+                    String lhsType = legacy(lookupType(lvalue.identifier().getText()));
                     if (lhsType != null && lhsType.startsWith("map:") && !lhsType.equals(rhsType)) {
                         throw error(ctx, "PERS2010",
                                 "Map assignment type " + rhsType + " is incompatible with destination type " + lhsType);
@@ -372,7 +369,7 @@ public class TypeInferencer extends PerseusBaseListener {
                 }
                 continue;
             }
-            String lhsType = lookupType(lvalue.identifier().getText());
+            String lhsType = legacy(lookupType(lvalue.identifier().getText()));
             if (lhsType != null && lhsType.startsWith("vector:") && !lhsType.equals(rhsType)) {
                 throw error(ctx, "PERS2010",
                         "Vector assignment type " + rhsType + " is incompatible with destination type " + lhsType);
@@ -387,7 +384,7 @@ public class TypeInferencer extends PerseusBaseListener {
         }
         String type = "ref:" + ctx.identifier().getText();
         for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
-            anonymousLocalBindingStack.peek().put(id.getText(), type);
+            anonymousLocalBindingStack.peek().put(id.getText(), typed(type));
         }
     }
 
@@ -398,7 +395,7 @@ public class TypeInferencer extends PerseusBaseListener {
         }
         String type = "vector:" + mapVectorElementType(ctx.vectorElementType());
         for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
-            anonymousLocalBindingStack.peek().put(id.getText(), type);
+            anonymousLocalBindingStack.peek().put(id.getText(), typed(type));
         }
     }
 
@@ -409,7 +406,7 @@ public class TypeInferencer extends PerseusBaseListener {
         }
         String type = "map:" + mapMapType(ctx.mapKeyType()) + "=>" + mapMapType(ctx.mapValueType());
         for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
-            anonymousLocalBindingStack.peek().put(id.getText(), type);
+            anonymousLocalBindingStack.peek().put(id.getText(), typed(type));
         }
     }
 
@@ -420,7 +417,7 @@ public class TypeInferencer extends PerseusBaseListener {
         }
         String type = "set:" + mapSetElementType(ctx.setElementType());
         for (PerseusParser.IdentifierContext id : ctx.varList().identifier()) {
-            anonymousLocalBindingStack.peek().put(id.getText(), type);
+            anonymousLocalBindingStack.peek().put(id.getText(), typed(type));
         }
     }
 
@@ -428,15 +425,15 @@ public class TypeInferencer extends PerseusBaseListener {
     public void exitProcCallExpr(PerseusParser.ProcCallExprContext ctx) {
         String procName = ctx.identifier().getText();
         java.util.List<String> argTypes = getArgTypes(ctx.argList());
-        String procType = lookupType(procName);
+        String procType = legacy(lookupType(procName));
         if (procType != null && procType.startsWith("procedure:")) {
-            exprTypes.put(ctx, procType.substring("procedure:".length()));
+            exprTypes.put(ctx, typed(procType.substring("procedure:".length())));
             return;
         }
 
         String builtinType = getBuiltinFunctionType(procName);
         if (builtinType != null) {
-            exprTypes.put(ctx, builtinType);
+            exprTypes.put(ctx, typed(builtinType));
             return;
         }
 
@@ -444,12 +441,12 @@ public class TypeInferencer extends PerseusBaseListener {
         if (currentClass != null) {
             SymbolTableBuilder.MethodInfo method = findMethodInHierarchy(currentClass, procName);
             if (method != null) {
-                exprTypes.put(ctx, method.returnType);
+                exprTypes.put(ctx, typed(method.returnType));
                 return;
             }
             JavaInteropResolver.MethodResolution resolution = findJavaMethodInHierarchy(currentClass, procName, argTypes);
             if (resolution.method() != null) {
-                exprTypes.put(ctx, mapJavaType(resolution.method().getReturnType()));
+                exprTypes.put(ctx, typed(mapJavaType(resolution.method().getReturnType())));
                 return;
             }
             if (resolution.diagnostic() != null) {
@@ -460,7 +457,7 @@ public class TypeInferencer extends PerseusBaseListener {
 
     @Override
     public void exitIfExpr(PerseusParser.IfExprContext ctx) {
-        exprTypes.put(ctx, exprTypes.getOrDefault(ctx.expr(1), "integer"));
+        exprTypes.put(ctx, exprTypes.getOrDefault(ctx.expr(1), Type.INTEGER));
     }
 
     @Override
@@ -477,7 +474,7 @@ public class TypeInferencer extends PerseusBaseListener {
                 throw error(ctx, "PERS2011", resolution.diagnostic());
             }
         }
-        exprTypes.put(ctx, "ref:" + className);
+        exprTypes.put(ctx, typed("ref:" + className));
     }
 
     @Override
@@ -488,7 +485,7 @@ public class TypeInferencer extends PerseusBaseListener {
                 hasExplicitMemberCallSyntax(ctx),
                 getArgTypes(ctx.argList()),
                 ctx);
-        exprTypes.put(ctx, memberType);
+        exprTypes.put(ctx, typed(memberType));
     }
 
     @Override
@@ -503,7 +500,7 @@ public class TypeInferencer extends PerseusBaseListener {
 
     private String resolveMemberAccessType(String receiverName, String memberName, boolean explicitCall,
             java.util.List<String> argTypes, org.antlr.v4.runtime.ParserRuleContext ctxForError) {
-        String receiverType = lookupType(receiverName);
+        String receiverType = legacy(lookupType(receiverName));
         if (receiverType == null) {
             if (ctxForError != null) {
                 throw error(ctxForError, "PERS2008", "Member call requires a typed receiver: " + receiverName + "." + memberName);
@@ -752,53 +749,61 @@ public class TypeInferencer extends PerseusBaseListener {
 
     private void requireBooleanOperands(PerseusParser.ExprContext left, PerseusParser.ExprContext right,
             PerseusParser.ExprContext whole, String code, String message) {
-        if (!"boolean".equals(exprTypes.get(left)) || !"boolean".equals(exprTypes.get(right))) {
+        if (!"boolean".equals(legacy(exprTypes.get(left))) || !"boolean".equals(legacy(exprTypes.get(right)))) {
             throw error(whole, code, message);
         }
-        exprTypes.put(whole, "boolean");
+        exprTypes.put(whole, Type.BOOLEAN);
     }
 
-    private String lookupType(String name) {
-        for (Map<String, String> bindings : lambdaBindingStack) {
-            String type = bindings.get(name);
+    private Type lookupType(String name) {
+        for (Map<String, Type> bindings : lambdaBindingStack) {
+            Type type = bindings.get(name);
             if (type != null) return type;
         }
 
-        for (Map<String, String> bindings : anonymousLocalBindingStack) {
-            String type = bindings.get(name);
+        for (Map<String, Type> bindings : anonymousLocalBindingStack) {
+            Type type = bindings.get(name);
             if (type != null) return type;
         }
 
-        for (Map<String, String> bindings : exceptionBindingStack) {
-            String type = bindings.get(name);
+        for (Map<String, Type> bindings : exceptionBindingStack) {
+            Type type = bindings.get(name);
             if (type != null) return type;
         }
 
         SymbolTableBuilder.MethodInfo method = methodStack.peek();
         if (method != null) {
             String type = method.localVars.get(name);
-            if (type != null) return type;
+            if (type != null) return typed(type);
             type = method.paramTypes.get(name);
-            if (type != null) return type;
+            if (type != null) return typed(type);
         }
 
         SymbolTableBuilder.ProcInfo proc = procStack.peek();
         if (proc != null) {
             String type = proc.localVars.get(name);
-            if (type != null) return type;
+            if (type != null) return typed(type);
             type = proc.paramTypes.get(name);
-            if (type != null) return type;
+            if (type != null) return typed(type);
         }
 
         SymbolTableBuilder.ClassInfo cls = classStack.peek();
         if (cls != null) {
             String type = cls.fields.get(name);
-            if (type != null) return type;
+            if (type != null) return typed(type);
             type = cls.paramTypes.get(name);
-            if (type != null) return type;
+            if (type != null) return typed(type);
         }
 
         return symbolTable.get(name);
+    }
+
+    private static String legacy(Type type) {
+        return type != null ? type.toLegacyString() : null;
+    }
+
+    private static Type typed(String legacyType) {
+        return Type.parse(legacyType);
     }
 
     private boolean hasExplicitMemberCallSyntax(org.antlr.v4.runtime.ParserRuleContext ctx) {
@@ -912,7 +917,7 @@ public class TypeInferencer extends PerseusBaseListener {
     private String inferVectorLiteralType(PerseusParser.VectorLiteralExprContext ctx) {
         String current = null;
         for (PerseusParser.ExprContext expr : ctx.expr()) {
-            String next = exprTypes.get(expr);
+            String next = legacy(exprTypes.get(expr));
             if (next == null) {
                 throw error(ctx, "PERS2010", "Unable to infer vector literal element type");
             }
@@ -930,7 +935,7 @@ public class TypeInferencer extends PerseusBaseListener {
     private String inferSetLiteralType(PerseusParser.SetLiteralExprContext ctx) {
         String current = null;
         for (PerseusParser.ExprContext expr : ctx.expr()) {
-            String next = exprTypes.get(expr);
+            String next = legacy(exprTypes.get(expr));
             if (next == null) {
                 throw error(ctx, "PERS2010", "Unable to infer set literal element type");
             }
@@ -950,8 +955,8 @@ public class TypeInferencer extends PerseusBaseListener {
         String currentKey = null;
         String currentValue = null;
         for (PerseusParser.MapLiteralEntryContext entry : ctx.mapLiteralEntry()) {
-            String nextKey = exprTypes.get(entry.expr(0));
-            String nextValue = exprTypes.get(entry.expr(1));
+            String nextKey = legacy(exprTypes.get(entry.expr(0)));
+            String nextValue = legacy(exprTypes.get(entry.expr(1)));
             if (nextKey == null || nextValue == null) {
                 throw error(ctx, "PERS2010", "Unable to infer map literal entry types");
             }
@@ -1041,7 +1046,7 @@ public class TypeInferencer extends PerseusBaseListener {
     private String anonymousProcedureBodyType(PerseusParser.AnonymousProcedureExprContext ctx) {
         PerseusParser.AnonymousProcedureBodyContext body = ctx.anonymousProcedureBody();
         if (body instanceof PerseusParser.AnonymousExprProcedureBodyContext exprBody) {
-            return exprTypes.getOrDefault(exprBody.expr(), "integer");
+            return legacy(exprTypes.getOrDefault(exprBody.expr(), Type.INTEGER));
         }
         if (body instanceof PerseusParser.AnonymousBlockProcedureBodyContext blockBody) {
             return anonymousProcedureCompoundType(blockBody.anonymousProcedureCompound());
@@ -1051,10 +1056,10 @@ public class TypeInferencer extends PerseusBaseListener {
 
     private String anonymousProcedureCompoundType(PerseusParser.AnonymousProcedureCompoundContext ctx) {
         if (ctx instanceof PerseusParser.AnonymousStatementExprProcedureCompoundContext stmtExpr) {
-            return exprTypes.getOrDefault(stmtExpr.expr(), "integer");
+            return legacy(exprTypes.getOrDefault(stmtExpr.expr(), Type.INTEGER));
         }
         if (ctx instanceof PerseusParser.AnonymousExprProcedureCompoundContext exprOnly) {
-            return exprTypes.getOrDefault(exprOnly.expr(), "integer");
+            return legacy(exprTypes.getOrDefault(exprOnly.expr(), Type.INTEGER));
         }
         return "void";
     }
@@ -1095,7 +1100,7 @@ public class TypeInferencer extends PerseusBaseListener {
         }
         java.util.ArrayList<String> argTypes = new java.util.ArrayList<>();
         for (PerseusParser.ArgContext arg : argList.arg()) {
-            argTypes.add(exprTypes.getOrDefault(arg.expr(), "integer"));
+            argTypes.add(legacy(exprTypes.getOrDefault(arg.expr(), Type.INTEGER)));
         }
         return argTypes;
     }

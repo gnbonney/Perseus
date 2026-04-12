@@ -290,8 +290,8 @@ public class PerseusCompiler {
 		SymbolTableBuilder symBuilder = new SymbolTableBuilder();
 		ParseTreeWalker walker = new ParseTreeWalker();
 		walker.walk(symBuilder, programContext);
-		Map<String, String> symbolTable = symBuilder.getSymbolTable();
-		Map<String, String> mainSymbolTable = symBuilder.getMainSymbolTable();
+		Map<String, Type> symbolTable = symBuilder.getSymbolTable();
+		Map<String, Type> mainSymbolTable = symBuilder.getMainSymbolTable();
 		Map<String, int[]> arrayBounds = symBuilder.getArrayBounds();
 		Map<String, java.util.List<int[]>> arrayBoundPairs = symBuilder.getArrayBoundPairs();
 		Map<String, SymbolTableBuilder.ProcInfo> procedures = symBuilder.getProcedures();
@@ -334,9 +334,9 @@ public class PerseusCompiler {
             public void enterAssignment(PerseusParser.AssignmentContext ctx) {
                 for (PerseusParser.LvalueContext lv : ctx.lvalue()) {
                     String name = lv.identifier().getText();
-                    String type = symbolTable.get(name);
+                    Type type = symbolTable.get(name);
                     // If a procedure name is used as an L-value, it may be a procedure variable.
-                    if (type != null && type.startsWith("procedure:")) {
+                    if (type != null && type.isProcedure()) {
                         if (name.equals(currentProcedure.peek())) {
                             // Assigning to the current procedure from inside its own body.
                             // If there are multiple targets (e.g. B := A := ...), treat this as a
@@ -384,8 +384,8 @@ public class PerseusCompiler {
 		// Only add names that were actually observed as variable references (assignments or VarExpr),
 		// NOT all no-param procedures (which would cause outer calls to route through a variable slot).
 		for (String pv : procedureVariables) {
-			String type = symbolTable.get(pv);
-			if (type != null && type.startsWith("procedure:")) {
+			Type type = symbolTable.get(pv);
+			if (type != null && type.isProcedure()) {
 				if (!mainSymbolTable.containsKey(pv)) {
 					System.out.println("DEBUG: Adding procedure variable to mainSymbolTable: " + pv);
 					mainSymbolTable.put(pv, type);
@@ -400,8 +400,8 @@ public class PerseusCompiler {
 		// Map for procedure variables (marker map; value -1 indicates no local slot)
 		Map<String, Integer> procVarSlotsMap = new LinkedHashMap<>();
 		for (String pv : procedureVariables) {
-			String type = symbolTable.get(pv);
-			if (type != null && type.startsWith("procedure:")) {
+			Type type = symbolTable.get(pv);
+			if (type != null && type.isProcedure()) {
 				procVarSlotsMap.put(pv, -1);
 			}
 		}
@@ -409,10 +409,10 @@ public class PerseusCompiler {
 		// Sort mainSymbolTable entries by name or maintain order to ensure stability?
 		// SymbolTableBuilder uses LinkedHashMap so order is preserved.
 		System.out.println("DEBUG: Assigning slots for mainSymbolTable: " + mainSymbolTable);
-		for (Map.Entry<String, String> entry : mainSymbolTable.entrySet()) {
+		for (Map.Entry<String, Type> entry : mainSymbolTable.entrySet()) {
 			String name = entry.getKey();
-			String type = entry.getValue();
-			if (type.endsWith("[]")) continue;
+			Type type = entry.getValue();
+			if (type != null && type.isArray()) continue;
 			// Procedure variables are stored in static fields, not local slots.
 			// This ensures calls/assignments always use the shared binding and avoids
 			// uninitialized local slots (e.g. ProcVar, ProcTypedSimple).
@@ -426,12 +426,12 @@ public class PerseusCompiler {
 		} catch (DiagnosticException e) {
 			throw new CompilationFailedException(java.util.List.of(e.getDiagnostic()));
 		}
-		Map<PerseusParser.ExprContext, String> exprTypes = typeInf.getExprTypes();
+		Map<PerseusParser.ExprContext, Type> exprTypes = typeInf.getExprTypes();
 
 		// Pass 2: code generation
 		String source = Paths.get(fileName).getFileName().toString();
 		CodeGenerator codegen = new CodeGenerator(source, packageName, classPackageName, className,
-				mainSymbolTable, localIndex, numLocals, exprTypes, arrayBounds, arrayBoundPairs,
+				legacyTypeMap(mainSymbolTable), localIndex, numLocals, legacyExprTypeMap(exprTypes), arrayBounds, arrayBoundPairs,
 				symBuilder.getProcedures(), classes, switchDeclarations, procVarSlotsMap,
 				symBuilder.getExternalJavaClasses(), symBuilder.getExternalJavaStaticValues());
 		walker.walk(codegen, programContext);
@@ -443,6 +443,22 @@ public class PerseusCompiler {
 			return null;
 		}
 		return packageName.replace('.', '/').replace('\\', '/');
+	}
+
+	private static Map<String, String> legacyTypeMap(Map<String, Type> typedMap) {
+		Map<String, String> result = new LinkedHashMap<>();
+		for (Map.Entry<String, Type> entry : typedMap.entrySet()) {
+			result.put(entry.getKey(), entry.getValue() != null ? entry.getValue().toLegacyString() : null);
+		}
+		return result;
+	}
+
+	private static Map<PerseusParser.ExprContext, String> legacyExprTypeMap(Map<PerseusParser.ExprContext, Type> typedMap) {
+		Map<PerseusParser.ExprContext, String> result = new LinkedHashMap<>();
+		for (Map.Entry<PerseusParser.ExprContext, Type> entry : typedMap.entrySet()) {
+			result.put(entry.getKey(), entry.getValue() != null ? entry.getValue().toLegacyString() : null);
+		}
+		return result;
 	}
 
 	private static void validateExternalProcedures(String fileName,

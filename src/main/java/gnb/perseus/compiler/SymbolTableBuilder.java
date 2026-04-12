@@ -31,8 +31,8 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             Map.entry("ArithmeticException", "java.lang.ArithmeticException"),
             Map.entry("NullPointerException", "java.lang.NullPointerException"));
 
-    private final Map<String, String> symbolTable = new LinkedHashMap<>();
-    private final Map<String, String> mainSymbolTable = new LinkedHashMap<>();
+    private final Map<String, Type> symbolTable = new LinkedHashMap<>();
+    private final Map<String, Type> mainSymbolTable = new LinkedHashMap<>();
     private final Set<String> labels = new LinkedHashSet<>();
     private final Map<String, int[]> arrayBounds = new LinkedHashMap<>();
     private final Map<String, List<int[]>> arrayBoundPairs = new LinkedHashMap<>();
@@ -136,11 +136,11 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         }
     }
 
-    public Map<String, String> getSymbolTable() {
+    public Map<String, Type> getSymbolTable() {
         return symbolTable;
     }
 
-    public Map<String, String> getMainSymbolTable() {
+    public Map<String, Type> getMainSymbolTable() {
         return mainSymbolTable;
     }
 
@@ -242,7 +242,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
 
         String returnType = getDeclaredProcedureReturnType(ctx);
         String name = ctx.identifier().getText();
-        symbolTable.put(name, "procedure:" + returnType);
+        recordSymbol(name, "procedure:" + returnType);
 
         ProcInfo outerProc = currentProc();
         if (outerProc != null) {
@@ -266,7 +266,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         String declaredName = ctx.identifier(0).getText();
         String name = ctx.identifier().size() > 1 ? ctx.identifier(1).getText() : declaredName;
 
-        symbolTable.put(name, "procedure:" + returnType);
+        recordSymbol(name, "procedure:" + returnType);
 
         ProcInfo proc = new ProcInfo(returnType);
         proc.external = true;
@@ -327,10 +327,10 @@ public class SymbolTableBuilder extends PerseusBaseListener {
                 String baseType = proc.paramTypes.get(param);
                 if (baseType == null) baseType = "deferred";
                 if (baseType.startsWith("procedure:")) {
-                    symbolTable.put(param, baseType);
+                    recordSymbol(param, baseType);
                 } else {
                     String type = proc.valueParams.contains(param) ? baseType : "thunk:" + baseType;
-                    symbolTable.put(param, type);
+                    recordSymbol(param, type);
                 }
             }
         }
@@ -411,7 +411,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
                     proc.valueParams.add(paramName);
                     proc.arrayParams.add(paramName);
                 }
-                symbolTable.put(paramName, actualBaseType);
+                recordSymbol(paramName, actualBaseType);
             }
         }
     }
@@ -440,7 +440,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             MethodInfo method = currentMethod();
             if (method != null) {
                 method.localVars.put(name, type);
-                symbolTable.put(name, type);
+                recordSymbol(name, type);
                 continue;
             }
 
@@ -451,14 +451,14 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             }
 
             ProcInfo proc = currentProc();
-            symbolTable.put(name, type);
+            recordSymbol(name, type);
             if (proc == null) {
-                mainSymbolTable.put(name, type);
+                recordMainSymbol(name, type);
             } else {
                 proc.localVars.put(name, type);
                 if (isOwn) {
                     proc.ownVars.add(name);
-                    mainSymbolTable.put(name, type);
+                    recordMainSymbol(name, type);
                 }
             }
         }
@@ -474,7 +474,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             MethodInfo method = currentMethod();
             if (method != null) {
                 method.localVars.put(name, vectorType);
-                symbolTable.put(name, vectorType);
+                recordSymbol(name, vectorType);
                 continue;
             }
 
@@ -485,9 +485,9 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             }
 
             ProcInfo proc = currentProc();
-            symbolTable.put(name, vectorType);
+            recordSymbol(name, vectorType);
             if (proc == null) {
-                mainSymbolTable.put(name, vectorType);
+                recordMainSymbol(name, vectorType);
             } else {
                 proc.localVars.put(name, vectorType);
             }
@@ -505,7 +505,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             MethodInfo method = currentMethod();
             if (method != null) {
                 method.localVars.put(name, mapType);
-                symbolTable.put(name, mapType);
+                recordSymbol(name, mapType);
                 continue;
             }
 
@@ -516,9 +516,9 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             }
 
             ProcInfo proc = currentProc();
-            symbolTable.put(name, mapType);
+            recordSymbol(name, mapType);
             if (proc == null) {
-                mainSymbolTable.put(name, mapType);
+                recordMainSymbol(name, mapType);
             } else {
                 proc.localVars.put(name, mapType);
             }
@@ -535,7 +535,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             MethodInfo method = currentMethod();
             if (method != null) {
                 method.localVars.put(name, setType);
-                symbolTable.put(name, setType);
+                recordSymbol(name, setType);
                 continue;
             }
 
@@ -546,9 +546,9 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             }
 
             ProcInfo proc = currentProc();
-            symbolTable.put(name, setType);
+            recordSymbol(name, setType);
             if (proc == null) {
-                mainSymbolTable.put(name, setType);
+                recordMainSymbol(name, setType);
             } else {
                 proc.localVars.put(name, setType);
             }
@@ -564,7 +564,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             MethodInfo method = currentMethod();
             if (method != null) {
                 method.localVars.put(name, refType);
-                symbolTable.put(name, refType);
+                recordSymbol(name, refType);
                 continue;
             }
 
@@ -574,8 +574,8 @@ public class SymbolTableBuilder extends PerseusBaseListener {
                 continue;
             }
 
-            symbolTable.put(name, refType);
-            mainSymbolTable.put(name, refType);
+            recordSymbol(name, refType);
+            recordMainSymbol(name, refType);
         }
     }
 
@@ -598,8 +598,8 @@ public class SymbolTableBuilder extends PerseusBaseListener {
         }
         String targetMember = ctx.externalJavaIdentifier().getText();
         String localName = ctx.identifier().getText();
-        symbolTable.put(localName, declaredType);
-        mainSymbolTable.put(localName, declaredType);
+        recordSymbol(localName, declaredType);
+        recordMainSymbol(localName, declaredType);
         externalJavaStaticValues.put(localName, new ExternalValueInfo(localName, declaredType, ownerClass, targetMember));
     }
 
@@ -621,8 +621,8 @@ public class SymbolTableBuilder extends PerseusBaseListener {
             int upper = Integer.parseInt(pairCtx.signedInt(1).getText());
             bounds.add(new int[]{lower, upper});
         }
-        symbolTable.put(name, arrType);
-        mainSymbolTable.put(name, arrType);
+        recordSymbol(name, arrType);
+        recordMainSymbol(name, arrType);
         if (!bounds.isEmpty()) {
             arrayBounds.put(name, bounds.get(0));
             arrayBoundPairs.put(name, bounds);
@@ -636,13 +636,21 @@ public class SymbolTableBuilder extends PerseusBaseListener {
     @Override
     public void enterSwitchDecl(PerseusParser.SwitchDeclContext ctx) {
         String name = ctx.identifier().getText();
-        symbolTable.put(name, "switch");
+        symbolTable.put(name, Type.SWITCH);
         switchDeclarations.put(name, ctx);
     }
 
     @Override
     public void enterLabel(PerseusParser.LabelContext ctx) {
         labels.add(ctx.getStart().getText());
+    }
+
+    private void recordSymbol(String name, String legacyType) {
+        symbolTable.put(name, Type.parse(legacyType));
+    }
+
+    private void recordMainSymbol(String name, String legacyType) {
+        mainSymbolTable.put(name, Type.parse(legacyType));
     }
 
     private String getDeclaredProcedureReturnType(PerseusParser.ProcedureDeclContext ctx) {
