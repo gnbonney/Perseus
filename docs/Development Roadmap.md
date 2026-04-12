@@ -11,12 +11,15 @@ The current intended order is:
 1. Milestone 41: modern looping forms
 2. Milestone 42: anonymous procedures
 3. Milestone 43: collections, iterators, and Java-container interop
-4. Milestone 44: complex numbers and mathematical types
-5. Milestone 45: mathematical arrays and numerically oriented procedure features
-6. Milestone 46: numeric precision and extended arithmetic
-7. Milestone 47: numerical standard library foundations
-8. Milestone 48: actors
-9. Milestone 49: CLI polish and tooling
+4. Milestone 44: generics
+5. Milestone 45: collection classes, iterators, and library ownership
+6. Milestone 45.5: structured data and JSON
+7. Milestone 46: complex numbers and mathematical types
+8. Milestone 47: mathematical arrays and numerically oriented procedure features
+9. Milestone 48: numeric precision and extended arithmetic
+10. Milestone 49: numerical standard library foundations
+11. Milestone 50: actors
+12. Milestone 51: CLI polish and tooling
 
 ## Milestone 41 - Looping Extensions
 
@@ -90,7 +93,6 @@ The current intended order is:
 - The anonymous-procedure surface remains fully explicit: `proc (parameter-list) result-type : body`, with no shorthand omission of parentheses or result type in the initial design.
 - The first slice should continue to reuse the compiler's existing procedure-value and closure machinery as much as possible.
 - Closure capture should stay aligned with existing nested-procedure and procedure-reference behavior rather than introducing a separate scope/runtime model for anonymous procedures.
-- Returning anonymous procedures remain follow-on work.
 - Public external ABIs should stay out of scope for the initial anonymous-procedure implementation.
 
 ## Milestone 43 - Collections, Iterators, and Java Container Interop
@@ -101,21 +103,14 @@ The current intended order is:
 - [x] Add `vector` construction, indexing, length/size access, and append-style growth operations on top of a Java runtime collection
 - [x] Add straightforward conversion between Perseus `vector` values and external Java collection values at interop boundaries
 - [x] Extend `for ... in ... do` from direct `vector` support to Java-backed collections and external Java `Iterable` values
-- [ ] Define and implement an iterator protocol that works with `for ... in ... do`
-- [x] Implement Java `Iterable`-style interop through the same iterator protocol
+- [x] Implement Java `Iterable`-style interop through the same broad `for ... in ... do` iteration model
 - [x] Add `vector` literals
 - [x] Add `map(...)` literals
 - [x] Add `set` literals
 - [x] Add basic collection operations for `vector`, `map`, and `set`
-- [ ] Define the first standard-library collection module layout for `vector`, `map`, and `set`
-- [ ] Introduce Perseus-side standard-library collection interfaces or classes for `vector`, `map`, and `set`
-- [ ] Move ordinary collection operations behind the standard-library collection surface rather than direct compiler-only method knowledge
-- [ ] Add standard-library conversion helpers for collection interop with Java `List`, `Map`, and `Set`
-- [ ] Decide which collection syntax remains compiler-recognized sugar and which behavior is owned entirely by the library layer
 - [x] Add `map` as a later Java-backed collection slice
 - [x] Add `set` as a later Java-backed collection slice
 - [x] Add sample programs and regression tests for collection use cases
-- [ ] Add iterator-pipeline operations such as `map` and `filter` on top of anonymous procedures
 
 **Implementation notes:**
 - This milestone should not be treated as "collections for their own sake."
@@ -132,11 +127,49 @@ The current intended order is:
 - The current map slice also exposes `keys()` and `values()` views so `for ... in ... do` can traverse Java-backed map keys and values through the shared iterable lowering.
 - A first Java-backed `set` slice now also exists with declarations, deduplicating `insert`, `contains`, `remove`, `clear`, `size`/`length(...)`, and direct `for ... in ... do` traversal, backed concretely by `java.util.LinkedHashSet`.
 - Array, vector, set, Java `Iterable`, and map key/value iteration now all share the same broad `for ... in ... do` semantic model even though the full explicit iterator protocol remains later work.
-- The preferred order for the rest of the milestone is to finish the `vector` and iterator/interop path first, then add `map` and `set` as later follow-on collection slices.
 - Collection implementations should be based on Java runtime collections rather than a separate Perseus-native storage/runtime hierarchy.
 - Java interop should include an easy, explicit way to convert Perseus collections to and from Java collection values returned by external Java classes.
+- The remaining class-based and standard-library-owned collection work has been moved into Milestones 44 and 45.
 
-## Milestone 43.5 - Structured Data and JSON
+## Milestone 44 - Generics
+
+**Goal:** Add a first generics system strong enough to support real reusable library abstractions, especially collection classes such as `Vector[T]`, `Map[K, V]`, and `Set[T]` (see [Generics Design Spec.md](Generics%20Design%20Spec.md)).
+
+- [ ] Introduce a structured internal `Type` model in the compiler rather than continuing to rely on ad hoc string tags
+- [ ] Migrate existing scalar, `ref`, array, procedure, and current collection-type handling onto that structured type model
+- [ ] Add focused regression coverage for the structured-type-model migration so existing typing behavior stays stable
+- [ ] Add parser support for generic class declarations with bracketed type parameters such as `class Vector[T];`
+- [ ] Add parser support for generic type uses such as `ref(Vector[integer])`
+- [ ] Add symbol-table and semantic-analysis support for generic type parameters and generic class members
+- [ ] Implement erased JVM lowering for generic classes and generic member signatures
+- [ ] Add focused regression coverage for generic class declarations, instantiation, member use, and type-checking failures
+
+**Implementation notes:**
+- This milestone should follow [Generics Design Spec.md](Generics%20Design%20Spec.md).
+- The first slice is generic classes first, not generic procedures everywhere.
+- The preferred surface is bracketed type arguments such as `Vector[integer]` rather than a more symbolic or Java-specific notation.
+- The recommended runtime strategy is erased generics on the JVM.
+- The work should proceed in two stages within the milestone: first replace the current string-heavy type bookkeeping with a structured internal representation, then add the generic surface and lowering on top of that foundation.
+
+## Milestone 45 - Collection Classes, Iterators, and Library Ownership
+
+**Goal:** Move Perseus collections from compiler-special-cased surfaces toward real standard-library collection classes and iterator abstractions built on top of the new generics support.
+
+- [ ] Define the first standard-library collection module layout for `Vector[T]`, `Map[K, V]`, and `Set[T]`
+- [ ] Introduce Perseus-side standard-library collection classes for `Vector[T]`, `Map[K, V]`, and `Set[T]`
+- [ ] Define and implement an explicit iterator protocol that works with `for ... in ... do`
+- [ ] Move ordinary collection operations behind the standard-library collection surface rather than direct compiler-only method knowledge
+- [ ] Add standard-library conversion helpers for collection interop with Java `List`, `Map`, and `Set`
+- [ ] Define which collection syntax remains compiler-recognized sugar and which behavior is owned entirely by the library layer
+- [ ] Add iterator-pipeline operations such as `map` and `filter` on top of anonymous procedures
+- [ ] Add focused regressions and sample programs for the generic collection-class surface
+
+**Implementation notes:**
+- This milestone should treat the current `vector`, `map`, and `set` surface as the collection first slice, not as the permanent final architecture.
+- The intended long-term direction is Perseus-side Simula-style collection classes backed internally by Java runtime collections.
+- Existing collection declarations such as `vector integer nums;` may remain as source-level sugar if they can be defined cleanly in terms of the generic class-based collection model.
+
+## Milestone 45.5 - Structured Data and JSON
 
 **Goal:** Build a first structured-data library layer on top of Milestone 43 collections so Perseus can read and write practical JSON data without leaving the language.
 
@@ -152,7 +185,7 @@ The current intended order is:
 - JSON support should build directly on the Java-backed `vector` and `map` work that already exists.
 - More ambitious object-to-JSON reflection can remain later work if needed; the first useful slice is structured data over vectors, maps, strings, numbers, booleans, and null.
 
-## Milestone 44 - Complex Numbers and Mathematical Types
+## Milestone 46 - Complex Numbers and Mathematical Types
 
 **Goal:** Add the first explicitly mathematics-oriented type-system extensions that would make Perseus more natural for scientific and engineering work (see [Mathematical Computing Design Spec.md](Mathematical%20Computing%20Design%20Spec.md)).
 
@@ -163,7 +196,7 @@ The current intended order is:
 - [ ] Define how complex values should interoperate with Java and the standard library
 - [ ] Add focused sample programs and regression tests for scientific/numerical use cases
 
-## Milestone 45 - Mathematical Arrays and Numerical Procedures
+## Milestone 47 - Mathematical Arrays and Numerical Procedures
 
 **Goal:** Make numerical code more expressive by improving array-oriented notation and by adding procedure features that fit mathematical programming well (see [Mathematical Computing Design Spec.md](Mathematical%20Computing%20Design%20Spec.md)).
 
@@ -175,7 +208,7 @@ The current intended order is:
 - [ ] Consider lightweight tuple or multiple-return-value support for numerical procedures that naturally return values plus status or error information
 - [ ] Add focused numerical sample programs and regression tests
 
-## Milestone 46 - Numeric Precision and Extended Arithmetic
+## Milestone 48 - Numeric Precision and Extended Arithmetic
 
 **Goal:** Add a small, explicit extended numeric model for mathematical and scientific work without turning Perseus into a large precision-taxonomy language (see [Mathematical Computing Design Spec.md](Mathematical%20Computing%20Design%20Spec.md)).
 
@@ -191,7 +224,7 @@ The current intended order is:
 - The main design challenge is not whether more precision can exist at all, but how to add it without making the language significantly less readable.
 - A small explicit model is preferred over a large Fortran-style family of precision kinds unless real use cases later justify more complexity.
 
-## Milestone 47 - Numerical Standard Library Foundations
+## Milestone 49 - Numerical Standard Library Foundations
 
 **Goal:** Build out the first substantial mathematical standard-library layer beyond the minimal environmental procedures (see [Mathematical Computing Design Spec.md](Mathematical%20Computing%20Design%20Spec.md)).
 
@@ -208,7 +241,7 @@ The current intended order is:
 - Historical libraries such as NUMAL are relevant inspiration here, even if Perseus does not try to reproduce them wholesale.
 - The strongest goal is to make Perseus a better language for expressing and packaging real numerical methods, not merely to accumulate standalone helper functions.
 
-## Milestone 48 - Actors
+## Milestone 50 - Actors
 
 **Goal:** Explore actors as a distinctive future direction for Perseus once the MVP and key follow-on milestones are in place (see [Actors Design Spec.md](Actors%20Design%20Spec.md)).
 
@@ -224,7 +257,7 @@ The current intended order is:
 - The runtime could begin either as a small dedicated actor-support jar or as generated support code if avoiding runtime dependencies remains a priority.
 - Later refinements could add `replyto` syntax and pattern-matching sugar once the base actor model is settled.
 
-## Milestone 49 - CLI Polish and Tooling
+## Milestone 51 - CLI Polish and Tooling
 
 **Goal:** Finish the lower-priority CLI and productization work that remains after the main CLI and library-workflow milestones.
 
