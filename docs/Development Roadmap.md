@@ -151,7 +151,8 @@ The current intended order is:
 - The recommended runtime strategy is erased generics on the JVM.
 - The work should proceed in two stages within the milestone: first replace the current string-heavy type bookkeeping with a structured internal representation, then add the generic surface and lowering on top of that foundation.
 - A first implementation slice has already introduced a real internal `Type` model and moved the compiler's main symbol-table and expression-type storage onto it.
-- That migration is not finished yet: procedure/class metadata and much of code generation still flow through a temporary legacy-string bridge while the rest of the compiler is converted.
+- A second implementation slice has moved typed information into procedure/class metadata as well, so semantic analysis no longer depends only on string-tagged metadata.
+- That migration is not finished yet: much of code generation still flows through a temporary legacy-string bridge while the rest of the compiler is converted.
 
 ## Milestone 45 - Collection Classes, Iterators, and Library Ownership
 

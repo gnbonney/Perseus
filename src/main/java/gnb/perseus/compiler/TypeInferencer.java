@@ -441,7 +441,7 @@ public class TypeInferencer extends PerseusBaseListener {
         if (currentClass != null) {
             SymbolTableBuilder.MethodInfo method = findMethodInHierarchy(currentClass, procName);
             if (method != null) {
-                exprTypes.put(ctx, typed(method.returnType));
+                exprTypes.put(ctx, method.returnTypeInfo);
                 return;
             }
             JavaInteropResolver.MethodResolution resolution = findJavaMethodInHierarchy(currentClass, procName, argTypes);
@@ -720,7 +720,7 @@ public class TypeInferencer extends PerseusBaseListener {
         }
         SymbolTableBuilder.MethodInfo method = findMethodInHierarchy(cls, memberName);
         if (method != null) {
-            return method.returnType;
+            return legacy(method.returnTypeInfo);
         }
         if (!explicitCall) {
             Field javaField = findJavaFieldInHierarchy(cls, memberName);
@@ -773,26 +773,26 @@ public class TypeInferencer extends PerseusBaseListener {
 
         SymbolTableBuilder.MethodInfo method = methodStack.peek();
         if (method != null) {
-            String type = method.localVars.get(name);
-            if (type != null) return typed(type);
-            type = method.paramTypes.get(name);
-            if (type != null) return typed(type);
+            Type type = method.typedLocalVars.get(name);
+            if (type != null) return type;
+            type = method.typedParamTypes.get(name);
+            if (type != null) return type;
         }
 
         SymbolTableBuilder.ProcInfo proc = procStack.peek();
         if (proc != null) {
-            String type = proc.localVars.get(name);
-            if (type != null) return typed(type);
-            type = proc.paramTypes.get(name);
-            if (type != null) return typed(type);
+            Type type = proc.typedLocalVars.get(name);
+            if (type != null) return type;
+            type = proc.typedParamTypes.get(name);
+            if (type != null) return type;
         }
 
         SymbolTableBuilder.ClassInfo cls = classStack.peek();
         if (cls != null) {
-            String type = cls.fields.get(name);
-            if (type != null) return typed(type);
-            type = cls.paramTypes.get(name);
-            if (type != null) return typed(type);
+            Type type = cls.typedFields.get(name);
+            if (type != null) return type;
+            type = cls.typedParamTypes.get(name);
+            if (type != null) return type;
         }
 
         return symbolTable.get(name);
