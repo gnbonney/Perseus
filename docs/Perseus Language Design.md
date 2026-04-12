@@ -77,6 +77,7 @@ Perseus now includes a first dynamic collection type:
 - iteration: `for item in nums do ...`
 
 The current vector implementation is intentionally a first slice. It provides a practical Java-backed dynamic sequence type with non-empty vector literals and ordinary external Java `List`-based interop, while still leaving broader collection literals and a full general iterator protocol as follow-on work.
+The longer-term direction is for `vector` to become a real standard-library collection abstraction in Perseus rather than remaining only a compiler-special case. That standard-library surface can still delegate to Java-backed storage internally, but user-facing collection behavior should increasingly be described in Perseus class/module terms rather than direct compiler knowledge of Java collection methods.
 
 ## Maps
 
@@ -91,6 +92,7 @@ Perseus now also includes a first Java-backed associative collection type:
 
 This first map slice is intentionally narrower than the full design in the collections spec. It provides Java-backed declarations, keyed lookup and update, and a small set of basic operations, while leaving map literals and richer iteration behavior as follow-on work.
 This first map slice also includes constructor-style literals such as `map("Alice": 95.5, "Bob": 87.0)`, which keep set notation free to use ordinary braces, and it now exposes iterable `keys()` / `values()` views so maps can participate more naturally in `for ... in ... do`.
+The longer-term direction is for `map` to be exposed through a standard-library Perseus collection interface backed by Java storage, so that ordinary operations, conversion helpers, and later higher-level data facilities are owned by the library layer rather than being spread across compiler special cases.
 
 ## Sets
 
@@ -105,6 +107,7 @@ Perseus now also includes a first Java-backed set type:
 - iteration: `for item in values do ...`
 
 This first set slice is intentionally narrower than the full design in the collections spec. It provides Java-backed declarations, non-empty set literals, deduplicating membership operations, and direct `for ... in ... do` traversal, while still leaving richer iterator/pipeline work as follow-on work.
+As with `vector` and `map`, the intended end state is a Perseus standard-library collection abstraction with a Java-backed implementation underneath, not a permanently compiler-hardcoded set feature.
 
 ## Strings
 

@@ -100,18 +100,21 @@ The current intended order is:
 - [x] Introduce `vector` as the first Java-backed dynamic sequence collection type
 - [x] Add `vector` construction, indexing, length/size access, and append-style growth operations on top of a Java runtime collection
 - [x] Add straightforward conversion between Perseus `vector` values and external Java collection values at interop boundaries
-- [ ] Extend `for ... in ... do` from direct `vector` support to collection and iterator-protocol-based iteration
+- [x] Extend `for ... in ... do` from direct `vector` support to Java-backed collections and external Java `Iterable` values
 - [ ] Define and implement an iterator protocol that works with `for ... in ... do`
 - [x] Implement Java `Iterable`-style interop through the same iterator protocol
 - [x] Add `vector` literals
 - [x] Add `map(...)` literals
 - [x] Add `set` literals
-- [ ] Add basic collection operations beyond the current `vector` first slice
-- [ ] Keep array-oriented iteration aligned with the same iterator protocol as collections
-- [ ] Add standard-library collection modules rather than compiler-hardcoded collection behavior
+- [x] Add basic collection operations for `vector`, `map`, and `set`
+- [ ] Define the first standard-library collection module layout for `vector`, `map`, and `set`
+- [ ] Introduce Perseus-side standard-library collection interfaces or classes for `vector`, `map`, and `set`
+- [ ] Move ordinary collection operations behind the standard-library collection surface rather than direct compiler-only method knowledge
+- [ ] Add standard-library conversion helpers for collection interop with Java `List`, `Map`, and `Set`
+- [ ] Decide which collection syntax remains compiler-recognized sugar and which behavior is owned entirely by the library layer
 - [x] Add `map` as a later Java-backed collection slice
 - [x] Add `set` as a later Java-backed collection slice
-- [ ] Add sample programs and regression tests for collection use cases
+- [x] Add sample programs and regression tests for collection use cases
 - [ ] Add iterator-pipeline operations such as `map` and `filter` on top of anonymous procedures
 
 **Implementation notes:**
@@ -128,6 +131,7 @@ The current intended order is:
 - A first Java-backed `map` slice now also exists with declarations, keyed lookup and assignment, `contains`, `remove`, `clear`, and `size`/`length(...)`, backed concretely by `java.util.LinkedHashMap`.
 - The current map slice also exposes `keys()` and `values()` views so `for ... in ... do` can traverse Java-backed map keys and values through the shared iterable lowering.
 - A first Java-backed `set` slice now also exists with declarations, deduplicating `insert`, `contains`, `remove`, `clear`, `size`/`length(...)`, and direct `for ... in ... do` traversal, backed concretely by `java.util.LinkedHashSet`.
+- Array, vector, set, Java `Iterable`, and map key/value iteration now all share the same broad `for ... in ... do` semantic model even though the full explicit iterator protocol remains later work.
 - The preferred order for the rest of the milestone is to finish the `vector` and iterator/interop path first, then add `map` and `set` as later follow-on collection slices.
 - Collection implementations should be based on Java runtime collections rather than a separate Perseus-native storage/runtime hierarchy.
 - Java interop should include an easy, explicit way to convert Perseus collections to and from Java collection values returned by external Java classes.

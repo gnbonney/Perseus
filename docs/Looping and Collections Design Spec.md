@@ -139,6 +139,12 @@ The intended implementation direction is to back `vector` with an ordinary Java 
 
 That Java-backed direction should also make collection conversion easy at interop boundaries. Perseus code should have a straightforward way to wrap or convert Java collection values coming from external Java classes, and to hand Perseus collections back to Java code without awkward manual copying in user programs.
 
+The longer-term shape should be a small family of Perseus standard-library collection classes or class-like standard abstractions that delegate to Java-backed storage rather than exposing raw Java collection APIs as the language model. In other words:
+
+- the compiler may continue to recognize collection declarations and literal syntax
+- but the ordinary operation surface should increasingly belong to Perseus library interfaces
+- Java-backed storage remains the implementation strategy underneath that surface
+
 The intended core surface includes:
 
 - `vector integer nums;` and the corresponding `real`, `boolean`, `string`, and `ref(T)` forms
@@ -198,6 +204,31 @@ length := nums.size;                // or nums.length
 for val in nums do ... 
 ```
 
+**Intended standard-library interface shape**:
+```algol
+class vector(T);
+begin
+    integer procedure size;
+    procedure clear;
+    procedure append(T value);
+    procedure insert(integer index, T value);
+    T procedure remove(integer index);
+    boolean procedure contains(T value);
+    T procedure get(integer index);
+    procedure set(integer index, T value);
+    iterator(T) procedure iterator;
+    ref(Object) procedure tojava;
+
+    external procedure fromjava(ref(Object) value)
+end;
+```
+
+The exact generic/class spelling may evolve, but the interface shape matters:
+
+- `append`, `insert`, `remove`, `contains`, `clear`, and indexed access belong to the Perseus collection surface
+- `iterator` is the bridge to `for ... in ... do`
+- `tojava` / `fromjava` or equivalent helpers make Java-boundary conversion explicit without forcing users to work with raw Java collections directly
+
 ##### 3.2 Map (associative array / dictionary)
 ```algol
 map string real scores;
@@ -214,6 +245,26 @@ for score in scores.values() do print(score);
 // Literal
 scores := map("Alice": 95.5, "Bob": 87.0);
 ```
+
+**Intended standard-library interface shape**:
+```algol
+class map(K, V);
+begin
+    integer procedure size;
+    procedure clear;
+    boolean procedure contains(K key);
+    V procedure get(K key);
+    procedure put(K key, V value);
+    V procedure remove(K key);
+    vector(K) procedure keys;
+    vector(V) procedure values;
+    ref(Object) procedure tojava;
+
+    external procedure fromjava(ref(Object) value)
+end;
+```
+
+This keeps the user-facing map model in Perseus terms even if the underlying storage continues to be a Java `LinkedHashMap` or `Map`.
 
 ##### 3.3 Set
 ```algol
@@ -232,6 +283,24 @@ uniques := {1, 2, 3};
 
 for val in uniques do print(val);
 ```
+
+**Intended standard-library interface shape**:
+```algol
+class set(T);
+begin
+    integer procedure size;
+    procedure clear;
+    procedure insert(T value);
+    boolean procedure contains(T value);
+    boolean procedure remove(T value);
+    iterator(T) procedure iterator;
+    ref(Object) procedure tojava;
+
+    external procedure fromjava(ref(Object) value)
+end;
+```
+
+Again, the exact class/type-parameter spelling may change, but the key design point is that Perseus should present its own set interface while reusing Java-backed storage underneath.
 
 **Literals summary**:
 - Vector / array literal: `[1, 2, 3]`
@@ -281,6 +350,8 @@ The exact helper names and typing surface can evolve, but the design direction s
 - external Java methods that return collection values should be easy to bring into ordinary Perseus collection use
 - Perseus collections should be easy to hand back to Java APIs
 - `vector` should interoperate through `java.util.List` at external Java procedure boundaries
+- `map` should interoperate through ordinary Java `Map` implementations at external boundaries
+- `set` should interoperate through ordinary Java `Set` implementations at external boundaries
 - common conversions should live in the standard library rather than requiring custom boilerplate in each user program
 
 #### 4. Full Example in Perseus
