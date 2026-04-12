@@ -208,6 +208,8 @@ if scores.contains("Alice") then
     print(scores["Alice"]);
 removed := scores.remove("Bob");
 scores.clear();
+for key in scores.keys() do print(key);
+for score in scores.values() do print(score);
 
 // Literal
 scores := map("Alice": 95.5, "Bob": 87.0);

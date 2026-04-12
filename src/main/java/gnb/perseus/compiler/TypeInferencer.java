@@ -635,6 +635,24 @@ public class TypeInferencer extends PerseusBaseListener {
                 }
                 return "integer";
             }
+            if ("keys".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "map keys requires call syntax");
+                }
+                if (!argTypes.isEmpty()) {
+                    raiseMemberError(ctxForError, "PERS2010", "map keys() does not take arguments");
+                }
+                return "set:" + keyType;
+            }
+            if ("values".equals(memberName)) {
+                if (!explicitCall) {
+                    raiseMemberError(ctxForError, "PERS2010", "map values requires call syntax");
+                }
+                if (!argTypes.isEmpty()) {
+                    raiseMemberError(ctxForError, "PERS2010", "map values() does not take arguments");
+                }
+                return "iterable:" + valueType;
+            }
             raiseMemberError(ctxForError, "PERS2010", "Unknown map member: " + memberName);
         }
         if (receiverType.startsWith("set:")) {

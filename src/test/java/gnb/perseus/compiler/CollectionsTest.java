@@ -214,6 +214,31 @@ public class CollectionsTest extends CompilerTest {
     }
 
     @Test
+    public void map_iteration_test() throws Exception {
+        Path jasminFile = PerseusCompiler.compileToFile(
+                "test/algol/core/map_iteration.alg",
+                "gnb/perseus/programs",
+                "MapIterationTest",
+                BUILD_DIR);
+        String jasminSource = Files.readString(jasminFile);
+
+        assertFalse(jasminSource.startsWith("ERROR"),
+                "Compilation should not produce an error: " + jasminSource.substring(0, Math.min(200, jasminSource.length())));
+        assertTrue(jasminSource.contains("invokeinterface java/util/Map/keySet()Ljava/util/Set; 1"),
+                "Map key iteration should lower through Map.keySet()");
+        assertTrue(jasminSource.contains("invokeinterface java/util/Map/values()Ljava/util/Collection; 1"),
+                "Map value iteration should lower through Map.values()");
+        assertTrue(jasminSource.contains("invokeinterface java/lang/Iterable/iterator()Ljava/util/Iterator; 1"),
+                "Map key/value views should flow through the shared iterable lowering");
+
+        PerseusCompiler.assemble(jasminFile, BUILD_DIR);
+
+        String output = runClass(BUILD_DIR, "gnb.perseus.programs.MapIterationTest");
+        assertEquals("alphabeta 6", output.trim().replaceAll("\\s+", " "),
+                "Map keys() and values() should support for-in traversal over the Java-backed map views");
+    }
+
+    @Test
     public void set_basic_test() throws Exception {
         Path jasminFile = PerseusCompiler.compileToFile(
                 "test/algol/core/set_basic.alg",

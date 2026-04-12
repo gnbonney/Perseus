@@ -126,6 +126,7 @@ The current intended order is:
 - Non-empty `vector` literals such as `[1, 2, 3]` now work as the first collection-literal slice, with homogeneous element typing and mixed `integer`/`real` inference to `vector real`.
 - The basic Java-backed `vector` surface now also includes `insert`, `remove`, `contains`, and `clear` in addition to the original append/index/size operations.
 - A first Java-backed `map` slice now also exists with declarations, keyed lookup and assignment, `contains`, `remove`, `clear`, and `size`/`length(...)`, backed concretely by `java.util.LinkedHashMap`.
+- The current map slice also exposes `keys()` and `values()` views so `for ... in ... do` can traverse Java-backed map keys and values through the shared iterable lowering.
 - A first Java-backed `set` slice now also exists with declarations, deduplicating `insert`, `contains`, `remove`, `clear`, `size`/`length(...)`, and direct `for ... in ... do` traversal, backed concretely by `java.util.LinkedHashSet`.
 - The preferred order for the rest of the milestone is to finish the `vector` and iterator/interop path first, then add `map` and `set` as later follow-on collection slices.
 - Collection implementations should be based on Java runtime collections rather than a separate Perseus-native storage/runtime hierarchy.

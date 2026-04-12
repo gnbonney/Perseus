@@ -1993,14 +1993,17 @@ public class CodeGenerator extends PerseusBaseListener {
             String varName, Integer varIndex, String varType, boolean isStaticScalar, String afterAllLabel) {
         String iterableType = inferIterableType(inClause.expr());
         boolean javaIterable = isJavaIterableReferenceType(iterableType);
+        boolean typedIterable = iterableType != null && iterableType.startsWith("iterable:");
         boolean setIterable = iterableType != null && iterableType.startsWith("set:");
-        if (iterableType == null || (!iterableType.endsWith("[]") && !iterableType.startsWith("vector:") && !setIterable && !javaIterable)) {
-            activeOutput.append("; ERROR: for ... in ... do currently requires an array, vector, set, or Java Iterable value\n");
+        if (iterableType == null || (!iterableType.endsWith("[]") && !iterableType.startsWith("vector:") && !setIterable && !typedIterable && !javaIterable)) {
+            activeOutput.append("; ERROR: for ... in ... do currently requires an array, vector, set, typed iterable, or Java Iterable value\n");
             return;
         }
 
         String elementType = javaIterable
                 ? effectiveIterationVariableType(varType)
+                : typedIterable
+                ? iterableType.substring("iterable:".length())
                 : setIterable
                 ? iterableType.substring("set:".length())
                 : iterableType.startsWith("vector:")
@@ -2019,14 +2022,10 @@ public class CodeGenerator extends PerseusBaseListener {
         activeOutput.append(generateExpr(inClause.expr()));
         activeOutput.append("astore ").append(iterableSlot).append("\n");
 
-        if (javaIterable || setIterable) {
+        if (javaIterable || setIterable || typedIterable) {
             int iteratorSlot = allocateNewLocal("iterator");
             activeOutput.append("aload ").append(iterableSlot).append("\n");
-            if (setIterable) {
-                activeOutput.append("checkcast java/lang/Iterable\n");
-            } else {
-                activeOutput.append("checkcast java/lang/Iterable\n");
-            }
+            activeOutput.append("checkcast java/lang/Iterable\n");
             activeOutput.append("invokeinterface java/lang/Iterable/iterator()Ljava/util/Iterator; 1\n");
             activeOutput.append("astore ").append(iteratorSlot).append("\n");
             activeOutput.append(loopLabel).append(":\n");
@@ -4046,6 +4045,20 @@ public class CodeGenerator extends PerseusBaseListener {
                 }
                 return sb.toString();
             }
+            if ("keys".equals(memberName)) {
+                if (!args.isEmpty()) {
+                    return "; ERROR: map keys() does not take arguments\n";
+                }
+                sb.append("invokeinterface java/util/Map/keySet()Ljava/util/Set; 1\n");
+                return sb.toString();
+            }
+            if ("values".equals(memberName)) {
+                if (!args.isEmpty()) {
+                    return "; ERROR: map values() does not take arguments\n";
+                }
+                sb.append("invokeinterface java/util/Map/values()Ljava/util/Collection; 1\n");
+                return sb.toString();
+            }
             return "; ERROR: unknown map member " + memberName + "\n";
         }
         if (receiverType.startsWith("set:")) {
@@ -5266,7 +5279,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     private static boolean isObjectType(String type) {
         return "string".equals(type)
-                || (type != null && (type.startsWith("ref:") || type.startsWith("vector:") || type.startsWith("map:") || type.startsWith("procedure:")));
+                || (type != null && (type.startsWith("ref:") || type.startsWith("vector:") || type.startsWith("map:") || type.startsWith("iterable:") || type.startsWith("procedure:")));
     }
 
     private String getProcedureInterfaceDescriptor(String procType) {

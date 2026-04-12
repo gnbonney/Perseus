@@ -86,11 +86,11 @@ Perseus now also includes a first Java-backed associative collection type:
 - runtime model: Java-backed key/value storage
 - JVM runtime shape: concrete `java.util.LinkedHashMap`
 - indexing: `scores["Alice"]` and `scores["Alice"] := 95.5`
-- basic operations: `scores.contains(key)`, `scores.remove(key)`, `scores.clear()`
+- basic operations: `scores.contains(key)`, `scores.remove(key)`, `scores.clear()`, `scores.keys()`, `scores.values()`
 - size access: `length(scores)`, `scores.size`, or `scores.size()`
 
 This first map slice is intentionally narrower than the full design in the collections spec. It provides Java-backed declarations, keyed lookup and update, and a small set of basic operations, while leaving map literals and richer iteration behavior as follow-on work.
-This first map slice also includes constructor-style literals such as `map("Alice": 95.5, "Bob": 87.0)`, which keep set notation free to use ordinary braces.
+This first map slice also includes constructor-style literals such as `map("Alice": 95.5, "Bob": 87.0)`, which keep set notation free to use ordinary braces, and it now exposes iterable `keys()` / `values()` views so maps can participate more naturally in `for ... in ... do`.
 
 ## Sets
 
