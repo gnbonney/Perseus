@@ -68,20 +68,24 @@ public class CodeGenerator extends PerseusBaseListener {
 
     // --- Current context (swapped when entering/exiting procedures) ---
     private Map<String, String> currentSymbolTable;
+    private Map<String, Type> currentSymbolTableTypes;
     private Map<String, Integer> currentLocalIndex;
     private int currentNumLocals;
     private Map<String, int[]> currentArrayBounds;
     private Map<String, List<int[]>> currentArrayBoundPairs;
     private final Map<String, String> rootMainSymbolTable;
+    private final Map<String, Type> rootMainSymbolTableTypes;
     private final Map<String, Integer> rootMainLocalIndex;
 
     // --- Saved outer context (one entry per active nested procedure level) ---
     private Map<String, String>  mainSymbolTable;
+    private Map<String, Type>    mainSymbolTableTypes;
     private Map<String, Integer> mainLocalIndex;
     private int                  mainNumLocals;
     private Map<String, int[]>   mainArrayBounds;
     private Map<String, List<int[]>> mainArrayBoundPairs;
     private final Deque<Map<String, String>>  savedOuterSTStack     = new LinkedList<>();
+    private final Deque<Map<String, Type>>    savedOuterTypedSTStack = new LinkedList<>();
     private final Deque<Map<String, Integer>> savedOuterLIStack     = new LinkedList<>();
     private final Deque<Integer>              savedOuterNLStack     = new LinkedList<>();
     private final Deque<Map<String, int[]>>   savedOuterABStack     = new LinkedList<>();
@@ -101,6 +105,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
     // Maps expression contexts to their inferred types ("integer" or "real")
     private final Map<PerseusParser.ExprContext, String> exprTypes;
+    private final Map<PerseusParser.ExprContext, Type> exprTypesInfo;
 
     // --- Output buffers ---
     private final StringBuilder classHeader = new StringBuilder();
@@ -171,8 +176,10 @@ public class CodeGenerator extends PerseusBaseListener {
             new ExceptionBindingState("", null, null, -1);
 
     public CodeGenerator(String source, String packageName, String classPackageName, String className,
-                         Map<String, String> symbolTable, Map<String, Integer> localIndex, int numLocals,
-                         Map<PerseusParser.ExprContext, String> exprTypes, Map<String, int[]> arrayBounds,
+                         Map<String, String> symbolTable, Map<String, Type> typedSymbolTable,
+                         Map<String, Integer> localIndex, int numLocals,
+                         Map<PerseusParser.ExprContext, String> exprTypes,
+                         Map<PerseusParser.ExprContext, Type> typedExprTypes, Map<String, int[]> arrayBounds,
                          Map<String, List<int[]>> arrayBoundPairs,
                          Map<String, SymbolTableBuilder.ProcInfo> procedures,
                          Map<String, SymbolTableBuilder.ClassInfo> classes,
@@ -185,6 +192,7 @@ public class CodeGenerator extends PerseusBaseListener {
         this.classPackageName = classPackageName != null && !classPackageName.isBlank() ? classPackageName : packageName;
         this.className = className;
         this.exprTypes = exprTypes;
+        this.exprTypesInfo = typedExprTypes;
         this.procedures = procedures;
         this.classes = classes != null ? classes : Map.of();
         this.switchDeclarations = switchDeclarations != null ? switchDeclarations : Map.of();
@@ -192,8 +200,10 @@ public class CodeGenerator extends PerseusBaseListener {
         this.externalJavaClasses = externalJavaClasses != null ? externalJavaClasses : Map.of();
         this.externalJavaStaticValues = externalJavaStaticValues != null ? externalJavaStaticValues : Map.of();
         this.rootMainSymbolTable = symbolTable;
+        this.rootMainSymbolTableTypes = typedSymbolTable;
         this.rootMainLocalIndex = localIndex;
         this.currentSymbolTable = symbolTable;
+        this.currentSymbolTableTypes = typedSymbolTable;
         this.currentLocalIndex  = localIndex;
         this.currentNumLocals   = numLocals;
         this.currentArrayBounds = arrayBounds;
@@ -315,6 +325,48 @@ public class CodeGenerator extends PerseusBaseListener {
         return className + "$Class$" + simpleClassName;
     }
 
+    private Type lookupSymbolTypeInfo(String name) {
+        Type type = currentSymbolTableTypes != null ? currentSymbolTableTypes.get(name) : null;
+        if (type == null && mainSymbolTableTypes != null) {
+            type = mainSymbolTableTypes.get(name);
+        }
+        if (type == null && rootMainSymbolTableTypes != null) {
+            type = rootMainSymbolTableTypes.get(name);
+        }
+        return type;
+    }
+
+    private String lookupSymbolType(String name) {
+        Type typed = lookupSymbolTypeInfo(name);
+        if (typed != null) {
+            return typed.toLegacyString();
+        }
+        String type = currentSymbolTable != null ? currentSymbolTable.get(name) : null;
+        if (type == null && mainSymbolTable != null) {
+            type = mainSymbolTable.get(name);
+        }
+        if (type == null && rootMainSymbolTable != null) {
+            type = rootMainSymbolTable.get(name);
+        }
+        return type;
+    }
+
+    private Type exprTypeInfo(PerseusParser.ExprContext expr, Type defaultType) {
+        if (expr == null) {
+            return defaultType;
+        }
+        Type type = exprTypesInfo != null ? exprTypesInfo.get(expr) : null;
+        return type != null ? type : defaultType;
+    }
+
+    private String exprTypeTag(PerseusParser.ExprContext expr, String defaultType) {
+        Type typed = exprTypeInfo(expr, defaultType != null ? Type.parse(defaultType) : null);
+        if (typed != null) {
+            return typed.toLegacyString();
+        }
+        return exprTypes.getOrDefault(expr, defaultType);
+    }
+
     @Override
     public void enterProgram(PerseusParser.ProgramContext ctx) {
         mainHadExecutableStatements = false;
@@ -325,20 +377,20 @@ public class CodeGenerator extends PerseusBaseListener {
                    .append(".super java/lang/Object\n\n");
 
         // Emit static field declarations for arrays (must appear BEFORE methods in Jasmin)
-        for (Map.Entry<String, String> symEntry : currentSymbolTable.entrySet()) {
+        for (Map.Entry<String, Type> symEntry : currentSymbolTableTypes.entrySet()) {
             String arrName = symEntry.getKey();
-            String arrType = symEntry.getValue();
-            if (arrType.endsWith("[]")) {
+            Type arrType = symEntry.getValue();
+            if (arrType != null && arrType.isArray()) {
                 classHeader.append(".field public static ").append(arrName)
                            .append(" ").append(arrayTypeToJvmDesc(arrType)).append("\n");
             }
         }
 
         // Emit static field declarations for scalars (must appear BEFORE methods in Jasmin)
-        for (Map.Entry<String, String> symEntry : currentSymbolTable.entrySet()) {
+        for (Map.Entry<String, Type> symEntry : currentSymbolTableTypes.entrySet()) {
             String varName = symEntry.getKey();
-            String varType = symEntry.getValue();
-            if (!varType.endsWith("[]") && !varType.startsWith("procedure:")) {
+            Type varType = symEntry.getValue();
+            if (varType != null && !varType.isArray() && !varType.isProcedure()) {
                 classHeader.append(".field public static ").append(varName)
                            .append(" ").append(scalarTypeToJvmDesc(varType)).append("\n");
             }
@@ -347,13 +399,13 @@ public class CodeGenerator extends PerseusBaseListener {
         // Emit static fields for all procedure-typed variables (even in nested scopes) so
         // they can be referenced via getstatic/putstatic from generated call-by-name and
         // procedure-variable code.
-        for (Map.Entry<String, String> symEntry : currentSymbolTable.entrySet()) {
+        for (Map.Entry<String, Type> symEntry : currentSymbolTableTypes.entrySet()) {
             String varName = symEntry.getKey();
-            String varType = symEntry.getValue();
-            if (varType != null && varType.startsWith("procedure:")) {
+            Type varType = symEntry.getValue();
+            if (varType != null && varType.isProcedure()) {
                 String desc = getProcedureInterfaceDescriptor(varType);
                 classHeader.append(".field public static ")
-                           .append(staticFieldName(varName, varType)).append(" ").append(desc).append("\n");
+                           .append(staticFieldName(varName, varType.toLegacyString())).append(" ").append(desc).append("\n");
             }
         }
 
@@ -419,30 +471,30 @@ public class CodeGenerator extends PerseusBaseListener {
                 .append(".limit locals 64\n"); // TODO: calculate required locals
 
         // Initialize scalars as static fields (putstatic)
-        for (Map.Entry<String, String> symEntry : currentSymbolTable.entrySet()) {
+        for (Map.Entry<String, Type> symEntry : currentSymbolTableTypes.entrySet()) {
             String varName = symEntry.getKey();
-            String type = symEntry.getValue();
-            if (!type.endsWith("[]") && !type.startsWith("procedure:")) {
+            Type type = symEntry.getValue();
+            if (type != null && !type.isArray() && !type.isProcedure()) {
                 // Scalar variable: initialize via putstatic
-                if (type.startsWith("vector:")) {
+                if (type.isVector()) {
                     mainCode.append("new java/util/ArrayList\n")
                             .append("dup\n")
                             .append("invokespecial java/util/ArrayList/<init>()V\n");
-                } else if (type.startsWith("map:")) {
+                } else if (type.isMap()) {
                     mainCode.append("new java/util/LinkedHashMap\n")
                             .append("dup\n")
                             .append("invokespecial java/util/LinkedHashMap/<init>()V\n");
-                } else if (type.startsWith("set:")) {
+                } else if (type.isSet()) {
                     mainCode.append("new java/util/LinkedHashSet\n")
                             .append("dup\n")
                             .append("invokespecial java/util/LinkedHashSet/<init>()V\n");
-                } else if ("integer".equals(type) || "boolean".equals(type)) {
+                } else if (Type.INTEGER.equals(type) || Type.BOOLEAN.equals(type)) {
                     mainCode.append("iconst_0\n");
-                } else if ("real".equals(type)) {
+                } else if (Type.REAL.equals(type)) {
                     mainCode.append("dconst_0\n");
-                } else if ("string".equals(type)) {
+                } else if (Type.STRING.equals(type)) {
                     mainCode.append("ldc \"\"\n");
-                } else if (type != null && type.startsWith("ref:")) {
+                } else if (type.isRef()) {
                     mainCode.append("aconst_null\n");
                 }
                 mainCode.append("putstatic ").append(packageName).append("/").append(className)
@@ -453,33 +505,33 @@ public class CodeGenerator extends PerseusBaseListener {
         // Initialize procedure variables to self-referential ProcRef objects.
         // This ensures that a call to the procedure before any assignment uses the
         // declared procedure implementation (Algol's bindable procedure semantics).
-        for (Map.Entry<String, String> symEntry : currentSymbolTable.entrySet()) {
+        for (Map.Entry<String, Type> symEntry : currentSymbolTableTypes.entrySet()) {
             String varName = symEntry.getKey();
-            String type = symEntry.getValue();
-            if (type != null && type.startsWith("procedure:") && procedures.containsKey(varName)) {
+            Type type = symEntry.getValue();
+            if (type != null && type.isProcedure() && procedures.containsKey(varName)) {
                 mainCode.append(generateProcedureReference(varName, procedures.get(varName)));
                 mainCode.append("putstatic ")
                         .append(packageName).append("/").append(className)
-                        .append("/").append(staticFieldName(varName, type)).append(" ")
+                        .append("/").append(staticFieldName(varName, type.toLegacyString())).append(" ")
                         .append(getProcedureInterfaceDescriptor(type)).append("\n");
             }
         }
 
         // Initialize arrays as static fields (newarray + putstatic)
-        for (Map.Entry<String, String> symEntry : currentSymbolTable.entrySet()) {
+        for (Map.Entry<String, Type> symEntry : currentSymbolTableTypes.entrySet()) {
             String varName = symEntry.getKey();
-            String type = symEntry.getValue();
-            if (!type.endsWith("[]")) continue;
+            Type type = symEntry.getValue();
+            if (type == null || !type.isArray()) continue;
             List<int[]> bounds = lookupDeclaredArrayBoundPairs(varName);
             if (bounds == null || bounds.isEmpty()) continue;
             int size = computeFlattenedArraySize(bounds);
-            boolean isRefArray = type.startsWith("ref:") && type.endsWith("[]");
+            boolean isRefArray = type.elementType() != null && type.elementType().isRef();
             String elemType = isRefArray ? "java/lang/Object"
-                    : "real[]".equals(type) ? "double"
-                    : "boolean[]".equals(type) ? "boolean"
-                    : "string[]".equals(type) ? "java/lang/String"
+                    : Type.REAL.equals(type.elementType()) ? "double"
+                    : Type.BOOLEAN.equals(type.elementType()) ? "boolean"
+                    : Type.STRING.equals(type.elementType()) ? "java/lang/String"
                     : "int";
-            String newarrayInstr = ("string[]".equals(type) || isRefArray) ? "anewarray" : "newarray";
+            String newarrayInstr = (Type.STRING.equals(type.elementType()) || isRefArray) ? "anewarray" : "newarray";
             mainCode.append("ldc ").append(size).append("\n")
                     .append(newarrayInstr).append(" ").append(elemType).append("\n")
                     .append("putstatic ").append(packageName).append("/").append(className)
@@ -545,6 +597,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
         // Save outer context before making current context the new "outer" (supports nesting)
         savedOuterSTStack.push(mainSymbolTable);
+        savedOuterTypedSTStack.push(mainSymbolTableTypes);
         savedOuterLIStack.push(mainLocalIndex);
         savedOuterNLStack.push(mainNumLocals);
         savedOuterABStack.push(mainArrayBounds);
@@ -560,6 +613,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
         // Make the current scope the new "outer" scope
         mainSymbolTable   = currentSymbolTable;
+        mainSymbolTableTypes = currentSymbolTableTypes;
         mainLocalIndex    = currentLocalIndex;
         mainNumLocals     = currentNumLocals;
         mainArrayBounds   = currentArrayBounds;
@@ -575,6 +629,7 @@ public class CodeGenerator extends PerseusBaseListener {
         currentArrayParamBoundSlots = new LinkedHashMap<>();
 
         Map<String, String>  procST = new LinkedHashMap<>();
+        Map<String, Type>    procSTTypes = new LinkedHashMap<>();
         Map<String, Integer> procLI = new LinkedHashMap<>();
         int nextSlot = 0;
 
@@ -589,6 +644,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 paramType = "thunk:" + baseType;
             }
             procST.put(paramName, paramType);
+            procSTTypes.put(paramName, Type.parse(paramType));
             procLI.put(paramName, nextSlot);
             if (paramType.endsWith("[]")) {
                 int lowerSlot = nextSlot + 1;
@@ -605,6 +661,7 @@ public class CodeGenerator extends PerseusBaseListener {
             String varName = local.getKey();
             String varType = local.getValue();
             procST.put(varName, varType);
+            procSTTypes.put(varName, info.typedLocalVars.getOrDefault(varName, Type.parse(varType)));
             if (info.ownVars.contains(varName)) {
                 // own locals persist across re-entry, so represent them as class statics
                 // rather than per-activation JVM locals.
@@ -627,11 +684,13 @@ public class CodeGenerator extends PerseusBaseListener {
             selfRefSlot = nextSlot;
             nextSlot++;
             procST.put(procName, "procedure:" + info.returnType);
+            procSTTypes.put(procName, Type.procedure(info.returnTypeInfo));
             procLI.put(procName, selfRefSlot);
         }
         int procNumLocals = nextSlot;
 
         currentSymbolTable   = procST;
+        currentSymbolTableTypes = procSTTypes;
         currentLocalIndex    = procLI;
         currentNumLocals     = procNumLocals;
         currentArrayBounds   = new LinkedHashMap<>();
@@ -778,30 +837,31 @@ public class CodeGenerator extends PerseusBaseListener {
         for (Map.Entry<String, Integer> e : procLI.entrySet()) {
             if (info.paramNames.contains(e.getKey())) continue; // params set by caller
             if (e.getKey().equals(procName)) continue; // self-ref slot initialized below
-            String varType = procST.get(e.getKey());
+            Type varTypeInfo = procSTTypes.get(e.getKey());
+            String varType = varTypeInfo != null ? varTypeInfo.toLegacyString() : procST.get(e.getKey());
             int slot = e.getValue();
-            if ("real".equals(varType) || "deferred".equals(varType)) {
+            if (Type.REAL.equals(varTypeInfo) || Type.DEFERRED.equals(varTypeInfo)) {
                 activeOutput.append("dconst_0\n"); emitStore("dstore", slot);
-            } else if (varType != null && varType.startsWith("vector:")) {
+            } else if (varTypeInfo != null && varTypeInfo.isVector()) {
                 activeOutput.append("new java/util/ArrayList\n");
                 activeOutput.append("dup\n");
                 activeOutput.append("invokespecial java/util/ArrayList/<init>()V\n");
                 emitStore("astore", slot);
-            } else if (varType != null && varType.startsWith("map:")) {
+            } else if (varTypeInfo != null && varTypeInfo.isMap()) {
                 activeOutput.append("new java/util/LinkedHashMap\n");
                 activeOutput.append("dup\n");
                 activeOutput.append("invokespecial java/util/LinkedHashMap/<init>()V\n");
                 emitStore("astore", slot);
-            } else if (varType != null && varType.startsWith("set:")) {
+            } else if (varTypeInfo != null && varTypeInfo.isSet()) {
                 activeOutput.append("new java/util/LinkedHashSet\n");
                 activeOutput.append("dup\n");
                 activeOutput.append("invokespecial java/util/LinkedHashSet/<init>()V\n");
                 emitStore("astore", slot);
-            } else if ("string".equals(varType)) {
+            } else if (Type.STRING.equals(varTypeInfo)) {
                 activeOutput.append("ldc \"\"\n"); emitStore("astore", slot);
-            } else if (varType != null && varType.startsWith("ref:")) {
+            } else if (varTypeInfo != null && varTypeInfo.isRef()) {
                 activeOutput.append("aconst_null\n"); emitStore("astore", slot);
-            } else if (varType != null && varType.startsWith("procedure:")) {
+            } else if (varTypeInfo != null && varTypeInfo.isProcedure()) {
                 activeOutput.append("aconst_null\n"); emitStore("astore", slot);
             } else {
                 activeOutput.append("iconst_0\n"); emitStore("istore", slot);
@@ -968,12 +1028,14 @@ public class CodeGenerator extends PerseusBaseListener {
 
         // Restore context (supports nested procedures via saved stacks)
         currentSymbolTable    = mainSymbolTable;
+        currentSymbolTableTypes = mainSymbolTableTypes;
         currentLocalIndex     = mainLocalIndex;
         currentNumLocals      = mainNumLocals;
         currentArrayBounds    = mainArrayBounds;
         currentArrayBoundPairs = mainArrayBoundPairs;
         activeOutput          = procBufferStack.isEmpty() ? mainCode : procBufferStack.peek();
         mainSymbolTable       = savedOuterSTStack.pop();
+        mainSymbolTableTypes  = savedOuterTypedSTStack.pop();
         mainLocalIndex        = savedOuterLIStack.pop();
         mainNumLocals         = savedOuterNLStack.pop();
         mainArrayBounds       = savedOuterABStack.pop();
@@ -1247,20 +1309,21 @@ public class CodeGenerator extends PerseusBaseListener {
             Integer idx = currentLocalIndex.get(name);
             if (idx == null && mainLocalIndex != null) idx = mainLocalIndex.get(name);
             String varType = currentSymbolTable.get(name);
-            if (varType == null && mainSymbolTable != null) varType = mainSymbolTable.get(name);
             boolean resolvedFromRootMain = false;
+            if (varType == null && mainSymbolTable != null) {
+                varType = mainSymbolTable.get(name);
+            }
             if (idx == null && rootMainLocalIndex != null && rootMainLocalIndex.containsKey(name)) {
                 idx = rootMainLocalIndex.get(name);
                 resolvedFromRootMain = true;
             }
             if (varType == null && rootMainSymbolTable != null) {
                 varType = rootMainSymbolTable.get(name);
-                resolvedFromRootMain = varType != null || resolvedFromRootMain;
+                if (varType != null) {
+                    resolvedFromRootMain = true;
+                }
             }
             System.out.println("DEBUG: assignment target '" + name + "' resolvedIdx=" + idx + " varType=" + varType + " currentProc=" + currentProcName);
-            if (varType == null && mainSymbolTable != null) {
-                varType = mainSymbolTable.get(name);
-            }
             boolean isCallByNameParam = false;
             if (currentProcName != null) {
                 SymbolTableBuilder.ProcInfo currInfo = procedures.get(currentProcName);
@@ -2510,7 +2573,9 @@ public class CodeGenerator extends PerseusBaseListener {
         }
         if (type == null && rootMainSymbolTable != null) {
             type = rootMainSymbolTable.get(name);
-            resolvedFromRootMain = type != null || resolvedFromRootMain;
+            if (type != null) {
+                resolvedFromRootMain = true;
+            }
         }
         if (type == null) {
             type = capturedClosureType(name);
@@ -3416,7 +3481,15 @@ public class CodeGenerator extends PerseusBaseListener {
         return CodeGenUtils.arrayTypeToJvmDesc(arrayType);
     }
 
+    private static String arrayTypeToJvmDesc(Type arrayType) {
+        return CodeGenUtils.arrayTypeToJvmDesc(arrayType);
+    }
+
     private static String scalarTypeToJvmDesc(String scalarType) {
+        return CodeGenUtils.scalarTypeToJvmDesc(scalarType);
+    }
+
+    private static String scalarTypeToJvmDesc(Type scalarType) {
         return CodeGenUtils.scalarTypeToJvmDesc(scalarType);
     }
 
@@ -5223,6 +5296,7 @@ public class CodeGenerator extends PerseusBaseListener {
         procedures.put(procName, procInfo);
 
         Map<String, String> savedSymbolTable = currentSymbolTable;
+        Map<String, Type> savedSymbolTableTypes = currentSymbolTableTypes;
         Map<String, Integer> savedLocalIndex = currentLocalIndex;
         int savedNumLocals = currentNumLocals;
         String savedProcName = currentProcName;
@@ -5234,6 +5308,7 @@ public class CodeGenerator extends PerseusBaseListener {
         StringBuilder method = new StringBuilder();
         activeOutput = method;
         currentSymbolTable = new LinkedHashMap<>();
+        currentSymbolTableTypes = new LinkedHashMap<>();
         currentLocalIndex = new LinkedHashMap<>();
         currentNumLocals = 0;
         currentProcName = null;
@@ -5266,6 +5341,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
         activeOutput = savedActiveOutput;
         currentSymbolTable = savedSymbolTable;
+        currentSymbolTableTypes = savedSymbolTableTypes;
         currentLocalIndex = savedLocalIndex;
         currentNumLocals = savedNumLocals;
         currentProcName = savedProcName;
@@ -5283,6 +5359,10 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private String getProcedureInterfaceDescriptor(String procType) {
+        return CodeGenUtils.getProcedureInterfaceDescriptor(procType);
+    }
+
+    private String getProcedureInterfaceDescriptor(Type procType) {
         return CodeGenUtils.getProcedureInterfaceDescriptor(procType);
     }
 

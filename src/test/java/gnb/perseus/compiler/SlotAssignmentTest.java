@@ -24,12 +24,15 @@ public class SlotAssignmentTest {
         // to procedure variables and verifies CodeGenerator uses them.
         
         Map<String, String> symbolTable = new HashMap<>();
+        Map<String, Type> typedSymbolTable = new HashMap<>();
         Map<String, Integer> localIndex = new HashMap<>();
         Map<String, Integer> procVarSlots = new HashMap<>();
         
         // Setup variables and procedure variables
         symbolTable.put("x", "integer");
         symbolTable.put("P", "procedure:void");
+        typedSymbolTable.put("x", Type.INTEGER);
+        typedSymbolTable.put("P", Type.procedure(Type.VOID));
         
         // Simulate slot assignment logic
         int nextLocal = 1;
@@ -43,8 +46,10 @@ public class SlotAssignmentTest {
         // Create CodeGenerator with these results
         CodeGenerator codegen = new CodeGenerator(
             "test.alg", "test", null, "Test",
-            symbolTable, localIndex, nextLocal,
-            new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(),
+            symbolTable, typedSymbolTable, localIndex, nextLocal,
+            new HashMap<>(), new HashMap<>(),
+            new HashMap<>(), new HashMap<>(),
+            new HashMap<>(), new HashMap<>(), new HashMap<>(),
             procVarSlots, new HashMap<>(), new HashMap<>()
         );
         

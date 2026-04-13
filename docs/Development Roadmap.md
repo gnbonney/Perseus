@@ -136,8 +136,11 @@ The current intended order is:
 **Goal:** Add a first generics system strong enough to support real reusable library abstractions, especially collection classes such as `Vector[T]`, `Map[K, V]`, and `Set[T]` (see [Generics Design Spec.md](Generics%20Design%20Spec.md)).
 
 - [x] Introduce a structured internal `Type` model in the compiler rather than continuing to rely on ad hoc string tags
-- [ ] Migrate existing scalar, `ref`, array, procedure, and current collection-type handling onto that structured type model
-- [ ] Add focused regression coverage for the structured-type-model migration so existing typing behavior stays stable
+- [x] Move the compiler's main symbol-table and expression-type storage onto the structured `Type` model
+- [x] Carry structured `Type` information into procedure, method, class, and external-value metadata
+- [x] Thread structured `Type` information into the main code-generation context and descriptor helpers
+- [ ] Migrate the remaining code-generation paths away from legacy string-tagged type checks and onto `Type`
+- [x] Add focused regression coverage for the structured-type-model migration so existing typing behavior stays stable
 - [ ] Add parser support for generic class declarations with bracketed type parameters such as `class Vector[T];`
 - [ ] Add parser support for generic type uses such as `ref(Vector[integer])`
 - [ ] Add symbol-table and semantic-analysis support for generic type parameters and generic class members
@@ -150,9 +153,7 @@ The current intended order is:
 - The preferred surface is bracketed type arguments such as `Vector[integer]` rather than a more symbolic or Java-specific notation.
 - The recommended runtime strategy is erased generics on the JVM.
 - The work should proceed in two stages within the milestone: first replace the current string-heavy type bookkeeping with a structured internal representation, then add the generic surface and lowering on top of that foundation.
-- A first implementation slice has already introduced a real internal `Type` model and moved the compiler's main symbol-table and expression-type storage onto it.
-- A second implementation slice has moved typed information into procedure/class metadata as well, so semantic analysis no longer depends only on string-tagged metadata.
-- That migration is not finished yet: much of code generation still flows through a temporary legacy-string bridge while the rest of the compiler is converted.
+- The remaining migration work is now concentrated mainly in the deeper code-generation paths, where many instruction-selection decisions still depend on legacy string tags.
 
 ## Milestone 45 - Collection Classes, Iterators, and Library Ownership
 

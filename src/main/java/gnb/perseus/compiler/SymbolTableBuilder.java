@@ -303,6 +303,7 @@ public class SymbolTableBuilder extends PerseusBaseListener {
                     String paramName = id.getText();
                     proc.paramNames.add(paramName);
                     proc.paramTypes.put(paramName, actualBaseType);
+                    proc.typedParamTypes.put(paramName, Type.parse(actualBaseType));
                     proc.valueParams.add(paramName);
                     if (isArrayType) {
                         proc.arrayParams.add(paramName);

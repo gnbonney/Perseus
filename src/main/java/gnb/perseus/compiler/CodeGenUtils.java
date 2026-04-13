@@ -10,74 +10,89 @@ public class CodeGenUtils {
     }
 
     public static String arrayTypeToJvmDesc(String type) {
+        return arrayTypeToJvmDesc(type != null ? Type.parse(type) : null);
+    }
+
+    public static String arrayTypeToJvmDesc(Type type) {
         if (type == null) return "[I";
-        if (type.startsWith("ref:") && type.endsWith("[]")) return "[Ljava/lang/Object;";
-        return switch (type) {
-            case "boolean[]" -> "[Z";
-            case "integer[]" -> "[I";
-            case "real[]"    -> "[D";
-            case "string[]"  -> "[Ljava/lang/String;";
+        if (!type.isArray()) return "[I";
+        Type elementType = type.elementType();
+        if (elementType != null && elementType.isRef()) return "[Ljava/lang/Object;";
+        return switch (elementType != null ? elementType.toLegacyString() : "") {
+            case "boolean" -> "[Z";
+            case "integer" -> "[I";
+            case "real"    -> "[D";
+            case "string"  -> "[Ljava/lang/String;";
             default -> "[I";
         };
     }
 
     public static String scalarTypeToJvmDesc(String type) {
+        return scalarTypeToJvmDesc(type != null ? Type.parse(type) : null);
+    }
+
+    public static String scalarTypeToJvmDesc(Type type) {
         if (type == null) return "I";
-        if (type.startsWith("ref:")) return "Ljava/lang/Object;";
-        if (type.startsWith("vector:")) return "Ljava/util/List;";
-        if (type.startsWith("map:")) return "Ljava/util/Map;";
-        if (type.startsWith("set:")) return "Ljava/util/Set;";
-        if (type.startsWith("procedure:")) return getProcedureInterfaceDescriptor(type);
-        return switch (type) {
-            case "real"   -> "D";
-            case "deferred" -> "D";
+        if (type.isRef()) return "Ljava/lang/Object;";
+        if (type.isVector()) return "Ljava/util/List;";
+        if (type.isMap()) return "Ljava/util/Map;";
+        if (type.isSet()) return "Ljava/util/Set;";
+        if (type.isProcedure()) return getProcedureInterfaceDescriptor(type);
+        return switch (type.toLegacyString()) {
+            case "real", "deferred" -> "D";
             case "string" -> "Ljava/lang/String;";
             default -> "I";
         };
     }
 
     public static String getReturnTypeDescriptor(String type) {
+        return getReturnTypeDescriptor(type != null ? Type.parse(type) : null);
+    }
+
+    public static String getReturnTypeDescriptor(Type type) {
         if (type == null) return "V";
-        if (type.startsWith("ref:")) return "Ljava/lang/Object;";
-        if (type.startsWith("vector:")) return "Ljava/util/List;";
-        if (type.startsWith("map:")) return "Ljava/util/Map;";
-        if (type.startsWith("set:")) return "Ljava/util/Set;";
-        if (type.startsWith("procedure:")) return getProcedureInterfaceDescriptor(type);
-        return switch (type) {
-            case "void"              -> "V";
-            case "real"              -> "D";
-            case "deferred"          -> "D";
-            case "string"            -> "Ljava/lang/String;";
+        if (type.isRef()) return "Ljava/lang/Object;";
+        if (type.isVector()) return "Ljava/util/List;";
+        if (type.isMap()) return "Ljava/util/Map;";
+        if (type.isSet()) return "Ljava/util/Set;";
+        if (type.isProcedure()) return getProcedureInterfaceDescriptor(type);
+        return switch (type.toLegacyString()) {
+            case "void" -> "V";
+            case "real", "deferred" -> "D";
+            case "string" -> "Ljava/lang/String;";
             case "boolean", "integer" -> "I";
             default -> "I";
         };
     }
 
     public static String getReturnInstruction(String type) {
+        return getReturnInstruction(type != null ? Type.parse(type) : null);
+    }
+
+    public static String getReturnInstruction(Type type) {
         if (type == null) return "return";
-        if (type.startsWith("ref:")) return "areturn";
-        if (type.startsWith("vector:")) return "areturn";
-        if (type.startsWith("map:")) return "areturn";
-        if (type.startsWith("set:")) return "areturn";
-        if (type.startsWith("procedure:")) return "areturn";
-        return switch (type) {
-            case "void"   -> "return";
-            case "real"   -> "dreturn";
-            case "deferred" -> "dreturn";
+        if (type.isRef() || type.isVector() || type.isMap() || type.isSet() || type.isProcedure()) return "areturn";
+        return switch (type.toLegacyString()) {
+            case "void" -> "return";
+            case "real", "deferred" -> "dreturn";
             case "string" -> "areturn";
             default -> "ireturn";
         };
     }
 
     public static String getProcedureInterfaceDescriptor(String procType) {
-        if (procType == null || !procType.startsWith("procedure:")) {
+        return getProcedureInterfaceDescriptor(procType != null ? Type.parse(procType) : null);
+    }
+
+    public static String getProcedureInterfaceDescriptor(Type procType) {
+        if (procType == null || !procType.isProcedure()) {
             return "Lgnb/perseus/compiler/VoidProcedure;";
         }
-        String returnType = procType.substring("procedure:".length());
-        if (returnType.startsWith("ref:") || returnType.startsWith("procedure:")) {
+        Type returnType = procType.elementType();
+        if (returnType != null && (returnType.isRef() || returnType.isProcedure())) {
             return "Lgnb/perseus/compiler/ReferenceProcedure;";
         }
-        return switch (returnType) {
+        return switch (returnType != null ? returnType.toLegacyString() : "void") {
             case "void" -> "Lgnb/perseus/compiler/VoidProcedure;";
             case "real" -> "Lgnb/perseus/compiler/RealProcedure;";
             case "boolean", "integer" -> "Lgnb/perseus/compiler/IntegerProcedure;";

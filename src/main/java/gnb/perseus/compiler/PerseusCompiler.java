@@ -431,7 +431,8 @@ public class PerseusCompiler {
 		// Pass 2: code generation
 		String source = Paths.get(fileName).getFileName().toString();
 		CodeGenerator codegen = new CodeGenerator(source, packageName, classPackageName, className,
-				legacyTypeMap(mainSymbolTable), localIndex, numLocals, legacyExprTypeMap(exprTypes), arrayBounds, arrayBoundPairs,
+				legacyTypeMap(mainSymbolTable), mainSymbolTable, localIndex, numLocals,
+				legacyExprTypeMap(exprTypes), exprTypes, arrayBounds, arrayBoundPairs,
 				symBuilder.getProcedures(), classes, switchDeclarations, procVarSlotsMap,
 				symBuilder.getExternalJavaClasses(), symBuilder.getExternalJavaStaticValues());
 		walker.walk(codegen, programContext);
@@ -509,11 +510,11 @@ public class PerseusCompiler {
 		if (info == null) {
 			return false;
 		}
-		if (!isSupportedExternalType(info.returnType, info.externalKind, true)) {
+		if (!isSupportedExternalType(info.returnTypeInfo, info.externalKind, true)) {
 			return false;
 		}
 		for (String paramName : info.paramNames) {
-			String paramType = info.paramTypes.get(paramName);
+			Type paramType = info.typedParamTypes.get(paramName);
 			if (!isSupportedExternalType(paramType, info.externalKind, false)) {
 				return false;
 			}
@@ -535,7 +536,7 @@ public class PerseusCompiler {
 							"External Java field " + info.ownerClass + "." + info.targetMember + " exists but is not static"));
 					continue;
 				}
-				String expected = externalValueTypeToJvmDescriptor(info.type, externalJavaClasses);
+				String expected = externalValueTypeToJvmDescriptor(info.typeInfo, externalJavaClasses);
 				String actual = toJvmDescriptor(field.getType());
 				if (!expected.equals(actual)) {
 					diagnostics.add(CompilerDiagnostic.error("PERS3002", fileName, 1, 1,
@@ -558,26 +559,26 @@ public class PerseusCompiler {
 		}
 	}
 
-	private static boolean isSupportedExternalType(String type, String externalKind, boolean isReturnType) {
+	private static boolean isSupportedExternalType(Type type, String externalKind, boolean isReturnType) {
 		if (type == null) {
 			return false;
 		}
-		if (type.startsWith("vector:")) {
+		if (type.isVector()) {
 			return "java-static".equals(externalKind);
 		}
-		if (type.endsWith("[]")) {
+		if (type.isArray()) {
 			if (isReturnType) {
 				return false;
 			}
-			if (type.startsWith("ref:")) {
+			if (type.elementType() != null && type.elementType().isRef()) {
 				return "java-static".equals(externalKind);
 			}
 			return !"java-static".equals(externalKind);
 		}
-		if (type.startsWith("ref:")) {
+		if (type.isRef()) {
 			return "java-static".equals(externalKind);
 		}
-		return switch (type) {
+		return switch (type.toLegacyString()) {
 			case "void", "integer", "real", "string" -> true;
 			case "boolean" -> "java-static".equals(externalKind);
 			default -> false;
@@ -621,7 +622,7 @@ public class PerseusCompiler {
 			return new ExternalMethodMatch(null,
 					"External procedure " + procName + " resolved in " + info.externalTargetClass
 							+ " but the return type did not match the declaration; expected "
-							+ externalTypeToJvmDescriptor(info.returnType, info.externalKind, externalJavaClasses)
+							+ externalTypeToJvmDescriptor(info.returnTypeInfo, info.externalKind, externalJavaClasses)
 							+ " but found " + toJvmDescriptor(sameParamsDifferentReturn.getReturnType()));
 		}
 		if (sameNameArity != null) {
@@ -651,9 +652,9 @@ public class PerseusCompiler {
 			Map<String, String> externalJavaClasses) {
 		StringBuilder desc = new StringBuilder("(");
 		for (String paramName : info.paramNames) {
-			desc.append(externalTypeToJvmDescriptor(info.paramTypes.get(paramName), info.externalKind, externalJavaClasses));
+			desc.append(externalTypeToJvmDescriptor(info.typedParamTypes.get(paramName), info.externalKind, externalJavaClasses));
 		}
-		desc.append(")").append(externalTypeToJvmDescriptor(info.returnType, info.externalKind, externalJavaClasses));
+		desc.append(")").append(externalTypeToJvmDescriptor(info.returnTypeInfo, info.externalKind, externalJavaClasses));
 		return desc.toString();
 	}
 
@@ -661,7 +662,7 @@ public class PerseusCompiler {
 			Map<String, String> externalJavaClasses) {
 		StringBuilder desc = new StringBuilder("(");
 		for (String paramName : info.paramNames) {
-			desc.append(externalTypeToJvmDescriptor(info.paramTypes.get(paramName), info.externalKind, externalJavaClasses));
+			desc.append(externalTypeToJvmDescriptor(info.typedParamTypes.get(paramName), info.externalKind, externalJavaClasses));
 		}
 		desc.append(")");
 		return desc.toString();
@@ -680,27 +681,27 @@ public class PerseusCompiler {
 		return desc.toString();
 	}
 
-	private static String externalTypeToJvmDescriptor(String type, String externalKind,
+	private static String externalTypeToJvmDescriptor(Type type, String externalKind,
 			Map<String, String> externalJavaClasses) {
 		if (type == null) {
 			return "V";
 		}
-		if (type.startsWith("vector:")) {
+		if (type.isVector()) {
 			return "Ljava/util/List;";
 		}
-		if (type.endsWith("[]")) {
+		if (type.isArray()) {
 			if ("java-static".equals(externalKind)) {
 				return CodeGenUtils.arrayTypeToJvmDesc(type);
 			}
 			return CodeGenUtils.arrayTypeToJvmDesc(type) + "II";
 		}
-		if (type.startsWith("ref:")) {
-			String simpleName = type.substring("ref:".length());
+		if (type.isRef()) {
+			String simpleName = type.name();
 			String qualified = externalJavaClasses != null ? externalJavaClasses.get(simpleName) : null;
 			return qualified != null ? "L" + qualified.replace('.', '/') + ";" : "Ljava/lang/Object;";
 		}
 		if ("java-static".equals(externalKind)) {
-			return switch (type) {
+			return switch (type.toLegacyString()) {
 				case "void" -> "V";
 				case "real" -> "D";
 				case "string" -> "Ljava/lang/String;";
@@ -711,12 +712,12 @@ public class PerseusCompiler {
 		return CodeGenUtils.getReturnTypeDescriptor(type);
 	}
 
-	private static String externalValueTypeToJvmDescriptor(String type, Map<String, String> externalJavaClasses) {
+	private static String externalValueTypeToJvmDescriptor(Type type, Map<String, String> externalJavaClasses) {
 		if (type == null) {
 			return "V";
 		}
-		if (type.startsWith("ref:")) {
-			String simpleName = type.substring("ref:".length());
+		if (type.isRef()) {
+			String simpleName = type.name();
 			String qualified = externalJavaClasses.get(simpleName);
 			if (qualified == null) {
 				return "Ljava/lang/Object;";

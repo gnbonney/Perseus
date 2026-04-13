@@ -39,4 +39,12 @@ public class TypeModelTest {
         assertEquals(Type.ref("Point"), array.elementType());
         assertEquals("iterable:string", iterable.toLegacyString());
     }
+
+    @Test
+    void codegen_utils_accept_typed_inputs() {
+        assertEquals("Ljava/util/List;", CodeGenUtils.getReturnTypeDescriptor(Type.vector(Type.INTEGER)));
+        assertEquals("[Ljava/lang/Object;", CodeGenUtils.arrayTypeToJvmDesc(Type.array(Type.ref("Point"))));
+        assertEquals("Lgnb/perseus/compiler/ReferenceProcedure;",
+                CodeGenUtils.getProcedureInterfaceDescriptor(Type.procedure(Type.ref("Point"))));
+    }
 }
