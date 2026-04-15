@@ -369,6 +369,46 @@ public class CodeGenerator extends PerseusBaseListener {
         return exprTypes.getOrDefault(expr, defaultType);
     }
 
+    private Type procedureReturnTargetTypeInfo(String name, boolean rhsIsProcedureRef) {
+        String legacyType = getProcedureReturnTargetType(name, rhsIsProcedureRef);
+        return legacyType != null ? Type.parse(legacyType) : null;
+    }
+
+    private boolean usesIntegerStorage(Type type) {
+        Type effective = type != null ? type.unwrapThunk() : null;
+        return Type.INTEGER.equals(effective) || Type.BOOLEAN.equals(effective);
+    }
+
+    private boolean usesRealStorage(Type type) {
+        Type effective = type != null ? type.unwrapThunk() : null;
+        return Type.REAL.equals(effective) || Type.DEFERRED.equals(effective);
+    }
+
+    private boolean usesObjectStorage(Type type) {
+        Type effective = type != null ? type.unwrapThunk() : null;
+        return isObjectType(effective);
+    }
+
+    private void emitTypedStore(Type type, int slot) {
+        if (usesRealStorage(type)) {
+            emitStore("dstore", slot);
+        } else if (usesObjectStorage(type)) {
+            emitStore("astore", slot);
+        } else {
+            emitStore("istore", slot);
+        }
+    }
+
+    private void emitTypedLoad(Type type, int slot) {
+        if (usesRealStorage(type)) {
+            activeOutput.append("dload ").append(slot).append("\n");
+        } else if (usesObjectStorage(type)) {
+            activeOutput.append("aload ").append(slot).append("\n");
+        } else {
+            activeOutput.append("iload ").append(slot).append("\n");
+        }
+    }
+
     @Override
     public void enterProgram(PerseusParser.ProgramContext ctx) {
         mainHadExecutableStatements = false;
@@ -1061,45 +1101,43 @@ public class CodeGenerator extends PerseusBaseListener {
         if (skippingCodegen()) return;
         if (currentProcName == null) mainHadExecutableStatements = true;
         List<PerseusParser.LvalueContext> lvalues = ctx.lvalue();
+        Type rhsTypeInfo = exprTypeInfo(ctx.expr(), Type.INTEGER);
 
         // Array element assignment (single dest with subscript)
         if (lvalues.size() == 1 && !lvalues.get(0).expr().isEmpty()) {
             PerseusParser.LvalueContext lv = lvalues.get(0);
             String arrName = lv.identifier().getText();
-            String elemType = lookupVarType(arrName);
-            if (elemType == null) {
+            Type targetTypeInfo = lookupVarTypeInfo(arrName);
+            if (targetTypeInfo == null) {
                 activeOutput.append("; ERROR: undeclared array ").append(arrName).append("\n");
                 return;
             }
 
-            if (elemType.startsWith("vector:")) {
-                String vectorElementType = elemType.substring("vector:".length());
+            if (targetTypeInfo.isVector()) {
+                Type vectorElementType = targetTypeInfo.elementType();
                 if (lv.expr().size() != 1) {
                     activeOutput.append("; ERROR: vector indexing currently requires exactly one subscript\n");
                     return;
                 }
-                String rhsType = exprTypes.getOrDefault(ctx.expr(), "integer");
                 activeOutput.append(generateLoadVar(arrName));
                 activeOutput.append(generateExpr(lv.expr(0)));
                 activeOutput.append(generateExpr(ctx.expr()));
-                activeOutput.append(boxVectorElementValue(vectorElementType, rhsType));
+                activeOutput.append(boxVectorElementValue(vectorElementType.toLegacyString(), rhsTypeInfo.toLegacyString()));
                 activeOutput.append("invokeinterface java/util/List/set(ILjava/lang/Object;)Ljava/lang/Object; 3\n");
                 activeOutput.append("pop\n");
                 return;
             }
-            if (elemType.startsWith("map:")) {
+            if (targetTypeInfo.isMap()) {
                 if (lv.expr().size() != 1) {
                     activeOutput.append("; ERROR: map assignment currently requires exactly one subscript\n");
                     return;
                 }
-                String mapKeyType = mapKeyType(elemType);
-                String mapValueType = mapValueType(elemType);
-                String rhsType = exprTypes.getOrDefault(ctx.expr(), "integer");
                 activeOutput.append(generateLoadVar(arrName));
                 activeOutput.append(generateExpr(lv.expr(0)));
-                activeOutput.append(boxMapComponentValue(mapKeyType, exprTypes.getOrDefault(lv.expr(0), "integer")));
+                activeOutput.append(boxMapComponentValue(targetTypeInfo.keyType().toLegacyString(),
+                        exprTypeInfo(lv.expr(0), Type.INTEGER).toLegacyString()));
                 activeOutput.append(generateExpr(ctx.expr()));
-                activeOutput.append(boxMapComponentValue(mapValueType, rhsType));
+                activeOutput.append(boxMapComponentValue(targetTypeInfo.valueType().toLegacyString(), rhsTypeInfo.toLegacyString()));
                 activeOutput.append("invokeinterface java/util/Map/put(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object; 3\n");
                 activeOutput.append("pop\n");
                 return;
@@ -1107,7 +1145,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
             // String scalar character mutation: s[i] := replacement
             // Rebuilds the string using StringBuilder: prefix + replacement + suffix
-            if ("string".equals(elemType) && lv.expr().size() == 1) {
+            if (Type.STRING.equals(targetTypeInfo) && lv.expr().size() == 1) {
                 activeOutput
                     .append("new java/lang/StringBuilder\n")
                     .append("dup\n")
@@ -1133,9 +1171,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 if (strIdx != null) {
                     activeOutput.append("astore ").append(strIdx).append("\n");
                 } else {
-                    String sType = currentSymbolTable.getOrDefault(arrName,
-                            mainSymbolTable != null ? mainSymbolTable.get(arrName) : null);
-                    if (sType != null) {
+                    if (lookupSymbolTypeInfo(arrName) != null) {
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(arrName).append(" Ljava/lang/String;\n");
                     } else {
@@ -1146,63 +1182,53 @@ public class CodeGenerator extends PerseusBaseListener {
             }
             activeOutput.append(generateLoadVar(arrName));
             activeOutput.append(generateArrayElementIndex(arrName, lv.expr(), null));
-            String rhsType = exprTypes.getOrDefault(ctx.expr(), "integer");
             activeOutput.append(generateExpr(ctx.expr())); // value
-            if ("real[]".equals(elemType) && "integer".equals(rhsType)) {
+            Type elementTypeInfo = targetTypeInfo.isArray() ? targetTypeInfo.elementType() : null;
+            if (Type.REAL.equals(elementTypeInfo) && Type.INTEGER.equals(rhsTypeInfo)) {
                 activeOutput.append("i2d\n");
             }
-            boolean refArray = elemType != null && elemType.startsWith("ref:") && elemType.endsWith("[]");
+            boolean refArray = elementTypeInfo != null && elementTypeInfo.isRef();
             if (refArray) {
-                if ("integer".equals(rhsType)) {
+                if (Type.INTEGER.equals(rhsTypeInfo)) {
                     activeOutput.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
-                } else if ("real".equals(rhsType)) {
+                } else if (Type.REAL.equals(rhsTypeInfo)) {
                     activeOutput.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
-                } else if ("boolean".equals(rhsType)) {
+                } else if (Type.BOOLEAN.equals(rhsTypeInfo)) {
                     activeOutput.append("invokestatic java/lang/Boolean/valueOf(Z)Ljava/lang/Boolean;\n");
                 }
             }
-            activeOutput.append("real[]".equals(elemType) ? "dastore\n"
-                    : "boolean[]".equals(elemType) ? "bastore\n"
-                    : ("string[]".equals(elemType) || refArray) ? "aastore\n"
+            activeOutput.append(Type.REAL.equals(elementTypeInfo) ? "dastore\n"
+                    : Type.BOOLEAN.equals(elementTypeInfo) ? "bastore\n"
+                    : (usesObjectStorage(elementTypeInfo) || refArray) ? "aastore\n"
                     : "iastore\n");
             return;
         }
 
         // Scalar (possibly chained) assignment
-        String exprType = exprTypes.getOrDefault(ctx.expr(), "integer");
         boolean rhsIsProcedureRef = isProcedureReferenceExpr(ctx.expr());
 
         // Determine storage type: real if any destination is real, string if any destination is string
         boolean anyReal = lvalues.stream().anyMatch(lv -> {
             String lvName = lv.identifier().getText();
-            String returnTargetType = getProcedureReturnTargetType(lvName, rhsIsProcedureRef);
-            if (returnTargetType != null) return "real".equals(returnTargetType);
-            String vt = currentSymbolTable.get(lvName);
-            if (vt == null && mainSymbolTable != null) {
-                vt = mainSymbolTable.get(lvName);
-            }
-            if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
-            return "real".equals(vt);
+            Type returnTargetType = procedureReturnTargetTypeInfo(lvName, rhsIsProcedureRef);
+            if (returnTargetType != null) return Type.REAL.equals(returnTargetType);
+            Type vt = lookupVarTypeInfo(lvName);
+            vt = vt != null ? vt.unwrapThunk() : null;
+            return Type.REAL.equals(vt);
         });
         boolean anyString = lvalues.stream().anyMatch(lv -> {
             String lvName = lv.identifier().getText();
-            String returnTargetType = getProcedureReturnTargetType(lvName, rhsIsProcedureRef);
-            if (returnTargetType != null) return "string".equals(returnTargetType);
-            String vt = currentSymbolTable.get(lvName);
-            if (vt == null && mainSymbolTable != null) {
-                vt = mainSymbolTable.get(lvName);
-            }
-            if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
-            return "string".equals(vt);
+            Type returnTargetType = procedureReturnTargetTypeInfo(lvName, rhsIsProcedureRef);
+            if (returnTargetType != null) return Type.STRING.equals(returnTargetType);
+            Type vt = lookupVarTypeInfo(lvName);
+            vt = vt != null ? vt.unwrapThunk() : null;
+            return Type.STRING.equals(vt);
         });
         boolean anyRef = lvalues.stream().anyMatch(lv -> {
             String lvName = lv.identifier().getText();
-            String vt = currentSymbolTable.get(lvName);
-            if (vt == null && mainSymbolTable != null) {
-                vt = mainSymbolTable.get(lvName);
-            }
-            if (vt != null && vt.startsWith("thunk:")) vt = vt.substring("thunk:".length());
-            return vt != null && (vt.startsWith("ref:") || vt.startsWith("vector:") || vt.startsWith("map:"));
+            Type vt = lookupVarTypeInfo(lvName);
+            vt = vt != null ? vt.unwrapThunk() : null;
+            return usesObjectStorage(vt) && !isProcedureVariableTarget(lvName, rhsIsProcedureRef);
         });
         // A typed procedure name can denote either a procedure reference or the
         // procedure's implicit return variable. When the RHS is a procedure
@@ -1214,14 +1240,18 @@ public class CodeGenerator extends PerseusBaseListener {
             if (isProcedureVariableTarget(lvName, rhsIsProcedureRef)) {
                 return true;
             }
-            String returnTargetType = getProcedureReturnTargetType(lvName, rhsIsProcedureRef);
-            return returnTargetType != null && returnTargetType.startsWith("procedure:");
+            Type returnTargetType = procedureReturnTargetTypeInfo(lvName, rhsIsProcedureRef);
+            return returnTargetType != null && returnTargetType.isProcedure();
         });
-        String storeType = anyProcedure ? "procedure" : anyReal ? "real" : anyString ? "string" : anyRef ? "ref" : "integer";
+        Type storeTypeInfo = anyProcedure ? Type.procedure(Type.VOID)
+                : anyReal ? Type.REAL
+                : anyString ? Type.STRING
+                : anyRef ? Type.ref("java/lang/Object")
+                : Type.INTEGER;
 
         // Generate expression and widen if needed
         activeOutput.append(generateExpr(ctx.expr()));
-        if ("real".equals(storeType) && "integer".equals(exprType)) {
+        if (Type.REAL.equals(storeTypeInfo) && Type.INTEGER.equals(rhsTypeInfo)) {
             activeOutput.append("i2d\n");
         }
 
@@ -1231,48 +1261,37 @@ public class CodeGenerator extends PerseusBaseListener {
         int tempSlot = -1;
         if (useTemp) {
             tempSlot = allocateNewLocal("tmp");
-            if ("real".equals(storeType)) {
-                emitStore("dstore", tempSlot);
-            } else if ("string".equals(storeType) || "procedure".equals(storeType) || "ref".equals(storeType)) {
-                emitStore("astore", tempSlot);
-            } else {
-                emitStore("istore", tempSlot);
-            }
+            emitTypedStore(storeTypeInfo, tempSlot);
         }
 
         for (int i = 0; i < lvalues.size(); i++) {
             String name = lvalues.get(i).identifier().getText();
             if (useTemp) {
-                if ("real".equals(storeType)) {
-                    activeOutput.append("dload ").append(tempSlot).append("\n");
-                } else if ("string".equals(storeType) || "procedure".equals(storeType) || "ref".equals(storeType)) {
-                    activeOutput.append("aload ").append(tempSlot).append("\n");
-                } else {
-                    activeOutput.append("iload ").append(tempSlot).append("\n");
-                }
+                emitTypedLoad(storeTypeInfo, tempSlot);
             }
 
             // Procedure return value assignment - but ONLY if this procedure actually has a return value slot.
             // For void procedures (including those used as procedure variables), assignment to the
             // procedure name should be treated as a procedure-variable assignment, not a return value.
             if (name.equals(currentProcName) && isProcedureReturnTarget(name, rhsIsProcedureRef)) {
-                if ("real".equals(currentProcReturnType) || "deferred".equals(currentProcReturnType)) {
+                Type currentProcReturnTypeInfo = currentProcReturnType != null ? Type.parse(currentProcReturnType) : null;
+                if (usesRealStorage(currentProcReturnTypeInfo)) {
                     emitStore("dstore", procRetvalSlot);
                     if (useEnvBridge(currentProcName)) {
                         activeOutput.append("dload ").append(procRetvalSlot).append("\n");
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(envReturnFieldName(currentProcName)).append(" D\n");
                     }
-                } else if (isObjectType(currentProcReturnType)) {
+                } else if (usesObjectStorage(currentProcReturnTypeInfo)) {
                     emitStore("astore", procRetvalSlot);
                     if (useEnvBridge(currentProcName)) {
                         activeOutput.append("aload ").append(procRetvalSlot).append("\n");
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(envReturnFieldName(currentProcName)).append(" ")
-                                    .append(CodeGenUtils.getReturnTypeDescriptor(currentProcReturnType)).append("\n");
+                                    .append(CodeGenUtils.getReturnTypeDescriptor(currentProcReturnTypeInfo)).append("\n");
                     }
                 } else {
-                    if ("real".equals(exprType)) {
+                    if (Type.REAL.equals(rhsTypeInfo)) {
                         activeOutput.append("d2i\n");
                     }
                     emitStore("istore", procRetvalSlot);
@@ -1291,15 +1310,16 @@ public class CodeGenerator extends PerseusBaseListener {
                     activeOutput.append("; ERROR: missing enclosing procedure return target ").append(name).append("\n");
                     continue;
                 }
-                if ("real".equals(outerProc.returnType)) {
+                Type outerReturnTypeInfo = outerProc.returnTypeInfo != null ? outerProc.returnTypeInfo : Type.parse(outerProc.returnType);
+                if (usesRealStorage(outerReturnTypeInfo)) {
                     activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                 .append("/").append(envReturnFieldName(name)).append(" D\n");
-                } else if (isObjectType(outerProc.returnType)) {
+                } else if (usesObjectStorage(outerReturnTypeInfo)) {
                     activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                 .append("/").append(envReturnFieldName(name)).append(" ")
-                                .append(CodeGenUtils.getReturnTypeDescriptor(outerProc.returnType)).append("\n");
+                                .append(CodeGenUtils.getReturnTypeDescriptor(outerReturnTypeInfo)).append("\n");
                 } else {
-                    if ("real".equals(exprType)) {
+                    if (Type.REAL.equals(rhsTypeInfo)) {
                         activeOutput.append("d2i\n");
                     }
                     activeOutput.append("putstatic ").append(packageName).append("/").append(className)
@@ -1310,21 +1330,22 @@ public class CodeGenerator extends PerseusBaseListener {
 
             Integer idx = currentLocalIndex.get(name);
             if (idx == null && mainLocalIndex != null) idx = mainLocalIndex.get(name);
-            String varType = currentSymbolTable.get(name);
+            Type varTypeInfo = currentSymbolTableTypes != null ? currentSymbolTableTypes.get(name) : null;
             boolean resolvedFromRootMain = false;
-            if (varType == null && mainSymbolTable != null) {
-                varType = mainSymbolTable.get(name);
+            if (varTypeInfo == null && mainSymbolTableTypes != null) {
+                varTypeInfo = mainSymbolTableTypes.get(name);
             }
             if (idx == null && rootMainLocalIndex != null && rootMainLocalIndex.containsKey(name)) {
                 idx = rootMainLocalIndex.get(name);
                 resolvedFromRootMain = true;
             }
-            if (varType == null && rootMainSymbolTable != null) {
-                varType = rootMainSymbolTable.get(name);
-                if (varType != null) {
+            if (varTypeInfo == null && rootMainSymbolTableTypes != null) {
+                varTypeInfo = rootMainSymbolTableTypes.get(name);
+                if (varTypeInfo != null) {
                     resolvedFromRootMain = true;
                 }
             }
+            String varType = varTypeInfo != null ? varTypeInfo.toLegacyString() : null;
             System.out.println("DEBUG: assignment target '" + name + "' resolvedIdx=" + idx + " varType=" + varType + " currentProc=" + currentProcName);
             boolean isCallByNameParam = false;
             if (currentProcName != null) {
@@ -1333,23 +1354,23 @@ public class CodeGenerator extends PerseusBaseListener {
                     isCallByNameParam = true;
                 }
             }
-            boolean isThunk = (varType != null && varType.startsWith("thunk:")) || isCallByNameParam;
-            boolean isProcVar = varType != null && varType.startsWith("procedure:");
+            boolean isThunk = (varTypeInfo != null && varTypeInfo.isThunk()) || isCallByNameParam;
+            boolean isProcVar = varTypeInfo != null && varTypeInfo.isProcedure();
                 // If this variable resolves to an outer-scope local (present in mainLocalIndex
                 // but not in currentLocalIndex), access it via class static field instead.
                 if (idx != null && !currentLocalIndex.containsKey(name)) {
-                    if (varType != null && varType.startsWith("procedure:")) {
-                        String pdesc = getProcedureInterfaceDescriptor(varType);
+                    if (varTypeInfo != null && varTypeInfo.isProcedure()) {
+                        String pdesc = getProcedureInterfaceDescriptor(varTypeInfo);
                         String targetName = resolveOuterFieldName(name, varType, resolvedFromRootMain);
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(targetName).append(" ").append(pdesc).append("\n");
-                    } else if (varType != null && varType.endsWith("[]")) {
-                        String ad = arrayTypeToJvmDesc(varType);
+                    } else if (varTypeInfo != null && varTypeInfo.isArray()) {
+                        String ad = arrayTypeToJvmDesc(varTypeInfo);
                         String targetName = resolveOuterFieldName(name, varType, resolvedFromRootMain);
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(targetName).append(" ").append(ad).append("\n");
                     } else {
-                        String sd = scalarTypeToJvmDesc(varType != null ? varType : "integer");
+                        String sd = scalarTypeToJvmDesc(varTypeInfo != null ? varTypeInfo : Type.INTEGER);
                         String targetName = resolveOuterFieldName(name, varType, resolvedFromRootMain);
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(targetName).append(" ").append(sd).append("\n");
@@ -1358,21 +1379,21 @@ public class CodeGenerator extends PerseusBaseListener {
                 }
             if (idx == null && !isThunk && !isProcVar) {
                 // Check if this is a static scalar
-                if (varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
+                if (varTypeInfo != null && !varTypeInfo.isArray() && !varTypeInfo.isProcedure() && !varTypeInfo.isThunk()) {
                     // Static scalar: emit putstatic (use env bridge name when available)
-                    String jvmDesc = scalarTypeToJvmDesc(varType);
+                    String jvmDesc = scalarTypeToJvmDesc(varTypeInfo);
                     String targetName = resolveOuterFieldName(name, varType, resolvedFromRootMain);
                     activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                 .append("/").append(targetName).append(" ").append(jvmDesc).append("\n");
                     continue;
                 }
                 // Check main symbol table for outer scope static scalars
-                if (mainSymbolTable != null) {
-                    String mainType = mainSymbolTable.get(name);
-                    if (mainType != null && !mainType.endsWith("[]") && !mainType.startsWith("procedure:") && !mainType.startsWith("thunk:")) {
+                if (mainSymbolTableTypes != null) {
+                    Type mainType = mainSymbolTableTypes.get(name);
+                    if (mainType != null && !mainType.isArray() && !mainType.isProcedure() && !mainType.isThunk()) {
                         // Static scalar from outer scope: emit putstatic (use env bridge name when available)
                         String jvmDesc = scalarTypeToJvmDesc(mainType);
-                        String targetName = resolveOuterFieldName(name, mainType, resolvedFromRootMain);
+                        String targetName = resolveOuterFieldName(name, mainType.toLegacyString(), resolvedFromRootMain);
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(targetName).append(" ").append(jvmDesc).append("\n");
                         continue;
@@ -1384,7 +1405,7 @@ public class CodeGenerator extends PerseusBaseListener {
 
 
             if (isThunk) {
-                if ("thunk:deferred".equals(varType)) {
+                if (varTypeInfo != null && varTypeInfo.isThunk() && Type.DEFERRED.equals(varTypeInfo.elementType())) {
                     // Preserve original actual type (integer vs real) when setting deferred call-by-name args.
                     int deferredTempSlot = currentNumLocals;
                     currentNumLocals += 2;
@@ -1419,9 +1440,9 @@ public class CodeGenerator extends PerseusBaseListener {
 
                 // assignment to a name parameter: call thunk.set(boxedValue)
                 // stack has the primitive/reference value; box it, then swap the thunk ref in
-                if ("real".equals(storeType)) {
+                if (Type.REAL.equals(storeTypeInfo)) {
                     activeOutput.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
-                } else if (!"string".equals(storeType) && !"ref".equals(storeType)) {
+                } else if (!usesObjectStorage(storeTypeInfo)) {
                     activeOutput.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
                 }
                 // push thunk ref (local if available, otherwise via env bridge), swap so order is: thunk, boxed_value
@@ -1437,7 +1458,7 @@ public class CodeGenerator extends PerseusBaseListener {
             }
 
             // normal local variable storage
-            if ("integer".equals(varType) || "boolean".equals(varType)) {
+            if (usesIntegerStorage(varTypeInfo)) {
                 emitStore("istore", idx);
                 if (currentProcName != null && currentLocalIndex.containsKey(name)) {
                     SymbolTableBuilder.ProcInfo currInfo = procedures.get(currentProcName);
@@ -1447,7 +1468,7 @@ public class CodeGenerator extends PerseusBaseListener {
                                     .append("/").append(envThunkFieldName(currentProcName, name)).append(" I\n");
                     }
                 }
-            } else if ("real".equals(varType)) {
+            } else if (usesRealStorage(varTypeInfo)) {
                 emitStore("dstore", idx);
                 if (currentProcName != null && currentLocalIndex.containsKey(name)) {
                     SymbolTableBuilder.ProcInfo currInfo = procedures.get(currentProcName);
@@ -1457,7 +1478,7 @@ public class CodeGenerator extends PerseusBaseListener {
                                     .append("/").append(envThunkFieldName(currentProcName, name)).append(" D\n");
                     }
                 }
-            } else if ("string".equals(varType) || (varType != null && (varType.startsWith("ref:") || varType.startsWith("vector:") || varType.startsWith("map:")))) {
+            } else if (usesObjectStorage(varTypeInfo)) {
                 emitStore("astore", idx);
                 if (currentProcName != null && currentLocalIndex.containsKey(name)) {
                     SymbolTableBuilder.ProcInfo currInfo = procedures.get(currentProcName);
@@ -1465,12 +1486,12 @@ public class CodeGenerator extends PerseusBaseListener {
                         activeOutput.append("aload ").append(idx).append("\n");
                         activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                     .append("/").append(envThunkFieldName(currentProcName, name)).append(" ")
-                                    .append(scalarTypeToJvmDesc(varType)).append("\n");
+                                    .append(scalarTypeToJvmDesc(varTypeInfo)).append("\n");
                     }
                 }
             } else if (isProcVar) {
                 // Procedure variables are stored in a static field so they are shared across activations.
-                String pdesc = getProcedureInterfaceDescriptor(varType);
+                String pdesc = getProcedureInterfaceDescriptor(varTypeInfo);
                 boolean storeToLocal = currentLocalIndex.containsKey(name);
 
                 if (storeToLocal) {
@@ -5414,6 +5435,16 @@ public class CodeGenerator extends PerseusBaseListener {
     private static boolean isObjectType(String type) {
         return "string".equals(type)
                 || (type != null && (type.startsWith("ref:") || type.startsWith("vector:") || type.startsWith("map:") || type.startsWith("iterable:") || type.startsWith("procedure:")));
+    }
+
+    private static boolean isObjectType(Type type) {
+        return type != null && (Type.STRING.equals(type)
+                || type.isRef()
+                || type.isVector()
+                || type.isMap()
+                || type.isSet()
+                || type.isIterable()
+                || type.isProcedure());
     }
 
     private String getProcedureInterfaceDescriptor(String procType) {

@@ -139,7 +139,7 @@ The current intended order is:
 - [x] Move the compiler's main symbol-table and expression-type storage onto the structured `Type` model
 - [x] Carry structured `Type` information into procedure, method, class, and external-value metadata
 - [x] Thread structured `Type` information into the main code-generation context and descriptor helpers
-- [ ] Migrate assignment and indexed-assignment code-generation paths onto `Type`
+  - [x] Migrate assignment and indexed-assignment code-generation paths onto `Type`
 - [ ] Migrate procedure, thunk, and call-by-name code-generation paths onto `Type`
 - [ ] Migrate collection/member-call and literal code-generation paths onto `Type`
 - [ ] Remove the remaining legacy string-tagged type checks from `CodeGenerator`
