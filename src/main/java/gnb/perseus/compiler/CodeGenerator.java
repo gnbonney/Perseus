@@ -162,18 +162,20 @@ public class CodeGenerator extends PerseusBaseListener {
         final String name;
         final Integer priorLocalSlot;
         final String priorType;
+        final Type priorTypeInfo;
         final int priorNumLocals;
 
-        ExceptionBindingState(String name, Integer priorLocalSlot, String priorType, int priorNumLocals) {
+        ExceptionBindingState(String name, Integer priorLocalSlot, String priorType, Type priorTypeInfo, int priorNumLocals) {
             this.name = name;
             this.priorLocalSlot = priorLocalSlot;
             this.priorType = priorType;
+            this.priorTypeInfo = priorTypeInfo;
             this.priorNumLocals = priorNumLocals;
         }
     }
 
     private static final ExceptionBindingState NO_EXCEPTION_BINDING =
-            new ExceptionBindingState("", null, null, -1);
+            new ExceptionBindingState("", null, null, null, -1);
 
     public CodeGenerator(String source, String packageName, String classPackageName, String className,
                          Map<String, String> symbolTable, Map<String, Type> typedSymbolTable,
@@ -1817,11 +1819,16 @@ public class CodeGenerator extends PerseusBaseListener {
         int priorNumLocals = currentNumLocals;
         Integer priorLocalSlot = currentLocalIndex.get(boundName);
         String priorType = currentSymbolTable.get(boundName);
+        Type priorTypeInfo = currentSymbolTableTypes != null ? currentSymbolTableTypes.get(boundName) : null;
         int boundSlot = allocateNewLocal("exception");
         currentLocalIndex.put(boundName, boundSlot);
-        currentSymbolTable.put(boundName, exceptionPatternRefType(ctx.exceptionPattern()));
+        Type boundTypeInfo = Type.parse(exceptionPatternRefType(ctx.exceptionPattern()));
+        currentSymbolTable.put(boundName, boundTypeInfo.toLegacyString());
+        if (currentSymbolTableTypes != null) {
+            currentSymbolTableTypes.put(boundName, boundTypeInfo);
+        }
         exceptionBindingStateStack.push(new ExceptionBindingState(
-                boundName, priorLocalSlot, priorType, priorNumLocals));
+                boundName, priorLocalSlot, priorType, priorTypeInfo, priorNumLocals));
         activeOutput.append("astore ").append(boundSlot).append("\n");
     }
 
@@ -1840,8 +1847,14 @@ public class CodeGenerator extends PerseusBaseListener {
             currentLocalIndex.put(state.name, state.priorLocalSlot);
         }
         currentSymbolTable.remove(state.name);
+        if (currentSymbolTableTypes != null) {
+            currentSymbolTableTypes.remove(state.name);
+        }
         if (state.priorType != null) {
             currentSymbolTable.put(state.name, state.priorType);
+        }
+        if (state.priorTypeInfo != null && currentSymbolTableTypes != null) {
+            currentSymbolTableTypes.put(state.name, state.priorTypeInfo);
         }
     }
 
@@ -3466,15 +3479,15 @@ public class CodeGenerator extends PerseusBaseListener {
             return true;
         }
         if (!(expr instanceof PerseusParser.VarExprContext ve)) {
-            String exprType = exprTypes.get(expr);
-            return exprType != null && exprType.startsWith("procedure:");
+            Type exprType = exprTypeInfo(expr, null);
+            return exprType != null && exprType.isProcedure();
         }
         String name = ve.identifier().getText();
         if (procedures.containsKey(name)) {
             return true;
         }
-        String type = lookupVarType(name);
-        return type != null && type.startsWith("procedure:");
+        Type type = lookupVarTypeInfo(name);
+        return type != null && type.isProcedure();
     }
 
     private static String arrayTypeToJvmDesc(String arrayType) {
@@ -3494,8 +3507,12 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private String externalValueJvmDesc(String type) {
-        if (type != null && type.startsWith("ref:")) {
-            String simpleName = type.substring("ref:".length());
+        return externalValueJvmDesc(type != null ? Type.parse(type) : null);
+    }
+
+    private String externalValueJvmDesc(Type type) {
+        if (type != null && type.isRef()) {
+            String simpleName = type.name();
             String qualified = externalJavaClasses.get(simpleName);
             if (qualified != null) {
                 return "L" + qualified.replace('.', '/') + ";";
@@ -3506,17 +3523,21 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private String externalTypeToJvmDesc(String type, String externalKind) {
-        if (type != null && type.startsWith("vector:")) {
+        return externalTypeToJvmDesc(type != null ? Type.parse(type) : null, externalKind);
+    }
+
+    private String externalTypeToJvmDesc(Type type, String externalKind) {
+        if (type != null && type.isVector()) {
             return "Ljava/util/List;";
         }
-        if (type != null && type.endsWith("[]")) {
+        if (type != null && type.isArray()) {
             if ("java-static".equals(externalKind)) {
                 return arrayTypeToJvmDesc(type);
             }
             return arrayTypeToJvmDesc(type) + "II";
         }
-        if (type != null && type.startsWith("ref:")) {
-            String simpleName = type.substring("ref:".length());
+        if (type != null && type.isRef()) {
+            String simpleName = type.name();
             String qualified = externalJavaClasses.get(simpleName);
             if (qualified != null) {
                 return "L" + qualified.replace('.', '/') + ";";
@@ -3524,7 +3545,7 @@ public class CodeGenerator extends PerseusBaseListener {
             return "Ljava/lang/Object;";
         }
         if ("java-static".equals(externalKind)) {
-            return switch (type) {
+            return switch (type != null ? type.toLegacyString() : "integer") {
                 case "void" -> "V";
                 case "real" -> "D";
                 case "string" -> "Ljava/lang/String;";
@@ -3543,6 +3564,52 @@ public class CodeGenerator extends PerseusBaseListener {
      * is accessed via the environment bridge static fields (e.g. __env_<outer>_<param>).
      */
     private String lookupVarType(String name) {
+        Type typeInfo = lookupVarTypeInfo(name);
+        return typeInfo != null ? typeInfo.toLegacyString() : null;
+    }
+
+    private Type lookupVarTypeInfo(String name) {
+        Type type = currentSymbolTableTypes != null ? currentSymbolTableTypes.get(name) : null;
+        if (type == null && mainSymbolTableTypes != null) {
+            type = mainSymbolTableTypes.get(name);
+        }
+        if (type == null && rootMainSymbolTableTypes != null) {
+            type = rootMainSymbolTableTypes.get(name);
+        }
+        if (type == null) {
+            type = capturedClosureTypeInfo(name);
+        }
+        if (type != null) return type;
+
+        // If not found in the local or main symbol tables, check for env-bridge
+        // parameters from enclosing procedures (nested scopes).
+        for (String outerProc : savedProcNameStack) {
+            if (outerProc == null) continue;
+            SymbolTableBuilder.ProcInfo outerInfo = procedures.get(outerProc);
+            if (outerInfo == null) continue;
+            if (outerInfo.paramNames.contains(name)) {
+                Type baseType = getFormalBaseTypeInfo(outerInfo, name);
+                if (!outerInfo.valueParams.contains(name)) {
+                    return Type.thunk(baseType);
+                }
+                return baseType;
+            }
+        }
+        return null;
+    }
+
+    private Type getFormalBaseTypeInfo(SymbolTableBuilder.ProcInfo info, String paramName) {
+        if (info == null) {
+            return Type.INTEGER;
+        }
+        Type baseType = info.typedParamTypes.get(paramName);
+        if (baseType != null) {
+            return baseType;
+        }
+        return Type.DEFERRED;
+    }
+
+    private String lookupVarTypeLegacyFallback(String name) {
         String type = currentSymbolTable.get(name);
         if (type == null && mainSymbolTable != null) type = mainSymbolTable.get(name);
         if (type == null && rootMainSymbolTable != null) type = rootMainSymbolTable.get(name);
@@ -3587,23 +3654,28 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private String capturedClosureType(String name) {
+        Type typeInfo = capturedClosureTypeInfo(name);
+        return typeInfo != null ? typeInfo.toLegacyString() : null;
+    }
+
+    private Type capturedClosureTypeInfo(String name) {
         SymbolTableBuilder.ProcInfo ownerInfo = getClosureOwnerInfo();
         if (ownerInfo == null || name == null) {
             return null;
         }
         if (ownerInfo.paramNames.contains(name)) {
-            String baseType = getFormalBaseType(ownerInfo, name);
-            return ownerInfo.valueParams.contains(name) ? baseType : "thunk:" + baseType;
+            Type baseType = getFormalBaseTypeInfo(ownerInfo, name);
+            return ownerInfo.valueParams.contains(name) ? baseType : Type.thunk(baseType);
         }
-        String localType = ownerInfo.localVars.get(name);
+        Type localType = ownerInfo.typedLocalVars.get(name);
         if (localType != null && !ownerInfo.ownVars.contains(name)
-                && !localType.endsWith("[]") && !localType.startsWith("procedure:")) {
+                && !localType.isArray() && !localType.isProcedure()) {
             return localType;
         }
         if (ownerInfo.nestedProcedures.contains(name)) {
             SymbolTableBuilder.ProcInfo nestedInfo = procedures.get(name);
             if (nestedInfo != null) {
-                return "procedure:" + nestedInfo.returnType;
+                return Type.procedure(nestedInfo.returnTypeInfo);
             }
         }
         return null;
