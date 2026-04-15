@@ -4456,28 +4456,26 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private String getExprBaseType(ExprContext expr) {
+        Type baseType = getExprBaseTypeInfo(expr);
+        return baseType != null ? baseType.toLegacyString() : "integer";
+    }
+
+    private Type getExprBaseTypeInfo(ExprContext expr) {
         if (expr == null) {
-            return "integer";
+            return Type.INTEGER;
         }
         if (expr instanceof PerseusParser.VarExprContext ve) {
             String name = ve.identifier().getText();
-            String varType = lookupVarType(name);
+            Type varType = lookupVarTypeInfo(name);
             if (varType != null) {
-                return varType.startsWith("thunk:") ? varType.substring("thunk:".length()) : varType;
+                return varType.unwrapThunk();
             }
             SymbolTableBuilder.ProcInfo procInfo = procedures.get(name);
             if (procInfo != null) {
-                return procInfo.returnType;
+                return procInfo.returnTypeInfo;
             }
         }
-        String exprType = exprTypes.get(expr);
-        if (exprType == null) {
-            return "integer";
-        }
-        if (exprType.startsWith("thunk:")) {
-            return exprType.substring("thunk:".length());
-        }
-        return exprType;
+        return exprTypeInfo(expr, Type.INTEGER).unwrapThunk();
     }
 
     private String dynamicUnboxDeferredValue(String targetType) {
@@ -4579,7 +4577,11 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private boolean isReferenceLike(String type) {
-        return "null".equals(type) || (type != null && type.startsWith("ref:"));
+        return isReferenceLike(type != null ? Type.parse(type) : null);
+    }
+
+    private boolean isReferenceLike(Type type) {
+        return type != null && (type.isNull() || type.isRef());
     }
 
     // -------------------------------------------------------------------------
@@ -4599,12 +4601,14 @@ public class CodeGenerator extends PerseusBaseListener {
         if (ctx instanceof PerseusParser.RelExprContext e) {
             String leftCode  = generateExpr(e.expr(0), varToFieldIndex);
             String rightCode = generateExpr(e.expr(1), varToFieldIndex);
-            String leftType  = exprTypes.getOrDefault(e.expr(0), "integer");
-            String rightType = exprTypes.getOrDefault(e.expr(1), "integer");
+            Type leftTypeInfo  = exprTypeInfo(e.expr(0), Type.INTEGER).unwrapThunk();
+            Type rightTypeInfo = exprTypeInfo(e.expr(1), Type.INTEGER).unwrapThunk();
+            String leftType  = leftTypeInfo.toLegacyString();
+            String rightType = rightTypeInfo.toLegacyString();
             String op = e.op.getText();
             String trueLabel = generateUniqueLabel("rel_true");
             String endLabel  = generateUniqueLabel("rel_end");
-            if (isReferenceComparison(leftType, rightType)) {
+            if (isReferenceLike(leftTypeInfo) && isReferenceLike(rightTypeInfo)) {
                 String cmpInstr = switch (op) {
                     case "=" -> "if_acmpeq";
                     case "<>" -> "if_acmpne";
@@ -4614,10 +4618,10 @@ public class CodeGenerator extends PerseusBaseListener {
                     "iconst_0\ngoto " + endLabel + "\n" +
                     trueLabel + ":\niconst_1\n" +
                     endLabel + ":\n";
-            } else if ("real".equals(leftType) || "real".equals(rightType)) {
+            } else if (Type.REAL.equals(leftTypeInfo) || Type.REAL.equals(rightTypeInfo)) {
                 // Real comparison: coerce to double, use dcmpg + branch
-                if ("integer".equals(leftType))  leftCode  += "i2d\n";
-                if ("integer".equals(rightType)) rightCode += "i2d\n";
+                if (Type.INTEGER.equals(leftTypeInfo))  leftCode  += "i2d\n";
+                if (Type.INTEGER.equals(rightTypeInfo)) rightCode += "i2d\n";
                 String cmpInstr = switch (op) {
                     case "<"  -> "iflt";
                     case "<="  -> "ifle";
@@ -4652,11 +4656,11 @@ public class CodeGenerator extends PerseusBaseListener {
             String condCode  = generateExpr(e.expr(0), varToFieldIndex);
             String thenCode  = generateExpr(e.expr(1), varToFieldIndex);
             String elseCode  = generateExpr(e.expr(2), varToFieldIndex);
-            String resultType = exprTypes.getOrDefault(e, "integer");
-            String thenType  = exprTypes.getOrDefault(e.expr(1), "integer");
-            String elseType  = exprTypes.getOrDefault(e.expr(2), "integer");
-            if ("real".equals(resultType) && "integer".equals(thenType)) thenCode += "i2d\n";
-            if ("real".equals(resultType) && "integer".equals(elseType)) elseCode += "i2d\n";
+            Type resultType = exprTypeInfo(e, Type.INTEGER);
+            Type thenType  = exprTypeInfo(e.expr(1), Type.INTEGER);
+            Type elseType  = exprTypeInfo(e.expr(2), Type.INTEGER);
+            if (Type.REAL.equals(resultType) && Type.INTEGER.equals(thenType)) thenCode += "i2d\n";
+            if (Type.REAL.equals(resultType) && Type.INTEGER.equals(elseType)) elseCode += "i2d\n";
             String elseLabel = generateUniqueLabel("ifexpr_else");
             String endLabel  = generateUniqueLabel("ifexpr_end");
             return condCode +
@@ -4669,60 +4673,42 @@ public class CodeGenerator extends PerseusBaseListener {
         } else if (ctx instanceof PerseusParser.PowExprContext e) {
             String left  = generateExpr(e.expr(0), varToFieldIndex);
             String right = generateExpr(e.expr(1), varToFieldIndex);
-            String leftType  = exprTypes.getOrDefault(e.expr(0), "integer");
-            String rightType = exprTypes.getOrDefault(e.expr(1), "integer");
-            String type = exprTypes.getOrDefault(ctx, "integer");
-            if (leftType.startsWith("thunk:")) {
-                leftType = leftType.substring("thunk:".length());
-            }
-            if (rightType.startsWith("thunk:")) {
-                rightType = rightType.substring("thunk:".length());
-            }
-            if ("integer".equals(leftType))  left  += "i2d\n";
-            if ("integer".equals(rightType)) right += "i2d\n";
+            Type leftType  = exprTypeInfo(e.expr(0), Type.INTEGER).unwrapThunk();
+            Type rightType = exprTypeInfo(e.expr(1), Type.INTEGER).unwrapThunk();
+            Type type = exprTypeInfo(ctx, Type.INTEGER);
+            if (Type.INTEGER.equals(leftType))  left  += "i2d\n";
+            if (Type.INTEGER.equals(rightType)) right += "i2d\n";
             StringBuilder sb = new StringBuilder();
             sb.append(left);
             sb.append(right);
             sb.append("invokestatic java/lang/Math/pow(DD)D\n");
-            if ("integer".equals(type)) {
+            if (Type.INTEGER.equals(type)) {
                 sb.append("d2i\n");
             }
             return sb.toString();
         } else if (ctx instanceof PerseusParser.MulDivExprContext e) {
             String left  = generateExpr(e.expr(0), varToFieldIndex);
             String right = generateExpr(e.expr(1), varToFieldIndex);
-            String leftType  = exprTypes.getOrDefault(e.expr(0), "integer");
-            String rightType = exprTypes.getOrDefault(e.expr(1), "integer");
-            String type = exprTypes.getOrDefault(ctx, "integer");
-            if (leftType.startsWith("thunk:")) {
-                leftType = leftType.substring("thunk:".length());
-            }
-            if (rightType.startsWith("thunk:")) {
-                rightType = rightType.substring("thunk:".length());
-            }
-            if ("real".equals(type) && "integer".equals(leftType))  left  += "i2d\n";
-            if ("real".equals(type) && "integer".equals(rightType)) right += "i2d\n";
+            Type leftType  = exprTypeInfo(e.expr(0), Type.INTEGER).unwrapThunk();
+            Type rightType = exprTypeInfo(e.expr(1), Type.INTEGER).unwrapThunk();
+            Type type = exprTypeInfo(ctx, Type.INTEGER);
+            if (Type.REAL.equals(type) && Type.INTEGER.equals(leftType))  left  += "i2d\n";
+            if (Type.REAL.equals(type) && Type.INTEGER.equals(rightType)) right += "i2d\n";
             String op = e.op.getText();
-            String instr = "real".equals(type) ?
+            String instr = Type.REAL.equals(type) ?
                 ("*".equals(op) ? "dmul" : "ddiv") :
                 ("*".equals(op) ? "imul" : "idiv");
             return left + right + instr + "\n";
         } else if (ctx instanceof PerseusParser.AddSubExprContext e) {
             String left  = generateExpr(e.expr(0), varToFieldIndex);
             String right = generateExpr(e.expr(1), varToFieldIndex);
-            String leftType  = exprTypes.getOrDefault(e.expr(0), "integer");
-            String rightType = exprTypes.getOrDefault(e.expr(1), "integer");
-            String type = exprTypes.getOrDefault(ctx, "integer");
-            if (leftType.startsWith("thunk:")) {
-                leftType = leftType.substring("thunk:".length());
-            }
-            if (rightType.startsWith("thunk:")) {
-                rightType = rightType.substring("thunk:".length());
-            }
-            if ("real".equals(type) && "integer".equals(leftType))  left  += "i2d\n";
-            if ("real".equals(type) && "integer".equals(rightType)) right += "i2d\n";
+            Type leftType  = exprTypeInfo(e.expr(0), Type.INTEGER).unwrapThunk();
+            Type rightType = exprTypeInfo(e.expr(1), Type.INTEGER).unwrapThunk();
+            Type type = exprTypeInfo(ctx, Type.INTEGER);
+            if (Type.REAL.equals(type) && Type.INTEGER.equals(leftType))  left  += "i2d\n";
+            if (Type.REAL.equals(type) && Type.INTEGER.equals(rightType)) right += "i2d\n";
             String op = e.op.getText();
-            String instr = "real".equals(type) ?
+            String instr = Type.REAL.equals(type) ?
                 ("+".equals(op) ? "dadd" : "dsub") :
                 ("+".equals(op) ? "iadd" : "isub");
             return left + right + instr + "\n";
