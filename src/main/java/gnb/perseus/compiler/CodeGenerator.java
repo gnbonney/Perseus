@@ -2189,9 +2189,9 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private String inferIterableType(ExprContext expr) {
-        String exprType = exprTypes.get(expr);
+        Type exprType = exprTypeInfo(expr, null);
         if (exprType != null) {
-            return exprType;
+            return exprType.toLegacyString();
         }
         if (expr instanceof PerseusParser.VarExprContext varExpr) {
             return lookupVarType(varExpr.identifier().getText());
@@ -2216,59 +2216,75 @@ public class CodeGenerator extends PerseusBaseListener {
     }
 
     private String boxVectorElementValue(String elementType, String valueType) {
+        return boxVectorElementValue(elementType != null ? Type.parse(elementType) : null,
+                valueType != null ? Type.parse(valueType) : null);
+    }
+
+    private String boxVectorElementValue(Type elementType, Type valueType) {
         StringBuilder sb = new StringBuilder();
-        if ("real".equals(elementType) && "integer".equals(valueType)) {
+        if (Type.REAL.equals(elementType) && Type.INTEGER.equals(valueType)) {
             sb.append("i2d\n");
-            valueType = "real";
+            valueType = Type.REAL;
         }
-        if ("real".equals(elementType) || "real".equals(valueType)) {
+        if (Type.REAL.equals(elementType) || Type.REAL.equals(valueType)) {
             sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
-        } else if ("integer".equals(elementType) || "boolean".equals(elementType)
-                || "integer".equals(valueType) || "boolean".equals(valueType)) {
+        } else if (usesIntegerStorage(elementType) || usesIntegerStorage(valueType)) {
             sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
         }
         return sb.toString();
     }
 
     private String unboxVectorElementValue(String elementType) {
-        if ("real".equals(elementType)) {
+        return unboxVectorElementValue(elementType != null ? Type.parse(elementType) : null);
+    }
+
+    private String unboxVectorElementValue(Type elementType) {
+        if (Type.REAL.equals(elementType)) {
             return "checkcast java/lang/Double\ninvokevirtual java/lang/Double/doubleValue()D\n";
         }
-        if ("integer".equals(elementType) || "boolean".equals(elementType)) {
+        if (usesIntegerStorage(elementType)) {
             return "checkcast java/lang/Integer\ninvokevirtual java/lang/Integer/intValue()I\n";
         }
-        if ("string".equals(elementType)) {
+        if (Type.STRING.equals(elementType)) {
             return "checkcast java/lang/String\n";
         }
-        if (elementType != null && (elementType.startsWith("ref:") || elementType.startsWith("vector:") || elementType.startsWith("procedure:"))) {
+        if (usesObjectStorage(elementType)) {
             return "";
         }
         return "";
     }
 
     private String boxMapComponentValue(String declaredType, String actualType) {
+        return boxMapComponentValue(declaredType != null ? Type.parse(declaredType) : null,
+                actualType != null ? Type.parse(actualType) : null);
+    }
+
+    private String boxMapComponentValue(Type declaredType, Type actualType) {
         StringBuilder sb = new StringBuilder();
-        if ("real".equals(declaredType) && "integer".equals(actualType)) {
+        if (Type.REAL.equals(declaredType) && Type.INTEGER.equals(actualType)) {
             sb.append("i2d\n");
-            actualType = "real";
+            actualType = Type.REAL;
         }
-        if ("real".equals(declaredType) || "real".equals(actualType)) {
+        if (Type.REAL.equals(declaredType) || Type.REAL.equals(actualType)) {
             sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
-        } else if ("integer".equals(declaredType) || "boolean".equals(declaredType)
-                || "integer".equals(actualType) || "boolean".equals(actualType)) {
+        } else if (usesIntegerStorage(declaredType) || usesIntegerStorage(actualType)) {
             sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
         }
         return sb.toString();
     }
 
     private String unboxMapComponentValue(String declaredType) {
-        if ("real".equals(declaredType)) {
+        return unboxMapComponentValue(declaredType != null ? Type.parse(declaredType) : null);
+    }
+
+    private String unboxMapComponentValue(Type declaredType) {
+        if (Type.REAL.equals(declaredType)) {
             return "checkcast java/lang/Double\ninvokevirtual java/lang/Double/doubleValue()D\n";
         }
-        if ("integer".equals(declaredType) || "boolean".equals(declaredType)) {
+        if (usesIntegerStorage(declaredType)) {
             return "checkcast java/lang/Integer\ninvokevirtual java/lang/Integer/intValue()I\n";
         }
-        if ("string".equals(declaredType)) {
+        if (Type.STRING.equals(declaredType)) {
             return "checkcast java/lang/String\n";
         }
         return "";
@@ -4074,7 +4090,7 @@ public class CodeGenerator extends PerseusBaseListener {
     private String generateNormalizedSubscript(ExprContext expr, int[] boundPair, Map<String, Integer> varToFieldIndex) {
         StringBuilder sb = new StringBuilder();
         sb.append(generateExpr(expr, varToFieldIndex));
-        if ("real".equals(exprTypes.getOrDefault(expr, "integer"))) {
+        if (Type.REAL.equals(exprTypeInfo(expr, Type.INTEGER).unwrapThunk())) {
             sb.append("d2i\n");
         }
         if (boundPair != null && boundPair[0] != 0) {
@@ -4086,12 +4102,12 @@ public class CodeGenerator extends PerseusBaseListener {
 
     private String generateMemberInvocation(String receiverName, String memberName,
             List<PerseusParser.ArgContext> args, boolean explicitCall, boolean isStatement) {
-        String receiverType = lookupVarType(receiverName);
+        Type receiverType = lookupVarTypeInfo(receiverName);
         if (receiverType == null) {
             return "; ERROR: member call requires typed receiver " + receiverName + "\n";
         }
-        if (receiverType.startsWith("vector:")) {
-            String elementType = receiverType.substring("vector:".length());
+        if (receiverType.isVector()) {
+            Type elementType = receiverType.elementType();
             StringBuilder sb = new StringBuilder();
             sb.append(generateLoadVar(receiverName));
             if ("append".equals(memberName)) {
@@ -4099,7 +4115,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     return "; ERROR: vector append requires exactly one argument\n";
                 }
                 PerseusParser.ExprContext argExpr = args.get(0).expr();
-                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                Type argType = exprTypeInfo(argExpr, Type.INTEGER).unwrapThunk();
                 sb.append(generateExpr(argExpr));
                 sb.append(boxVectorElementValue(elementType, argType));
                 sb.append("invokeinterface java/util/List/add(Ljava/lang/Object;)Z 2\n");
@@ -4114,7 +4130,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 }
                 PerseusParser.ExprContext indexExpr = args.get(0).expr();
                 PerseusParser.ExprContext valueExpr = args.get(1).expr();
-                String valueType = exprTypes.getOrDefault(valueExpr, "integer");
+                Type valueType = exprTypeInfo(valueExpr, Type.INTEGER).unwrapThunk();
                 sb.append(generateExpr(indexExpr));
                 sb.append(generateExpr(valueExpr));
                 sb.append(boxVectorElementValue(elementType, valueType));
@@ -4130,9 +4146,9 @@ public class CodeGenerator extends PerseusBaseListener {
                 sb.append("invokeinterface java/util/List/remove(I)Ljava/lang/Object; 2\n");
                 sb.append(unboxVectorElementValue(elementType));
                 if (isStatement) {
-                    if ("real".equals(elementType)) {
+                    if (Type.REAL.equals(elementType)) {
                         sb.append("pop2\n");
-                    } else if (!"void".equals(elementType)) {
+                    } else if (!Type.VOID.equals(elementType)) {
                         sb.append("pop\n");
                     }
                 }
@@ -4143,7 +4159,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     return "; ERROR: vector contains requires exactly one argument\n";
                 }
                 PerseusParser.ExprContext argExpr = args.get(0).expr();
-                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                Type argType = exprTypeInfo(argExpr, Type.INTEGER).unwrapThunk();
                 sb.append(generateExpr(argExpr));
                 sb.append(boxVectorElementValue(elementType, argType));
                 sb.append("invokeinterface java/util/List/contains(Ljava/lang/Object;)Z 2\n");
@@ -4171,9 +4187,9 @@ public class CodeGenerator extends PerseusBaseListener {
             }
             return "; ERROR: unknown vector member " + memberName + "\n";
         }
-        if (receiverType.startsWith("map:")) {
-            String keyType = mapKeyType(receiverType);
-            String valueType = mapValueType(receiverType);
+        if (receiverType.isMap()) {
+            Type keyType = receiverType.keyType();
+            Type valueType = receiverType.valueType();
             StringBuilder sb = new StringBuilder();
             sb.append(generateLoadVar(receiverName));
             if ("contains".equals(memberName)) {
@@ -4181,7 +4197,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     return "; ERROR: map contains requires exactly one argument\n";
                 }
                 PerseusParser.ExprContext argExpr = args.get(0).expr();
-                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                Type argType = exprTypeInfo(argExpr, Type.INTEGER).unwrapThunk();
                 sb.append(generateExpr(argExpr));
                 sb.append(boxMapComponentValue(keyType, argType));
                 sb.append("invokeinterface java/util/Map/containsKey(Ljava/lang/Object;)Z 2\n");
@@ -4195,13 +4211,13 @@ public class CodeGenerator extends PerseusBaseListener {
                     return "; ERROR: map remove requires exactly one argument\n";
                 }
                 PerseusParser.ExprContext argExpr = args.get(0).expr();
-                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                Type argType = exprTypeInfo(argExpr, Type.INTEGER).unwrapThunk();
                 sb.append(generateExpr(argExpr));
                 sb.append(boxMapComponentValue(keyType, argType));
                 sb.append("invokeinterface java/util/Map/remove(Ljava/lang/Object;)Ljava/lang/Object; 2\n");
                 sb.append(unboxMapComponentValue(valueType));
                 if (isStatement) {
-                    if ("real".equals(valueType)) {
+                    if (Type.REAL.equals(valueType)) {
                         sb.append("pop2\n");
                     } else {
                         sb.append("pop\n");
@@ -4242,8 +4258,8 @@ public class CodeGenerator extends PerseusBaseListener {
             }
             return "; ERROR: unknown map member " + memberName + "\n";
         }
-        if (receiverType.startsWith("set:")) {
-            String elementType = receiverType.substring("set:".length());
+        if (receiverType.isSet()) {
+            Type elementType = receiverType.elementType();
             StringBuilder sb = new StringBuilder();
             sb.append(generateLoadVar(receiverName));
             if ("insert".equals(memberName)) {
@@ -4251,7 +4267,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     return "; ERROR: set insert requires exactly one argument\n";
                 }
                 PerseusParser.ExprContext argExpr = args.get(0).expr();
-                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                Type argType = exprTypeInfo(argExpr, Type.INTEGER).unwrapThunk();
                 sb.append(generateExpr(argExpr));
                 sb.append(boxMapComponentValue(elementType, argType));
                 sb.append("invokeinterface java/util/Set/add(Ljava/lang/Object;)Z 2\n");
@@ -4265,7 +4281,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     return "; ERROR: set contains requires exactly one argument\n";
                 }
                 PerseusParser.ExprContext argExpr = args.get(0).expr();
-                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                Type argType = exprTypeInfo(argExpr, Type.INTEGER).unwrapThunk();
                 sb.append(generateExpr(argExpr));
                 sb.append(boxMapComponentValue(elementType, argType));
                 sb.append("invokeinterface java/util/Set/contains(Ljava/lang/Object;)Z 2\n");
@@ -4279,7 +4295,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     return "; ERROR: set remove requires exactly one argument\n";
                 }
                 PerseusParser.ExprContext argExpr = args.get(0).expr();
-                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                Type argType = exprTypeInfo(argExpr, Type.INTEGER).unwrapThunk();
                 sb.append(generateExpr(argExpr));
                 sb.append(boxMapComponentValue(elementType, argType));
                 sb.append("invokeinterface java/util/Set/remove(Ljava/lang/Object;)Z 2\n");
@@ -4307,7 +4323,7 @@ public class CodeGenerator extends PerseusBaseListener {
             }
             return "; ERROR: unknown set member " + memberName + "\n";
         }
-        if ("string".equals(receiverType)) {
+        if (Type.STRING.equals(receiverType)) {
             Method javaMethod = findJavaMethod("java.lang.String", memberName, args);
             if (javaMethod == null) {
                 return "; ERROR: unknown string member java.lang.String." + memberName + "\n";
@@ -4318,9 +4334,9 @@ public class CodeGenerator extends PerseusBaseListener {
             Class<?>[] parameterTypes = javaMethod.getParameterTypes();
             for (int i = 0; i < args.size(); i++) {
                 PerseusParser.ExprContext argExpr = args.get(i).expr();
-                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                Type argType = exprTypeInfo(argExpr, Type.INTEGER).unwrapThunk();
                 sb.append(generateExpr(argExpr));
-                if (parameterTypes[i] == double.class && "integer".equals(argType)) {
+                if (parameterTypes[i] == double.class && Type.INTEGER.equals(argType)) {
                     sb.append("i2d\n");
                 }
                 desc.append(toJvmDescriptor(parameterTypes[i]));
@@ -4332,10 +4348,10 @@ public class CodeGenerator extends PerseusBaseListener {
             }
             return sb.toString();
         }
-        if (!receiverType.startsWith("ref:")) {
+        if (!receiverType.isRef()) {
             return "; ERROR: member call requires object reference " + receiverName + "\n";
         }
-        String objectClass = receiverType.substring("ref:".length());
+        String objectClass = receiverType.name();
         SymbolTableBuilder.ClassInfo cls = classes.get(objectClass);
         if (cls == null) {
             return "; ERROR: unknown class " + objectClass + "\n";
@@ -4365,9 +4381,9 @@ public class CodeGenerator extends PerseusBaseListener {
             Class<?>[] parameterTypes = javaMethod.getParameterTypes();
             for (int i = 0; i < args.size(); i++) {
                 PerseusParser.ExprContext argExpr = args.get(i).expr();
-                String argType = exprTypes.getOrDefault(argExpr, "integer");
+                Type argType = exprTypeInfo(argExpr, Type.INTEGER).unwrapThunk();
                 sb.append(generateExpr(argExpr));
-                if (parameterTypes[i] == double.class && "integer".equals(argType)) {
+                if (parameterTypes[i] == double.class && Type.INTEGER.equals(argType)) {
                     sb.append("i2d\n");
                 }
                 desc.append(toJvmDescriptor(parameterTypes[i]));
@@ -4394,11 +4410,11 @@ public class CodeGenerator extends PerseusBaseListener {
         StringBuilder desc = new StringBuilder("(");
         for (int i = 0; i < args.size(); i++) {
             PerseusParser.ExprContext argExpr = args.get(i).expr();
-            String argType = exprTypes.getOrDefault(argExpr, "integer");
+            Type argType = exprTypeInfo(argExpr, Type.INTEGER).unwrapThunk();
             String paramName = i < method.paramNames.size() ? method.paramNames.get(i) : null;
-            String paramType = paramName != null ? method.paramTypes.getOrDefault(paramName, "integer") : argType;
+            String paramType = paramName != null ? method.paramTypes.getOrDefault(paramName, "integer") : argType.toLegacyString();
             sb.append(generateExpr(argExpr));
-            if ("real".equals(paramType) && "integer".equals(argType)) {
+            if ("real".equals(paramType) && Type.INTEGER.equals(argType)) {
                 sb.append("i2d\n");
             }
             desc.append(CodeGenUtils.getReturnTypeDescriptor(paramType));
@@ -4831,16 +4847,14 @@ public class CodeGenerator extends PerseusBaseListener {
         } else if (ctx instanceof PerseusParser.AnonymousProcedureExprContext e) {
             return generateAnonymousProcedureReference(e);
         } else if (ctx instanceof PerseusParser.VectorLiteralExprContext e) {
-            String literalType = exprTypes.getOrDefault(e, "vector:integer");
-            String elementType = literalType.startsWith("vector:")
-                    ? literalType.substring("vector:".length())
-                    : "integer";
+            Type literalType = exprTypeInfo(e, Type.vector(Type.INTEGER));
+            Type elementType = literalType.isVector() ? literalType.elementType() : Type.INTEGER;
             StringBuilder sb = new StringBuilder();
             sb.append("new java/util/ArrayList\n");
             sb.append("dup\n");
             sb.append("invokespecial java/util/ArrayList/<init>()V\n");
             for (PerseusParser.ExprContext elementExpr : e.expr()) {
-                String elementExprType = exprTypes.getOrDefault(elementExpr, "integer");
+                Type elementExprType = exprTypeInfo(elementExpr, Type.INTEGER).unwrapThunk();
                 sb.append("dup\n");
                 sb.append(generateExpr(elementExpr, varToFieldIndex));
                 sb.append(boxVectorElementValue(elementType, elementExprType));
@@ -4849,16 +4863,14 @@ public class CodeGenerator extends PerseusBaseListener {
             }
             return sb.toString();
         } else if (ctx instanceof PerseusParser.SetLiteralExprContext e) {
-            String literalType = exprTypes.getOrDefault(e, "set:integer");
-            String elementType = literalType.startsWith("set:")
-                    ? literalType.substring("set:".length())
-                    : "integer";
+            Type literalType = exprTypeInfo(e, Type.set(Type.INTEGER));
+            Type elementType = literalType.isSet() ? literalType.elementType() : Type.INTEGER;
             StringBuilder sb = new StringBuilder();
             sb.append("new java/util/LinkedHashSet\n");
             sb.append("dup\n");
             sb.append("invokespecial java/util/LinkedHashSet/<init>()V\n");
             for (PerseusParser.ExprContext elementExpr : e.expr()) {
-                String elementExprType = exprTypes.getOrDefault(elementExpr, "integer");
+                Type elementExprType = exprTypeInfo(elementExpr, Type.INTEGER).unwrapThunk();
                 sb.append("dup\n");
                 sb.append(generateExpr(elementExpr, varToFieldIndex));
                 sb.append(boxMapComponentValue(elementType, elementExprType));
@@ -4867,16 +4879,16 @@ public class CodeGenerator extends PerseusBaseListener {
             }
             return sb.toString();
         } else if (ctx instanceof PerseusParser.MapLiteralExprContext e) {
-            String literalType = exprTypes.getOrDefault(e, "map:string=>integer");
-            String keyType = mapKeyType(literalType);
-            String valueType = mapValueType(literalType);
+            Type literalType = exprTypeInfo(e, Type.map(Type.STRING, Type.INTEGER));
+            Type keyType = literalType.isMap() ? literalType.keyType() : Type.STRING;
+            Type valueType = literalType.isMap() ? literalType.valueType() : Type.INTEGER;
             StringBuilder sb = new StringBuilder();
             sb.append("new java/util/LinkedHashMap\n");
             sb.append("dup\n");
             sb.append("invokespecial java/util/LinkedHashMap/<init>()V\n");
             for (PerseusParser.MapLiteralEntryContext entry : e.mapLiteralEntry()) {
-                String keyExprType = exprTypes.getOrDefault(entry.expr(0), "integer");
-                String valueExprType = exprTypes.getOrDefault(entry.expr(1), "integer");
+                Type keyExprType = exprTypeInfo(entry.expr(0), Type.INTEGER).unwrapThunk();
+                Type valueExprType = exprTypeInfo(entry.expr(1), Type.INTEGER).unwrapThunk();
                 sb.append("dup\n");
                 sb.append(generateExpr(entry.expr(0), varToFieldIndex));
                 sb.append(boxMapComponentValue(keyType, keyExprType));
@@ -5012,14 +5024,14 @@ public class CodeGenerator extends PerseusBaseListener {
             return generateLoadVar(name);
         } else if (ctx instanceof PerseusParser.ArrayAccessExprContext e) {
             String arrName = e.identifier().getText();
-            String elemType = lookupVarType(arrName);
+            Type elemType = lookupVarTypeInfo(arrName);
             if (elemType == null) return "; ERROR: undeclared array " + arrName + "\n";
 
-            if (elemType.startsWith("vector:")) {
+            if (elemType.isVector()) {
                 if (e.expr().size() != 1) {
                     return "; ERROR: vector indexing currently requires exactly one subscript\n";
                 }
-                String vectorElementType = elemType.substring("vector:".length());
+                Type vectorElementType = elemType.elementType();
                 StringBuilder sb = new StringBuilder();
                 sb.append(generateLoadVar(arrName));
                 sb.append(generateExpr(e.expr(0), varToFieldIndex));
@@ -5027,21 +5039,21 @@ public class CodeGenerator extends PerseusBaseListener {
                 sb.append(unboxVectorElementValue(vectorElementType));
                 return sb.toString();
             }
-            if (elemType.startsWith("map:")) {
+            if (elemType.isMap()) {
                 if (e.expr().size() != 1) {
                     return "; ERROR: map access currently requires exactly one subscript\n";
                 }
                 StringBuilder sb = new StringBuilder();
                 sb.append(generateLoadVar(arrName));
                 sb.append(generateExpr(e.expr(0), varToFieldIndex));
-                sb.append(boxMapComponentValue(mapKeyType(elemType), exprTypes.getOrDefault(e.expr(0), "integer")));
+                sb.append(boxMapComponentValue(elemType.keyType(), exprTypeInfo(e.expr(0), Type.INTEGER).unwrapThunk()));
                 sb.append("invokeinterface java/util/Map/get(Ljava/lang/Object;)Ljava/lang/Object; 2\n");
-                sb.append(unboxMapComponentValue(mapValueType(elemType)));
+                sb.append(unboxMapComponentValue(elemType.valueType()));
                 return sb.toString();
             }
 
             // String scalar character access: s[i] -> s.substring(i-1, i)
-            if ("string".equals(elemType) && e.expr().size() == 1) {
+            if (Type.STRING.equals(elemType) && e.expr().size() == 1) {
                 StringBuilder sb = new StringBuilder();
                 sb.append(generateLoadVar(arrName));                         // load s
                 sb.append(generateExpr(e.expr(0), varToFieldIndex));         // load i
@@ -5055,10 +5067,11 @@ public class CodeGenerator extends PerseusBaseListener {
             StringBuilder sb = new StringBuilder();
             sb.append(generateLoadVar(arrName));
             sb.append(generateArrayElementIndex(arrName, e.expr(), varToFieldIndex));
-            boolean refArray = elemType != null && elemType.startsWith("ref:") && elemType.endsWith("[]");
-            sb.append("real[]".equals(elemType) ? "daload\n"
-                    : "boolean[]".equals(elemType) ? "baload\n"
-                    : ("string[]".equals(elemType) || refArray) ? "aaload\n"
+            Type arrayElementType = elemType.isArray() ? elemType.elementType() : null;
+            boolean refArray = arrayElementType != null && arrayElementType.isRef();
+            sb.append(Type.REAL.equals(arrayElementType) ? "daload\n"
+                    : Type.BOOLEAN.equals(arrayElementType) ? "baload\n"
+                    : (usesObjectStorage(arrayElementType) || refArray) ? "aaload\n"
                     : "iaload\n");
             return sb.toString();
         } else if (ctx instanceof PerseusParser.ProcCallExprContext e) {

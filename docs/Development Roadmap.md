@@ -141,7 +141,7 @@ The current intended order is:
 - [x] Thread structured `Type` information into the main code-generation context and descriptor helpers
   - [x] Migrate assignment and indexed-assignment code-generation paths onto `Type`
   - [x] Migrate procedure, thunk, and call-by-name code-generation paths onto `Type`
-- [ ] Migrate collection/member-call and literal code-generation paths onto `Type`
+  - [x] Migrate collection/member-call and literal code-generation paths onto `Type`
 - [ ] Remove the remaining legacy string-tagged type checks from `CodeGenerator`
 - [x] Add focused regression coverage for the structured-type-model migration so existing typing behavior stays stable
 - [ ] Add parser support for generic class declarations with bracketed type parameters such as `class Vector[T];`
