@@ -1478,17 +1478,6 @@ public class CodeGenerator extends PerseusBaseListener {
                                     .append("/").append(envThunkFieldName(currentProcName, name)).append(" D\n");
                     }
                 }
-            } else if (usesObjectStorage(varTypeInfo)) {
-                emitStore("astore", idx);
-                if (currentProcName != null && currentLocalIndex.containsKey(name)) {
-                    SymbolTableBuilder.ProcInfo currInfo = procedures.get(currentProcName);
-                    if (procedureNeedsLocalBridge(currInfo) && currInfo.localVars.containsKey(name) && !currInfo.ownVars.contains(name)) {
-                        activeOutput.append("aload ").append(idx).append("\n");
-                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
-                                    .append("/").append(envThunkFieldName(currentProcName, name)).append(" ")
-                                    .append(scalarTypeToJvmDesc(varTypeInfo)).append("\n");
-                    }
-                }
             } else if (isProcVar) {
                 // Procedure variables are stored in a static field so they are shared across activations.
                 String pdesc = getProcedureInterfaceDescriptor(varTypeInfo);
@@ -1503,6 +1492,17 @@ public class CodeGenerator extends PerseusBaseListener {
 
                 activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                             .append("/").append(staticFieldName(name, varType)).append(" ").append(pdesc).append("\n");
+            } else if (usesObjectStorage(varTypeInfo)) {
+                emitStore("astore", idx);
+                if (currentProcName != null && currentLocalIndex.containsKey(name)) {
+                    SymbolTableBuilder.ProcInfo currInfo = procedures.get(currentProcName);
+                    if (procedureNeedsLocalBridge(currInfo) && currInfo.localVars.containsKey(name) && !currInfo.ownVars.contains(name)) {
+                        activeOutput.append("aload ").append(idx).append("\n");
+                        activeOutput.append("putstatic ").append(packageName).append("/").append(className)
+                                    .append("/").append(envThunkFieldName(currentProcName, name)).append(" ")
+                                    .append(scalarTypeToJvmDesc(varTypeInfo)).append("\n");
+                    }
+                }
             }
         }
     }
@@ -1574,10 +1574,10 @@ public class CodeGenerator extends PerseusBaseListener {
             if (varExpr instanceof PerseusParser.VarExprContext) {
                 String varName = ((PerseusParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
-                String varType = currentSymbolTable.get(varName);
+                Type varTypeInfo = lookupVarTypeInfo(varName);
                 activeOutput.append(generateExpr(args.get(0).expr()))
                             .append("invokestatic perseus/io/TextInput/ininteger(I)I\n");
-                if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
+                if (varSlot == null && varTypeInfo != null && !varTypeInfo.isArray() && !varTypeInfo.isProcedure() && !varTypeInfo.isThunk()) {
                     activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                 .append("/").append(varName).append(" I\n");
                 } else if (varSlot == null) {
@@ -1593,10 +1593,10 @@ public class CodeGenerator extends PerseusBaseListener {
             if (varExpr instanceof PerseusParser.VarExprContext) {
                 String varName = ((PerseusParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
-                String varType = currentSymbolTable.get(varName);
+                Type varTypeInfo = lookupVarTypeInfo(varName);
                 activeOutput.append(generateExpr(args.get(0).expr()))
                             .append("invokestatic perseus/io/TextInput/inreal(I)D\n");
-                if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
+                if (varSlot == null && varTypeInfo != null && !varTypeInfo.isArray() && !varTypeInfo.isProcedure() && !varTypeInfo.isThunk()) {
                     activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                 .append("/").append(varName).append(" D\n");
                 } else if (varSlot == null) {
@@ -1612,11 +1612,11 @@ public class CodeGenerator extends PerseusBaseListener {
             if (varExpr instanceof PerseusParser.VarExprContext) {
                 String varName = ((PerseusParser.VarExprContext) varExpr).identifier().getText();
                 Integer varSlot = currentLocalIndex.get(varName);
-                String varType = currentSymbolTable.get(varName);
+                Type varTypeInfo = lookupVarTypeInfo(varName);
                 activeOutput.append(generateExpr(args.get(0).expr()))
                             .append(generateExpr(args.get(1).expr()))
                             .append("invokestatic perseus/io/TextInput/inchar(ILjava/lang/String;)I\n");
-                if (varSlot == null && varType != null && !varType.endsWith("[]") && !varType.startsWith("procedure:") && !varType.startsWith("thunk:")) {
+                if (varSlot == null && varTypeInfo != null && !varTypeInfo.isArray() && !varTypeInfo.isProcedure() && !varTypeInfo.isThunk()) {
                     activeOutput.append("putstatic ").append(packageName).append("/").append(className)
                                 .append("/").append(varName).append(" I\n");
                 } else if (varSlot == null) {
@@ -1634,27 +1634,26 @@ public class CodeGenerator extends PerseusBaseListener {
         } else if ("fault".equals(name)) {
             activeOutput.append(generateExpr(args.get(0).expr()));
             activeOutput.append(generateExpr(args.get(1).expr()));
-            if ("integer".equals(exprTypes.getOrDefault(args.get(1).expr(), "integer"))) {
+            if (Type.INTEGER.equals(exprTypeInfo(args.get(1).expr(), Type.INTEGER))) {
                 activeOutput.append("i2d\n");
             }
             activeOutput.append("invokestatic perseus/runtime/Faults/fault(Ljava/lang/String;D)V\n");
         } else {
             // Check if it's a call through a procedure variable (local or outer scope).
-            String varType = currentSymbolTable.get(name);
-            // Fall back to main scope if not found in current scope
-            if (varType == null && mainSymbolTable != null) varType = mainSymbolTable.get(name);
+            Type varTypeInfo = lookupVarTypeInfo(name);
+            String varType = varTypeInfo != null ? varTypeInfo.toLegacyString() : null;
             SymbolTableBuilder.ProcInfo declaredProc = procedures.get(name);
             boolean preferDirectProcedureCall = declaredProc != null && !"void".equals(declaredProc.returnType);
-            boolean isProcVar = varType != null && varType.startsWith("procedure:")
+            boolean isProcVar = varTypeInfo != null && varTypeInfo.isProcedure()
                     && (currentLocalIndex.containsKey(name) || procVarSlots.containsKey(name));
             if (isProcVar && !preferDirectProcedureCall) {
                 // Call through a procedure variable (local slot or static field)
-                activeOutput.append(generateProcedureVariableCall(name, varType, args));
+                activeOutput.append(generateProcedureVariableCall(name, varTypeInfo, args));
                 // Procedure-variable calls return a value (unless void); in statement position,
                 // the return value should be discarded to keep the stack balanced.
-                String procRet = varType.substring("procedure:".length());
-                if (!"void".equals(procRet)) {
-                    if ("real".equals(procRet)) {
+                Type procRet = varTypeInfo.elementType();
+                if (!Type.VOID.equals(procRet)) {
+                    if (Type.REAL.equals(procRet)) {
                         activeOutput.append("pop2\n");
                     } else {
                         activeOutput.append("pop\n");
@@ -3217,7 +3216,7 @@ public class CodeGenerator extends PerseusBaseListener {
                     Set<String> names = collectVarNames(arg.expr());
                     for (String vn : names) {
                         // If the variable is already a thunk (call-by-name), we don't need to box and restore it.
-                        String vType = lookupVarType(vn);
+                        Type vTypeInfo = lookupVarTypeInfo(vn);
                         String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
                         boolean outerIsCallByNameParam = false;
                         if (outerProc != null) {
@@ -3226,7 +3225,7 @@ public class CodeGenerator extends PerseusBaseListener {
                                 outerIsCallByNameParam = true;
                             }
                         }
-                        boolean isThunkVar = (vType != null && vType.startsWith("thunk:")) || outerIsCallByNameParam;
+                        boolean isThunkVar = (vTypeInfo != null && vTypeInfo.isThunk()) || outerIsCallByNameParam;
                         if (isThunkVar) continue;
 
                         if (varToBoxSlot.containsKey(vn)) continue;
@@ -3239,10 +3238,10 @@ public class CodeGenerator extends PerseusBaseListener {
 
                         sb.append("aload ").append(boxSlot).append("\n");
                         sb.append("iconst_0\n");
-                        if ("real".equals(vType)) {
+                        if (Type.REAL.equals(vTypeInfo)) {
                             sb.append(generateLoadVar(vn));
                             sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
-                        } else if ("string".equals(vType)) {
+                        } else if (Type.STRING.equals(vTypeInfo) || usesObjectStorage(vTypeInfo)) {
                             sb.append(generateLoadVar(vn));
                         } else {
                             sb.append(generateLoadVar(vn));
@@ -3254,11 +3253,11 @@ public class CodeGenerator extends PerseusBaseListener {
                 }
             }
             if (isValue) {
-                if (getFormalBaseType(info, paramName).endsWith("[]")) {
+                if (getFormalBaseTypeInfo(info, paramName).isArray()) {
                     if (arg.expr() instanceof PerseusParser.VarExprContext ve) {
                         String arrayName = ve.identifier().getText();
-                        String actualType = lookupVarType(arrayName);
-                        if (actualType != null && actualType.endsWith("[]")) {
+                        Type actualType = lookupVarTypeInfo(arrayName);
+                        if (actualType != null && actualType.isArray()) {
                             List<int[]> actualBounds = lookupDeclaredArrayBoundPairs(arrayName);
                             if (actualBounds != null && actualBounds.size() > 1) {
                                 sb.append("; ERROR: multidimensional array arguments are not supported for ")
@@ -3277,9 +3276,9 @@ public class CodeGenerator extends PerseusBaseListener {
                 }
                 if (arg.expr() != null) {
                     sb.append(generateExpr(arg.expr()));
-                    String paramType = getFormalBaseType(info, paramName);
-                    String argType = exprTypes.getOrDefault(arg.expr(), "integer");
-                    if (("real".equals(paramType) || "deferred".equals(paramType)) && "integer".equals(argType)) {
+                    Type paramType = getFormalBaseTypeInfo(info, paramName);
+                    Type argType = exprTypeInfo(arg.expr(), Type.INTEGER).unwrapThunk();
+                    if ((Type.REAL.equals(paramType) || Type.DEFERRED.equals(paramType)) && Type.INTEGER.equals(argType)) {
                         sb.append("i2d\n");
                     }
                 } else {
@@ -3289,7 +3288,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 ExprContext actual = arg.expr();
                 if (actual instanceof PerseusParser.VarExprContext ve) {
                     String vn = ve.identifier().getText();
-                    String vType = lookupVarType(vn);
+                    Type vTypeInfo = lookupVarTypeInfo(vn);
                     String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
                     boolean outerIsCallByNameParam = false;
                     if (outerProc != null) {
@@ -3298,7 +3297,7 @@ public class CodeGenerator extends PerseusBaseListener {
                             outerIsCallByNameParam = true;
                         }
                     }
-                    if ((vType != null && vType.startsWith("thunk:")) || outerIsCallByNameParam) {
+                    if ((vTypeInfo != null && vTypeInfo.isThunk()) || outerIsCallByNameParam) {
                         sb.append(generateLoadThunkRef(vn));
                         continue;
                     }
@@ -3333,8 +3332,8 @@ public class CodeGenerator extends PerseusBaseListener {
                                 varToField.put(vnn, fi++);
                             }
                         }
-                        String baseType = getFormalBaseType(info, paramName);
-                        String thunkClass = createThunkClass(varToField, actual, baseType);
+                        Type baseType = getFormalBaseTypeInfo(info, paramName);
+                        String thunkClass = createThunkClass(varToField, actual, baseType.toLegacyString());
                         sb.append("new ").append(thunkClass).append("\n");
                         sb.append("dup\n");
                         for (String vnn : varToField.keySet()) {
@@ -3365,11 +3364,11 @@ public class CodeGenerator extends PerseusBaseListener {
                         varToField.put(vn, fi++);
                     }
                 }
-                String baseType = getFormalBaseType(info, paramName);
-                if ("deferred".equals(baseType)) {
-                    baseType = getExprBaseType(actual);
+                Type baseType = getFormalBaseTypeInfo(info, paramName);
+                if (Type.DEFERRED.equals(baseType)) {
+                    baseType = getExprBaseTypeInfo(actual);
                 }
-                String thunkClass = createThunkClass(varToField, actual, baseType);
+                String thunkClass = createThunkClass(varToField, actual, baseType.toLegacyString());
                 sb.append("new ").append(thunkClass).append("\n");
                 sb.append("dup\n");
                 for (String vn : varToField.keySet()) {
@@ -3390,13 +3389,11 @@ public class CodeGenerator extends PerseusBaseListener {
                 if (!info.valueParams.contains(p)) {
                     return "Lgnb/perseus/compiler/Thunk;";
                 }
-                String type = getFormalBaseType(info, p);
-                if (type.endsWith("[]")) return arrayTypeToJvmDesc(type) + "II";
-                if ("real".equals(type) || "deferred".equals(type)) return "D";
-                if (isObjectType(type)) return CodeGenUtils.getReturnTypeDescriptor(type);
-                if (type.startsWith("procedure:")) {
-                    return getProcedureInterfaceDescriptor(type);
-                }
+                Type type = getFormalBaseTypeInfo(info, p);
+                if (type.isArray()) return arrayTypeToJvmDesc(type) + "II";
+                if (usesRealStorage(type)) return "D";
+                if (type.isProcedure()) return getProcedureInterfaceDescriptor(type);
+                if (usesObjectStorage(type)) return CodeGenUtils.getReturnTypeDescriptor(type);
                 return "I";
             })
             .collect(Collectors.joining());
@@ -3414,11 +3411,11 @@ public class CodeGenerator extends PerseusBaseListener {
             int boxSlot = varToBoxSlot.get(vn);
             Integer varSlot = currentLocalIndex.get(vn);
             if (varSlot == null && mainLocalIndex != null) varSlot = mainLocalIndex.get(vn);
-            String varType = lookupVarType(vn);
+            Type varTypeInfo = lookupVarTypeInfo(vn);
             sb.append("aload ").append(boxSlot).append("\n");
             sb.append("iconst_0\n");
             sb.append("aaload\n");
-            if (varType != null && varType.startsWith("thunk:")) {
+            if (varTypeInfo != null && varTypeInfo.isThunk()) {
                 sb.append("checkcast gnb/perseus/compiler/Thunk\n");
                 String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
                 String targetField = (useEnvBridge(outerProc) && outerProc != null) ? envThunkFieldName(outerProc, vn) : vn;
@@ -3436,7 +3433,7 @@ public class CodeGenerator extends PerseusBaseListener {
                 }
                 continue;
             }
-            if ("real".equals(varType)) {
+            if (Type.REAL.equals(varTypeInfo)) {
                 sb.append("checkcast java/lang/Double\n");
                 sb.append("invokevirtual java/lang/Double/doubleValue()D\n");
                 String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
@@ -3454,7 +3451,7 @@ public class CodeGenerator extends PerseusBaseListener {
                         sb.append("putstatic ").append(packageName).append("/").append(className)
                            .append("/").append(targetField).append(" D\n");
                     }
-            } else if ("string".equals(varType)) {
+            } else if (Type.STRING.equals(varTypeInfo)) {
                 sb.append("checkcast java/lang/String\n");
                 String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
                 String targetField = (useEnvBridge(outerProc) && outerProc != null) ? envThunkFieldName(outerProc, vn) : vn;
@@ -3469,6 +3466,24 @@ public class CodeGenerator extends PerseusBaseListener {
                         // Static scalar
                         sb.append("putstatic ").append(packageName).append("/").append(className)
                            .append("/").append(targetField).append(" Ljava/lang/String;\n");
+                    }
+            } else if (usesObjectStorage(varTypeInfo)) {
+                String desc = typeStoreDescriptor(varTypeInfo);
+                if (desc != null) {
+                    sb.append("checkcast ").append(desc.substring(1, desc.length() - 1)).append("\n");
+                }
+                String outerProc = savedProcNameStack.isEmpty() ? null : savedProcNameStack.peek();
+                String targetField = (useEnvBridge(outerProc) && outerProc != null) ? envThunkFieldName(outerProc, vn) : vn;
+                    if (varSlot != null) {
+                        if (!currentLocalIndex.containsKey(vn)) {
+                            sb.append("putstatic ").append(packageName).append("/").append(className)
+                              .append("/").append(targetField).append(" ").append(desc).append("\n");
+                        } else {
+                            emitStore(sb, "astore", varSlot);
+                        }
+                    } else {
+                        sb.append("putstatic ").append(packageName).append("/").append(className)
+                           .append("/").append(targetField).append(" ").append(desc).append("\n");
                     }
             } else {
                 sb.append("checkcast java/lang/Integer\n");
@@ -4499,6 +4514,22 @@ public class CodeGenerator extends PerseusBaseListener {
         return exprTypeInfo(expr, Type.INTEGER).unwrapThunk();
     }
 
+    private String typeStoreDescriptor(Type type) {
+        if (type == null) {
+            return null;
+        }
+        if (type.isArray()) {
+            return arrayTypeToJvmDesc(type);
+        }
+        if (type.isProcedure()) {
+            return getProcedureInterfaceDescriptor(type);
+        }
+        if (type.isThunk()) {
+            return "Lgnb/perseus/compiler/Thunk;";
+        }
+        return scalarTypeToJvmDesc(type);
+    }
+
     private String dynamicUnboxDeferredValue(String targetType) {
         String doubleLabel = generateUniqueLabel("deferred_double");
         String endLabel = generateUniqueLabel("deferred_end");
@@ -4571,9 +4602,10 @@ public class CodeGenerator extends PerseusBaseListener {
             return "getstatic " + packageName + "/" + className + "/" + envThunkFieldName(outerProc, name)
                 + " Lgnb/perseus/compiler/Thunk;\n";
         }
-        String type = lookupVarType(name);
-        if (type != null && type.startsWith("procedure:")) {
-            String pDesc = getProcedureInterfaceDescriptor(type);
+        Type typeInfo = lookupVarTypeInfo(name);
+        if (typeInfo != null && typeInfo.isProcedure()) {
+            String type = typeInfo.toLegacyString();
+            String pDesc = getProcedureInterfaceDescriptor(typeInfo);
             return "getstatic " + packageName + "/" + className + "/" + staticFieldName(name, type) + " "
                 + pDesc + "\n";
         }
@@ -5463,38 +5495,53 @@ public class CodeGenerator extends PerseusBaseListener {
         return CodeGenUtils.getReturnTypeDescriptor(procType.substring("procedure:".length()));
     }
 
+    private String getProcedureInterfaceInvokeReturnDescriptor(Type procType) {
+        String interfaceDesc = getProcedureInterfaceDescriptor(procType);
+        if ("Lgnb/perseus/compiler/ReferenceProcedure;".equals(interfaceDesc)) {
+            return "Ljava/lang/Object;";
+        }
+        return CodeGenUtils.getReturnTypeDescriptor(procType.elementType());
+    }
+
     /**
      * Generates code to call a procedure through a procedure variable.
      * Delegates to ProcedureGenerator when the variable is stored in a local slot.
      * Falls back to a static field lookup if the variable is stored in the outer scope.
      */
     private String generateProcedureVariableCall(String varName, String varType, List<PerseusParser.ArgContext> args) {
+        return generateProcedureVariableCall(varName, Type.parse(varType), args);
+    }
+
+    private String generateProcedureVariableCall(String varName, Type varType, List<PerseusParser.ArgContext> args) {
         // Prefer calling through a local slot if this procedure variable is stored locally.
         Integer slot = currentLocalIndex.get(varName);
         if (slot != null) {
             // Use local slot (allows procedure-variable parameters and local procedure variables)
-            return procGen.generateProcedureVariableCall(varName, varType, args);
+            return procGen.generateProcedureVariableCall(varName, varType.toLegacyString(), args);
         }
         // Otherwise, the procedure variable is stored in a static field.
         return generateProcedureVariableCallViaStaticField(varName, varType, args);
     }
 
     private String generateProcedureVariableLoad(String varName, String varType) {
-        String returnType = varType.substring("procedure:".length());
+        return generateProcedureVariableLoad(varName, Type.parse(varType));
+    }
+
+    private String generateProcedureVariableLoad(String varName, Type varType) {
         String desc = getProcedureInterfaceDescriptor(varType);
         Integer slot = currentLocalIndex.get(varName);
         if (slot != null) {
             return "aload " + slot + "\n";
         }
         // Fallback to static field if we don't have a local slot
-        return "getstatic " + packageName + "/" + className + "/" + staticFieldName(varName, varType) + " " + desc + "\n";
+        return "getstatic " + packageName + "/" + className + "/" + staticFieldName(varName, varType.toLegacyString()) + " " + desc + "\n";
     }
 
-    private String generateProcedureVariableCallViaStaticField(String varName, String varType, List<PerseusParser.ArgContext> args) {
+    private String generateProcedureVariableCallViaStaticField(String varName, Type varType, List<PerseusParser.ArgContext> args) {
         // Load the procedure reference from the static field instead of a local slot.
         String load = generateProcedureVariableLoad(varName, varType);
         // Build the argument array and invoke the method on the procedure interface.
-        String returnType = varType.substring("procedure:".length());
+        Type returnType = varType.elementType();
         String interfaceName = getProcedureInterfaceDescriptor(varType)
                 .replace("Lgnb/perseus/compiler/", "")
                 .replace(";", "");
@@ -5513,11 +5560,11 @@ public class CodeGenerator extends PerseusBaseListener {
                 PerseusParser.ExprContext argExpr = args.get(i).expr();
 
                 boolean isByName = false;
-                String paramBaseType = "integer";
+                Type paramBaseType = Type.INTEGER;
                 if (targetInfo != null && i < targetInfo.paramNames.size()) {
                     String paramName = targetInfo.paramNames.get(i);
                     isByName = !targetInfo.valueParams.contains(paramName);
-                    paramBaseType = getFormalBaseType(targetInfo, paramName);
+                    paramBaseType = getFormalBaseTypeInfo(targetInfo, paramName);
                 }
 
                 sb.append("dup\n");
@@ -5528,31 +5575,30 @@ public class CodeGenerator extends PerseusBaseListener {
                     // a thunk variable, use it directly; otherwise create a thunk wrapper.
                     if (argExpr instanceof PerseusParser.VarExprContext argVar) {
                         String vn = argVar.identifier().getText();
-                        String vnType = lookupVarType(vn);
-                        if (vnType != null && vnType.startsWith("thunk:")) {
+                        Type vnType = lookupVarTypeInfo(vn);
+                        if (vnType != null && vnType.isThunk()) {
                             sb.append(generateLoadThunkRef(vn));
                         } else {
-                            String thunkType = "deferred".equals(paramBaseType) ? getExprBaseType(argExpr) : paramBaseType;
-                            String thunkClass = createThunkClass(new LinkedHashMap<>(), argExpr, thunkType);
+                            Type thunkType = Type.DEFERRED.equals(paramBaseType) ? getExprBaseTypeInfo(argExpr) : paramBaseType;
+                            String thunkClass = createThunkClass(new LinkedHashMap<>(), argExpr, thunkType.toLegacyString());
                             sb.append("new ").append(thunkClass).append("\n");
                             sb.append("dup\n");
                             sb.append("invokespecial ").append(thunkClass).append("/<init>()V\n");
                         }
                     } else {
-                        String thunkType = "deferred".equals(paramBaseType) ? getExprBaseType(argExpr) : paramBaseType;
-                        String thunkClass = createThunkClass(new LinkedHashMap<>(), argExpr, thunkType);
+                        Type thunkType = Type.DEFERRED.equals(paramBaseType) ? getExprBaseTypeInfo(argExpr) : paramBaseType;
+                        String thunkClass = createThunkClass(new LinkedHashMap<>(), argExpr, thunkType.toLegacyString());
                         sb.append("new ").append(thunkClass).append("\n");
                         sb.append("dup\n");
                         sb.append("invokespecial ").append(thunkClass).append("/<init>()V\n");
                     }
                 } else {
-                    String argType = exprTypes.getOrDefault(argExpr, "integer");
-                    String baseType = argType.startsWith("thunk:") ? argType.substring("thunk:".length()) : argType;
+                    Type baseType = exprTypeInfo(argExpr, Type.INTEGER).unwrapThunk();
                     sb.append(generateExpr(argExpr));
-                    if ("real".equals(baseType)) {
+                    if (Type.REAL.equals(baseType)) {
                         sb.append("invokestatic java/lang/Double/valueOf(D)Ljava/lang/Double;\n");
-                    } else if ("integer".equals(baseType) || "boolean".equals(baseType)) {
-                        sb.append("invokestatic java/lang/Integer.valueOf(I)Ljava/lang/Integer;\n");
+                    } else if (usesIntegerStorage(baseType)) {
+                        sb.append("invokestatic java/lang/Integer/valueOf(I)Ljava/lang/Integer;\n");
                     }
                 }
 
@@ -5565,7 +5611,7 @@ public class CodeGenerator extends PerseusBaseListener {
           .append("/invoke([Ljava/lang/Object;)")
           .append(getProcedureInterfaceInvokeReturnDescriptor(varType))
           .append(" 2\n");
-        if (returnType.startsWith("procedure:")) {
+        if (returnType.isProcedure()) {
             String nestedDesc = getProcedureInterfaceDescriptor(returnType);
             sb.append("checkcast ")
               .append(nestedDesc.substring(1, nestedDesc.length() - 1))
